@@ -1,6 +1,6 @@
 ---
 name: task-manage
-description: 管理和跟踪任务列表的工具集。当需要创建、更新、查询任务列表，或检查任务完成情况时使用。支持通过 tasks.json 文件管理任务状态、类型、描述和详情，自动维护统计信息和 Schema 校验。
+description: 管理和跟踪任务列表的工具集。当需要创建、更新、查询任务列表，或检查任务完成情况时使用。支持通过 tasks.json 文件管理任务状态、类型、描述和详情，自动维护统计信息和 Schema 校验。包含 6 个核心工具：init-task-json（初始化任务列表文件）、add-task（添加新任务，支持指定插入位置）、update-task（更新任务状态和详情）、read-task（读取单个任务详情）、list-tasks（列出任务，支持按状态/类型/可选性过滤）、check-task（检查任务完成情况统计）。所有工具已添加到 PATH，支持不带 .sh 后缀直接调用，自动维护时间戳和统计信息，并在操作后进行 Schema 校验。
 ---
 
 # Task Management Skill
@@ -20,21 +20,23 @@ description: 管理和跟踪任务列表的工具集。当需要创建、更新�
 
 ### 工具脚本位置
 
-所有工具脚本位于 `scripts/tools/` 目录下：
-- `init-task-json.sh` - 初始化任务列表
-- `add-task.sh` - 添加任务
-- `update-task.sh` - 更新任务
-- `read-task.sh` - 读取任务详情
-- `list-tasks.sh` - 列出任务（支持过滤）
-- `check-task.sh` - 检查任务统计
+所有工具脚本位于 `scripts/tools/` 目录下（已经添加到 PATH 环境变量中）：
+- `init-task-json` / `init-task-json.sh` - 初始化任务列表
+- `add-task` / `add-task.sh` - 添加任务
+- `update-task` / `update-task.sh` - 更新任务
+- `read-task` / `read-task.sh` - 读取任务详情
+- `list-tasks` / `list-tasks.sh` - 列出任务（支持过滤）
+- `check-task` / `check-task.sh` - 检查任务统计
+
+**注意**：所有脚本都提供了不带 `.sh` 后缀的符号链接，两种调用方式都可以使用。
 
 ### 使用步骤
 
-1. **初始化任务列表**：使用 `init-task-json.sh` 创建新的 tasks.json 文件
-2. **添加任务**：使用 `add-task.sh` 添加新任务
-3. **查看任务**：使用 `list-tasks.sh` 或 `read-task.sh` 查看任务
-4. **更新任务**：使用 `update-task.sh` 更新任务状态和详情
-5. **检查进度**：使用 `check-task.sh` 查看完成情况统计
+1. **初始化任务列表**：使用 `init-task-json` 创建新的 tasks.json 文件
+2. **添加任务**：使用 `add-task` 添加新任务
+3. **查看任务**：使用 `list-tasks` 或 `read-task` 查看任务
+4. **更新任务**：使用 `update-task` 更新任务状态和详情
+5. **检查进度**：使用 `check-task` 查看完成情况统计
 
 ### 重要注意事项
 
@@ -45,20 +47,20 @@ description: 管理和跟踪任务列表的工具集。当需要创建、更新�
 
 ## 工具列表
 
-1. **init-task-json.sh** - 初始化新的 tasks.json 文件
-2. **add-task.sh** - 向 tasks.json 添加新任务
-3. **update-task.sh** - 更新 tasks.json 中的现有任务
-4. **read-task.sh** - 读取指定任务的详情
-5. **list-tasks.sh** - 列出任务列表（支持过滤）
-6. **check-task.sh** - 检查任务完成情况统计
+1. **init-task-json** - 初始化新的 tasks.json 文件
+2. **add-task** - 向 tasks.json 添加新任务
+3. **update-task** - 更新 tasks.json 中的现有任务
+4. **read-task** - 读取指定任务的详情
+5. **list-tasks** - 列出任务列表（支持过滤）
+6. **check-task** - 检查任务完成情况统计
 
 所有工具自动更新 `updated_at`（中国时区 UTC+8）和 `summary` 统计，并在操作后进行 Schema 校验。
 
-## 1. init-task-json.sh
+## 1. init-task-json
 
 **用法：**
 ```bash
-scripts/tools/init-task-json.sh <tasks_json_path> <agent_task_id> [agent_name]
+init-task-json <tasks_json_path> <agent_task_id> [agent_name]
 ```
 
 **参数：**
@@ -70,14 +72,14 @@ scripts/tools/init-task-json.sh <tasks_json_path> <agent_task_id> [agent_name]
 
 **示例：**
 ```bash
-scripts/tools/init-task-json.sh ./tasks.json "project-audit-001" "security-auditor"
+init-task-json ./tasks.json "project-audit-001" "security-auditor"
 ```
 
-## 2. add-task.sh
+## 2. add-task
 
 **用法：**
 ```bash
-scripts/tools/add-task.sh <tasks_json_path> <task_id> <task_type> <description> [--optional]
+add-task <tasks_json_path> <task_id> <task_type> <description> [--optional] [--before <task_id>]
 ```
 
 **参数：**
@@ -86,23 +88,37 @@ scripts/tools/add-task.sh <tasks_json_path> <task_id> <task_type> <description> 
 - `task_type`（必需）：任务类型（如 "asset_discovery", "code_scan", "vulnerability_scan"）
 - `description`（必需）：任务描述，不能为空
 - `--optional`（可选）：标记任务为可选
+- `--before <task_id>`（可选）：指定新任务必须在此任务之前完成（用于控制插入顺序）
+  - 如果指定，新任务将插入到指定任务之前
+  - 如果未指定，新任务将追加到任务列表末尾
+  - 指定的任务 ID 必须已存在于 tasks.json 中
 
 **说明：**
 - 新添加的任务默认状态为 `pending`
 - 任务详情 `detail` 默认为空对象 `{}`
-- 使用 `update-task.sh` 可以更新任务状态和详情
+- 使用 `update-task` 可以更新任务状态和详情
+- `--before` 选项仅用于控制任务的插入顺序，不会在 tasks.json 中保存此信息
 
 **示例：**
 ```bash
-scripts/tools/add-task.sh ./tasks.json "task-001" "asset_discovery" "识别资产位置"
-scripts/tools/add-task.sh ./tasks.json "task-002" "code_scan" "扫描代码中的安全漏洞" --optional
+# 添加任务到末尾（默认行为）
+add-task ./tasks.json "task-001" "asset_discovery" "识别资产位置"
+
+# 添加可选任务
+add-task ./tasks.json "task-002" "code_scan" "扫描代码中的安全漏洞" --optional
+
+# 添加任务到指定任务之前
+add-task ./tasks.json "task-003" "vulnerability_scan" "执行漏洞扫描" --before "task-002"
+
+# 组合使用：添加可选任务并指定插入位置
+add-task ./tasks.json "task-004" "report_generation" "生成报告" --optional --before "task-002"
 ```
 
-## 3. update-task.sh
+## 3. update-task
 
 **用法：**
 ```bash
-scripts/tools/update-task.sh <tasks_json_path> <task_id> --status <status> [--description <description>] [--detail <json>] [--optional <true|false>]
+update-task <tasks_json_path> <task_id> --status <status> [--description <description>] [--detail <json>] [--optional <true|false>]
 ```
 
 **参数：**
@@ -116,20 +132,20 @@ scripts/tools/update-task.sh <tasks_json_path> <task_id> --status <status> [--de
 **示例：**
 ```bash
 # 更新为 completed（需要 description 和 detail）
-scripts/tools/update-task.sh ./tasks.json "task-001" --status "completed" --description "任务已完成" --detail '{"result": "success"}'
+update-task ./tasks.json "task-001" --status "completed" --description "任务已完成" --detail '{"result": "success"}'
 # 更新为 failed（需要 description，detail 可选）
-scripts/tools/update-task.sh ./tasks.json "task-002" --status "failed" --description "任务执行失败：原因说明"
+update-task ./tasks.json "task-002" --status "failed" --description "任务执行失败：原因说明"
 # 更新为其他状态（description 和 detail 可选）
-scripts/tools/update-task.sh ./tasks.json "task-003" --status "in_progress"
+update-task ./tasks.json "task-003" --status "in_progress"
 # 同时更新多个字段
-scripts/tools/update-task.sh ./tasks.json "task-004" --status "completed" --description "已完成" --detail '{"files": 100, "issues": 5}'
+update-task ./tasks.json "task-004" --status "completed" --description "已完成" --detail '{"files": 100, "issues": 5}'
 ```
 
-## 4. read-task.sh
+## 4. read-task
 
 **用法：**
 ```bash
-scripts/tools/read-task.sh <tasks_json_path> <task_id> [--format <json|pretty>]
+read-task <tasks_json_path> <task_id> [--format <json|pretty>]
 ```
 
 **参数：**
@@ -145,16 +161,16 @@ scripts/tools/read-task.sh <tasks_json_path> <task_id> [--format <json|pretty>]
 **示例：**
 ```bash
 # 以可读格式查看任务详情
-scripts/tools/read-task.sh ./tasks.json "task-001"
+read-task ./tasks.json "task-001"
 # 以 JSON 格式查看任务详情
-scripts/tools/read-task.sh ./tasks.json "task-001" --format json
+read-task ./tasks.json "task-001" --format json
 ```
 
-## 5. list-tasks.sh
+## 5. list-tasks
 
 **用法：**
 ```bash
-scripts/tools/list-tasks.sh <tasks_json_path> [--format <json|pretty>] [--status <status>] [--type <type>] [--optional] [--required]
+list-tasks <tasks_json_path> [--format <json|pretty>] [--status <status>] [--type <type>] [--optional] [--required]
 ```
 
 **参数：**
@@ -176,28 +192,28 @@ scripts/tools/list-tasks.sh <tasks_json_path> [--format <json|pretty>] [--status
 **示例：**
 ```bash
 # 列出所有任务
-scripts/tools/list-tasks.sh ./tasks.json
+list-tasks ./tasks.json
 # 列出所有已完成的任务
-scripts/tools/list-tasks.sh ./tasks.json --status completed
+list-tasks ./tasks.json --status completed
 # 列出所有待处理的任务
-scripts/tools/list-tasks.sh ./tasks.json --status pending
+list-tasks ./tasks.json --status pending
 # 列出特定类型的任务
-scripts/tools/list-tasks.sh ./tasks.json --type asset_discovery
+list-tasks ./tasks.json --type asset_discovery
 # 列出所有可选任务
-scripts/tools/list-tasks.sh ./tasks.json --optional
+list-tasks ./tasks.json --optional
 # 列出所有必需任务
-scripts/tools/list-tasks.sh ./tasks.json --required
+list-tasks ./tasks.json --required
 # 组合过滤：列出已完成且类型为 code_scan 的任务
-scripts/tools/list-tasks.sh ./tasks.json --status completed --type code_scan
+list-tasks ./tasks.json --status completed --type code_scan
 # 以 JSON 格式输出
-scripts/tools/list-tasks.sh ./tasks.json --format json
+list-tasks ./tasks.json --format json
 ```
 
-## 6. check-task.sh
+## 6. check-task
 
 **用法：**
 ```bash
-scripts/tools/check-task.sh <tasks_json_path> [--show-pending] [--show-failed]
+check-task <tasks_json_path> [--show-pending] [--show-failed]
 ```
 
 **参数：**
@@ -215,13 +231,13 @@ scripts/tools/check-task.sh <tasks_json_path> [--show-pending] [--show-failed]
 **示例：**
 ```bash
 # 查看任务完成情况统计
-scripts/tools/check-task.sh ./tasks.json
+check-task ./tasks.json
 # 查看统计并显示待处理任务列表
-scripts/tools/check-task.sh ./tasks.json --show-pending
+check-task ./tasks.json --show-pending
 # 查看统计并显示失败任务列表
-scripts/tools/check-task.sh ./tasks.json --show-failed
+check-task ./tasks.json --show-failed
 # 同时显示待处理和失败任务
-scripts/tools/check-task.sh ./tasks.json --show-pending --show-failed
+check-task ./tasks.json --show-pending --show-failed
 ```
 
 ## 重要说明
@@ -238,105 +254,108 @@ scripts/tools/check-task.sh ./tasks.json --show-pending --show-failed
 
 ```bash
 # 初始化任务列表
-scripts/tools/init-task-json.sh ./tasks.json "project-001" "security-auditor"
+init-task-json ./tasks.json "project-001" "security-auditor"
 
 # 添加多个任务
-scripts/tools/add-task.sh ./tasks.json "task-001" "asset_discovery" "识别资产位置"
-scripts/tools/add-task.sh ./tasks.json "task-002" "code_scan" "扫描代码中的安全漏洞"
-scripts/tools/add-task.sh ./tasks.json "task-003" "vulnerability_scan" "执行漏洞扫描" --optional
+add-task ./tasks.json "task-001" "asset_discovery" "识别资产位置"
+add-task ./tasks.json "task-002" "code_scan" "扫描代码中的安全漏洞"
+# 使用 --before 控制任务顺序：task-003 将在 task-002 之前
+add-task ./tasks.json "task-003" "vulnerability_scan" "执行漏洞扫描" --before "task-002" --optional
 
 # 查看所有任务
-scripts/tools/list-tasks.sh ./tasks.json
+list-tasks ./tasks.json
 ```
 
 ### 示例 2：更新任务状态
 
 ```bash
 # 将任务标记为进行中
-scripts/tools/update-task.sh ./tasks.json "task-001" --status "in_progress"
+update-task ./tasks.json "task-001" --status "in_progress"
 
 # 完成任务并添加详情
-scripts/tools/update-task.sh ./tasks.json "task-001" --status "completed" \
+update-task ./tasks.json "task-001" --status "completed" \
   --description "资产识别已完成" \
   --detail '{"config_files": 5, "databases": 3, "secrets": 10}'
 
 # 查看任务详情
-scripts/tools/read-task.sh ./tasks.json "task-001"
+read-task ./tasks.json "task-001"
 ```
 
 ### 示例 3：查询和过滤任务
 
 ```bash
 # 查看所有待处理的任务
-scripts/tools/list-tasks.sh ./tasks.json --status pending
+list-tasks ./tasks.json --status pending
 
 # 查看所有已完成的任务
-scripts/tools/list-tasks.sh ./tasks.json --status completed
+list-tasks ./tasks.json --status completed
 
 # 查看特定类型的任务
-scripts/tools/list-tasks.sh ./tasks.json --type code_scan
+list-tasks ./tasks.json --type code_scan
 
 # 组合查询：已完成且类型为 asset_discovery 的任务
-scripts/tools/list-tasks.sh ./tasks.json --status completed --type asset_discovery
+list-tasks ./tasks.json --status completed --type asset_discovery
 ```
 
 ### 示例 4：检查任务完成情况
 
 ```bash
 # 查看任务统计
-scripts/tools/check-task.sh ./tasks.json
+check-task ./tasks.json
 
 # 查看统计并显示待处理任务
-scripts/tools/check-task.sh ./tasks.json --show-pending
+check-task ./tasks.json --show-pending
 
 # 查看统计并显示失败任务
-scripts/tools/check-task.sh ./tasks.json --show-failed
+check-task ./tasks.json --show-failed
 ```
 
 ### 示例 5：完整工作流程
 
 ```bash
 # 1. 初始化任务列表
-scripts/tools/init-task-json.sh ./tasks.json "project-001" "agent-name"
+init-task-json ./tasks.json "project-001" "agent-name"
 
-# 2. 添加任务
-scripts/tools/add-task.sh ./tasks.json "task-001" "asset_discovery" "识别资产位置"
-scripts/tools/add-task.sh ./tasks.json "task-002" "code_scan" "扫描代码漏洞"
+# 2. 添加任务（可以指定插入顺序）
+add-task ./tasks.json "task-001" "asset_discovery" "识别资产位置"
+add-task ./tasks.json "task-002" "code_scan" "扫描代码漏洞"
+# 在 task-002 之前插入新任务
+add-task ./tasks.json "task-003" "preparation" "准备工作" --before "task-002"
 
 # 3. 查看任务列表
-scripts/tools/list-tasks.sh ./tasks.json
+list-tasks ./tasks.json
 
 # 4. 开始执行任务
-scripts/tools/update-task.sh ./tasks.json "task-001" --status "in_progress"
+update-task ./tasks.json "task-001" --status "in_progress"
 
 # 5. 完成任务
-scripts/tools/update-task.sh ./tasks.json "task-001" --status "completed" \
+update-task ./tasks.json "task-001" --status "completed" \
   --description "任务已完成" \
   --detail '{"result": "success", "files": 100}'
 
 # 6. 检查完成情况
-scripts/tools/check-task.sh ./tasks.json --show-pending
+check-task ./tasks.json --show-pending
 ```
 
 ## 工作流程
 
 ```bash
 # 1. 初始化
-scripts/tools/init-task-json.sh ./tasks.json "project-001" "agent-name"
+init-task-json ./tasks.json "project-001" "agent-name"
 
 # 2. 添加任务
-scripts/tools/add-task.sh ./tasks.json "task-001" "type" "描述"
+add-task ./tasks.json "task-001" "type" "描述"
 
 # 3. 查看任务列表
-scripts/tools/list-tasks.sh ./tasks.json
+list-tasks ./tasks.json
 
 # 4. 查看任务详情
-scripts/tools/read-task.sh ./tasks.json "task-001"
+read-task ./tasks.json "task-001"
 
 # 5. 更新任务
-scripts/tools/update-task.sh ./tasks.json "task-001" --status "completed" --description "任务已完成" --detail '{"result": "success"}'
+update-task ./tasks.json "task-001" --status "completed" --description "任务已完成" --detail '{"result": "success"}'
 
 # 6. 检查任务完成情况
-scripts/tools/check-task.sh ./tasks.json --show-pending
+check-task ./tasks.json --show-pending
 ```
 

@@ -277,9 +277,9 @@ validate_tasks_json() {
     if command -v python3 &> /dev/null; then
         if [ -f "$validator_script" ]; then
             python3 "$validator_script" "$json_file" "$schema_file" 2>&1
-            local validation_result=$?
-            if [ $validation_result -ne 0 ]; then
-                return $validation_result
+        local validation_result=$?
+        if [ $validation_result -ne 0 ]; then
+            return $validation_result
             fi
         else
             echo "警告: 验证脚本不存在: $validator_script，跳过校验" >&2

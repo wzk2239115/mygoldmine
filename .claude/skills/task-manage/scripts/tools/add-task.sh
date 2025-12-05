@@ -3,7 +3,7 @@
 # 添加任务到 tasks.json
 #
 # 用法：
-#   add-task.sh <tasks_json_path> <task_id> <task_type> <description> [--optional]
+#   add-task.sh <tasks_json_path> <task_id> <task_type> <description> [--optional] [--before <task_id>]
 #
 # 参数：
 #   tasks_json_path: tasks.json 文件的路径（必需）
@@ -11,13 +11,14 @@
 #   task_type: 任务类型（必需，如 "asset_discovery"）
 #   description: 任务描述（必需）
 #   --optional: 标记任务为可选
+#   --before <task_id>: 指定新任务必须在此任务之前完成（用于控制插入顺序）
 
 set -euo pipefail
 
 # 检查参数
 if [ $# -lt 4 ]; then
     echo "错误: 缺少必需参数" >&2
-    echo "用法: $(basename "$0") <tasks_json_path> <task_id> <task_type> <description> [--optional]" >&2
+    echo "用法: $(basename "$0") <tasks_json_path> <task_id> <task_type> <description> [--optional] [--before <task_id>]" >&2
     exit 1
 fi
 
@@ -37,6 +38,7 @@ fi
 STATUS="pending"
 OPTIONAL=false
 DETAIL="{}"
+BEFORE_TASK_ID=""
 
 # 解析可选参数
 while [[ $# -gt 0 ]]; do
@@ -44,6 +46,14 @@ while [[ $# -gt 0 ]]; do
         --optional)
             OPTIONAL=true
             shift
+            ;;
+        --before)
+            if [ $# -lt 2 ]; then
+                echo "错误: --before 选项需要指定任务 ID" >&2
+                exit 1
+            fi
+            BEFORE_TASK_ID="$2"
+            shift 2
             ;;
         *)
             echo "错误: 未知参数: $1" >&2
@@ -72,6 +82,14 @@ if jq -e --arg id "$TASK_ID" '.tasks[] | select(.id == $id)' "$TASKS_JSON_PATH" 
     exit 1
 fi
 
+# 如果指定了 --before，检查目标任务是否存在
+if [ -n "$BEFORE_TASK_ID" ]; then
+    if ! jq -e --arg id "$BEFORE_TASK_ID" '.tasks[] | select(.id == $id)' "$TASKS_JSON_PATH" > /dev/null 2>&1; then
+        echo "错误: --before 指定的任务 ID 不存在: $BEFORE_TASK_ID" >&2
+        exit 1
+    fi
+fi
+
 # 更新 updated_at（使用中国时区 UTC+8）
 CURRENT_TIME="$(TZ='Asia/Shanghai' date +"%Y-%m-%dT%H:%M:%S%z" | sed 's/\([0-9][0-9]\)$/:\1/')"
 
@@ -94,11 +112,25 @@ NEW_TASK=$(jq -n \
 
 # 添加任务到 tasks 数组
 TEMP_FILE=$(mktemp)
-jq \
-    --argjson new_task "$NEW_TASK" \
-    --arg updated_at "$CURRENT_TIME" \
-    '.tasks += [$new_task] | .updated_at = $updated_at' \
-    "$TASKS_JSON_PATH" > "$TEMP_FILE"
+if [ -n "$BEFORE_TASK_ID" ]; then
+    # 如果指定了 --before，插入到指定任务之前
+    # 使用 reduce 来构建新数组，在遇到目标任务时先插入新任务
+    jq \
+        --argjson new_task "$NEW_TASK" \
+        --arg before_id "$BEFORE_TASK_ID" \
+        --arg updated_at "$CURRENT_TIME" \
+        '.tasks = (.tasks | reduce .[] as $item ([]; 
+            if $item.id == $before_id then . + [$new_task, $item] else . + [$item] end
+        )) | .updated_at = $updated_at' \
+        "$TASKS_JSON_PATH" > "$TEMP_FILE"
+else
+    # 否则追加到末尾
+    jq \
+        --argjson new_task "$NEW_TASK" \
+        --arg updated_at "$CURRENT_TIME" \
+        '.tasks += [$new_task] | .updated_at = $updated_at' \
+        "$TASKS_JSON_PATH" > "$TEMP_FILE"
+fi
 
 # 更新 summary
 jq \
@@ -128,9 +160,9 @@ validate_tasks_json() {
     if command -v python3 &> /dev/null; then
         if [ -f "$validator_script" ]; then
             python3 "$validator_script" "$json_file" "$schema_file" 2>&1
-            local validation_result=$?
-            if [ $validation_result -ne 0 ]; then
-                return $validation_result
+        local validation_result=$?
+        if [ $validation_result -ne 0 ]; then
+            return $validation_result
             fi
         else
             echo "警告: 验证脚本不存在: $validator_script，跳过校验" >&2
@@ -151,5 +183,8 @@ echo "  - 类型: $TASK_TYPE"
 echo "  - 状态: $STATUS"
 echo "  - 描述: $DESCRIPTION"
 echo "  - 可选: $OPTIONAL"
+if [ -n "$BEFORE_TASK_ID" ]; then
+    echo "  - 插入位置: 在任务 $BEFORE_TASK_ID 之前"
+fi
 echo "✓ Schema 校验通过"
 
