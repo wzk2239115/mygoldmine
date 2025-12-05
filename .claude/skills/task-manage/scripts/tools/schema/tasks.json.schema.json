@@ -17,9 +17,11 @@
       "type": "string",
       "description": "Agent name that owns this task list",
       "examples": [
-        "security-auditor",
-        "code-reviewer",
-        "penetration-tester"
+        "security-orchestrator",
+        "project-profiler",
+        "threat-modeler",
+        "general-scanner",
+        "report-generator"
       ]
     },
     "agent_task_id": {
@@ -135,11 +137,18 @@
           "type": "string",
           "description": "Type of the task",
           "examples": [
+            "load_skill",
+            "load_previous_results",
+            "plan_scan_tasks",
+            "execute_scan_tasks",
+            "generate_scan_results",
             "asset_discovery",
             "code_scan",
             "vulnerability_scan",
-            "penetration_test",
-            "compliance_check"
+            "code_statistics",
+            "tech_stack_detection",
+            "endpoint_discovery",
+            "result_output"
           ]
         },
         "status": {
