@@ -1,6 +1,6 @@
 ---
 name: task-manage
-description: 管理和跟踪任务列表的工具集。当需要创建、更新、查询任务列表，或检查任务完成情况时使用。支持通过 tasks.json 文件管理任务状态、类型、描述和详情，自动维护统计信息和 Schema 校验。包含 6 个核心工具：init-task-json（初始化任务列表文件）、add-task（添加新任务，支持指定插入位置）、update-task（更新任务状态和详情）、read-task（读取单个任务详情）、list-tasks（列出任务，支持按状态/类型/可选性过滤）、check-task（检查任务完成情况统计）。所有工具已添加到 PATH，支持不带 .sh 后缀直接调用，自动维护时间戳和统计信息，并在操作后进行 Schema 校验。
+description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪和管理多步骤工作流的任务列表。提供 6 个 CLI 工具：init-task-json、add-task、update-task、read-task、list-tasks、check-task。支持任务状态流转（pending→in_progress→completed/failed）、按条件过滤查询、完成情况统计。适用于需要持久化任务状态的复杂工作流场景。
 ---
 
 # Task Management Skill
