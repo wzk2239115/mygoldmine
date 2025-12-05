@@ -11,7 +11,7 @@ description: |
 
   输出：
   - .workspace/results/{TASK_ID}-results.json：任务扫描结果
-  - .workspace/findings/BUG-XXX漏洞-xxx模块（可选）-xxx文件-xxx行（到xxx行,可选）.json 
+  - .workspace/findings/BUG-XXX漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.json 
   
   核心价值：
   - 基于威胁建模结果进行漏洞扫描，确保扫描的针对性和有效性
@@ -146,7 +146,7 @@ list-tasks .workspace/tasks/{TASK_ID}-tasks.json --status "pending"
 
 2. 依次执行每一个扫描任务，并在分析结束后，更新任务状态为 "completed"，并记录执行结果
 
-如果发现了安全问题，必须先将问题记录到.workspace/findings/BUG-XXX漏洞-xxx模块（可选）-xxx文件-xxx行（到xxx行,可选）.json中
+如果发现了安全问题，必须先将问题记录到.workspace/findings/BUG-XXX漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.json中
 
 ```json
 {
@@ -208,7 +208,7 @@ list-tasks .workspace/tasks/{TASK_ID}-tasks.json --status "pending"
 然后更新任务状态为 "completed"，并记录执行结果
 ```bash
 # 有漏洞发现
-update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed" --detail '{"result": "success", "findings": "发现漏洞，结果已保存到.workspace/findings/BUG-XXX漏洞-xxx模块-xxx文件-xxx行（到xxx行,可选）.json中"}'
+update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed" --detail '{"result": "success", "findings": "发现漏洞，结果已保存到.workspace/findings/BUG-XXX漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.json中"}'
 
 # 没有漏洞发现
 update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed" --detail '{"result": "success", "findings": "任务已完成，没有发现漏洞"}'

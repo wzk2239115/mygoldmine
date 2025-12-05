@@ -105,8 +105,7 @@ threat-modeler (威胁建模)                                      │
       │ - Target endpoints/files                              │
       │                                                       │
       ▼                                                       │
-threat-modeler-results.json                                   │
-threat-modeler-risk-list.json ─────────────────────────┐      │
+threat-modeler-results.json   ─────────────────────────┐      │
       │                                                │      │
       │ Contains:                                      │      │
       │                                                │      │

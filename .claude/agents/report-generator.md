@@ -20,7 +20,7 @@ tools: Read, Write, Edit, Bash
 - `project-profiler-results.json` - 项目信息和上下文
 - `threat-modeler-results.json` - 威胁建模结果
 - `{TASK_ID}-tasks.json` - 任务列表
-- `BUG-xxx漏洞-xxx模块（可选）-xxx文件-xxx行（到xxx行,可选）.json` - 漏洞发现列表
+- `BUG-xxx漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.json` - 漏洞发现列表
 - `{TASK_ID}-results.json` - 扫描结果列表
 
 ## 输出文件
@@ -116,7 +116,7 @@ Read(".workspace/results/{TASK_ID}-results.json")
 List Directory(".workspace/findings")
 
 # 读取所有漏洞报告
-Read("BUG-XXX漏洞-xxx模块（可选）-xxx文件-xxx行（到xxx行,可选）.json")
+Read("BUG-XXX漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.json")
 ```
 
 ### 任务 4: 生成json报告audit-report.json (task-004)
