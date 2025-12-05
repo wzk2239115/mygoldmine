@@ -104,14 +104,14 @@ if [ -z "$UPDATE_STATUS" ]; then
     exit 1
 fi
 
-# 检查：当状态为 completed 或 failed 时，description 为必填
-if [[ "$UPDATE_STATUS" == "completed" ]] || [[ "$UPDATE_STATUS" == "failed" ]]; then
-    if [ -z "$UPDATE_DESCRIPTION" ]; then
-        echo "错误: 当任务状态为 'completed' 或 'failed' 时，--description 是必需参数" >&2
-        echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status $UPDATE_STATUS --description <description> [--detail <json>] [--optional <true|false>]" >&2
-        exit 1
-    fi
-fi
+# # 检查：当状态为 completed 或 failed 时，description 为必填
+# if [[ "$UPDATE_STATUS" == "completed" ]] || [[ "$UPDATE_STATUS" == "failed" ]]; then
+#     if [ -z "$UPDATE_DESCRIPTION" ]; then
+#         echo "错误: 当任务状态为 'completed' 或 'failed' 时，--description 是必需参数" >&2
+#         echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status $UPDATE_STATUS --description <description> [--detail <json>] [--optional <true|false>]" >&2
+#         exit 1
+#     fi
+# fi
 
 # 检查：当状态为 completed 时，detail 为必填
 if [[ "$UPDATE_STATUS" == "completed" ]]; then
