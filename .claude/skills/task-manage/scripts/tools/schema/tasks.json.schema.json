@@ -1,0 +1,199 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Vul-AI-V2/schema/tasks.json.schema.json",
+  "title": "Tasks JSON Schema",
+  "description": "Schema for tasks.json file used to track agent tasks and their status",
+  "type": "object",
+  "required": [
+    "agent",
+    "agent_task_id",
+    "created_at",
+    "updated_at",
+    "tasks",
+    "summary"
+  ],
+  "properties": {
+    "agent": {
+      "type": "string",
+      "description": "Agent name that owns this task list",
+      "examples": [
+        "security-auditor",
+        "code-reviewer",
+        "penetration-tester"
+      ]
+    },
+    "agent_task_id": {
+      "type": "string",
+      "description": "Unique identifier for this task list, used to distinguish different task lists created by the same agent",
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "minLength": 1,
+      "examples": [
+        "project-audit-001",
+        "code-review-20240101",
+        "security-scan-v1",
+        "task-list-abc123"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the task list was created (China timezone UTC+8)",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$",
+      "examples": [
+        "2024-01-01T08:00:00+08:00",
+        "2024-12-31T23:59:59+08:00"
+      ]
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the task list was last updated (China timezone UTC+8)",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$",
+      "examples": [
+        "2024-01-01T08:00:00+08:00",
+        "2024-12-31T23:59:59+08:00"
+      ]
+    },
+    "tasks": {
+      "type": "array",
+      "description": "Array of task objects",
+      "items": {
+        "$ref": "#/definitions/task"
+      },
+      "default": []
+    },
+    "summary": {
+      "type": "object",
+      "description": "Summary statistics of tasks",
+      "required": [
+        "total_tasks",
+        "completed",
+        "in_progress",
+        "pending",
+        "failed"
+      ],
+      "properties": {
+        "total_tasks": {
+          "type": "integer",
+          "description": "Total number of tasks",
+          "minimum": 0,
+          "default": 0
+        },
+        "completed": {
+          "type": "integer",
+          "description": "Number of completed tasks",
+          "minimum": 0,
+          "default": 0
+        },
+        "in_progress": {
+          "type": "integer",
+          "description": "Number of tasks in progress",
+          "minimum": 0,
+          "default": 0
+        },
+        "pending": {
+          "type": "integer",
+          "description": "Number of pending tasks",
+          "minimum": 0,
+          "default": 0
+        },
+        "failed": {
+          "type": "integer",
+          "description": "Number of failed tasks",
+          "minimum": 0,
+          "default": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "task": {
+      "type": "object",
+      "description": "A single task object",
+      "required": [
+        "id",
+        "type",
+        "status",
+        "description",
+        "optional",
+        "detail"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique task identifier",
+          "pattern": "^[a-zA-Z0-9_-]+$",
+          "examples": [
+            "task-001",
+            "task-002",
+            "asset_discovery_001"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of the task",
+          "examples": [
+            "asset_discovery",
+            "code_scan",
+            "vulnerability_scan",
+            "penetration_test",
+            "compliance_check"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the task",
+          "enum": [
+            "pending",
+            "in_progress",
+            "completed",
+            "failed"
+          ],
+          "default": "pending"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the task",
+          "minLength": 1,
+          "examples": [
+            "识别资产位置（配置、密钥、数据库）",
+            "扫描代码中的安全漏洞",
+            "执行渗透测试"
+          ]
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "Whether this task is optional",
+          "default": false
+        },
+        "detail": {
+          "type": "object",
+          "description": "Additional details about the task, structure depends on task type",
+          "additionalProperties": true,
+          "examples": [
+            {
+              "config_files_count": 1,
+              "database_connections_count": 13,
+              "secret_locations_count": 99,
+              "key_findings": [
+                "数据库凭据文件: sql-connections/db-creds.inc",
+                "包含明文密码字段的 SQL 查询",
+                "多个数据库连接点使用 mysql_connect/mysqli_connect"
+              ]
+            },
+            {
+              "files_scanned": 100,
+              "issues_found": 5,
+              "severity_high": 2,
+              "severity_medium": 3
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
+
