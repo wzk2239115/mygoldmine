@@ -11,7 +11,7 @@ description: |
 
   输出：
   - .workspace/results/{TASK_ID}-results.json：任务扫描结果
-  - .workspace/findings/BUG-XXX漏洞-xxx模块-xxx文件---xxx行（到xxx行,可选）.json 
+  - .workspace/findings/BUG-XXX漏洞-xxx模块（可选）-xxx文件-xxx行（到xxx行,可选）.json 
   
   核心价值：
   - 基于威胁建模结果进行漏洞扫描，确保扫描的针对性和有效性
@@ -48,6 +48,11 @@ mkdir -p .workspace/tasks,results,findings
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
 init-task-json .workspace/tasks/{TASK_ID}-tasks.json general-scanner
   --tasks '[
+    {
+      "id": "task-000",
+      "type": "load_skill",
+      "description": "加载指定Skill为后续任务做准备"
+    },
     {
       "id": "task-001",
       "type": "load_previous_results",
@@ -99,6 +104,14 @@ update-task .workspace/tasks/{TASK_ID}-tasks.json "task-001" --status "in_progre
 update-task .workspace/tasks/{TASK_ID}-tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
+### 任务 0: 加载指定Skill为后续任务做准备 (task-000)
+
+```
+Skill("{SKILL_NAME}")
+```
+
+**重要：如果加载失败，说明该SKILL不存在，立即将所有任务状态更新为 "failed"，并返回错误信息。**
+
 ### 任务 1: 读取项目画像和威胁建模结果 (task-001)
 
 加载项目画像和威胁建模结果文件(.workspace/results/project-profiler-results.json和.workspace/results/threat-modeler-results.json)
@@ -133,7 +146,7 @@ list-tasks .workspace/tasks/{TASK_ID}-tasks.json --status "pending"
 
 2. 依次执行每一个扫描任务，并在分析结束后，更新任务状态为 "completed"，并记录执行结果
 
-如果发现了安全问题，必须先将问题记录到.workspace/findings/BUG-XXX漏洞-xxx模块-xxx文件---xxx行（到xxx行,可选）.json中
+如果发现了安全问题，必须先将问题记录到.workspace/findings/BUG-XXX漏洞-xxx模块（可选）-xxx文件-xxx行（到xxx行,可选）.json中
 
 ```json
 {
@@ -195,7 +208,7 @@ list-tasks .workspace/tasks/{TASK_ID}-tasks.json --status "pending"
 然后更新任务状态为 "completed"，并记录执行结果
 ```bash
 # 有漏洞发现
-update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed" --detail '{"result": "success", "findings": "发现漏洞，结果已保存到.workspace/findings/BUG-XXX漏洞-xxx模块-xxx文件---xxx行（到xxx行,可选）.json中"}'
+update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed" --detail '{"result": "success", "findings": "发现漏洞，结果已保存到.workspace/findings/BUG-XXX漏洞-xxx模块-xxx文件-xxx行（到xxx行,可选）.json中"}'
 
 # 没有漏洞发现
 update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed" --detail '{"result": "success", "findings": "任务已完成，没有发现漏洞"}'
