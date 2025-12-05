@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "beforePrompt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CURSOR_PROJECT_DIR/.cursor/hooks/skill-activation-prompt.sh"
+          }
+        ]
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CURSOR_PROJECT_DIR/.cursor/hooks/post-tool-use-tracker.sh"
+          }
+        ]
+      }
+    ],
+    "stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CURSOR_PROJECT_DIR/.cursor/hooks/post-tool-use-tracker.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+
