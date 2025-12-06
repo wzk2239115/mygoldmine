@@ -56,27 +56,27 @@ mkdir -p .workspace/{tasks,results,findings,shared}
 init-task-json .workspace/tasks/{TASK_ID}-tasks.json {TASK_ID} general-scanner
   --tasks '[
     {
-      "id": "task-000",
+      "id": "subagent-task-000",
       "type": "load_skill",
       "description": "加载指定Skill为后续任务做准备"
     },
     {
-      "id": "task-001",
+      "id": "subagent-task-001",
       "type": "load_previous_results",
       "description": "读取项目画像和威胁建模结果"
     },
     {
-      "id": "task-002",
+      "id": "subagent-task-002",
       "type": "plan_scan_tasks",
       "description": "规划扫描任务（每一个风险点一个扫描任务）"
     },
     {
-      "id": "task-003",
+      "id": "subagent-task-003",
       "type": "execute_scan_tasks",
       "description": "执行扫描任务"
     },
     {
-      "id": "task-004",
+      "id": "subagent-task-004",
       "type": "generate_scan_results",
       "description": "生成扫描结果"
     }
@@ -95,12 +95,12 @@ list-tasks .workspace/tasks/{TASK_ID}-tasks.json
 
 **任务开始前，必须调用read-task读取任务状态**
 ```bash
-read-task .workspace/tasks/{TASK_ID}-tasks.json "task-001"
+read-task .workspace/tasks/{TASK_ID}-tasks.json "subagent-task-001"
 ```
 
 **如果任务状态为 "pending" 或者 "failed"（中断恢复），调用update-task更新任务状态为 "in_progress"，并继续执行任务**
 ```bash
-update-task .workspace/tasks/{TASK_ID}-tasks.json "task-001" --status "in_progress"
+update-task .workspace/tasks/{TASK_ID}-tasks.json "subagent-task-001" --status "in_progress"
 ```
 
 **如果任务状态为 "completed"，任务已完成，跳过执行**
@@ -108,10 +108,10 @@ update-task .workspace/tasks/{TASK_ID}-tasks.json "task-001" --status "in_progre
 
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/{TASK_ID}-tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
+update-task .workspace/tasks/{TASK_ID}-tasks.json "subagent-task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
-### 任务 0: 加载指定Skill为后续任务做准备 (task-000)
+### 任务 0: 加载指定Skill为后续任务做准备 (subagent-task-000)
 
 **规则（重要！）**：
 - ✅ **只能加载指定的SKILL**：必须且仅能加载 `{SKILL_NAME}` 参数指定的SKILL，禁止加载任何其他SKILL
@@ -134,7 +134,7 @@ for task_id in $(jq -r '.tasks[].id' .workspace/tasks/{TASK_ID}-tasks.json); do
 done
 ```
 
-### 任务 1: 读取项目画像和威胁建模结果 (task-001)
+### 任务 1: 读取项目画像和威胁建模结果 (subagent-task-001)
 
 加载项目画像和威胁建模结果文件(.workspace/results/project-profiler-results.json和.workspace/results/threat-modeler-results.json)
 
@@ -218,12 +218,12 @@ if [ ! -f "{SHARED_DATA_PATH}" ]; then
 fi
 ```
 
-### 任务 2: 规划扫描任务 (task-002)
+### 任务 2: 规划扫描任务 (subagent-task-002)
 
 结合threat-modeler-results.json中的风险点，同时结合SKILL的指导，定位所有潜在风险点。
 
 规则：
-- 新增扫描子任务编号从 `task-010` 起递增（010, 011, ...），统一插入在 `task-004`（生成结果）之前。
+- 新增扫描子任务编号从 `subagent-task-010` 起递增（010, 011, ...），统一插入在 `subagent-task-004`（生成结果）之前。
 - 递增逻辑：在添加前读取现有任务，若已存在同名 ID，则继续递增到未占用的下一个编号（例如已有 010/011，则使用 012，再添加 013...）。
 - 去重策略：同一风险点/文件/行号不重复添加；发现重复时跳过并在 detail 中记录原因。
 - **如果提供了SCAN_SCOPE，只规划范围内的风险点**：根据SCAN_SCOPE中的目录或模块过滤风险点。
@@ -259,7 +259,7 @@ fi
 ```bash
 # 如果提供了SCAN_SCOPE，使用jq过滤风险点
 # 如果提供了SHARED_DATA_PATH，排除已扫描的文件
-add-task .workspace/tasks/{TASK_ID}-tasks.json "task-010" "plan_scan_tasks" "扫描xxx文件，xxx行到xxx行，可能存在XXX问题，相关文件有xxx, xxx" --before "task-004"
+add-task .workspace/tasks/{TASK_ID}-tasks.json "subagent-task-010" "plan_scan_tasks" "扫描xxx文件，xxx行到xxx行，可能存在XXX问题，相关文件有xxx, xxx" --before "subagent-task-004"
 ```
 
 **方式2：使用 add-tasks 批量添加**（推荐，适合多个任务）：
@@ -270,8 +270,8 @@ add-tasks .workspace/tasks/{TASK_ID}-tasks.json .workspace/temp/scan-tasks.json
 
 # 或者直接使用JSON字符串
 add-tasks .workspace/tasks/{TASK_ID}-tasks.json --json '[
-  {"id":"task-010","type":"plan_scan_tasks","description":"扫描xxx文件，xxx行到xxx行，可能存在XXX问题","before":"task-004"},
-  {"id":"task-011","type":"plan_scan_tasks","description":"扫描yyy文件，yyy行到yyy行，可能存在YYY问题","before":"task-004"}
+  {"id":"subagent-task-010","type":"plan_scan_tasks","description":"扫描xxx文件，xxx行到xxx行，可能存在XXX问题","before":"subagent-task-004"},
+  {"id":"subagent-task-011","type":"plan_scan_tasks","description":"扫描yyy文件，yyy行到yyy行，可能存在YYY问题","before":"subagent-task-004"}
 ]'
 ```
 
@@ -283,12 +283,12 @@ add-tasks .workspace/tasks/{TASK_ID}-tasks.json --json '[
 ```bash
 # 批量添加多个风险点任务
 add-tasks .workspace/tasks/{TASK_ID}-tasks.json --json '[
-  {"id":"task-011","type":"plan_scan_tasks","description":"扫描xxx文件，xxx行到xxx行，可能存在XXX问题","before":"task-004"},
-  {"id":"task-012","type":"plan_scan_tasks","description":"扫描yyy文件，yyy行到yyy行，可能存在YYY问题","before":"task-004"}
+  {"id":"subagent-task-011","type":"plan_scan_tasks","description":"扫描xxx文件，xxx行到xxx行，可能存在XXX问题","before":"subagent-task-004"},
+  {"id":"subagent-task-012","type":"plan_scan_tasks","description":"扫描yyy文件，yyy行到yyy行，可能存在YYY问题","before":"subagent-task-004"}
 ]'
 ```
 
-### 任务 3: 执行扫描任务 (task-003)
+### 任务 3: 执行扫描任务 (subagent-task-003)
 
 1. 读取{TASK_ID}-tasks.json中待执行的扫描任务，并执行扫描任务
 ```bash
@@ -377,13 +377,13 @@ list-tasks .workspace/tasks/{TASK_ID}-tasks.json --status "pending"
 然后更新任务状态为 "completed"，并记录执行结果
 ```bash
 # 有漏洞发现
-update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed" --detail '{"result": "success", "findings": "发现漏洞，结果已保存到.workspace/findings/BUG-XXX漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.json中"}'
+update-task .workspace/tasks/{TASK_ID}-tasks.json "subagent-task-003" --status "completed" --detail '{"result": "success", "findings": "发现漏洞，结果已保存到.workspace/findings/BUG-XXX漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.json中"}'
 
 # 没有漏洞发现
-update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed" --detail '{"result": "success", "findings": "任务已完成，没有发现漏洞"}'
+update-task .workspace/tasks/{TASK_ID}-tasks.json "subagent-task-003" --status "completed" --detail '{"result": "success", "findings": "任务已完成，没有发现漏洞"}'
 ```
 
-### 任务 4: 生成扫描结果 (task-004)
+### 任务 4: 生成扫描结果 (subagent-task-004)
 
 **生成最终扫描结果**：
 - 汇总本任务发现的所有漏洞

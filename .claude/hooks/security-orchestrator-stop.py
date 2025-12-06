@@ -41,6 +41,8 @@ class TaskChecker:
         self.agent_issues: List[str] = []
         self.artifact_issues: List[str] = []
         self.task_file_count = 0
+        # 用于按 agent_task_id 分组存储 general-scanner 的数据
+        self.general_scanner_groups: Dict[str, Dict[str, Any]] = {}
 
     def log_message(self, message: str):
         """记录日志"""
@@ -121,22 +123,37 @@ class TaskChecker:
     def process_general_task(self, task_file: Path, data: Dict[str, Any]) -> bool:
         """处理通用智能体任务"""
         agent_name = data.get('agent', 'unknown')
+        agent_task_id = data.get('agent_task_id', 'unknown')
+        
+        # 对于 general-scanner，如果 agent_task_id 无效（为空或等于 agent_name），从文件名提取
+        if agent_name == "general-scanner":
+            if not agent_task_id or agent_task_id == agent_name or agent_task_id == 'unknown':
+                # 从文件名提取 agent_task_id，格式：{agent_task_id}-tasks.json
+                file_stem = task_file.stem  # 获取不带扩展名的文件名
+                if file_stem.endswith('-tasks'):
+                    extracted_id = file_stem[:-6]  # 移除 '-tasks' 后缀
+                    if extracted_id:
+                        agent_task_id = extracted_id
+                        self.log_message(f"从文件名提取 agent_task_id: {agent_task_id}")
 
         if 'tasks' not in data:
             return False
 
         tasks = data.get('tasks', [])
-        incomplete_tasks = []
+        pending_count = 0
+        in_progress_count = 0
 
         for task in tasks:
             if isinstance(task, dict):
                 status = task.get('status', '')
-                if status not in ['completed', 'failed']:
-                    incomplete_tasks.append(task)
+                if status == 'pending':
+                    pending_count += 1
+                elif status == 'in_progress':
+                    in_progress_count += 1
 
-        if incomplete_tasks:
-            incomplete_count = len(incomplete_tasks)
-            self.log_message(f"智能体 '{agent_name}' 发现未完成任务: {incomplete_count} 个")
+        if pending_count > 0 or in_progress_count > 0:
+            total_incomplete = pending_count + in_progress_count
+            self.log_message(f"智能体 '{agent_name}' 发现未完成任务: {total_incomplete} 个 (pending: {pending_count}, in_progress: {in_progress_count})")
             self.has_issues = True
 
             # 确定智能体类型用于显示
@@ -155,17 +172,32 @@ class TaskChecker:
 
             self.log_message(f"智能体类型: {agent_name} ({agent_type})")
 
-            # 获取未完成任务详情
-            task_details = []
-            for task in incomplete_tasks:
-                description = task.get('description') or task.get('type') or task.get('id', 'unknown')
-                status = task.get('status', 'unknown')
-                task_details.append(f"  - {description} ({status})")
-
-            self.agent_issues.append(f"【{agent_name} ({agent_type})】")
-            self.agent_issues.append("未完成任务:")
-            self.agent_issues.extend(task_details)
-            self.agent_issues.append("")
+            # 只记录统计信息，不显示任务详情
+            status_parts = []
+            if pending_count > 0:
+                status_parts.append(f"待处理: {pending_count}")
+            if in_progress_count > 0:
+                status_parts.append(f"进行中: {in_progress_count}")
+            
+            status_summary = " | ".join(status_parts) if status_parts else "未知状态"
+            
+            # 对于 general-scanner，按 agent_task_id 分组存储
+            if agent_name == "general-scanner":
+                if agent_task_id not in self.general_scanner_groups:
+                    self.general_scanner_groups[agent_task_id] = {
+                        'agent_type': agent_type,
+                        'pending_count': 0,
+                        'in_progress_count': 0,
+                        'total_incomplete': 0
+                    }
+                self.general_scanner_groups[agent_task_id]['pending_count'] += pending_count
+                self.general_scanner_groups[agent_task_id]['in_progress_count'] += in_progress_count
+                self.general_scanner_groups[agent_task_id]['total_incomplete'] += total_incomplete
+            else:
+                # 其他智能体直接添加到 agent_issues
+                self.agent_issues.append(f"【{agent_name} ({agent_type})】")
+                self.agent_issues.append(f"未完成任务: {total_incomplete} 个 ({status_summary})")
+                self.agent_issues.append("")
 
         return True
 
@@ -174,9 +206,15 @@ class TaskChecker:
         if not ARTIFACT_CHECK_ENABLED:
             return
 
+        agent_name = data.get('agent', 'unknown')
+        
+        # general-scanner 不检查产物
+        if agent_name == "general-scanner":
+            self.log_message(f"general-scanner 不检查产物，跳过")
+            return
+
         self.log_message("开始产物完整性检查")
 
-        agent_name = data.get('agent', 'unknown')
         agent_task_id = data.get('agent_task_id', None)
         
         # 检查所有 tasks 是否都完成
@@ -201,6 +239,7 @@ class TaskChecker:
             if not self.check_artifact_completeness(task_file, agent_name, artifact_path):
                 self.has_issues = True
 
+                # 其他智能体的产物问题直接添加到 artifact_issues
                 self.artifact_issues.append(f"【产物缺失】Agent: {agent_name}")
                 self.artifact_issues.append(f"  预期产物: {artifact_path}")
                 self.artifact_issues.append("")
@@ -268,11 +307,25 @@ class TaskChecker:
         print("⚠️  审计任务未完成，无法退出")
         print("━" * 55 + "\n")
 
-        # 显示智能体问题
+        # 显示 general-scanner 的分组信息
+        if self.general_scanner_groups:
+            agent_type = "通用扫描智能体"
+            print(f"【general-scanner ({agent_type})】")
+            for agent_task_id, group_data in sorted(self.general_scanner_groups.items()):
+                status_parts = []
+                if group_data['pending_count'] > 0:
+                    status_parts.append(f"待处理: {group_data['pending_count']}")
+                if group_data['in_progress_count'] > 0:
+                    status_parts.append(f"进行中: {group_data['in_progress_count']}")
+                status_summary = " | ".join(status_parts) if status_parts else "未知状态"
+                print(f"  任务ID: {agent_task_id} - {group_data['total_incomplete']} 个未完成任务 ({status_summary})")
+            print()
+
+        # 显示其他智能体问题
         if self.agent_issues:
             print("\n".join(self.agent_issues))
 
-        # 显示产物问题
+        # 显示其他智能体的产物问题（general-scanner 不检查产物）
         if self.artifact_issues:
             print("━" * 55)
             print("📁 产物完整性检查结果")

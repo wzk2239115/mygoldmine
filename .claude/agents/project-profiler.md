@@ -147,29 +147,29 @@ mkdir -p .workspace/{tasks,results,cache/project-profiler}
 init-task-json .workspace/tasks/project-profiler-tasks.json default project-profiler
   --tasks '[
     {
-      "id": "task-001",
+      "id": "subagent-task-001",
       "type": "code_statistics",
       "description": "收集代码统计信息，包括文件数量、代码行数等"
     },
     {
-      "id": "task-002",
+      "id": "subagent-task-002",
       "type": "tech_stack_detection",
       "description": "检测技术栈，包括语言、框架、数据库等"
     },
     {
-      "id": "task-003",
+      "id": "subagent-task-003",
       "type": "endpoint_discovery",
       "description": "发现所有 API 端点和路由",
       "optional": true
     },
     {
-      "id": "task-004",
+      "id": "subagent-task-004",
       "type": "asset_discovery",
       "description": "识别重要资产位置（配置、密钥、数据库）",
       "optional": true
     },
     {
-      "id": "task-005",
+      "id": "subagent-task-005",
       "type": "result_output",
       "description": "输出分析结果到 .workspace/results/project-profiler-results.json"
     }
@@ -188,12 +188,12 @@ list-tasks .workspace/tasks/project-profiler-tasks.json
 
 **任务开始前，必须调用read-task读取任务状态**
 ```bash
-read-task .workspace/tasks/project-profiler-tasks.json "task-001"
+read-task .workspace/tasks/project-profiler-tasks.json "subagent-task-001"
 ```
 
 **如果任务状态为 "pending" 或者 "failed"（中断恢复），调用update-task更新任务状态为 "in_progress"，并继续执行任务**
 ```bash
-update-task .workspace/tasks/project-profiler-tasks.json "task-001" --status "in_progress"
+update-task .workspace/tasks/project-profiler-tasks.json "subagent-task-001" --status "in_progress"
 ```
 
 **如果任务状态为 "completed"，任务已完成，跳过执行**
@@ -201,10 +201,10 @@ update-task .workspace/tasks/project-profiler-tasks.json "task-001" --status "in
 
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/project-profiler-tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
+update-task .workspace/tasks/project-profiler-tasks.json "subagent-task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
-### 1. 收集代码统计信息，包括文件数量、代码行数等 (task-001)
+### 1. 收集代码统计信息，包括文件数量、代码行数等 (subagent-task-001)
 
 ```bash
 # 执行以下命令收集信息
@@ -221,7 +221,7 @@ cloc . --exclude-dir=node_modules,dist,build,vendor,.git
 - 缓存文件格式：包含 `code_statistics` 字段的JSON对象
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
-### 2. 检测技术栈，包括语言、框架、数据库等 (task-002)
+### 2. 检测技术栈，包括语言、框架、数据库等 (subagent-task-002)
 
 #### 2.1 检测技术栈
 
@@ -287,7 +287,7 @@ cloc . --exclude-dir=node_modules,dist,build,vendor,.git
 
 ---
 
-### 3. 发现 API 端点和路由 (task-003)
+### 3. 发现 API 端点和路由 (subagent-task-003)
 
 #### 3.1 路由注册函数发现
 
@@ -426,7 +426,7 @@ Gorilla Mux 模式:
 
 ---
 
-### 4. 识别重要资产位置 (task-004)
+### 4. 识别重要资产位置 (subagent-task-004)
 
 #### 4.1 配置文件发现
 
@@ -479,7 +479,7 @@ AWS_*, AZURE_*, GCP_*
 - 缓存文件格式：包含 `assets` 字段的JSON对象
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
-### 5. 输出分析结果到 .workspace/results/project-profiler-results.json (task-005)
+### 5. 输出分析结果到 .workspace/results/project-profiler-results.json (subagent-task-005)
 
 **生成流程**：从缓存加载所有中间结果，合并后统一输出到 `.workspace/results/project-profiler-results.json`
 
@@ -493,10 +493,10 @@ Read(".workspace/cache/project-profiler/task-004-assets.json")     # 如果存�
 ```
 
 **步骤2：合并所有中间结果**：
-- 合并 `code_statistics`（来自task-001）
-- 合并 `tech_stack`（来自task-002）
-- 合并 `endpoints`（来自task-003，如果存在）
-- 合并 `assets`（来自task-004，如果存在）
+- 合并 `code_statistics`（来自subagent-task-001）
+- 合并 `tech_stack`（来自subagent-task-002）
+- 合并 `endpoints`（来自subagent-task-003，如果存在）
+- 合并 `assets`（来自subagent-task-004，如果存在）
 - 添加 `generated_at`、`project_root` 等元数据字段
 - 计算统计信息（`statistics`字段）
 

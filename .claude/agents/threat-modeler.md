@@ -97,27 +97,27 @@ mkdir -p .workspace/{tasks,results,cache/threat-modeler}
 init-task-json .workspace/tasks/threat-modeler-tasks.json default threat-modeler
   --tasks '[
     {
-      "id": "task-001",
+      "id": "subagent-task-001",
       "type": "load_project_profiler_results",
       "description": "读取项目画像结果"
     },
     {
-      "id": "task-002",
+      "id": "subagent-task-002",
       "type": "endpoint_threat_mapping",
       "description": "功能点威胁建模：构建功能点威胁图谱"
     },
     {
-      "id": "task-003",
+      "id": "subagent-task-003",
       "type": "component_threat_mapping",
       "description": "组件威胁建模：构建组件威胁图谱"
     },
     {
-      "id": "task-004",
+      "id": "subagent-task-004",
       "type": "architecture_threat_mapping",
       "description": "架构威胁建模：构建架构威胁图谱"
     },
     {
-      "id": "task-005",
+      "id": "subagent-task-005",
       "type": "generate_threat_modeler_results",
       "description": "生成威胁建模结果"
     }
@@ -136,12 +136,12 @@ list-tasks .workspace/tasks/threat-modeler-tasks.json
 
 **任务开始前，必须调用read-task读取任务状态**
 ```bash
-read-task .workspace/tasks/threat-modeler-tasks.json "task-001"
+read-task .workspace/tasks/threat-modeler-tasks.json "subagent-task-001"
 ```
 
 **如果任务状态为 "pending" 或者 "failed"（中断恢复），调用update-task更新任务状态为 "in_progress"，并继续执行任务**
 ```bash
-update-task .workspace/tasks/threat-modeler-tasks.json "task-001" --status "in_progress"
+update-task .workspace/tasks/threat-modeler-tasks.json "subagent-task-001" --status "in_progress"
 ```
 
 **如果任务状态为 "completed"，任务已完成，跳过执行**
@@ -149,10 +149,10 @@ update-task .workspace/tasks/threat-modeler-tasks.json "task-001" --status "in_p
 
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/threat-modeler-tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
+update-task .workspace/tasks/threat-modeler-tasks.json "subagent-task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
-### 任务 1: 读取项目画像结果 (task-001)
+### 任务 1: 读取项目画像结果 (subagent-task-001)
 
 加载项目画像文件(.workspace/results/project-profiler-results.json)
 
@@ -176,7 +176,7 @@ Read(".workspace/results/project-profiler-results.json")
 - 如果需要更详细的资产位置信息，可以加载 `task-004-assets.json`
 - 如果最终结果文件已包含所需信息，则无需加载缓存文件
 
-### 任务 2: 功能点威胁建模 (task-002)
+### 任务 2: 功能点威胁建模 (subagent-task-002)
 
 对每个功能端点，基于其**路径特征**、**方法**、**参数**推理可能的威胁。
 
@@ -277,7 +277,7 @@ Read(".workspace/results/project-profiler-results.json")
 - 缓存文件格式：包含 `endpoints` 数组（每个端点包含 `threats` 字段）的JSON对象
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
-### 任务 3: 组件威胁建模 (task-003)
+### 任务 3: 组件威胁建模 (subagent-task-003)
 
 基于工程画像中的资产信息，映射组件级威胁。
 
@@ -328,7 +328,7 @@ Read(".workspace/results/project-profiler-results.json")
 
 ---
 
-### 任务 4: 架构威胁建模 (task-004)
+### 任务 4: 架构威胁建模 (subagent-task-004)
 
 基于技术架构模式，推理架构级威胁。
 
@@ -359,7 +359,7 @@ Read(".workspace/results/project-profiler-results.json")
 - 缓存文件格式：包含 `architecture` 对象（包含 `threats` 字段）的JSON对象
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
-### 任务 5: 生成威胁风险清单 (task-005)
+### 任务 5: 生成威胁风险清单 (subagent-task-005)
 
 **生成流程**：从缓存加载所有中间结果，合并后生成最终的威胁建模结果
 
@@ -372,9 +372,9 @@ Read(".workspace/cache/threat-modeler/task-004-architecture-threats.json")
 ```
 
 **步骤2：合并所有中间结果并生成风险清单**：
-- 合并 `endpoints`（来自task-002）
-- 合并 `components`（来自task-003）
-- 合并 `architecture`（来自task-004）
+- 合并 `endpoints`（来自subagent-task-002）
+- 合并 `components`（来自subagent-task-003）
+- 合并 `architecture`（来自subagent-task-004）
 - 生成 `risks` 数组：将所有威胁转换为风险点格式
 - 为每个风险点添加 `module` 和 `directory` 字段
 - 生成 `scanner_selection`：根据威胁类型推荐扫描器

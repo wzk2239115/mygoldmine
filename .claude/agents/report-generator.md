@@ -45,27 +45,27 @@ mkdir -p .workspace/reports
 init-task-json .workspace/tasks/report-generator-tasks.json default report-generator
   --tasks '[
     {
-      "id": "task-001",
+      "id": "subagent-task-001",
       "type": "load_basic_analysis_results",
       "description": "读取项目画像和威胁建模结果"
     },
     {
-      "id": "task-002",
+      "id": "subagent-task-002",
       "type": "load_general_scanner_results",
       "description": "读取漏洞扫描结果列表"
     },
     {
-      "id": "task-003",
+      "id": "subagent-task-003",
       "type": "load_findings_results",
       "description": "读取漏洞发现列表"
     },
     {
-      "id": "task-004",
+      "id": "subagent-task-004",
       "type": "generate_json_report",
       "description": "生成json报告audit-report.json"
     },
     {
-      "id": "task-005",
+      "id": "subagent-task-005",
       "type": "generate_markdown_report",
       "description": "生成markdown报告audit-report.md"
     }
@@ -84,12 +84,12 @@ list-tasks .workspace/tasks/report-generator-tasks.json
 
 **任务开始前，必须调用read-task读取任务状态**
 ```bash
-read-task .workspace/tasks/report-generator-tasks.json "task-001"
+read-task .workspace/tasks/report-generator-tasks.json "subagent-task-001"
 ```
 
 **如果任务状态为 "pending" 或者 "failed"（中断恢复），调用update-task更新任务状态为 "in_progress"，并继续执行任务**
 ```bash
-update-task .workspace/tasks/report-generator-tasks.json "task-001" --status "in_progress"
+update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --status "in_progress"
 ```
 
 **如果任务状态为 "completed"，任务已完成，跳过执行**
@@ -97,17 +97,17 @@ update-task .workspace/tasks/report-generator-tasks.json "task-001" --status "in
 
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/report-generator-tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
+update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
-### 任务 1: 读取项目画像和威胁建模结果 (task-001)
+### 任务 1: 读取项目画像和威胁建模结果 (subagent-task-001)
 
 ```bash
 Read(".workspace/results/project-profiler-results.json")
 Read(".workspace/results/threat-modeler-results.json")
 ```
 
-### 任务 2: 读取漏洞扫描结果列表 (task-002)
+### 任务 2: 读取漏洞扫描结果列表 (subagent-task-002)
 
 ```bash
 # 遍历所有扫描结果
@@ -127,14 +127,14 @@ find .workspace/shared -maxdepth 1 -type f -name "*-shared.json" -print -exec Re
 - 去重规则：相同文件+相同行号+相同漏洞类型 = 相同漏洞
 - 如果多个任务报告了相同的漏洞，只保留一个（优先保留最早发现的或严重程度最高的）
 
-### 任务 3: 读取漏洞发现列表 (task-003)
+### 任务 3: 读取漏洞发现列表 (subagent-task-003)
 
 ```bash
 # 列出并读取所有漏洞报告
 find .workspace/findings -maxdepth 1 -type f -name "BUG-*.json" -print -exec Read "{}" \;
 ```
 
-### 任务 4: 生成json报告audit-report.json (task-004)
+### 任务 4: 生成json报告audit-report.json (subagent-task-004)
 
 ```json
 {
@@ -205,7 +205,7 @@ find .workspace/findings -maxdepth 1 -type f -name "BUG-*.json" -print -exec Rea
 }
 ```
 
-### 任务 5: 生成markdown报告audit-report.md (task-005)
+### 任务 5: 生成markdown报告audit-report.md (subagent-task-005)
 
 ## Markdown 报告结构
 
