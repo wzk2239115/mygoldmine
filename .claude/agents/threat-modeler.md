@@ -170,73 +170,73 @@ Read(".workspace/results/project-profiler-results.json")
 ##### 认证类端点
 | 路径特征 | 可能威胁 | 优先级 | 关联 Skill |
 |---------|---------|--------|-----------|
-| `/login`, `/signin`, `/auth` | 暴力破解、认证绕过、用户枚举、SQLi、凭据泄露 | P0 | auth-bypass-agent |
-| `/logout`, `/signout` | 会话固定、注销失效 | P2 | session-agent |
-| `/register`, `/signup` | 批量注册、用户枚举、弱密码 | P1 | auth-bypass-agent |
-| `/password/reset`, `/forgot` | 密码重置漏洞、令牌预测、用户枚举 | P0 | auth-bypass-agent |
-| `/oauth`, `/callback` | OAuth 劫持、CSRF、开放重定向 | P1 | oauth-agent |
-| `/token`, `/refresh` | Token 泄露、JWT 弱点 | P0 | jwt-agent |
-| `/mfa`, `/2fa`, `/otp` | MFA 绕过、OTP 爆破 | P1 | mfa-agent |
+| `/login`, `/signin`, `/auth` | 暴力破解、认证绕过、用户枚举、SQLi、凭据泄露 | P0 | auth-bypass-scanner, sql-injection-scanner |
+| `/logout`, `/signout` | 会话固定、注销失效 | P2 | auth-bypass-scanner |
+| `/register`, `/signup` | 批量注册、用户枚举、弱密码 | P1 | auth-bypass-scanner |
+| `/password/reset`, `/forgot` | 密码重置漏洞、令牌预测、用户枚举 | P0 | auth-bypass-scanner |
+| `/oauth`, `/callback` | OAuth 劫持、CSRF、开放重定向 | P1 | auth-bypass-scanner |
+| `/token`, `/refresh` | Token 泄露、JWT 弱点 | P0 | auth-bypass-scanner |
+| `/mfa`, `/2fa`, `/otp` | MFA 绕过、OTP 爆破 | P1 | auth-bypass-scanner |
 
 ##### 文件操作类端点
 | 路径特征 | 可能威胁 | 优先级 | 关联 Skill |
 |---------|---------|--------|-----------|
-| `/upload`, `/file/upload` | 任意文件上传、目录穿越、XSS via SVG、RCE | P0 | file-upload-agent |
-| `/download`, `/file/download` | 任意文件下载、路径穿越、敏感文件泄露 | P0 | path-traversal-agent |
-| `/export`, `/backup` | 敏感数据导出、未授权访问 | P1 | idor-agent |
-| `/import` | 恶意文件导入、XXE、反序列化 | P0 | xxe-agent |
-| `/image`, `/avatar`, `/media` | 图片马、SSRF（图片URL）、XSS | P1 | file-upload-agent |
+| `/upload`, `/file/upload` | 任意文件上传、目录穿越、XSS via SVG、RCE | P0 | path-traversal-scanner, sensitive-info-scanner |
+| `/download`, `/file/download` | 任意文件下载、路径穿越、敏感文件泄露 | P0 | path-traversal-scanner |
+| `/export`, `/backup` | 敏感数据导出、未授权访问 | P1 | sensitive-info-scanner |
+| `/import` | 恶意文件导入、XXE、反序列化 | P0 | xxe-scanner, deserialization-scanner |
+| `/image`, `/avatar`, `/media` | 图片马、SSRF（图片URL）、XSS | P1 | path-traversal-scanner, ssrf-scanner |
 
 ##### 数据操作类端点
 | 路径特征 | 可能威胁 | 优先级 | 关联 Skill |
 |---------|---------|--------|-----------|
-| `/search`, `/query` | SQLi、NoSQLi、信息泄露 | P0 | sqli-agent |
-| `/list`, `/get`, `/view` | IDOR、未授权访问、信息泄露 | P1 | idor-agent |
-| `/create`, `/add`, `/new` | 批量创建、权限绕过、注入 | P1 | idor-agent |
-| `/update`, `/edit`, `/modify` | IDOR、批量赋值、权限绕过 | P1 | mass-assignment-agent |
-| `/delete`, `/remove` | IDOR、未授权删除、批量删除 | P0 | idor-agent |
-| `/admin/*` | 未授权访问、权限提升 | P0 | access-control-agent |
+| `/search`, `/query` | SQLi、NoSQLi、信息泄露 | P0 | sql-injection-scanner |
+| `/list`, `/get`, `/view` | IDOR、未授权访问、信息泄露 | P1 | auth-bypass-scanner |
+| `/create`, `/add`, `/new` | 批量创建、权限绕过、注入 | P1 | auth-bypass-scanner, sql-injection-scanner |
+| `/update`, `/edit`, `/modify` | IDOR、批量赋值、权限绕过 | P1 | auth-bypass-scanner |
+| `/delete`, `/remove` | IDOR、未授权删除、批量删除 | P0 | auth-bypass-scanner |
+| `/admin/*` | 未授权访问、权限提升 | P0 | auth-bypass-scanner |
 
 ##### 网络/代理类端点
 | 路径特征 | 可能威胁 | 优先级 | 关联 Skill |
 |---------|---------|--------|-----------|
-| `/proxy`, `/fetch`, `/curl` | SSRF、本地文件读取、内网扫描 | P0 | ssrf-agent |
-| `/redirect`, `/goto`, `/url` | 开放重定向、钓鱼 | P1 | open-redirect-agent |
-| `/webhook`, `/callback` | SSRF、请求伪造 | P1 | ssrf-agent |
-| `/api/external` | SSRF、数据泄露 | P1 | ssrf-agent |
+| `/proxy`, `/fetch`, `/curl` | SSRF、本地文件读取、内网扫描 | P0 | ssrf-scanner |
+| `/redirect`, `/goto`, `/url` | 开放重定向、钓鱼 | P1 | ssrf-scanner |
+| `/webhook`, `/callback` | SSRF、请求伪造 | P1 | ssrf-scanner |
+| `/api/external` | SSRF、数据泄露 | P1 | ssrf-scanner |
 
 ##### 模板/渲染类端点
 | 路径特征 | 可能威胁 | 优先级 | 关联 Skill |
 |---------|---------|--------|-----------|
-| `/render`, `/template`, `/preview` | SSTI、XSS | P0 | ssti-agent |
-| `/pdf`, `/report/generate` | SSTI、SSRF、XXE | P1 | ssti-agent |
-| `/email/send`, `/notify` | 邮件注入、SSTI | P1 | injection-agent |
+| `/render`, `/template`, `/preview` | SSTI、XSS | P0 | code-injection-scanner |
+| `/pdf`, `/report/generate` | SSTI、SSRF、XXE | P1 | code-injection-scanner, ssrf-scanner, xxe-scanner |
+| `/email/send`, `/notify` | 邮件注入、SSTI | P1 | code-injection-scanner |
 
 ##### 序列化/数据处理类端点
 | 路径特征 | 可能威胁 | 优先级 | 关联 Skill |
 |---------|---------|--------|-----------|
-| `/deserialize`, `/unmarshal` | 反序列化 RCE | P0 | deserialization-agent |
-| `/xml`, `/soap` | XXE、SOAP 注入 | P0 | xxe-agent |
-| `/graphql` | GraphQL 注入、信息泄露、DoS | P1 | graphql-agent |
+| `/deserialize`, `/unmarshal` | 反序列化 RCE | P0 | deserialization-scanner |
+| `/xml`, `/soap` | XXE、SOAP 注入 | P0 | xxe-scanner |
+| `/graphql` | GraphQL 注入、信息泄露、DoS | P1 | sql-injection-scanner |
 
 ##### 执行/命令类端点
 | 路径特征 | 可能威胁 | 优先级 | 关联 Skill |
 |---------|---------|--------|-----------|
-| `/exec`, `/run`, `/execute` | 命令注入、RCE | P0 | cmdi-agent |
-| `/eval`, `/script` | 代码注入、RCE | P0 | code-injection-agent |
-| `/shell`, `/terminal`, `/console` | 命令注入、未授权访问 | P0 | cmdi-agent |
-| `/cron`, `/schedule`, `/job` | 任务注入、权限绕过 | P1 | injection-agent |
+| `/exec`, `/run`, `/execute` | 命令注入、RCE | P0 | command-injection-scanner |
+| `/eval`, `/script` | 代码注入、RCE | P0 | code-injection-scanner |
+| `/shell`, `/terminal`, `/console` | 命令注入、未授权访问 | P0 | command-injection-scanner |
+| `/cron`, `/schedule`, `/job` | 任务注入、权限绕过 | P1 | command-injection-scanner, auth-bypass-scanner |
 
 ##### 配置/敏感信息类端点
 | 路径特征 | 可能威胁 | 优先级 | 关联 Skill |
 |---------|---------|--------|-----------|
-| `/config`, `/settings`, `/env` | 配置文件泄露、敏感信息暴露 | P0 | sensitive-info-agent |
-| `/.env`, `/credentials`, `/secrets` | 硬编码凭证、密钥泄露、环境变量暴露 | P0 | sensitive-info-agent |
-| `/debug`, `/info`, `/status`, `/health` | 调试信息泄露、技术栈暴露、内部信息泄露 | P1 | sensitive-info-agent |
-| `/logs`, `/error`, `/trace` | 日志泄露、敏感数据记录、堆栈跟踪泄露 | P1 | sensitive-info-agent |
-| `/backup`, `/.git`, `/.svn` | 源码泄露、备份文件泄露、版本控制信息泄露 | P0 | sensitive-info-agent |
-| `/api/keys`, `/tokens`, `/api-docs` | API密钥泄露、令牌暴露、接口文档泄露 | P0 | sensitive-info-agent |
-| `/swagger`, `/openapi`, `/graphiql` | API规格泄露、敏感端点暴露 | P1 | sensitive-info-agent |
+| `/config`, `/settings`, `/env` | 配置文件泄露、敏感信息暴露 | P0 | sensitive-info-scanner |
+| `/.env`, `/credentials`, `/secrets` | 硬编码凭证、密钥泄露、环境变量暴露 | P0 | sensitive-info-scanner |
+| `/debug`, `/info`, `/status`, `/health` | 调试信息泄露、技术栈暴露、内部信息泄露 | P1 | sensitive-info-scanner |
+| `/logs`, `/error`, `/trace` | 日志泄露、敏感数据记录、堆栈跟踪泄露 | P1 | sensitive-info-scanner |
+| `/backup`, `/.git`, `/.svn` | 源码泄露、备份文件泄露、版本控制信息泄露 | P0 | sensitive-info-scanner |
+| `/api/keys`, `/tokens`, `/api-docs` | API密钥泄露、令牌暴露、接口文档泄露 | P0 | sensitive-info-scanner |
+| `/swagger`, `/openapi`, `/graphiql` | API规格泄露、敏感端点暴露 | P1 | sensitive-info-scanner |
 
 #### 2.2 参数特征威胁映射
 
@@ -292,15 +292,15 @@ Read(".workspace/results/project-profiler-results.json")
 
 | 组件/配置 | 可能威胁 | 优先级 | 关联 Skill |
 |---------|---------|--------|-----------|
-| .env 文件 | 硬编码凭证、环境变量泄露 | P0 | sensitive-info-agent |
-| application.properties/yml | 数据库密码、API密钥明文存储 | P0 | sensitive-info-agent |
-| config.json/settings.py | 配置文件泄露、敏感参数暴露 | P0 | sensitive-info-agent |
-| Git 历史 | 密钥提交到版本控制、历史记录泄露 | P0 | sensitive-info-agent |
-| 日志文件 | 敏感数据记录、密码/令牌打印 | P1 | sensitive-info-agent |
-| Docker 镜像 | 密钥打包到镜像、ENV 暴露 | P1 | sensitive-info-agent |
-| CI/CD 配置 | Pipeline 密钥泄露、构建日志暴露 | P1 | sensitive-info-agent |
-| 源码注释 | 注释中的密钥、调试代码未删除 | P1 | sensitive-info-agent |
-| 敏感函数 | 读取并返回敏感信息 | P0 | sensitive-info-agent |
+| .env 文件 | 硬编码凭证、环境变量泄露 | P0 | sensitive-info-scanner |
+| application.properties/yml | 数据库密码、API密钥明文存储 | P0 | sensitive-info-scanner |
+| config.json/settings.py | 配置文件泄露、敏感参数暴露 | P0 | sensitive-info-scanner |
+| Git 历史 | 密钥提交到版本控制、历史记录泄露 | P0 | sensitive-info-scanner |
+| 日志文件 | 敏感数据记录、密码/令牌打印 | P1 | sensitive-info-scanner |
+| Docker 镜像 | 密钥打包到镜像、ENV 暴露 | P1 | sensitive-info-scanner |
+| CI/CD 配置 | Pipeline 密钥泄露、构建日志暴露 | P1 | sensitive-info-scanner |
+| 源码注释 | 注释中的密钥、调试代码未删除 | P1 | sensitive-info-scanner |
+| 敏感函数 | 读取并返回敏感信息 | P0 | sensitive-info-scanner |
 
 ---
 
@@ -478,7 +478,7 @@ Read(".workspace/results/project-profiler-results.json")
         "检查存储路径"
       ],
       "relatedAssets": ["s3-uploads"],
-      "suggestedSkill": "file-upload-scanner"
+      "suggestedSkill": "path-traversal-scanner"
     }
   ]
 }
