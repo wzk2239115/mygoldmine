@@ -99,7 +99,7 @@ project-profiler-results.json ────────────────�
 threat-modeler (威胁建模)                                      │
       │                                                       │
       │ Contains:                                             │
-      │ - scan_types_selection.enabled[]                      │
+      │ - scanner_selection.enabled[]                         │
       │ - Prioritized risk tasks (P0/P1/P2)                   │
       │ - Suggested vulnerability scanning tasks              │
       │ - Target endpoints/files                              │
@@ -109,7 +109,7 @@ threat-modeler-results.json   ────────────────�
       │                                                │      │
       │ Contains:                                      │      │
       │                                                │      │
-      │ - scan_types_selection.enabled[]               │      │
+      │ - scanner_selection.enabled[]                  │      │
       │ - Prioritized risk tasks (P0/P1/P2)            │      │
       │ - Suggested vulnerability scanning tasks       │      │
       │ - Target endpoints/files                       │      │
@@ -310,10 +310,8 @@ Task(
 
 **等待完成并验证结果**：
 ```bash
-# 验证漏洞扫描文件已生成
-if [ -f ".workspace/results/vulnerability-scan.json" ]; then
-  echo "漏洞扫描完成"
-fi
+# 验证各扫描结果文件已生成（按任务 ID 命名）
+find .workspace/results -maxdepth 1 -type f -name "task-*-results.json" -print
 ```
 
 ### 任务 5: 报告生成 (task-004)
