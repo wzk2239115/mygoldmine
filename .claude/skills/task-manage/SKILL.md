@@ -60,7 +60,7 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 
 **用法：**
 ```bash
-init-task-json <tasks_json_path> <agent_task_id> [agent_name]
+init-task-json <tasks_json_path> <agent_task_id> [agent_name] [--tasks <json>]
 ```
 
 **参数：**
@@ -69,10 +69,24 @@ init-task-json <tasks_json_path> <agent_task_id> [agent_name]
   - 只能包含字母、数字、连字符(-)和下划线(_)
   - 长度不超过 100 字符，不能为空
 - `agent_name`（可选）：代理名称，默认为空字符串
+- `--tasks <json>`（可选）：初始任务列表的 JSON 字符串
+  - 格式：`'[{"id":"task-001","description":"任务描述"},{"id":"task-002","description":"任务描述2","type":"code_scan"}]'`
+  - 每个任务对象需要包含：
+    - `id`（必需）：任务 ID
+    - `description`（必需）：任务描述
+    - `type`（可选）：任务类型，默认 `"general"`
+    - `optional`（可选）：是否可选，默认 `false`
 
 **示例：**
 ```bash
+# 创建空任务列表
 init-task-json ./tasks.json "project-audit-001" "security-auditor"
+
+# 创建带初始任务的任务列表
+init-task-json ./tasks.json "project-audit-001" "security-auditor" --tasks '[
+  {"id":"task-001","description":"项目分析"},
+  {"id":"task-002","description":"漏洞扫描","type":"vulnerability_scan"}
+]'
 ```
 
 ## 2. add-task
