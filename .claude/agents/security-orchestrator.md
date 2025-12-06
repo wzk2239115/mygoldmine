@@ -79,6 +79,9 @@ STEP 4: report-generator（顺序）
 ### 并发与失败恢复策略
 
 - 并发上限：扫描阶段（general-scanner）同时运行不超过 5 个任务，可根据用户提示设置并发度，但上限为 5；建议按批次（每批 ≤5）拉起，上一批完成再启动下一批。
+- **相同漏洞类型任务避免并发**：同一SKILL（漏洞类型）的多个任务必须按顺序执行，不能并发运行。这是为了避免多个任务同时访问共享数据文件（.workspace/shared/{SKILL_NAME}-shared.json）时出现竞争条件。
+  - 执行策略：按SKILL分组，同一SKILL的任务按任务ID顺序执行，等待前一个任务完成后再执行下一个
+  - 不同SKILL的任务可以并发执行（受总并发上限限制）
 - 超时与重试：单个扫描任务建议默认超时 10 分钟；失败或超时可重试 1 次，仍失败则标记 failed 并记录原因。
 - 状态恢复：中断后通过 `read-task` 读取 pending/failed 任务继续执行；已完成的任务不重复执行。
 
@@ -278,19 +281,70 @@ jq -r '.scanner_selection.enabled[]' .workspace/results/threat-modeler-results.j
 # 4. 最终得到允许启用的扫描器列表
 ```
 
-#### 3.2 添加扫描任务
+#### 3.2 任务拆分决策
+
+**读取每个SKILL的风险点数量**：
+
+```bash
+# 为每个允许的扫描器统计风险点数量
+for skill in $(jq -r '.scanner_selection.enabled[]' .workspace/results/threat-modeler-results.json); do
+  risk_count=$(jq "[.risks[] | select(.suggestedSkill == \"$skill\")] | length" .workspace/results/threat-modeler-results.json)
+  echo "$skill: $risk_count 个风险点"
+done
+```
+
+**拆分规则**：
+- 如果某个SKILL的风险点数量 > 10，自动拆分为多个任务
+- 拆分数量计算：`ceil(风险点数量 / 10)`，最多拆分为5个任务
+- 如果风险点数量 <= 10，只创建一个任务
+
+**扫描范围划分**（当需要拆分时）：
+- **按目录划分**：从project-profiler-results.json中获取目录结构，按目录分组风险点
+- **按模块划分**：从threat-modeler-results.json中获取风险点的module字段，按模块分组风险点
+- 优先使用模块划分，如果模块信息不足，则使用目录划分
+
+#### 3.3 添加扫描任务
 
 规则：
 - 编号从 `task-006` 开始递增（006, 007, ...）。
 - 统一插入到 `task-004`（报告生成）之前，不覆盖已存在的 `task-003` 默认扫描任务。
 - 只添加经过过滤后允许启用的扫描器任务。
 - 如果过滤后的扫描器列表为空，则不添加扫描任务，后续可直接进入报告阶段。
+- **对于需要拆分的SKILL**：创建多个任务，每个任务指定不同的扫描范围（SCAN_SCOPE）和共享数据路径（SHARED_DATA_PATH）。
 
+**共享数据路径格式**：`.workspace/shared/{SKILL_NAME}-shared.json`
+
+**单个任务（风险点 <= 10）**：
 ```bash
-# 为每个允许的扫描器添加任务
+# 为每个允许的扫描器添加任务（不需要拆分）
 add-task .workspace/tasks/security-orchestrator-tasks.json "task-006"  "general-scanner" "调用general-scanner子智能体并激活sql-injection-scanner进行漏洞扫描" --before "task-004"
-add-task .workspace/tasks/security-orchestrator-tasks.json "task-007"  "general-scanner" "调用general-scanner子智能体并激活ssrf-scanner进行漏洞扫描" --before "task-004"
-...其他允许的SKILL类型...
+```
+
+**多个任务（风险点 > 10，需要拆分）**：
+```bash
+# 示例：sql-injection-scanner有25个风险点，拆分为3个任务
+# 任务1：扫描auth和payment模块
+add-task .workspace/tasks/security-orchestrator-tasks.json "task-006"  "general-scanner" "调用general-scanner子智能体并激活sql-injection-scanner进行漏洞扫描（范围：auth、payment模块）" --before "task-004"
+
+# 任务2：扫描user和order模块
+add-task .workspace/tasks/security-orchestrator-tasks.json "task-007"  "general-scanner" "调用general-scanner子智能体并激活sql-injection-scanner进行漏洞扫描（范围：user、order模块）" --before "task-004"
+
+# 任务3：扫描其他模块
+add-task .workspace/tasks/security-orchestrator-tasks.json "task-008"  "general-scanner" "调用general-scanner子智能体并激活sql-injection-scanner进行漏洞扫描（范围：其他模块）" --before "task-004"
+```
+
+**任务调用时传递参数**：
+```bash
+Task(
+  subagent_type: "general-scanner",
+  description: "Scan SQL injection vulns",
+  prompt: "## Vulnerability Scanning Request
+SKILL_NAME: sql-injection-scanner
+TASK_ID: task-006
+SCAN_SCOPE: {\"type\":\"module\",\"modules\":[\"auth\",\"payment\"]}
+SHARED_DATA_PATH: .workspace/shared/sql-injection-scanner-shared.json
+..."
+)
 ```
 
 **配置文件格式示例：**
@@ -320,19 +374,83 @@ add-task .workspace/tasks/security-orchestrator-tasks.json "task-007"  "general-
 
 **任务目标**：根据 task-003 添加的扫描任务（task-006+），调用 general-scanner 子智能体执行漏洞扫描；若未生成 task-006+（无推荐扫描器），可跳过本阶段直接进入报告生成。
 
+**读取任务描述，提取SKILL名称、扫描范围和共享数据路径**：
+- 从任务描述中识别SKILL名称
+- 如果任务描述中包含"范围："，提取扫描范围信息
+- 根据SKILL名称构建共享数据路径：`.workspace/shared/{SKILL_NAME}-shared.json`
+
+**执行策略：按SKILL分组，避免相同漏洞类型任务并发**：
+
+1. **按SKILL分组任务**：
+```bash
+# 读取所有扫描任务（task-006+），按SKILL分组
+# 从任务描述中提取SKILL名称，将任务按SKILL分组
+# 示例分组结果：
+#   sql-injection-scanner: [task-006, task-007]
+#   ssrf-scanner: [task-008]
+#   xxe-scanner: [task-009]
+```
+
+2. **执行规则**：
+   - **同一SKILL的任务**：必须按顺序执行，等待前一个任务完成后再执行下一个
+   - **不同SKILL的任务**：可以并发执行（受总并发上限5个任务限制）
+   - **执行策略**：
+     - 第一轮：并发启动每个SKILL的第一个任务（最多5个并发）
+     - 后续轮次：当某个SKILL的任务完成后，立即启动该SKILL的下一个任务
+     - 确保同一SKILL的任务不会同时运行
+
+3. **执行示例**：
+   - 假设有：sql-injection-scanner (task-006, task-007), ssrf-scanner (task-008), xxe-scanner (task-009)
+   - 执行流程：
+     - **第一轮**：并发启动 task-006 (sql-injection-scanner)、task-008 (ssrf-scanner)、task-009 (xxe-scanner)
+     - **等待 task-006 完成**：启动 task-007 (sql-injection-scanner)
+     - **等待 task-008 完成**：ssrf-scanner 没有更多任务，继续其他任务
+     - **等待 task-009 完成**：xxe-scanner 没有更多任务，继续其他任务
+     - **等待 task-007 完成**：所有任务完成
+
+4. **实现方式**：
+   - 使用任务状态检查：在执行新任务前，检查同一SKILL的前一个任务是否已完成
+   - 如果前一个任务未完成，等待其完成后再执行
+   - 如果前一个任务已完成或失败，可以执行下一个任务
+
 调用general-scanner子智能体进行漏洞扫描
+
+**单个任务示例**（不需要拆分）：
 ```bash
 Task(
   subagent_type: "general-scanner",
-  description: "Scan vulnerabilities",
-  prompt: "## Vulnerability Scanning Request\nUse sql-injection-scanner SKILL to scan vulnerabilities...\n..."
+  description: "Scan SQL injection vulns",
+  prompt: "## Vulnerability Scanning Request
+SKILL_NAME: sql-injection-scanner
+TASK_ID: task-006
+使用sql-injection-scanner SKILL进行漏洞扫描..."
+)
+```
+
+**多个任务示例**（需要拆分，传递扫描范围和共享数据路径）：
+```bash
+Task(
+  subagent_type: "general-scanner",
+  description: "Scan SQL injection vulns (auth/payment)",
+  prompt: "## Vulnerability Scanning Request
+SKILL_NAME: sql-injection-scanner
+TASK_ID: task-006
+SCAN_SCOPE: {\"type\":\"module\",\"modules\":[\"auth\",\"payment\"]}
+SHARED_DATA_PATH: .workspace/shared/sql-injection-scanner-shared.json
+使用sql-injection-scanner SKILL扫描auth和payment模块的漏洞..."
 )
 
 Task(
   subagent_type: "general-scanner",
-  description: "Scan vulnerabilities",
-  prompt: "## Vulnerability Scanning Request\nUse command-injection-scanner SKILL to scan vulnerabilities...\n..."
+  description: "Scan SQL injection vulns (user/order)",
+  prompt: "## Vulnerability Scanning Request
+SKILL_NAME: sql-injection-scanner
+TASK_ID: task-007
+SCAN_SCOPE: {\"type\":\"module\",\"modules\":[\"user\",\"order\"]}
+SHARED_DATA_PATH: .workspace/shared/sql-injection-scanner-shared.json
+使用sql-injection-scanner SKILL扫描user和order模块的漏洞..."
 )
+```
 
 ...其他SKILL类型(参见支持的漏洞分析SKILL列表)...
 
