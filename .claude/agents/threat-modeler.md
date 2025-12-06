@@ -90,8 +90,7 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 
 ```bash
 # 创建工作区目录结构
-mkdir -p .workspace/tasks
-mkdir -p .workspace/results
+mkdir -p .workspace/{tasks,results,cache/threat-modeler}
 
 # 生成任务清单文件
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
@@ -257,6 +256,10 @@ Read(".workspace/results/project-profiler-results.json")
 | `config`, `settings`, `env` | 配置泄露、环境变量暴露 | P1 |
 | `credit_card`, `ssn`, `phone`, `email` | PII 数据泄露 | P1 |
 
+**任务完成后，保存中间结果到缓存**：
+- 将功能点威胁映射结果保存到 `.workspace/cache/threat-modeler/task-002-endpoint-threats.json`
+- 缓存文件格式：包含 `endpoints` 数组（每个端点包含 `threats` 字段）的JSON对象
+- 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
 ### 任务 3: 组件威胁建模 (task-003)
 
@@ -302,6 +305,11 @@ Read(".workspace/results/project-profiler-results.json")
 | 源码注释 | 注释中的密钥、调试代码未删除 | P1 | sensitive-info-scanner |
 | 敏感函数 | 读取并返回敏感信息 | P0 | sensitive-info-scanner |
 
+**任务完成后，保存中间结果到缓存**：
+- 将组件威胁映射结果保存到 `.workspace/cache/threat-modeler/task-003-component-threats.json`
+- 缓存文件格式：包含 `components` 数组（每个组件包含 `threats` 字段）的JSON对象
+- 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
+
 ---
 
 ### 任务 4: 架构威胁建模 (task-004)
@@ -330,7 +338,30 @@ Read(".workspace/results/project-profiler-results.json")
 | Laravel | 反序列化、调试模式 | 检查 APP_DEBUG |
 | Rails | 批量赋值、反序列化 | 检查 strong_params |
 
+**任务完成后，保存中间结果到缓存**：
+- 将架构威胁映射结果保存到 `.workspace/cache/threat-modeler/task-004-architecture-threats.json`
+- 缓存文件格式：包含 `architecture` 对象（包含 `threats` 字段）的JSON对象
+- 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
+
 ### 任务 5: 生成威胁风险清单 (task-005)
+
+**生成流程**：从缓存加载所有中间结果，合并后生成最终的威胁建模结果
+
+**步骤1：从缓存加载所有中间结果**：
+```bash
+# 读取所有缓存的中间结果
+Read(".workspace/cache/threat-modeler/task-002-endpoint-threats.json")
+Read(".workspace/cache/threat-modeler/task-003-component-threats.json")
+Read(".workspace/cache/threat-modeler/task-004-architecture-threats.json")
+```
+
+**步骤2：合并所有中间结果并生成风险清单**：
+- 合并 `endpoints`（来自task-002）
+- 合并 `components`（来自task-003）
+- 合并 `architecture`（来自task-004）
+- 生成 `risks` 数组：将所有威胁转换为风险点格式
+- 为每个风险点添加 `module` 和 `directory` 字段
+- 生成 `scanner_selection`：根据威胁类型推荐扫描器
 
 **为每个风险点添加module和directory字段**：
 
@@ -343,6 +374,14 @@ Read(".workspace/results/project-profiler-results.json")
   - 示例：`src/routes/auth.js:25` → `src/routes/`
   - 提取文件路径的目录部分（不含文件名）
   - 如果file字段包含行号（如`file.js:25`），只提取目录部分
+
+**步骤3：输出最终结果**：
+- 将合并后的结果写入 `.workspace/results/threat-modeler-results.json`
+
+**缓存说明**：
+- 缓存目录：`.workspace/cache/threat-modeler/`（不需要自动清理）
+- 每个任务的中间结果都会保存到对应的缓存文件
+- 如果任务中断，可以从缓存恢复，避免重复计算
 
 #### 5.1 优先级定义
 

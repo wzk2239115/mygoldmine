@@ -141,7 +141,7 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 1. **生成 project-profiler-tasks.json 文件**：
 ```bash
 # 创建工作区目录结构
-mkdir -p .workspace/{tasks,results}
+mkdir -p .workspace/{tasks,results,cache/project-profiler}
 
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
 init-task-json .workspace/tasks/project-profiler-tasks.json project-profiler
@@ -216,6 +216,11 @@ find . -name "*.md" | head -20   # 文档文件
 cloc . --exclude-dir=node_modules,dist,build,vendor,.git
 ```
 
+**任务完成后，保存中间结果到缓存**：
+- 将收集到的代码统计信息保存到 `.workspace/cache/project-profiler/task-001-code-statistics.json`
+- 缓存文件格式：包含 `code_statistics` 字段的JSON对象
+- 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
+
 ### 2. 检测技术栈，包括语言、框架、数据库等 (task-002)
 
 #### 2.1 检测技术栈
@@ -274,6 +279,11 @@ cloc . --exclude-dir=node_modules,dist,build,vendor,.git
 **构建工具识别**：查找 `webpack`、`vite`、`rollup`、`gradle`、`maven`、`make` 等
 
 **包管理器识别**：从锁文件检测：`package-lock.json`、`yarn.lock`、`poetry.lock`、`requirements.txt`、`go.mod` 等
+
+**任务完成后，保存中间结果到缓存**：
+- 将检测到的技术栈信息保存到 `.workspace/cache/project-profiler/task-002-tech-stack.json`
+- 缓存文件格式：包含 `tech_stack` 字段的JSON对象
+- 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
 ---
 
@@ -464,14 +474,44 @@ AWS_*, AZURE_*, GCP_*
 个人信息: email, phone, address, ssn, idcard, passport
 ```
 
+**任务完成后，保存中间结果到缓存**：
+- 将识别的资产位置保存到 `.workspace/cache/project-profiler/task-004-assets.json`
+- 缓存文件格式：包含 `assets` 字段的JSON对象
+- 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
+
 ### 5. 输出分析结果到 .workspace/results/project-profiler-results.json (task-005)
 
-**生成流程**：统一输出到 `.workspace/results/project-profiler-results.json`
+**生成流程**：从缓存加载所有中间结果，合并后统一输出到 `.workspace/results/project-profiler-results.json`
+
+**步骤1：从缓存加载所有中间结果**：
+```bash
+# 读取所有缓存的中间结果
+Read(".workspace/cache/project-profiler/task-001-code-statistics.json")
+Read(".workspace/cache/project-profiler/task-002-tech-stack.json")
+Read(".workspace/cache/project-profiler/task-003-endpoints.json")  # 如果存在
+Read(".workspace/cache/project-profiler/task-004-assets.json")     # 如果存在
+```
+
+**步骤2：合并所有中间结果**：
+- 合并 `code_statistics`（来自task-001）
+- 合并 `tech_stack`（来自task-002）
+- 合并 `endpoints`（来自task-003，如果存在）
+- 合并 `assets`（来自task-004，如果存在）
+- 添加 `generated_at`、`project_root` 等元数据字段
+- 计算统计信息（`statistics`字段）
+
+**步骤3：输出最终结果**：
+- 将合并后的结果写入 `.workspace/results/project-profiler-results.json`
 
 **必填字段校验（执行后自检）**：
 - `generated_at`、`project_root` 必须存在且非空
 - `code_statistics` 必须包含 `total_files`、`total_lines`
 - `tech_stack` 必须包含 `primary_language`（若无法判定，需注明原因）
+
+**缓存说明**：
+- 缓存目录：`.workspace/cache/project-profiler/`（不需要自动清理）
+- 每个任务的中间结果都会保存到对应的缓存文件
+- 如果任务中断，可以从缓存恢复，避免重复计算
 
 ### 6. 任务完成。
 
