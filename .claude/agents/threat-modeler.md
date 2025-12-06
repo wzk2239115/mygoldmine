@@ -94,7 +94,8 @@ mkdir -p .workspace/{tasks,results,cache/threat-modeler}
 
 # 生成任务清单文件
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
-init-task-json .workspace/tasks/threat-modeler-tasks.json default threat-modeler
+init-task-json .workspace/tasks/threat-modeler-tasks.json default threat-modeler \
+  --description "基于工程画像进行威胁推理，构建功能点→威胁的映射关系，从"被动扫描"转变为"主动推理"。" \
   --tasks '[
     {
       "id": "subagent-task-001",

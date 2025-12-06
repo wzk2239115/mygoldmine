@@ -3,12 +3,13 @@
 # 初始化 tasks.json 文件
 #
 # 用法：
-#   init-task-json.sh <tasks_json_path> <agent_task_id> <agent_name> [--tasks <json>]
+#   init-task-json.sh <tasks_json_path> <agent_task_id> <agent_name> --description <text> [--tasks <json>]
 #
 # 参数：
 #   tasks_json_path: tasks.json 文件的路径（必需）
 #   agent_task_id: 任务列表唯一标识符，用于区分同一 agent 的不同任务列表（必需）
 #   agent_name: 代理名称（必需）
+#   --description <text>: 任务列表描述（必需，非空）
 #   --tasks <json>: 初始任务列表的 JSON 字符串（可选）
 #                   格式: '[{"id":"task-001","description":"任务描述"},{"id":"task-002","description":"任务描述2","type":"code_scan"}]'
 #
@@ -32,11 +33,20 @@ TASKS_JSON_PATH="$1"
 AGENT_TASK_ID="$2"
 AGENT_NAME="$3"
 INITIAL_TASKS_JSON=""
+DESCRIPTION=""
 
 # 解析可选参数
 shift 3
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --description)
+            if [ -z "${2:-}" ]; then
+                echo "错误: --description 需要提供非空字符串" >&2
+                exit 1
+            fi
+            DESCRIPTION="$2"
+            shift 2
+            ;;
         --tasks)
             if [ -z "${2:-}" ]; then
                 echo "错误: --tasks 需要提供 JSON 字符串" >&2
@@ -119,6 +129,20 @@ fi
 # 不能以连字符或下划线开头或结尾
 if [[ "$AGENT_NAME" =~ ^[-_] ]] || [[ "$AGENT_NAME" =~ [-_]$ ]]; then
     echo "错误: agent_name 不能以连字符(-)或下划线(_)开头或结尾" >&2
+    exit 1
+fi
+
+# 校验 description（必填）
+if [ -z "$DESCRIPTION" ]; then
+    echo "错误: --description 不能为空" >&2
+    exit 1
+fi
+if [[ "$DESCRIPTION" =~ [[:cntrl:]] ]]; then
+    echo "错误: description 含有控制字符" >&2
+    exit 1
+fi
+if [ ${#DESCRIPTION} -gt 1024 ]; then
+    echo "错误: description 过长（超过 1024 字符）" >&2
     exit 1
 fi
 
@@ -236,6 +260,7 @@ TEMP_FILE=$(mktemp)
 jq -n \
     --arg agent "$AGENT_NAME" \
     --arg agent_task_id "$AGENT_TASK_ID" \
+    --arg description "$DESCRIPTION" \
     --arg created_at "$CURRENT_TIME" \
     --arg updated_at "$CURRENT_TIME" \
     --argjson tasks "$INITIAL_TASKS" \
@@ -244,6 +269,7 @@ jq -n \
     '{
         "agent": $agent,
         "agent_task_id": $agent_task_id,
+        "description": $description,
         "created_at": $created_at,
         "updated_at": $updated_at,
         "tasks": $tasks,

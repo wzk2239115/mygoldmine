@@ -42,7 +42,8 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 mkdir -p .workspace/reports
 
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
-init-task-json .workspace/tasks/report-generator-tasks.json default report-generator
+init-task-json .workspace/tasks/report-generator-tasks.json default report-generator \
+  --description "汇总各扫描器的发现，生成面向人工的 Markdown 报告和机器可读的 JSON 报告" \
   --tasks '[
     {
       "id": "subagent-task-001",

@@ -144,7 +144,8 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 mkdir -p .workspace/{tasks,results,cache/project-profiler}
 
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
-init-task-json .workspace/tasks/project-profiler-tasks.json default project-profiler
+init-task-json .workspace/tasks/project-profiler-tasks.json default project-profiler \
+  --description "分析代码库结构，识别技术栈，为威胁建模提供基础数据。代码审计工作流的第一阶段。" \
   --tasks '[
     {
       "id": "subagent-task-001",

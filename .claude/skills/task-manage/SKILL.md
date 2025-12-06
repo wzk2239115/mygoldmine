@@ -62,7 +62,7 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 
 **用法：**
 ```bash
-init-task-json <tasks_json_path> <agent_task_id> <agent_name> [--tasks <json>]
+init-task-json <tasks_json_path> <agent_task_id> <agent_name> --description "<text>" [--tasks <json>]
 ```
 
 **参数：**
@@ -74,6 +74,8 @@ init-task-json <tasks_json_path> <agent_task_id> <agent_name> [--tasks <json>]
   - 只能包含字母、数字、连字符(-)和下划线(_)
   - 长度不超过 100 字符，不能为空
   - 不能以连字符(-)或下划线(_)开头或结尾
+- `--description "<text>"`（必需）：任务列表描述
+  - 不能为空，不含控制字符，建议长度 ≤ 1024
 - `--tasks <json>`（可选）：初始任务列表的 JSON 字符串
   - 格式：`'[{"id":"task-001","description":"任务描述"},{"id":"task-002","description":"任务描述2","type":"code_scan"}]'`
   - 每个任务对象需要包含：
@@ -85,10 +87,10 @@ init-task-json <tasks_json_path> <agent_task_id> <agent_name> [--tasks <json>]
 **示例：**
 ```bash
 # 创建空任务列表
-init-task-json ./tasks.json "project-audit-001" "security-auditor"
+init-task-json ./tasks.json "project-audit-001" "security-auditor" --description "项目审计任务列表"
 
 # 创建带初始任务的任务列表
-init-task-json ./tasks.json "project-audit-001" "security-auditor" --tasks '[
+init-task-json ./tasks.json "project-audit-001" "security-auditor" --description "项目审计任务列表" --tasks '[
   {"id":"task-001","description":"项目分析"},
   {"id":"task-002","description":"漏洞扫描","type":"vulnerability_scan"}
 ]'
@@ -350,7 +352,7 @@ check-task ./tasks.json --show-pending --show-failed
 
 ```bash
 # 初始化任务列表
-init-task-json ./tasks.json "project-001" "security-auditor"
+init-task-json ./tasks.json "project-001" "security-auditor" --description "项目任务列表"
 
 # 添加多个任务（方式1：逐个添加）
 add-task ./tasks.json "task-001" "asset_discovery" "识别资产位置"
@@ -413,7 +415,7 @@ check-task ./tasks.json --show-failed
 
 ```bash
 # 1. 初始化任务列表
-init-task-json ./tasks.json "project-001" "agent-name"
+init-task-json ./tasks.json "project-001" "agent-name" --description "示例工作流"
 
 # 2. 添加任务（可以指定插入顺序）
 add-task ./tasks.json "task-001" "asset_discovery" "识别资产位置"
@@ -440,7 +442,7 @@ check-task ./tasks.json --show-pending
 
 ```bash
 # 1. 初始化
-init-task-json ./tasks.json "project-001" "agent-name"
+init-task-json ./tasks.json "project-001" "agent-name" --description "示例工作流"
 
 # 2. 添加任务
 add-task ./tasks.json "task-001" "type" "描述"

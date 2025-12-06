@@ -126,7 +126,8 @@ mkdir -p .workspace/{tasks,results,findings,reports}
 
 # 生成任务清单文件
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
-init-task-json .workspace/tasks/security-orchestrator-tasks.json default security-orchestrator
+init-task-json .workspace/tasks/security-orchestrator-tasks.json default security-orchestrator \
+  --description "安全编排器，负责协调项目分析、威胁建模和漏洞扫描，生成综合审计报告。" \
   --tasks '[
     {
       "id": "task-001",

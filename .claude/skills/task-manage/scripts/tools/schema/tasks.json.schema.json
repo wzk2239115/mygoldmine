@@ -7,6 +7,7 @@
   "required": [
     "agent",
     "agent_task_id",
+    "description",
     "created_at",
     "updated_at",
     "tasks",
@@ -34,6 +35,15 @@
         "code-review-20240101",
         "security-scan-v1",
         "task-list-abc123"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of this task list",
+      "minLength": 1,
+      "maxLength": 1024,
+      "examples": [
+        "description of the task list"
       ]
     },
     "created_at": {

@@ -53,7 +53,8 @@ mkdir -p .workspace/{tasks,results,findings,shared}
 
 # 生成任务清单文件
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
-init-task-json .workspace/tasks/{TASK_ID}-tasks.json {TASK_ID} general-scanner
+init-task-json .workspace/tasks/{TASK_ID}-tasks.json {TASK_ID} general-scanner \
+  --description "使用{SKILL_NAME}扫描任务（其他描述，如：扫描范围、扫描目标等）" \
   --tasks '[
     {
       "id": "subagent-task-000",
