@@ -101,8 +101,8 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json security-orches
     },
     {
       "id": "task-003",
-      "type": "general-scanner",
-      "description": "漏洞扫描：并行执行多个扫描器"
+      "type": "add_scan_tasks",
+      "description": "添加扫描任务：读取威胁建模结果并批量添加扫描任务（task-006+）"
     },
     {
       "id": "task-004",
@@ -203,7 +203,7 @@ add-task .workspace/tasks/security-orchestrator-tasks.json "task-007"  "general-
 
 ### 任务 4: 漏洞扫描 (task-006+)
 
-**任务目标**：根据 task-003 生成的扫描任务，调用 general-scanner 子智能体执行漏洞扫描；若未生成 task-006+（无推荐扫描器），可跳过本阶段直接进入报告生成。
+**任务目标**：根据 task-003 添加的扫描任务（task-006+），调用 general-scanner 子智能体执行漏洞扫描；若未生成 task-006+（无推荐扫描器），可跳过本阶段直接进入报告生成。
 
 调用general-scanner子智能体进行漏洞扫描
 ```bash
