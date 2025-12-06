@@ -35,7 +35,7 @@ else
 fi
 
 # 创建符号链接（不带 .sh 后缀）
-SCRIPTS=("init-task-json" "add-task" "update-task" "read-task" "list-tasks" "check-task")
+SCRIPTS=("init-task-json" "add-task" "add-tasks" "update-task" "read-task" "list-tasks" "check-task")
 LINK_COUNT=0
 
 echo ""
