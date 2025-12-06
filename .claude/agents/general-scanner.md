@@ -113,11 +113,26 @@ update-task .workspace/tasks/{TASK_ID}-tasks.json "task-001" --status "completed
 
 ### 任务 0: 加载指定Skill为后续任务做准备 (task-000)
 
+**规则（重要！）**：
+- ✅ **只能加载指定的SKILL**：必须且仅能加载 `{SKILL_NAME}` 参数指定的SKILL，禁止加载任何其他SKILL
+- ✅ **SKILL加载失败处理**：如果无法加载指定的SKILL，立即将所有任务状态更新为 "failed"，并返回错误信息，终止整个扫描流程
+- ❌ **禁止行为**：禁止加载 `{SKILL_NAME}` 之外的任何SKILL，即使这些SKILL可能对扫描有帮助
+
 ```
 Skill("{SKILL_NAME}")
 ```
 
-**重要：如果加载失败，说明该SKILL不存在，立即将所有任务状态更新为 "failed"，并返回错误信息。**
+**加载失败处理流程**：
+1. 如果SKILL加载失败，立即调用update-task将所有任务状态更新为 "failed"
+2. 返回明确的错误信息，说明无法加载指定的SKILL
+3. 终止后续所有任务的执行
+
+```bash
+# 如果SKILL加载失败，将所有任务标记为失败
+for task_id in $(jq -r '.tasks[].id' .workspace/tasks/{TASK_ID}-tasks.json); do
+  update-task .workspace/tasks/{TASK_ID}-tasks.json "$task_id" --status "failed" --detail '{"error": "无法加载指定的SKILL: {SKILL_NAME}", "reason": "SKILL不存在或加载失败"}'
+done
+```
 
 ### 任务 1: 读取项目画像和威胁建模结果 (task-001)
 
