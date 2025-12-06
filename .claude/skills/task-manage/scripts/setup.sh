@@ -34,6 +34,55 @@ else
     echo "✓ $TOOLS_DIR 已在 PATH 中"
 fi
 
+# 创建符号链接（不带 .sh 后缀）
+SCRIPTS=("init-task-json" "add-task" "update-task" "read-task" "list-tasks" "check-task")
+LINK_COUNT=0
+
+echo ""
+echo "创建符号链接..."
+
+create_symlink() {
+    local script_name=$1
+    local script_file="$TOOLS_DIR/${script_name}.sh"
+    local link_file="$TOOLS_DIR/${script_name}"
+    
+    if [ ! -f "$script_file" ]; then
+        echo "  ⚠ 脚本文件不存在: ${script_file}"
+        return 1
+    fi
+    
+    if [ -L "$link_file" ]; then
+        local target=$(readlink "$link_file")
+        if [ "$target" = "${script_name}.sh" ]; then
+            echo "  ✓ $script_name -> $script_name.sh (已存在)"
+            return 0
+        else
+            echo "  ⚠ $link_file 已存在但指向不同目标，跳过"
+            return 1
+        fi
+    elif [ -e "$link_file" ]; then
+        echo "  ⚠ $link_file 已存在但不是符号链接，跳过"
+        return 1
+    else
+        if ln -s "${script_name}.sh" "$link_file" 2>/dev/null; then
+            echo "  ✓ 创建链接: $script_name -> $script_name.sh"
+            return 0
+        else
+            echo "  ✗ 创建链接失败: $script_name"
+            return 1
+        fi
+    fi
+}
+
+# 为所有脚本创建符号链接
+for script in "${SCRIPTS[@]}"; do
+    if create_symlink "$script"; then
+        LINK_COUNT=$((LINK_COUNT + 1))
+    fi
+done
+
+echo "✓ 符号链接创建完成 (${LINK_COUNT}/${#SCRIPTS[@]})"
+echo ""
 echo "环境设置完成"
 echo "当前 PATH 中的 tools 目录: $TOOLS_DIR"
 
