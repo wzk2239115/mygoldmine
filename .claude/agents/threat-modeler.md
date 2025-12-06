@@ -17,6 +17,10 @@ description: |
   输出：
   - threat-modeler-results.json：结构化威胁数据（包含 scanner_selection）
   
+  产物流向：
+  - 被 `general-scanner` 读取，用于生成具体扫描任务（SKILL 选择、风险点）
+  - 被 `report-generator` 读取，用于报告中的威胁概览与扫描器启用说明
+
   工作流位置：
   - 第一步：project-profiler（生成项目分析结果）
   - 当前任务：threat-modeler（基于项目分析结果进行威胁建模）

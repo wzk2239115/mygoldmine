@@ -67,6 +67,10 @@ tools: Read, Write, Edit, Bash, Grep
 
 **保存路径**：`.workspace/results/project-profiler-results.json`
 
+**产物流向**：
+- 被 `threat-modeler` 和 `general-scanner` 读取，作为威胁建模与扫描的基础上下文
+- 被 `report-generator` 读取，用于报告中的项目概况与技术栈信息
+
 **统一 JSON schema**（基础字段必需，扩展字段可选）：
 
 ```json

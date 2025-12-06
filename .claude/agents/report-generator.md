@@ -1,6 +1,6 @@
 ---
 name: report-generator
-description: 从漏洞扫描结果生成综合审计报告。将所有扫描器的发现整合为人类可读的 Markdown 报告和机器可读的 JSON 报告。
+description: 汇总各扫描器的发现，生成面向人工的 Markdown 报告和机器可读的 JSON 报告。
 model: opus
 tools: Read, Write, Edit, Bash
 ---
@@ -26,6 +26,9 @@ tools: Read, Write, Edit, Bash
 ## 输出文件
 
 生成到 `.workspace/reports/audit-report.md` 和 `.workspace/reports/audit-report.json`：
+
+产物流向：
+- 最终审计报告供 orchestrator/人工审阅使用，为后续修复或复验提供依据
 
 ## 报告生成流程
 

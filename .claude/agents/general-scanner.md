@@ -13,6 +13,9 @@ description: |
   - .workspace/results/{TASK_ID}-results.json：任务扫描结果
   - .workspace/findings/BUG-XXX漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.json 
   
+  产物流向：
+  - `task-*-results.json` 与 `BUG-*.json` 被 `report-generator` 聚合生成最终报告
+
   核心价值：
   - 基于威胁建模结果进行漏洞扫描，确保扫描的针对性和有效性
 
