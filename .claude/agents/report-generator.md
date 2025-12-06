@@ -115,7 +115,17 @@ find .workspace/results -maxdepth 1 -type f -name "task-*-results.json" -print -
 
 # （可选）读取任务元信息，用于展示任务状态/耗时
 find .workspace/tasks -maxdepth 1 -type f -name "task-*-tasks.json" -print -exec Read "{}" \;
+
+# 读取共享数据文件（如果存在），用于同一SKILL多任务结果的去重
+find .workspace/shared -maxdepth 1 -type f -name "*-shared.json" -print -exec Read "{}" \;
 ```
+
+**同一SKILL多任务结果去重逻辑**：
+- 如果发现多个任务使用相同的SKILL（通过meta.skillName识别）
+- 读取对应的共享数据文件（.workspace/shared/{SKILL_NAME}-shared.json）
+- 基于共享数据中的found_vulnerabilities列表进行去重
+- 去重规则：相同文件+相同行号+相同漏洞类型 = 相同漏洞
+- 如果多个任务报告了相同的漏洞，只保留一个（优先保留最早发现的或严重程度最高的）
 
 ### 任务 3: 读取漏洞发现列表 (task-003)
 
@@ -239,10 +249,15 @@ find .workspace/findings -maxdepth 1 -type f -name "BUG-*.json" -print -exec Rea
 ### 1. 聚合漏洞
 
 - 从所有扫描器结果中收集所有漏洞
-- 去重（相同文件 + 行号 + 类型 = 相同漏洞）
+- **同一SKILL多任务结果去重**：
+  - 如果发现多个任务使用相同的SKILL（通过meta.skillName识别），读取对应的共享数据文件（.workspace/shared/{SKILL_NAME}-shared.json）
+  - 基于共享数据中的found_vulnerabilities列表进行去重
+  - 去重规则：相同文件 + 相同行号 + 相同漏洞类型 = 相同漏洞
+  - 如果多个任务报告了相同的漏洞，只保留一个（优先保留最早发现的或严重程度最高的）
+- **跨SKILL去重**：相同文件 + 行号 + 类型 = 相同漏洞
 - 按严重程度排序（Critical > High > Medium > Low）
 - 分配全局漏洞 ID（VULN-001, VULN-002, 等）
-- 若未执行定制扫描（无 `task-*-results.json`），仍需生成报告，统计值为 0，风险级别默认为 Low，并在执行摘要中注明“未执行定制扫描（无推荐扫描器或扫描被跳过）”。
+- 若未执行定制扫描（无 `task-*-results.json`），仍需生成报告，统计值为 0，风险级别默认为 Low，并在执行摘要中注明"未执行定制扫描（无推荐扫描器或扫描被跳过）"。
 
 ### 2. 计算风险评估
 

@@ -332,6 +332,18 @@ Read(".workspace/results/project-profiler-results.json")
 
 ### 任务 5: 生成威胁风险清单 (task-005)
 
+**为每个风险点添加module和directory字段**：
+
+- **module字段**：从风险点的target、file或相关端点信息中提取模块名称
+  - 示例：`/api/login` → `auth`，`/api/payment` → `payment`
+  - 如果无法确定，使用文件路径的第一级目录名或文件名（不含扩展名）
+  - 从project-profiler-results.json的endpoints中查找对应的category字段作为参考
+  
+- **directory字段**：从风险点的file字段中提取目录路径
+  - 示例：`src/routes/auth.js:25` → `src/routes/`
+  - 提取文件路径的目录部分（不含文件名）
+  - 如果file字段包含行号（如`file.js:25`），只提取目录部分
+
 #### 5.1 优先级定义
 
 | 优先级 | 定义 | 示例 |
@@ -459,7 +471,9 @@ Read(".workspace/results/project-profiler-results.json")
         "检查 password 参数是否参数化"
       ],
       "relatedAssets": ["mysql-main"],
-      "suggestedSkill": "sql-injection-scanner"
+      "suggestedSkill": "sql-injection-scanner",
+      "module": "auth",
+      "directory": "src/routes/"
     },
     {
       "id": "RISK-002",
@@ -478,7 +492,9 @@ Read(".workspace/results/project-profiler-results.json")
         "检查存储路径"
       ],
       "relatedAssets": ["s3-uploads"],
-      "suggestedSkill": "path-traversal-scanner"
+      "suggestedSkill": "path-traversal-scanner",
+      "module": "file",
+      "directory": "src/routes/"
     }
   ]
 }
