@@ -16,6 +16,9 @@ from typing import Dict, Any, Optional
 LOG_DIR = Path.home() / ".claude" / "logs"
 LOG_FILE = LOG_DIR / "operations.log"
 JSON_LOG_FILE = LOG_DIR / "operations.jsonl"
+# 简单日志轮转策略
+MAX_LOG_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_BACKUPS = 2  # 保留 operations.log.1、operations.log.2
 
 # 确保日志目录存在
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -33,6 +36,27 @@ def setup_logging():
     return logging.getLogger(__name__)
 
 logger = setup_logging()
+
+
+def rotate_file(path: Path):
+    """简单轮转：超限时顺延 .1、.2，保留最近 MAX_BACKUPS 份"""
+    try:
+        if not path.exists() or path.stat().st_size <= MAX_LOG_SIZE:
+            return
+        # 删除最旧
+        oldest = path.with_suffix(path.suffix + f".{MAX_BACKUPS}")
+        if oldest.exists():
+            oldest.unlink(missing_ok=True)
+        # 顺延重命名
+        for idx in range(MAX_BACKUPS - 1, 0, -1):
+            src = path.with_suffix(path.suffix + f".{idx}")
+            dst = path.with_suffix(path.suffix + f".{idx + 1}")
+            if src.exists():
+                src.replace(dst)
+        # 当前文件转存为 .1
+        path.replace(path.with_suffix(path.suffix + ".1"))
+    except Exception as e:
+        logger.error(f"日志轮转失败: {e}")
 
 def get_timestamp() -> str:
     """获取当前时间戳（ISO 8601格式）"""
@@ -66,6 +90,10 @@ def log_operation(data: Dict[str, Any]) -> None:
         data: 从 stdin 读取的 JSON 数据
     """
     try:
+        # 轮转检查，避免日志无限增长
+        rotate_file(LOG_FILE)
+        rotate_file(JSON_LOG_FILE)
+
         # 提取工具信息
         tool_name = data.get('tool_name', 'unknown')
         tool_input = data.get('tool_input', {})

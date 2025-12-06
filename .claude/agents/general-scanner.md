@@ -222,8 +222,9 @@ fi
 
 结合threat-modeler-results.json中的风险点，同时结合SKILL的指导，定位所有潜在风险点。
 
-规则：
+**规则（统一类型，避免遗漏执行）**：
 - 新增扫描子任务编号从 `subagent-task-010` 起递增（010, 011, ...），统一插入在 `subagent-task-004`（生成结果）之前。
+- 新增扫描子任务的 `type` 统一为 `scan_task`，后续执行按该类型过滤，避免漏跑。
 - 递增逻辑：在添加前读取现有任务，若已存在同名 ID，则继续递增到未占用的下一个编号（例如已有 010/011，则使用 012，再添加 013...）。
 - 去重策略：同一风险点/文件/行号不重复添加；发现重复时跳过并在 detail 中记录原因。
 - **如果提供了SCAN_SCOPE，只规划范围内的风险点**：根据SCAN_SCOPE中的目录或模块过滤风险点。
@@ -259,19 +260,14 @@ fi
 ```bash
 # 如果提供了SCAN_SCOPE，使用jq过滤风险点
 # 如果提供了SHARED_DATA_PATH，排除已扫描的文件
-add-task .workspace/tasks/{TASK_ID}-tasks.json "subagent-task-010" "plan_scan_tasks" "扫描xxx文件，xxx行到xxx行，可能存在XXX问题，相关文件有xxx, xxx" --before "subagent-task-004"
+add-task .workspace/tasks/{TASK_ID}-tasks.json "subagent-task-010" "scan_task" "扫描xxx文件，xxx行到xxx行，可能存在XXX问题，相关文件有xxx, xxx" --before "subagent-task-004"
 ```
 
 **方式2：使用 add-tasks 批量添加**（推荐，适合多个任务）：
 ```bash
-# 先构建任务数组JSON，然后批量添加
-# 示例：创建临时文件包含所有要添加的任务
-add-tasks .workspace/tasks/{TASK_ID}-tasks.json .workspace/temp/scan-tasks.json
-
-# 或者直接使用JSON字符串
 add-tasks .workspace/tasks/{TASK_ID}-tasks.json --json '[
-  {"id":"subagent-task-010","type":"plan_scan_tasks","description":"扫描xxx文件，xxx行到xxx行，可能存在XXX问题","before":"subagent-task-004"},
-  {"id":"subagent-task-011","type":"plan_scan_tasks","description":"扫描yyy文件，yyy行到yyy行，可能存在YYY问题","before":"subagent-task-004"}
+  {"id":"subagent-task-010","type":"scan_task","description":"扫描xxx文件，xxx行到xxx行，可能存在XXX问题","before":"subagent-task-004"},
+  {"id":"subagent-task-011","type":"scan_task","description":"扫描yyy文件，yyy行到yyy行，可能存在YYY问题","before":"subagent-task-004"}
 ]'
 ```
 
@@ -283,8 +279,8 @@ add-tasks .workspace/tasks/{TASK_ID}-tasks.json --json '[
 ```bash
 # 批量添加多个风险点任务
 add-tasks .workspace/tasks/{TASK_ID}-tasks.json --json '[
-  {"id":"subagent-task-011","type":"plan_scan_tasks","description":"扫描xxx文件，xxx行到xxx行，可能存在XXX问题","before":"subagent-task-004"},
-  {"id":"subagent-task-012","type":"plan_scan_tasks","description":"扫描yyy文件，yyy行到yyy行，可能存在YYY问题","before":"subagent-task-004"}
+  {"id":"subagent-task-011","type":"scan_task","description":"扫描xxx文件，xxx行到xxx行，可能存在XXX问题","before":"subagent-task-004"},
+  {"id":"subagent-task-012","type":"scan_task","description":"扫描yyy文件，yyy行到yyy行，可能存在YYY问题","before":"subagent-task-004"}
 ]'
 ```
 
@@ -292,7 +288,7 @@ add-tasks .workspace/tasks/{TASK_ID}-tasks.json --json '[
 
 1. 读取{TASK_ID}-tasks.json中待执行的扫描任务，并执行扫描任务
 ```bash
-list-tasks .workspace/tasks/{TASK_ID}-tasks.json --status "pending"
+list-tasks .workspace/tasks/{TASK_ID}-tasks.json --status "pending" --type "scan_task"
 ```
 
 2. 依次执行每一个扫描任务，并在分析结束后，更新任务状态为 "completed"，并记录执行结果
