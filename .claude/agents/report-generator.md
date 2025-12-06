@@ -19,7 +19,7 @@ tools: Read, Write, Edit, Bash
 从 `.workspace/results,findings,tasks` 读取：
 - `project-profiler-results.json` - 项目信息和上下文
 - `threat-modeler-results.json` - 威胁建模结果
-- `task-*-tasks.json` - 扫描任务列表（如有）
+- `task-*-tasks.json` - 扫描任务列表（可选，用于补充任务状态/耗时等元信息）
 - `task-*-results.json` - 扫描结果列表（遍历 `.workspace/results` 下所有 `task-*-results.json`）
 - `BUG-*.json` - 漏洞发现列表（遍历 `.workspace/findings` 下所有 `BUG-*.json`）
 
@@ -109,6 +109,9 @@ Read(".workspace/results/threat-modeler-results.json")
 ```bash
 # 遍历所有扫描结果
 find .workspace/results -maxdepth 1 -type f -name "task-*-results.json" -print -exec Read "{}" \;
+
+# （可选）读取任务元信息，用于展示任务状态/耗时
+find .workspace/tasks -maxdepth 1 -type f -name "task-*-tasks.json" -print -exec Read "{}" \;
 ```
 
 ### 任务 3: 读取漏洞发现列表 (task-003)
