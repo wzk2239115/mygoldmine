@@ -141,7 +141,7 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 1. **生成 project-profiler-tasks.json 文件**：
 ```bash
 # 创建工作区目录结构
-mkdir -p .workspace/tasks,results
+mkdir -p .workspace/{tasks,results}
 
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
 init-task-json .workspace/tasks/project-profiler-tasks.json project-profiler

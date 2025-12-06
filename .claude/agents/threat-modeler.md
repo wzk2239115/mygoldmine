@@ -121,7 +121,7 @@ init-task-json .workspace/tasks/threat-modeler-tasks.json threat-modeler
       "id": "task-005",
       "type": "generate_threat_modeler_results",
       "description": "生成威胁建模结果"
-    },
+    }
   ]'
 ```
 

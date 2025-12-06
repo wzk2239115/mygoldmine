@@ -45,7 +45,7 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 
 ```bash
 # 创建工作区目录结构
-mkdir -p .workspace/tasks,results,findings
+mkdir -p .workspace/{tasks,results,findings}
 
 # 生成任务清单文件
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
@@ -232,7 +232,7 @@ update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed
     "totalFindings": 15,
     "bySeverity": { "CRITICAL": 5, "HIGH": 7, "MEDIUM": 3 },
     "skillName": "{SKILL_NAME}",
-    "taskId": "{TASK_ID}",
+    "taskId": "{TASK_ID}"
   },
   "findings": {
     "critical": {
@@ -243,7 +243,7 @@ update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed
           "vulnName": "系统名称 + 漏洞类型",
           "vulnDesc": "漏洞描述",
           "principle": "漏洞原理",
-          "riskDesc": "漏洞影响",
+          "riskDesc": "漏洞影响"
         }
       ],
     },
@@ -255,7 +255,7 @@ update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed
           "vulnName": "系统名称 + 漏洞类型",
           "vulnDesc": "漏洞描述",
           "principle": "漏洞原理",
-          "riskDesc": "漏洞影响",
+          "riskDesc": "漏洞影响"
         }
       ],
     },
@@ -267,14 +267,14 @@ update-task .workspace/tasks/{TASK_ID}-tasks.json "task-003" --status "completed
           "vulnName": "系统名称 + 漏洞类型",
           "vulnDesc": "漏洞描述",
           "principle": "漏洞原理",
-          "riskDesc": "漏洞影响",
+          "riskDesc": "漏洞影响"
         }
       ],
     },
     "low": {
       "total": 0,
-      "list": [],
-    },
-  },
+      "list": []
+    }
+  }
 }
 ```

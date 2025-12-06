@@ -83,7 +83,7 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 
 ```bash
 # 创建工作区目录结构
-mkdir -p .workspace/tasks,results,findings,reports
+mkdir -p .workspace/{tasks,results,findings,reports}
 
 # 生成任务清单文件
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
@@ -108,7 +108,7 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json security-orches
       "id": "task-004",
       "type": "report-generator",
       "description": "报告生成：汇总所有结果"
-    },
+    }
   ]'
 ```
 
