@@ -34,7 +34,7 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 ### 使用步骤
 
 1. **初始化任务列表**：使用 `init-task-json` 创建新的 tasks.json 文件
-2. **添加任务**：使用 `add-task` 添加新任务
+2. **添加任务**：使用 `add-task` 添加新任务或使用 `add-tasks` 批量添加任务
 3. **查看任务**：使用 `list-tasks` 或 `read-task` 查看任务
 4. **更新任务**：使用 `update-task` 更新任务状态和详情
 5. **检查进度**：使用 `check-task` 查看完成情况统计
@@ -62,7 +62,7 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 
 **用法：**
 ```bash
-init-task-json <tasks_json_path> <agent_task_id> [agent_name] [--tasks <json>]
+init-task-json <tasks_json_path> <agent_task_id> <agent_name> [--tasks <json>]
 ```
 
 **参数：**
@@ -70,7 +70,10 @@ init-task-json <tasks_json_path> <agent_task_id> [agent_name] [--tasks <json>]
 - `agent_task_id`（必需）：任务列表唯一标识符，用于区分同一 agent 的不同任务列表
   - 只能包含字母、数字、连字符(-)和下划线(_)
   - 长度不超过 100 字符，不能为空
-- `agent_name`（可选）：代理名称，默认为空字符串
+- `agent_name`（必需）：代理名称
+  - 只能包含字母、数字、连字符(-)和下划线(_)
+  - 长度不超过 100 字符，不能为空
+  - 不能以连字符(-)或下划线(_)开头或结尾
 - `--tasks <json>`（可选）：初始任务列表的 JSON 字符串
   - 格式：`'[{"id":"task-001","description":"任务描述"},{"id":"task-002","description":"任务描述2","type":"code_scan"}]'`
   - 每个任务对象需要包含：
@@ -90,6 +93,8 @@ init-task-json ./tasks.json "project-audit-001" "security-auditor" --tasks '[
   {"id":"task-002","description":"漏洞扫描","type":"vulnerability_scan"}
 ]'
 ```
+
+**注意：** `agent_name` 是必需参数，不能省略。
 
 ## 2. add-task
 

@@ -441,7 +441,7 @@ echo ""
 # 显示使用说明
 echo "使用说明："
 printf "  1. 如果 PATH 已更新，可以直接使用命令：\n"
-printf "     ${BLUE}init-task-json${NC} <tasks_json_path> <agent_task_id> [agent_name]\n"
+printf "     ${BLUE}init-task-json${NC} <tasks_json_path> <agent_task_id> <agent_name>\n"
 printf "     ${BLUE}add-task${NC} <tasks_json_path> <task_id> <task_type> <description>\n"
 printf "     ${BLUE}update-task${NC} <tasks_json_path> <task_id> --status <status>\n"
 printf "     ${BLUE}read-task${NC} <tasks_json_path> <task_id>\n"

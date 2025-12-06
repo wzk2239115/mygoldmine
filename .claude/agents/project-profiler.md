@@ -144,7 +144,7 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 mkdir -p .workspace/{tasks,results,cache/project-profiler}
 
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
-init-task-json .workspace/tasks/project-profiler-tasks.json project-profiler
+init-task-json .workspace/tasks/project-profiler-tasks.json default project-profiler
   --tasks '[
     {
       "id": "task-001",
