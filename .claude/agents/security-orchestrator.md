@@ -190,13 +190,13 @@ Task(
 )
 ```
 
-**等待完成并验证结果**：
-```bash
-# 验证项目分析文件已生成
-if [ -f ".workspace/results/project-profiler-results.json" ]; then
-  echo "项目分析完成"
-fi
-```
+**等待完成并检查任务完成情况**：
+
+1. **等待 subagent 完成**：等待 project-profiler 子智能体执行完成
+
+2. **检查任务完成情况**：调用 `check-task .workspace/tasks/project-profiler-tasks.json --show-pending --show-failed` 检查任务完成情况, 如果未完成任务数量大于0, 需要重新调用subagent(证参数一致)继续执行
+
+3. **验证结果**：确认 `.workspace/results/project-profiler-results.json` 文件已生成
 
 ### 任务 2: 威胁建模 (task-002)
 
@@ -209,14 +209,17 @@ Task(
 )
 ```
 
-**等待完成并验证结果, 从thread-modeler-results.json中获取需要启用的扫描器列表**：
-```bash
-# 验证威胁模型文件已生成
-if [ -f ".workspace/results/threat-modeler-results.json" ]; then
-  echo "威胁建模完成"
-  jq '.scanner_selection.enabled' .workspace/results/threat-modeler-results.json
-fi
-```
+**等待完成并检查任务完成情况**：
+
+1. **等待 subagent 完成**：等待 threat-modeler 子智能体执行完成
+
+2. **检查任务完成情况**：调用 `check-task .workspace/tasks/threat-modeler-tasks.json --show-pending --show-failed` 检查任务完成情况, 如果未完成任务数量大于0, 需要重新调用subagent(证参数一致)继续执行
+
+3. **验证结果**：确认 `.workspace/results/threat-modeler-results.json` 文件已生成
+
+4. **获取扫描器列表**：
+   - 确认 `.workspace/results/threat-modeler-results.json` 文件已生成
+   - 从威胁建模结果中提取需要启用的扫描器列表：`jq '.scanner_selection.enabled' .workspace/results/threat-modeler-results.json`
 
 ### 任务 3: 添加扫描任务 (task-006+，插入至 task-004 前)
 
@@ -430,7 +433,18 @@ SHARED_DATA_PATH: .workspace/shared/sql-injection-scanner-shared.json
 
 调用general-scanner子智能体进行漏洞扫描
 
+**重要：每个 general-scanner 任务完成后必须检查任务完成情况**
+
+对于每个 general-scanner 任务（task-006+），执行以下流程：
+1. 调用 Task 工具启动 subagent
+2. 等待 subagent 完成
+3. 调用 `check-task .workspace/tasks/{TASK_ID}-tasks.json --show-pending --show-failed` 检查任务完成情况
+4. 如果检查到未完成任务数量大于0, 需要重新调用 subagent(证参数一致)继续完成任务
+5. 重复步骤3-4，直到所有任务完成
+
 **单个任务示例**（不需要拆分）：
+
+1. **调用 subagent**：
 ```bash
 Task(
   subagent_type: "general-scanner",
@@ -443,6 +457,10 @@ TASK_ID: task-006
 ```
 
 **多个任务示例**（需要拆分，传递扫描范围和共享数据路径）：
+
+**任务 1（task-006）**：
+
+1. **调用 subagent**：
 ```bash
 Task(
   subagent_type: "general-scanner",
@@ -454,7 +472,12 @@ SCAN_SCOPE: {\"type\":\"module\",\"modules\":[\"auth\",\"payment\"]}
 SHARED_DATA_PATH: .workspace/shared/sql-injection-scanner-shared.json
 使用sql-injection-scanner SKILL扫描auth和payment模块的漏洞..."
 )
+```
 
+**任务 2（task-007）**：
+
+1. **调用 subagent**：
+```bash
 Task(
   subagent_type: "general-scanner",
   description: "Scan SQL injection vulns (user/order)",
@@ -465,16 +488,6 @@ SCAN_SCOPE: {\"type\":\"module\",\"modules\":[\"user\",\"order\"]}
 SHARED_DATA_PATH: .workspace/shared/sql-injection-scanner-shared.json
 使用sql-injection-scanner SKILL扫描user和order模块的漏洞..."
 )
-```
-
-...其他SKILL类型(参见支持的漏洞分析SKILL列表)...
-
-```
-
-**等待完成并验证结果**：
-```bash
-# 验证各扫描结果文件已生成（按任务 ID 命名）
-find .workspace/results -maxdepth 1 -type f -name "task-*-results.json" -print
 ```
 
 ### 任务 5: 报告生成 (task-004)
@@ -489,12 +502,12 @@ Task(
 )
 ```
 
-**等待完成并验证结果**：
-```bash
-# 验证报告文件已生成
-if [ -f ".workspace/reports/audit-report.md" ] && [ -f ".workspace/reports/audit-report.json" ]; then
-  echo "报告生成完成"
-fi
-```
+**等待完成并检查任务完成情况**：
+
+1. **等待 subagent 完成**：等待 report-generator 子智能体执行完成
+
+2. **检查任务完成情况**：调用 `check-task .workspace/tasks/report-generator-tasks.json --show-pending --show-failed` 检查任务完成情况, 如果未完成任务数量大于0, 需要重新调用subagent(证参数一致)继续执行
+
+3. **验证结果**：确认 `.workspace/reports/audit-report.md` 和 `.workspace/reports/audit-report.json` 文件已生成
 
 ### 任务结束
