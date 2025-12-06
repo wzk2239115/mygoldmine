@@ -26,6 +26,17 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/operation-logger.py"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
