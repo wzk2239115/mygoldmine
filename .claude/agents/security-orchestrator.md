@@ -30,124 +30,36 @@ Task(
 ## Four-Phase Execution Model
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                   SECURITY ORCHESTRATOR WORKFLOW                        │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  STEP 1: Project Profiling (Sequential)                                 │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  project-profiler (工程画像)                                     │   │
-│  │  ├─ Analyze codebase structure                                   │   │
-│  │  ├─ Identify tech stack & entry points                           │   │
-│  │  └─ OUTPUT: project-profiler-results.json                        │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                              │                                          │
-│                              ▼                                          │
-│  STEP 2: Threat Modeling (Sequential)                                    │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  threat-modeler (威胁建模)                                        │   │
-│  │  ├─ INPUT: project-profiler-results.json                         │   │
-│  │  ├─ Build attack graph                                           │   │
-│  │  ├─ Map endpoints → threats                                      │   │
-│  │  └─ OUTPUT: threat-modeler-results.json                          │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                              │                                          │
-│                              ▼                                          │
-│  STEP 3: Vulnerability Scanning (Parallel, max 5 concurrent)           │
-│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐   │
-│  │ general-     │ │ general-     │ │ general-     │ │ general-     │   │
-│  │ scanner-1    │ │ scanner-2    │ │ scanner-3    │ │ scanner-N    │   │
-│  │ (不同SKILL-1)│ │ (不同SKILL-2) │ │ (不同SKILL-3)│ │ (不同SKILL-N) │  │
-│  │ INPUT:       │ │ INPUT:       │ │ INPUT:       │ │ INPUT:       │   │
-│  │ - project-   │ │ - project-   │ │ - project-   │ │ - project-   │   │
-│  │   analysis   │ │   analysis   │ │   analysis   │ │   analysis   │   │
-│  │ - threat-    │ │ - threat-    │ │ - threat-    │ │ - threat-    │   │
-│  │   model      │ │   model      │ │   model      │ │   model      │   │
-│  │ - SKILL-1    │ │ - SKILL-2    │ │ - SKILL-3    │ │ - SKILL-N    │   │
-│  │ - TASK_ID-1  │ │ - TASK_ID-2  │ │ - TASK_ID-3  │ │ - TASK_ID-N  │   │
-│  │ OUTPUT:      │ │ OUTPUT:      │ │ OUTPUT:      │ │ OUTPUT:      │   │
-│  │ TASK-ID-1-   │ │ TASK-ID-2-   │ │ TASK-ID-3-   │ │ TASK-ID-N-   │   │
-│  │ results.json │ │ results.json │ │ results.json │ │ results.json │   │
-│  └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘   │
-│                              │                                          │
-│                              ▼                                          │
-│  STEP 4: Report Generation (Sequential)                                 │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  report-generator (报告生成器)                                    │   │
-│  │  ├─ INPUT: project-profiler-results.json +                       │   │
-│  │  │        threat-modeler-results.json +                          │   │
-│  │  │        all TASK-ID-*-results.json                            │   │
-│  │  └─ OUTPUT: audit-report.md, audit-report.json                  │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
+STEP 1: project-profiler（顺序）
+  输入：代码仓库
+  输出：project-profiler-results.json
+
+STEP 2: threat-modeler（顺序）
+  输入：project-profiler-results.json
+  输出：threat-modeler-results.json（含 scanner_selection.enabled）
+
+STEP 3: general-scanner（并行，≤5 并发，按批次执行）
+  输入：project-profiler-results.json + threat-modeler-results.json + SKILL + TASK_ID
+  输出：task-*-results.json + BUG-*.json
+
+STEP 4: report-generator（顺序）
+  输入：project-profiler-results.json + threat-modeler-results.json + task-*-results.json + BUG-*.json
+  输出：audit-report.md + audit-report.json
 ```
+
+### 并发与失败恢复策略
+
+- 并发上限：扫描阶段（general-scanner）同时运行不超过 5 个任务，可根据用户提示设置并发度，但上限为 5；建议按批次（每批 ≤5）拉起，上一批完成再启动下一批。
+- 超时与重试：单个扫描任务建议默认超时 10 分钟；失败或超时可重试 1 次，仍失败则标记 failed 并记录原因。
+- 状态恢复：中断后通过 `read-task` 读取 pending/failed 任务继续执行；已完成的任务不重复执行。
 
 ## Artifact Flow (Data Dependencies)
 
 ```
-project-profiler (工程画像)
-      │
-      ▼
-project-profiler-results.json ────────────────────────────────┐
-      │                                                       │
-      │ Contains:                                             │
-      │ - endpoints[] (if extended analysis)                  │
-      │ - tech_stack (language, framework)                    │
-      │ - assets (if extended analysis)                       │
-      │                                                       │
-      ▼                                                       │
-threat-modeler (威胁建模)                                      │
-      │                                                       │
-      │ Contains:                                             │
-      │ - scanner_selection.enabled[]                         │
-      │ - Prioritized risk tasks (P0/P1/P2)                   │
-      │ - Suggested vulnerability scanning tasks              │
-      │ - Target endpoints/files                              │
-      │                                                       │
-      ▼                                                       │
-threat-modeler-results.json   ─────────────────────────┐      │
-      │                                                │      │
-      │ Contains:                                      │      │
-      │                                                │      │
-      │ - scanner_selection.enabled[]                  │      │
-      │ - Prioritized risk tasks (P0/P1/P2)            │      │
-      │ - Suggested vulnerability scanning tasks       │      │
-      │ - Target endpoints/files                       │      │
-      │                                                │      │
-      ▼                                                │      │
-┌─────────────────────────────────────────┐            │      │
-│ General Scanner Agents (parallel, max 5)│            │      │
-│ (不同SKILL-1, 不同SKILL-2, 不同SKILL-3, 不同SKILL-N)│  │      │
-│                                         │            │      │
-│ Each scanner receives:                  │            │      │
-│ - project-profiler-results.json         │            │      │
-│ - threat-modeler-results.json           │            │      │
-│ - TASK-ID-1, TASK-ID-2, TASK-ID-3,    │              │      │
-│   TASK-ID-N (Task ID to use)           │             │      │
-│ - SKILL-1, SKILL-2, SKILL-3, SKILL-N   │             │      │
-│   (which SKILL to use)                  │            │      │
-│                                         │            │      │
-│ Each scanner outputs:                   │            │      │
-│ - TASK-ID-1-results.json                │            │      │
-│ - TASK-ID-2-results.json                │            │      │
-│ - TASK-ID-3-results.json                │            │      │
-│ - TASK-ID-N-results.json                │            │      │
-└─────────────────────────────────────────┘            │      │
-      │                                                │      │
-      ▼                                                │      │
-┌─────────────────────────────────────────┐            │      │
-│ report-generator (报告生成器)            │◄───────────┴──────┘
-│                                         │
-│ Receives:                               │
-│ - project-profiler-results.json         │
-│ - threat-modeler-results.json           │
-│ - All TASK-ID-*-results.json files      │
-│ - All BUG-*.json files from findings/   │
-│                                         │
-│ Outputs:                                │
-│ - .workspace/reports/audit-report.md    │
-│ - .workspace/reports/audit-report.json  │
-└─────────────────────────────────────────┘
+project-profiler → project-profiler-results.json
+threat-modeler   → threat-modeler-results.json（含 scanner_selection.enabled）
+general-scanner  → task-*-results.json + BUG-*.json（并发 ≤5，按批次）
+report-generator → audit-report.md + audit-report.json
 ```
 
 ## Available Agents
