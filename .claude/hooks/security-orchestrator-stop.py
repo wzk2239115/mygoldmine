@@ -16,6 +16,8 @@ from typing import List, Dict, Any, Optional, Tuple
 
 # 配置
 WORKSPACE_DIR = Path(".workspace/tasks")
+WORKSPACE_ROOT = Path(".workspace")
+SKIP_CHECK_MARKER = WORKSPACE_ROOT / ".skip-task-check"  # 跳过检查的标记文件
 LOG_FILE = Path("/tmp/security-orchestrator-stop.log")
 ARTIFACT_CHECK_ENABLED = True  # 是否启用产物检查
 
@@ -269,9 +271,46 @@ class TaskChecker:
         # 检查产物完整性
         self.check_artifact_integrity(task_file, data)
 
+    def check_skip_marker(self) -> bool:
+        """检查是否存在跳过检查的标记文件
+        
+        Returns:
+            True: 标记文件存在，跳过检查
+            False: 标记文件不存在，需要执行检查
+        """
+        if SKIP_CHECK_MARKER.exists():
+            self.log_message(f"发现跳过检查标记文件: {SKIP_CHECK_MARKER}，跳过任务检查，允许退出")
+            print(f"Skip check marker found: {SKIP_CHECK_MARKER}, allow exit")
+            return True
+        return False
+
+    def create_skip_marker(self):
+        """创建跳过检查的标记文件"""
+        try:
+            # 确保 .workspace 目录存在
+            WORKSPACE_ROOT.mkdir(parents=True, exist_ok=True)
+            
+            # 创建标记文件，写入时间戳和原因
+            marker_content = {
+                "created_at": datetime.now().isoformat(),
+                "reason": "未完成任务已检测到，用户选择跳过检查",
+                "note": "删除此文件可重新启用任务完成检查"
+            }
+            
+            with open(SKIP_CHECK_MARKER, 'w', encoding='utf-8') as f:
+                json.dump(marker_content, f, ensure_ascii=False, indent=2)
+            
+            self.log_message(f"已创建跳过检查标记文件: {SKIP_CHECK_MARKER}")
+        except Exception as e:
+            self.log_message(f"创建标记文件失败: {e}")
+
     def check_all_tasks(self):
         """检查所有任务文件"""
         self.log_message("脚本启动: security-orchestrator-stop.py")
+
+        # 检查是否存在跳过检查的标记文件
+        if self.check_skip_marker():
+            return True  # 标记文件存在，跳过检查，允许退出
 
         if not self.check_workspace_directory():
             return False
@@ -292,6 +331,8 @@ class TaskChecker:
             self.log_message("所有任务均已完成，产物完整，允许退出")
         else:
             self.log_message("发现未完成任务或缺失产物，将阻止退出")
+            # 发现未完成任务时，创建标记文件
+            self.create_skip_marker()
 
         return not self.has_issues
 
@@ -341,6 +382,9 @@ class TaskChecker:
 
         print("\n" + "━" * 55)
         print("请继续完成上述未完成任务后再退出。")
+        print("━" * 55)
+        print(f"\n提示: 已创建跳过检查标记文件: {SKIP_CHECK_MARKER}")
+        print("下次退出时将自动跳过检查。如需重新启用检查，请删除该文件。")
         print("━" * 55 + "\n")
 
 
