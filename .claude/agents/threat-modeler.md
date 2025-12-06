@@ -121,11 +121,11 @@ init-task-json .workspace/tasks/threat-modeler-tasks.json threat-modeler
   ]'
 ```
 
-2. 如果security-orchestrator-tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。
+2. 如果threat-modeler-tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。
 ```bash
-list-tasks .workspace/tasks/security-orchestrator-tasks.json
+list-tasks .workspace/tasks/threat-modeler-tasks.json
 ```
-### 执行任务: 根据 security-orchestrator-tasks.json 文件执行任务
+### 执行任务: 根据 threat-modeler-tasks.json 文件执行任务
 
 **重要流程**： 对于单个任务
 
@@ -133,12 +133,12 @@ list-tasks .workspace/tasks/security-orchestrator-tasks.json
 
 **任务开始前，必须调用read-task读取任务状态**
 ```bash
-read-task .workspace/tasks/security-orchestrator-tasks.json "task-001"
+read-task .workspace/tasks/threat-modeler-tasks.json "task-001"
 ```
 
 **如果任务状态为 "pending" 或者 "failed"（中断恢复），调用update-task更新任务状态为 "in_progress"，并继续执行任务**
 ```bash
-update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --status "in_progress"
+update-task .workspace/tasks/threat-modeler-tasks.json "task-001" --status "in_progress"
 ```
 
 **如果任务状态为 "completed"，任务已完成，跳过执行**
@@ -146,7 +146,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --statu
 
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
+update-task .workspace/tasks/threat-modeler-tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
 ### 任务 1: 读取项目画像结果 (task-001)

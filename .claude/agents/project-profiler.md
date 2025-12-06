@@ -16,7 +16,7 @@ description: |
   - 为安全审计或代码审查提供基础画像
   
   输出：
-  - project-profiler.json：统一的项目画像结果（包含基础分析和扩展分析的所有信息）
+  - project-profiler-results.json：统一的项目画像结果（包含基础分析和扩展分析的所有信息）
   
   不做的事情：
   - 不做 Source/Sink 分析
@@ -63,9 +63,9 @@ tools: Read, Write, Edit, Bash, Grep
 
 ## 输出格式要求
 
-**⚠️ 统一输出规范**：所有分析结果统一输出到 `.workspace/results/project-profiler.json`
+**⚠️ 统一输出规范**：所有分析结果统一输出到 `.workspace/results/project-profiler-results.json`
 
-**保存路径**：`.workspace/results/project-profiler.json`
+**保存路径**：`.workspace/results/project-profiler-results.json`
 
 **统一 JSON schema**（基础字段必需，扩展字段可选）：
 
@@ -167,7 +167,7 @@ init-task-json .workspace/tasks/project-profiler-tasks.json project-profiler
     {
       "id": "task-005",
       "type": "result_output",
-      "description": "输出分析结果到 .workspace/results/project-profiler.json",
+      "description": "输出分析结果到 .workspace/results/project-profiler-results.json",
       "optional": true
     }
   ]'
@@ -461,9 +461,9 @@ AWS_*, AZURE_*, GCP_*
 个人信息: email, phone, address, ssn, idcard, passport
 ```
 
-### 5. 输出分析结果到 .workspace/results/project-profiler.json (task-005)
+### 5. 输出分析结果到 .workspace/results/project-profiler-results.json (task-005)
 
-**生成流程**：统一输出到 `.workspace/results/project-profiler.json`
+**生成流程**：统一输出到 `.workspace/results/project-profiler-results.json`
 
 ### 6. 任务完成。
 
