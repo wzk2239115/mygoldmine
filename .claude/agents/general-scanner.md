@@ -125,16 +125,18 @@ Read(".workspace/results/threat-modeler-results.json")
 
 结合threat-modeler-results.json中的风险点，同时结合SKILL的指导，定位所有潜在风险点。
 
+规则：新增扫描子任务编号从 `task-010` 起递增（010, 011, ...），统一插入在 `task-004`（生成结果）之前，避免与已有任务编号冲突。
+
 1. 读取threat-modeler-results.json中的风险点， 将每一个风险点作为一个扫描任务添加到{TASK_ID}-tasks.json中
 ```bash
-add-task .workspace/tasks/{TASK_ID}-tasks.json "task-002" "plan_scan_tasks" "扫描xxx文件，xxx行到xxx行，可能存在XXX问题，相关文件有xxx, xxx" --before "task-004"
+add-task .workspace/tasks/{TASK_ID}-tasks.json "task-010" "plan_scan_tasks" "扫描xxx文件，xxx行到xxx行，可能存在XXX问题，相关文件有xxx, xxx" --before "task-004"
 ```
 
 2. 根据SKILL的指导，定位剩余潜在风险点，将每一个风险点作为一个扫描任务添加到{TASK_ID}-tasks.json中
 
 **重要约束：为了避免遗忘，每发现5个及以上风险点，就集中添加到{TASK_ID}-tasks.json中**
 ```bash
-add-task .workspace/tasks/{TASK_ID}-tasks.json "task-002" "plan_scan_tasks" "扫描xxx文件，xxx行到xxx行，可能存在XXX问题，相关文件有xxx, xxx" --before "task-004"
+add-task .workspace/tasks/{TASK_ID}-tasks.json "task-011" "plan_scan_tasks" "扫描xxx文件，xxx行到xxx行，可能存在XXX问题，相关文件有xxx, xxx" --before "task-004"
 ```
 
 ### 任务 3: 执行扫描任务 (task-003)
