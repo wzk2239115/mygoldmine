@@ -141,7 +141,7 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json default securit
     {
       "id": "task-003",
       "type": "add_scan_tasks",
-      "description": "添加扫描任务：读取威胁建模结果并批量添加扫描任务（task-006+）"
+      "description": "添加扫描任务：读取威胁建模结果并添加扫描任务"
     },
     {
       "id": "task-004",
@@ -152,7 +152,7 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json default securit
 ```
 
 说明：
-- `task-003` 负责读取威胁建模结果并批量添加扫描任务（task-006+），自身不执行扫描。
+- `task-003` 负责读取威胁建模结果并添加扫描任务，自身不执行扫描。
 - 如果威胁建模未推荐扫描器，task-003 可不添加任务，流程直接进入 `task-004`（报告生成）。
 - 威胁建模后新增的扫描任务从 `task-006` 起递增，统一插入在 `task-004`（报告生成）之前。
 - 新增扫描任务的描述统一为：`调用general-scanner子智能体并激活<SKILL>进行漏洞扫描`。
@@ -228,9 +228,9 @@ Task(
    - 确认 `.workspace/results/threat-modeler-results.json` 文件已生成
    - 从威胁建模结果中提取需要启用的扫描器列表：`jq '.scanner_selection.enabled' .workspace/results/threat-modeler-results.json`
 
-### 任务 3: 添加扫描任务 (task-006+，插入至 task-004 前)
+### 任务 3: 添加扫描任务 (task-003)
 
-**任务目标**：读取威胁建模结果，根据用户指定的扫描器范围过滤后，将每一个允许的 SKILL 类型添加为扫描任务（task-006+）写入 `security-orchestrator-tasks.json`；自身不执行扫描。
+**任务目标**：读取威胁建模结果，根据用户指定的扫描器范围过滤后，将每一个允许的 SKILL 类型添加为扫描任务写入 `security-orchestrator-tasks.json`；自身不执行扫描。
 
 #### 3.1 读取扫描器配置
 
