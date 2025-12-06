@@ -19,9 +19,9 @@ tools: Read, Write, Edit, Bash
 从 `.workspace/results,findings,tasks` 读取：
 - `project-profiler-results.json` - 项目信息和上下文
 - `threat-modeler-results.json` - 威胁建模结果
-- `{TASK_ID}-tasks.json` - 任务列表
-- `BUG-xxx漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.json` - 漏洞发现列表
-- `{TASK_ID}-results.json` - 扫描结果列表
+- `task-*-tasks.json` - 扫描任务列表（如有）
+- `task-*-results.json` - 扫描结果列表（遍历 `.workspace/results` 下所有 `task-*-results.json`）
+- `BUG-*.json` - 漏洞发现列表（遍历 `.workspace/findings` 下所有 `BUG-*.json`）
 
 ## 输出文件
 
@@ -107,16 +107,15 @@ Read(".workspace/results/threat-modeler-results.json")
 ### 任务 2: 读取漏洞扫描结果列表 (task-002)
 
 ```bash
-Read(".workspace/results/{TASK_ID}-results.json")
+# 遍历所有扫描结果
+find .workspace/results -maxdepth 1 -type f -name "task-*-results.json" -print -exec Read "{}" \;
 ```
 
 ### 任务 3: 读取漏洞发现列表 (task-003)
 
 ```bash
-List Directory(".workspace/findings")
-
-# 读取所有漏洞报告
-Read("BUG-XXX漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.json")
+# 列出并读取所有漏洞报告
+find .workspace/findings -maxdepth 1 -type f -name "BUG-*.json" -print -exec Read "{}" \;
 ```
 
 ### 任务 4: 生成json报告audit-report.json (task-004)
@@ -237,6 +236,7 @@ Read("BUG-XXX漏洞-xxx模块（可选）xxx文件xxx行（到xxx行,可选）.j
 - 去重（相同文件 + 行号 + 类型 = 相同漏洞）
 - 按严重程度排序（Critical > High > Medium > Low）
 - 分配全局漏洞 ID（VULN-001, VULN-002, 等）
+- 若未执行定制扫描（无 `task-*-results.json`），仍需生成报告，统计值为 0，风险级别默认为 Low，并在执行摘要中注明“未执行定制扫描（无推荐扫描器或扫描被跳过）”。
 
 ### 2. 计算风险评估
 
