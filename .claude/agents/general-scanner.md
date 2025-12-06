@@ -5,6 +5,7 @@ description: |
 
   输入要求：
   - project-profiler-results.json（项目分析结果，由 project-profiler 生成）
+  - endpoints.md（API端点列表，由 builtin-general-purpose 生成）
   - threat-modeler-results.json（威胁建模结果，由 threat-modeler 生成）
   - SKILL_NAME (需要扫描的漏洞类型， 只能输入一个SKILL_NAME)
   - TASK_ID (任务ID，用于记录扫描结果)
@@ -137,32 +138,11 @@ done
 
 ### 任务 1: 读取项目画像和威胁建模结果 (subagent-task-001)
 
-加载项目画像和威胁建模结果文件(.workspace/results/project-profiler-results.json和.workspace/results/threat-modeler-results.json)
-
-```
-Read(".workspace/results/project-profiler-results.json")
-Read(".workspace/results/threat-modeler-results.json")
-```
-
 **按需加载缓存文件（可选）**：
 
-如果需要更详细的信息或中间结果，可以按需加载 project-profiler 和 threat-modeler 的缓存文件：
-
-**project-profiler 缓存文件**（位于 `.workspace/cache/project-profiler/`）：
-- `task-001-code-statistics.json` - 代码统计信息（包含 `code_statistics` 字段）
-- `task-002-tech-stack.json` - 技术栈信息（包含 `tech_stack` 字段）
-- `task-003-endpoints.json` - API端点列表（包含 `endpoints` 数组）
-- `task-004-assets.json` - 资产位置信息（包含 `assets` 字段）
-
-**threat-modeler 缓存文件**（位于 `.workspace/cache/threat-modeler/`）：
-- `task-002-endpoint-threats.json` - 功能点威胁映射（包含 `endpoints` 数组，每个端点包含 `threats` 字段）
-- `task-003-component-threats.json` - 组件威胁映射（包含 `components` 数组，每个组件包含 `threats` 字段）
-- `task-004-architecture-threats.json` - 架构威胁映射（包含 `architecture` 对象，包含 `threats` 字段）
-
-**使用场景**：
-- 如果需要更详细的端点信息，可以加载 `task-003-endpoints.json`
-- 如果需要更详细的威胁映射信息，可以加载 threat-modeler 的缓存文件
-- 如果最终结果文件已包含所需信息，则无需加载缓存文件
+**project-profiler 缓存文件**：`List(".workspace/cache/project-profiler/")`
+**API端点列表**：`.workspace/results/endpoints.md`
+**threat-modeler 缓存文件**：`List(".workspace/cache/threat-modeler/")`
 
 **如果提供了SHARED_DATA_PATH，读取共享数据文件**：
 

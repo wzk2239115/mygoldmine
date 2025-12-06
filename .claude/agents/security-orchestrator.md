@@ -130,9 +130,14 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json default securit
   --description "安全编排器，负责协调项目分析、威胁建模和漏洞扫描，生成综合审计报告。" \
   --tasks '[
     {
-      "id": "task-001",
+      "id": "task-001-1",
       "type": "project-profiler",
       "description": "项目分析：识别技术栈和项目结构"
+    },
+    {
+      "id": "task-001-2",
+      "type": "project-profiler",
+      "description": "路由扫描：发现所有 API 端点和路由"
     },
     {
       "id": "task-002",
@@ -186,15 +191,24 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --statu
 update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
-### 任务 1: 项目分析 (task-001)
+### 任务 1: 项目分析 (task-001-{1,2})
 
 **任务目标**：收集代码审计所需的信息
-调用project-profiler子智能体进行项目分析
 ```bash
+# 调用project-profiler子智能体进行项目分析
 Task(
   subagent_type: "project-profiler",
   description: "Analyze project structure",
-  prompt: "## Project Analysis Request\n Analyze project structure based on current directory...\n..."
+  prompt: "## Project Analysis Request\n Analyze project structure based on current directory...\n...",
+  background: false
+)
+
+# 调用内置通用智能体与task-001同时执行，发现API端点并保存到.workspace/results/endpoints.md
+Task(
+  subagent_type: "builtin-general-purpose",
+  description: "Discover API endpoints",
+  prompt: "## API Endpoints Discovery Request\n Use route-scanner skill to discover API endpoints and save to .workspace/results/endpoints.md. If the file already exists, just skip this task.\n...",
+  background: false
 )
 ```
 
@@ -204,7 +218,11 @@ Task(
 
 2. **检查任务完成情况**：调用 `check-task .workspace/tasks/project-profiler-tasks.json --show-pending --show-failed` 检查任务完成情况, 如果未完成任务数量大于0, 需要重新调用subagent(证参数一致)继续执行
 
-3. **验证结果**：确认 `.workspace/results/project-profiler-results.json` 文件已生成
+3. **验证结果**：确认下列文件已生成：
+- `.workspace/cache/project-profiler/task-001-code-statistics.md`
+- `.workspace/cache/project-profiler/task-002-tech-stack.md`
+- `.workspace/cache/project-profiler/task-003-assets.md`
+- `.workspace/results/endpoints.md`
 
 ### 任务 2: 威胁建模 (task-002)
 
@@ -223,7 +241,10 @@ Task(
 
 2. **检查任务完成情况**：调用 `check-task .workspace/tasks/threat-modeler-tasks.json --show-pending --show-failed` 检查任务完成情况, 如果未完成任务数量大于0, 需要重新调用subagent(证参数一致)继续执行
 
-3. **验证结果**：确认 `.workspace/results/threat-modeler-results.json` 文件已生成
+3. **验证结果**：确认下列文件已生成：
+- `.workspace/cache/threat-modeler/task-002-endpoint-threats.json`
+- `.workspace/cache/threat-modeler/task-003-component-threats.json`
+- `.workspace/cache/threat-modeler/task-004-architecture-threats.json`
 
 4. **获取扫描器列表**：
    - 确认 `.workspace/results/threat-modeler-results.json` 文件已生成

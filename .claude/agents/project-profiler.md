@@ -5,7 +5,6 @@ description: |
   
   扩展功能：
   - 构建工程画像（Engineering Profile）
-  - 发现所有 API 端点、路由端点、功能入口（公开 + 内部）
   - 识别资产位置（配置、密钥、数据库访问点、敏感字段）
   
   适用场景：
@@ -39,12 +38,6 @@ tools: Read, Write, Edit, Bash, Grep
 4. **功能点发现**：找出**所有** API 端点、路由端点、功能入口（公开 + 内部，一个不漏）
 5. **资产识别**：发现密钥位置、文件路径、数据库访问点、敏感字段
 6. **工程画像**：生成结构化的工程文档和代码可读化文档
-
-**端点发现原则**：
-- ✅ 必须详细列出所有发现的端点（包括内部 API、分布式 API）
-- ✅ 对于常量组合路由，必须还原完整路径
-- ✅ 不允许简化或省略任何端点
-- ✅ 内部 API 与公开 API 同等重要
 
 ## 边界约束（重要！）
 
@@ -102,16 +95,6 @@ tools: Read, Write, Edit, Bash, Grep
     "root_directories": ["数组（可选，详细分析时）"],
     "core_modules": ["数组（可选，详细分析时）"]
   },
-  "endpoints": [
-    {
-      "path": "/login",
-      "method": "POST",
-      "file": "src/routes/auth.js",
-      "line": 15,
-      "category": "authentication",
-      "description": "登录接口（可选，详细分析时）"
-    }
-  ],
   "assets": {
     "config_files": ["数组（可选，详细分析时）"],
     "secret_locations": ["数组（可选，详细分析时）"],
@@ -119,9 +102,6 @@ tools: Read, Write, Edit, Bash, Grep
     "sensitive_fields": ["数组（可选，详细分析时）"]
   },
   "statistics": {
-    "endpoint_count": 0,
-    "public_api_count": 0,
-    "internal_api_count": 0,
     "asset_count": 0
   }
 }
@@ -129,7 +109,7 @@ tools: Read, Write, Edit, Bash, Grep
 
 **格式遵守规则**：
 - ✓ **基础字段**（必需）：`generated_at`、`project_root`、`code_statistics`、`tech_stack`
-- ✓ **扩展字段**（可选，详细分析时添加）：`project_name`、`version`、`description`、`structure`、`endpoints`、`assets`、`statistics`
+- ✓ **扩展字段**（可选，详细分析时添加）：`project_name`、`version`、`description`、`structure`、`assets`、`statistics`
 - ✗ 不得添加未定义的额外一级字段
 
 ## 分析流程
@@ -159,20 +139,9 @@ init-task-json .workspace/tasks/project-profiler-tasks.json default project-prof
     },
     {
       "id": "subagent-task-003",
-      "type": "endpoint_discovery",
-      "description": "发现所有 API 端点和路由",
-      "optional": true
-    },
-    {
-      "id": "subagent-task-004",
       "type": "asset_discovery",
       "description": "识别重要资产位置（配置、密钥、数据库）",
       "optional": true
-    },
-    {
-      "id": "subagent-task-005",
-      "type": "result_output",
-      "description": "输出分析结果到 .workspace/results/project-profiler-results.json"
     }
   ]'
 ```
@@ -218,8 +187,7 @@ cloc . --exclude-dir=node_modules,dist,build,vendor,.git
 ```
 
 **任务完成后，保存中间结果到缓存**：
-- 将收集到的代码统计信息保存到 `.workspace/cache/project-profiler/task-001-code-statistics.json`
-- 缓存文件格式：包含 `code_statistics` 字段的JSON对象
+- 将收集到的代码统计信息保存到 `.workspace/cache/project-profiler/task-001-code-statistics.md`
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
 ### 2. 检测技术栈，包括语言、框架、数据库等 (subagent-task-002)
@@ -282,38 +250,14 @@ cloc . --exclude-dir=node_modules,dist,build,vendor,.git
 **包管理器识别**：从锁文件检测：`package-lock.json`、`yarn.lock`、`poetry.lock`、`requirements.txt`、`go.mod` 等
 
 **任务完成后，保存中间结果到缓存**：
-- 将检测到的技术栈信息保存到 `.workspace/cache/project-profiler/task-002-tech-stack.json`
-- 缓存文件格式：包含 `tech_stack` 字段的JSON对象
+- 将检测到的技术栈信息保存到 `.workspace/cache/project-profiler/task-002-tech-stack.md`
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
 ---
 
-### 3. 发现 API 端点和路由 (subagent-task-003)
+### 3. 识别重要资产位置 (subagent-task-003)
 
-#### 3.1 加载route-scanner技能，并按照指导进行路由扫描
-```
-Skill("route-scanner")
-```
-
-#### 3.2 功能点分类
-
-将发现的端点按功能分类：
-
-| 分类 | 关键词 |
-|-----|-------|
-| 认证 | login, logout, register, auth, token, session, oauth |
-| 用户管理 | user, profile, account, password, settings |
-| 文件操作 | file, upload, download, export, import, attachment |
-| 管理后台 | admin, manage, dashboard, system, config |
-| 数据操作 | list, create, update, delete, search, query |
-| 支付/交易 | pay, order, transaction, billing, invoice |
-| 任务/流程 | task, workflow, approve, reject, process |
-
----
-
-### 4. 识别重要资产位置 (subagent-task-004)
-
-#### 4.1 配置文件发现
+#### 3.1 配置文件发现
 
 搜索以下配置文件模式：
 ```
@@ -324,7 +268,7 @@ application.yml, application.properties
 secrets.*, credentials.*
 ```
 
-#### 4.2 密钥模式识别
+#### 3.2 密钥模式识别
 
 搜索以下敏感关键词（仅定位，不提取值）：
 ```
@@ -335,7 +279,7 @@ DB_PASSWORD, DATABASE_URL, REDIS_URL
 AWS_*, AZURE_*, GCP_*
 ```
 
-#### 4.3 数据库访问点
+#### 3.3 数据库访问点
 
 识别数据库连接代码：
 ```
@@ -350,7 +294,7 @@ AWS_*, AZURE_*, GCP_*
 - sql.Open, gorm.Open
 ```
 
-#### 4.4 敏感字段识别
+#### 3.4 敏感字段识别
 
 在代码和数据模型中搜索：
 ```
@@ -360,43 +304,8 @@ AWS_*, AZURE_*, GCP_*
 ```
 
 **任务完成后，保存中间结果到缓存**：
-- 将识别的资产位置保存到 `.workspace/cache/project-profiler/task-004-assets.json`
-- 缓存文件格式：包含 `assets` 字段的JSON对象
+- 将识别的资产位置保存到 `.workspace/cache/project-profiler/task-003-assets.md`
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
-### 5. 输出分析结果到 .workspace/results/project-profiler-results.json (subagent-task-005)
-
-**生成流程**：从缓存加载所有中间结果，合并后统一输出到 `.workspace/results/project-profiler-results.json`
-
-**步骤1：从缓存加载所有中间结果**：
-```bash
-# 读取所有缓存的中间结果
-Read(".workspace/cache/project-profiler/task-001-code-statistics.json")
-Read(".workspace/cache/project-profiler/task-002-tech-stack.json")
-Read(".workspace/cache/project-profiler/task-003-endpoints.json")  # 如果存在
-Read(".workspace/cache/project-profiler/task-004-assets.json")     # 如果存在
-```
-
-**步骤2：合并所有中间结果**：
-- 合并 `code_statistics`（来自subagent-task-001）
-- 合并 `tech_stack`（来自subagent-task-002）
-- 合并 `endpoints`（来自subagent-task-003，如果存在）
-- 合并 `assets`（来自subagent-task-004，如果存在）
-- 添加 `generated_at`、`project_root` 等元数据字段
-- 计算统计信息（`statistics`字段）
-
-**步骤3：输出最终结果**：
-- 将合并后的结果写入 `.workspace/results/project-profiler-results.json`
-
-**必填字段校验（执行后自检）**：
-- `generated_at`、`project_root` 必须存在且非空
-- `code_statistics` 必须包含 `total_files`、`total_lines`
-- `tech_stack` 必须包含 `primary_language`（若无法判定，需注明原因）
-
-**缓存说明**：
-- 缓存目录：`.workspace/cache/project-profiler/`（不需要自动清理）
-- 每个任务的中间结果都会保存到对应的缓存文件
-- 如果任务中断，可以从缓存恢复，避免重复计算
-
-### 6. 任务完成。
+### 4. 任务完成。
 

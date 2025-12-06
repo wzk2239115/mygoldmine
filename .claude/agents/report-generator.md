@@ -14,15 +14,6 @@ tools: Read, Write, Edit, Bash
 3. **报告生成**：创建 Markdown（人类可读）和 JSON（机器可读）两种格式的报告
 4. **风险评估**：计算整体风险级别并提供建议
 
-## 输入文件
-
-从 `.workspace/results,findings,tasks` 读取：
-- `project-profiler-results.json` - 项目信息和上下文
-- `threat-modeler-results.json` - 威胁建模结果
-- `task-*-tasks.json` - 扫描任务列表（可选，用于补充任务状态/耗时等元信息）
-- `task-*-results.json` - 扫描结果列表（遍历 `.workspace/results` 下所有 `task-*-results.json`）
-- `BUG-*.json` - 漏洞发现列表（遍历 `.workspace/findings` 下所有 `BUG-*.json`）
-
 ## 输出文件
 
 生成到 `.workspace/reports/audit-report.md` 和 `.workspace/reports/audit-report.json`：
@@ -47,26 +38,16 @@ init-task-json .workspace/tasks/report-generator-tasks.json default report-gener
   --tasks '[
     {
       "id": "subagent-task-001",
-      "type": "load_basic_analysis_results",
-      "description": "读取项目画像和威胁建模结果"
+      "type": "load_all_results",
+      "description": "读取所有结果文件"
     },
     {
       "id": "subagent-task-002",
-      "type": "load_general_scanner_results",
-      "description": "读取漏洞扫描结果列表"
-    },
-    {
-      "id": "subagent-task-003",
-      "type": "load_findings_results",
-      "description": "读取漏洞发现列表"
-    },
-    {
-      "id": "subagent-task-004",
       "type": "generate_json_report",
       "description": "生成json报告audit-report.json"
     },
     {
-      "id": "subagent-task-005",
+      "id": "subagent-task-003",
       "type": "generate_markdown_report",
       "description": "生成markdown报告audit-report.md"
     }
@@ -101,24 +82,15 @@ update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --s
 update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
-### 任务 1: 读取项目画像和威胁建模结果 (subagent-task-001)
+### 任务 1: 读取所有结果文件 (subagent-task-001)
 
 ```bash
-Read(".workspace/results/project-profiler-results.json")
-Read(".workspace/results/threat-modeler-results.json")
-```
-
-### 任务 2: 读取漏洞扫描结果列表 (subagent-task-002)
-
-```bash
-# 遍历所有扫描结果
-find .workspace/results -maxdepth 1 -type f -name "task-*-results.json" -print -exec Read "{}" \;
-
-# （可选）读取任务元信息，用于展示任务状态/耗时
-find .workspace/tasks -maxdepth 1 -type f -name "task-*-tasks.json" -print -exec Read "{}" \;
-
-# 读取共享数据文件（如果存在），用于同一SKILL多任务结果的去重
-find .workspace/shared -maxdepth 1 -type f -name "*-shared.json" -print -exec Read "{}" \;
+List(".workspace/results")
+List(".workspace/findings")
+List(".workspace/tasks")
+List(".workspace/shared")
+List(".workspace/cache/project-profiler")
+List(".workspace/cache/threat-modeler")
 ```
 
 **同一SKILL多任务结果去重逻辑**：
@@ -128,14 +100,8 @@ find .workspace/shared -maxdepth 1 -type f -name "*-shared.json" -print -exec Re
 - 去重规则：相同文件+相同行号+相同漏洞类型 = 相同漏洞
 - 如果多个任务报告了相同的漏洞，只保留一个（优先保留最早发现的或严重程度最高的）
 
-### 任务 3: 读取漏洞发现列表 (subagent-task-003)
 
-```bash
-# 列出并读取所有漏洞报告
-find .workspace/findings -maxdepth 1 -type f -name "BUG-*.json" -print -exec Read "{}" \;
-```
-
-### 任务 4: 生成json报告audit-report.json (subagent-task-004)
+### 任务 2: 生成json报告audit-report.json (subagent-task-002)
 
 ```json
 {
@@ -206,7 +172,7 @@ find .workspace/findings -maxdepth 1 -type f -name "BUG-*.json" -print -exec Rea
 }
 ```
 
-### 任务 5: 生成markdown报告audit-report.md (subagent-task-005)
+### 任务 3: 生成markdown报告audit-report.md (subagent-task-003)
 
 ## Markdown 报告结构
 

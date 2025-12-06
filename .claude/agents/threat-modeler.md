@@ -12,6 +12,7 @@ description: |
 
   输入要求：
   - project-profiler-results.json（项目分析结果，由 project-profiler 生成）
+  - endpoints.md（API端点列表，由 builtin-general-purpose 生成）
   - 必须包含：tech_stack、code_statistics 等字段
   
   输出：
@@ -155,31 +156,22 @@ update-task .workspace/tasks/threat-modeler-tasks.json "subagent-task-001" --sta
 
 ### 任务 1: 读取项目画像结果 (subagent-task-001)
 
-加载项目画像文件(.workspace/results/project-profiler-results.json)
-
-```
-Read(".workspace/results/project-profiler-results.json")
-```
-
 **按需加载缓存文件（可选）**：
 
 如果需要更详细的信息或中间结果，可以按需加载 project-profiler 的缓存文件：
 
-**project-profiler 缓存文件**（位于 `.workspace/cache/project-profiler/`）：
-- `task-001-code-statistics.json` - 代码统计信息（包含 `code_statistics` 字段）
-- `task-002-tech-stack.json` - 技术栈信息（包含 `tech_stack` 字段）
-- `task-003-endpoints.json` - API端点列表（包含 `endpoints` 数组）
-- `task-004-assets.json` - 资产位置信息（包含 `assets` 字段）
+**project-profiler 缓存文件**：`List(".workspace/cache/project-profiler/")`
 
-**使用场景**：
-- 如果需要更详细的端点信息进行威胁映射，可以加载 `task-003-endpoints.json`
-- 如果需要更详细的技术栈信息，可以加载 `task-002-tech-stack.json`
-- 如果需要更详细的资产位置信息，可以加载 `task-004-assets.json`
-- 如果最终结果文件已包含所需信息，则无需加载缓存文件
+**endpoints 文件**: `Read(".workspace/results/endpoints.md")`
 
 ### 任务 2: 功能点威胁建模 (subagent-task-002)
 
+数据输入：`.workspace/results/endpoints.md`
+
+数据处理：
 对每个功能端点，基于其**路径特征**、**方法**、**参数**推理可能的威胁。
+
+**要求：必须覆盖所有功能端点，并生成威胁映射结果。**
 
 #### 2.1 威胁映射规则库
 
@@ -274,9 +266,40 @@ Read(".workspace/results/project-profiler-results.json")
 | `credit_card`, `ssn`, `phone`, `email` | PII 数据泄露 | P1 |
 
 **任务完成后，保存中间结果到缓存**：
-- 将功能点威胁映射结果保存到 `.workspace/cache/threat-modeler/task-002-endpoint-threats.json`
-- 缓存文件格式：包含 `endpoints` 数组（每个端点包含 `threats` 字段）的JSON对象
+- 将功能点威胁映射结果保存到 `.workspace/cache/threat-modeler/subagent-task-002-endpoint-threats.json`
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
+
+**重要**: 相同分类的端点，必须合并在一起，不能分开。
+
+**数据格式：
+```json
+{
+  "meta": {
+    "generatedAt": "2024-01-01T00:00:00Z",
+    "sourceProfile": ".workspace/results/endpoints.md",
+    "totalRisk": 15,
+    "byPriority": { "P0": 5, "P1": 7, "P2": 3 }
+  },
+  "endpoints": [
+    {
+      "endpoint": "POST /api/login; File: src/routes/auth.js:25", // 该分类只有这一个端点
+      "endpoint_list": [ // 该分类有多个端点，统一列出
+        "POST /api/login; File: src/routes/auth.js:25",
+        "GET /api/logout; File: src/routes/auth.js:26",
+      ],
+      "category": "authentication",
+      "threats": [
+        {
+          "type": "SQLi",
+          "priority": "P0",
+          "confidence": "high",
+          "reasoning": "登录端点直接处理用户输入"
+        }
+      ]
+    }
+  ]
+}
+```
 
 ### 任务 3: 组件威胁建模 (subagent-task-003)
 
@@ -323,10 +346,35 @@ Read(".workspace/results/project-profiler-results.json")
 | 敏感函数 | 读取并返回敏感信息 | P0 | sensitive-info-scanner |
 
 **任务完成后，保存中间结果到缓存**：
-- 将组件威胁映射结果保存到 `.workspace/cache/threat-modeler/task-003-component-threats.json`
+- 将组件威胁映射结果保存到 `.workspace/cache/threat-modeler/subagent-task-003-component-threats.json`
 - 缓存文件格式：包含 `components` 数组（每个组件包含 `threats` 字段）的JSON对象
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
+**数据格式：
+```json
+{
+  "meta": {
+    "generatedAt": "2024-01-01T00:00:00Z",
+    "sourceProfile": ".workspace/results/assets.md",
+    "totalRisk": 15,
+    "byPriority": { "P0": 5, "P1": 7, "P2": 3 }
+  },
+  "components": [
+    {
+      "type": "database",
+      "name": "mysql-main",
+      "threats": [
+        {
+          "type": "SQL Injection",
+          "priority": "P0",
+          "confidence": "medium",
+          "reasoning": "使用 MySQL 数据库"
+        }
+      ]
+    }
+  ]
+}
+```
 ---
 
 ### 任务 4: 架构威胁建模 (subagent-task-004)
@@ -356,51 +404,46 @@ Read(".workspace/results/project-profiler-results.json")
 | Rails | 批量赋值、反序列化 | 检查 strong_params |
 
 **任务完成后，保存中间结果到缓存**：
-- 将架构威胁映射结果保存到 `.workspace/cache/threat-modeler/task-004-architecture-threats.json`
+- 将架构威胁映射结果保存到 `.workspace/cache/threat-modeler/subagent-task-004-architecture-threats.json`
 - 缓存文件格式：包含 `architecture` 对象（包含 `threats` 字段）的JSON对象
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
-### 任务 5: 生成威胁风险清单 (subagent-task-005)
-
-**生成流程**：从缓存加载所有中间结果，合并后生成最终的威胁建模结果
-
-**步骤1：从缓存加载所有中间结果**：
-```bash
-# 读取所有缓存的中间结果
-Read(".workspace/cache/threat-modeler/task-002-endpoint-threats.json")
-Read(".workspace/cache/threat-modeler/task-003-component-threats.json")
-Read(".workspace/cache/threat-modeler/task-004-architecture-threats.json")
+**数据格式：
+```json
+{
+  "meta": {
+    "generatedAt": "2024-01-01T00:00:00Z",
+    "sourceProfile": ".workspace/results/architecture.md",
+    "totalRisk": 15,
+    "byPriority": { "P0": 5, "P1": 7, "P2": 3 }
+  },
+  "architecture": {
+    "pattern": "MVC",
+    "framework": "Express.js",
+    "threats": [
+      {
+        "type": "SQL Injection",
+        "priority": "P0",
+        "confidence": "medium",
+        "reasoning": "使用 MySQL 数据库"
+      }
+    ]
+  }
+}
 ```
 
-**步骤2：合并所有中间结果并生成风险清单**：
-- 合并 `endpoints`（来自subagent-task-002）
-- 合并 `components`（来自subagent-task-003）
-- 合并 `architecture`（来自subagent-task-004）
-- 生成 `risks` 数组：将所有威胁转换为风险点格式
-- 为每个风险点添加 `module` 和 `directory` 字段
-- 生成 `scanner_selection`：根据威胁类型推荐扫描器
+### 任务 5: 生成技能选择列表 (subagent-task-005)
 
-**为每个风险点添加module和directory字段**：
+```json
+{
+  "scanner_selection": {
+    "enabled": ["sql-injection-scanner", "ssrf-scanner", "xxe-scanner"],
+    "disabled": ["sensitive-info-scanner"]
+  }
+}
+```
 
-- **module字段**：从风险点的target、file或相关端点信息中提取模块名称
-  - 示例：`/api/login` → `auth`，`/api/payment` → `payment`
-  - 如果无法确定，使用文件路径的第一级目录名或文件名（不含扩展名）
-  - 从project-profiler-results.json的endpoints中查找对应的category字段作为参考
-  
-- **directory字段**：从风险点的file字段中提取目录路径
-  - 示例：`src/routes/auth.js:25` → `src/routes/`
-  - 提取文件路径的目录部分（不含文件名）
-  - 如果file字段包含行号（如`file.js:25`），只提取目录部分
-
-**步骤3：输出最终结果**：
-- 将合并后的结果写入 `.workspace/results/threat-modeler-results.json`
-
-**缓存说明**：
-- 缓存目录：`.workspace/cache/threat-modeler/`（不需要自动清理）
-- 每个任务的中间结果都会保存到对应的缓存文件
-- 如果任务中断，可以从缓存恢复，避免重复计算
-
-#### 5.1 优先级定义
+#### 优先级定义
 
 | 优先级 | 定义 | 示例 |
 |-------|------|-----|
@@ -449,109 +492,3 @@ Read(".workspace/cache/threat-modeler/task-004-architecture-threats.json")
 **auth-bypass-scanner**（认证绕过扫描器）- 启用条件：
 - 威胁任务列表中发现认证绕过相关威胁
 - 技术栈中发现认证库（`jwt`、`passport`、`flask_login` 等）
-
-#### 5.3 输出格式
-
-**threat-modeler-results.json:**
-```json
-{
-  "meta": {
-    "generatedAt": "2024-01-01T00:00:00Z",
-    "sourceProfile": "project-profiler-results.json",
-    "totalRisk": 15,
-    "byPriority": { "P0": 5, "P1": 7, "P2": 3 }
-  },
-  "endpoints": [
-    {
-      "endpoint": "/api/login",
-      "method": "POST",
-      "file": "src/routes/auth.js:25",
-      "category": "authentication",
-      "threats": [
-        {
-          "type": "SQLi",
-          "priority": "P0",
-          "confidence": "high",
-          "reasoning": "登录端点直接处理用户输入"
-        }
-      ]
-    }
-  ],
-  "components": [
-    {
-      "type": "database",
-      "name": "mysql-main",
-      "threats": [
-        {
-          "type": "SQL Injection",
-          "priority": "P0",
-          "confidence": "medium",
-          "reasoning": "使用 MySQL 数据库"
-        }
-      ]
-    }
-  ],
-  "architecture": {
-    "pattern": "MVC",
-    "framework": "Express.js",
-    "threats": [
-      {
-        "type": "原型污染",
-        "priority": "P1",
-        "confidence": "medium",
-        "reasoning": "Express.js 存在原型污染风险",
-        "checkPoints": ["检查 body-parser 配置"]
-      }
-    ]
-  },
-  "scanner_selection": {
-    "enabled": ["sql-injection-scanner", "sensitive-info-scanner"],
-    "recommendation_reasons": {
-      "sql-injection-scanner": "威胁任务列表中发现 SQLi 威胁",
-      "sensitive-info-scanner": "威胁任务列表中发现敏感信息泄露威胁"
-    }
-  },
-  "risks": [
-    {
-      "id": "RISK-001",
-      "target": "/api/login",
-      "method": "POST",
-      "file": "src/routes/auth.js:25",
-      "suspectedVuln": "SQLi",
-      "vulnType": "injection",
-      "priority": "P0",
-      "confidence": "high",
-      "reasoning": "登录端点直接处理用户输入，工程画像显示使用 MySQL",
-      "checkPoints": [
-        "检查 username 参数是否拼接 SQL",
-        "检查 password 参数是否参数化"
-      ],
-      "relatedAssets": ["mysql-main"],
-      "suggestedSkill": "sql-injection-scanner",
-      "module": "auth",
-      "directory": "src/routes/"
-    },
-    {
-      "id": "RISK-002",
-      "target": "/api/file/upload",
-      "method": "POST",
-      "file": "src/routes/file.js:42",
-      "suspectedVuln": "Arbitrary File Upload",
-      "vulnType": "file-upload",
-      "priority": "P0",
-      "confidence": "high",
-      "reasoning": "文件上传端点，需检查文件类型验证",
-      "checkPoints": [
-        "检查文件扩展名白名单",
-        "检查 MIME 类型验证",
-        "检查文件内容验证",
-        "检查存储路径"
-      ],
-      "relatedAssets": ["s3-uploads"],
-      "suggestedSkill": "path-traversal-scanner",
-      "module": "file",
-      "directory": "src/routes/"
-    }
-  ]
-}
-```
