@@ -61,19 +61,29 @@ Task(
 ```
 STEP 1: project-profiler（顺序）
   输入：代码仓库
-  输出：project-profiler-results.json
+  输出：.workspace/cache/project-profiler/
+        .workspace/results/endpoints.md
 
 STEP 2: threat-modeler（顺序）
-  输入：project-profiler-results.json
-  输出：threat-modeler-results.json（含 scanner_selection.enabled）
+  输入：.workspace/results/endpoints.md
+        .workspace/cache/threat-modeler/
+  输出：threat-modeler-results.json
+        .workspace/cache/threat-modeler/
 
 STEP 3: general-scanner（并行，≤5 并发，按批次执行）
-  输入：project-profiler-results.json + threat-modeler-results.json + SKILL + TASK_ID
-  输出：task-*-results.json + BUG-*.json
+  输入：.workspace/cache/project-profiler/
+        .workspace/cache/threat-modeler/
+        SKILL + TASK_ID
+  输出：.workspace/results/task-*-results.json 
+        .workspace/findings/BUG-*.json
 
 STEP 4: report-generator（顺序）
-  输入：project-profiler-results.json + threat-modeler-results.json + task-*-results.json + BUG-*.json
-  输出：audit-report.md + audit-report.json
+  输入：.workspace/cache/project-profiler/
+        .workspace/cache/threat-modeler/
+        .workspace/results/task-*-results.json
+        .workspace/findings/BUG-*.json
+  输出：.workspace/reports/audit-report.md
+        .workspace/reports/audit-report.json
 ```
 
 ### 并发与失败恢复策略
@@ -84,15 +94,6 @@ STEP 4: report-generator（顺序）
   - 不同SKILL的任务可以并发执行（受总并发上限限制）
 - 超时与重试：单个扫描任务建议默认超时 10 分钟；失败或超时可重试 1 次，仍失败则标记 failed 并记录原因。
 - 状态恢复：中断后通过 `read-task` 读取 pending/failed 任务继续执行；已完成的任务不重复执行。
-
-## Artifact Flow (Data Dependencies)
-
-```
-project-profiler → project-profiler-results.json
-threat-modeler   → threat-modeler-results.json（含 scanner_selection.enabled）
-general-scanner  → task-*-results.json + BUG-*.json（并发 ≤5，按批次）
-report-generator → audit-report.md + audit-report.json
-```
 
 ## Available Agents
 
@@ -231,7 +232,7 @@ Task(
 Task(
   subagent_type: "threat-modeler",
   description: "Build threat model",
-  prompt: "## Threat Modeling Request\n Build threat model based on project-profiler-results.json...\n..."
+  prompt: "## Threat Modeling Request\n Build threat model based on file1, file2...\n..."
 )
 ```
 
@@ -242,9 +243,9 @@ Task(
 2. **检查任务完成情况**：调用 `check-task .workspace/tasks/threat-modeler-tasks.json --show-pending --show-failed` 检查任务完成情况, 如果未完成任务数量大于0, 需要重新调用subagent(证参数一致)继续执行
 
 3. **验证结果**：确认下列文件已生成：
-- `.workspace/cache/threat-modeler/task-002-endpoint-threats.json`
-- `.workspace/cache/threat-modeler/task-003-component-threats.json`
-- `.workspace/cache/threat-modeler/task-004-architecture-threats.json`
+- `.workspace/cache/threat-modeler/subagent-task-002-endpoint-threats.json`
+- `.workspace/cache/threat-modeler/subagent-task-003-component-threats.json`
+- `.workspace/cache/threat-modeler/subagent-task-004-architecture-threats.json`
 
 4. **获取扫描器列表**：
    - 确认 `.workspace/results/threat-modeler-results.json` 文件已生成

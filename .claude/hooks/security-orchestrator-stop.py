@@ -50,38 +50,18 @@ class TaskChecker:
         """记录日志"""
         logger.info(message)
 
-    def get_expected_artifacts(self, agent_name: str, agent_task_id: Optional[str] = None) -> List[str]:
+    def get_expected_artifacts(self, agent_name: str) -> List[str]:
         """根据 agent 名称获取约定的产物路径列表
         
         Args:
             agent_name: Agent 名称
-            agent_task_id: Agent 任务 ID（用于 general-scanner 等需要任务 ID 的 agent）
         """
-        results_dir = Path(".workspace/results")
         reports_dir = Path(".workspace/reports")
         artifacts = []
 
-        if agent_name == "project-profiler":
-            artifacts.append(str(results_dir / "project-profiler-results.json"))
-        elif agent_name == "threat-modeler":
-            artifacts.append(str(results_dir / "threat-modeler-results.json"))
-        elif agent_name == "general-scanner":
-            # general-scanner 的产物路径需要从 agent_task_id 获取
-            if agent_task_id:
-                artifacts.append(str(results_dir / f"{agent_task_id}-results.json"))
-            else:
-                self.log_message(f"general-scanner 需要 agent_task_id 来确定产物路径")
-        elif agent_name == "report-generator":
+        if agent_name == "report-generator":
             artifacts.append(str(reports_dir / "audit-report.md"))
             artifacts.append(str(reports_dir / "audit-report.json"))
-        elif agent_name == "security-orchestrator":
-            # security-orchestrator 作为协调器，不直接产生产物
-            # 它的产物通过子 agent 产生
-            pass
-        else:
-            # 未知 agent，不检查产物
-            self.log_message(f"未知 agent 类型: {agent_name}，跳过产物检查")
-            return []
 
         return artifacts
 
@@ -207,18 +187,15 @@ class TaskChecker:
         """检查产物完整性"""
         if not ARTIFACT_CHECK_ENABLED:
             return
-
         agent_name = data.get('agent', 'unknown')
-        
-        # general-scanner 不检查产物
-        if agent_name == "general-scanner":
-            self.log_message(f"general-scanner 不检查产物，跳过")
+
+        # 仅检查 report-generator，其余产物一律跳过
+        if agent_name != "report-generator":
+            self.log_message(f"产物检查仅针对 report-generator，跳过 {agent_name}")
             return
 
         self.log_message("开始产物完整性检查")
 
-        agent_task_id = data.get('agent_task_id', None)
-        
         # 检查所有 tasks 是否都完成
         if 'tasks' in data:
             tasks = data.get('tasks', [])
@@ -228,7 +205,7 @@ class TaskChecker:
                 self.log_message(f"智能体 '{agent_name}' 仍有未完成任务，跳过产物检查")
                 return
 
-        expected_artifacts = self.get_expected_artifacts(agent_name, agent_task_id)
+        expected_artifacts = self.get_expected_artifacts(agent_name)
 
         if not expected_artifacts:
             self.log_message(f"Agent '{agent_name}' 无约定产物，跳过产物检查")

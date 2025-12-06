@@ -56,61 +56,7 @@ tools: Read, Write, Edit, Bash, Grep
 
 ## 输出格式要求
 
-**⚠️ 统一输出规范**：所有分析结果统一输出到 `.workspace/results/project-profiler-results.json`
-
-**保存路径**：`.workspace/results/project-profiler-results.json`
-
-**产物流向**：
-- 被 `threat-modeler` 和 `general-scanner` 读取，作为威胁建模与扫描的基础上下文
-- 被 `report-generator` 读取，用于报告中的项目概况与技术栈信息
-
-**统一 JSON schema**（基础字段必需，扩展字段可选）：
-
-```json
-{
-  "generated_at": "ISO 8601 时间戳",
-  "project_root": "项目根目录的绝对路径",
-  "project_name": "项目名称（可选）",
-  "version": "项目版本（可选）",
-  "description": "项目描述（可选）",
-  "code_statistics": {
-    "total_files": 0,
-    "total_lines": 0,
-    "by_language": {
-      "typescript": { "files": 0, "lines": 0 },
-      "python": { "files": 0, "lines": 0 },
-      "javascript": { "files": 0, "lines": 0 }
-    }
-  },
-  "tech_stack": {
-    "primary_language": "字符串",
-    "languages": ["数组"],
-    "frameworks": ["数组"],
-    "databases": ["数组"],
-    "build_tools": ["数组"],
-    "package_managers": ["数组"],
-    "infrastructure": ["数组（可选，详细分析时）"]
-  },
-  "structure": {
-    "root_directories": ["数组（可选，详细分析时）"],
-    "core_modules": ["数组（可选，详细分析时）"]
-  },
-  "assets": {
-    "config_files": ["数组（可选，详细分析时）"],
-    "secret_locations": ["数组（可选，详细分析时）"],
-    "database_connections": ["数组（可选，详细分析时）"],
-    "sensitive_fields": ["数组（可选，详细分析时）"]
-  },
-  "statistics": {
-    "asset_count": 0
-  }
-}
-```
-
-**格式遵守规则**：
-- ✓ **基础字段**（必需）：`generated_at`、`project_root`、`code_statistics`、`tech_stack`
-- ✓ **扩展字段**（可选，详细分析时添加）：`project_name`、`version`、`description`、`structure`、`assets`、`statistics`
-- ✗ 不得添加未定义的额外一级字段
+**⚠️ 统一输出规范**：所有分析结果统一输出到 `.workspace/cache/project-profiler/`
 
 ## 分析流程
 
@@ -187,7 +133,7 @@ cloc . --exclude-dir=node_modules,dist,build,vendor,.git
 ```
 
 **任务完成后，保存中间结果到缓存**：
-- 将收集到的代码统计信息保存到 `.workspace/cache/project-profiler/task-001-code-statistics.md`
+- 将收集到的代码统计信息保存到 `.workspace/cache/project-profiler/subagent-task-001-code-statistics.md`
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
 ### 2. 检测技术栈，包括语言、框架、数据库等 (subagent-task-002)
@@ -250,7 +196,7 @@ cloc . --exclude-dir=node_modules,dist,build,vendor,.git
 **包管理器识别**：从锁文件检测：`package-lock.json`、`yarn.lock`、`poetry.lock`、`requirements.txt`、`go.mod` 等
 
 **任务完成后，保存中间结果到缓存**：
-- 将检测到的技术栈信息保存到 `.workspace/cache/project-profiler/task-002-tech-stack.md`
+- 将检测到的技术栈信息保存到 `.workspace/cache/project-profiler/subagent-task-002-tech-stack.md`
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
 ---
@@ -304,7 +250,7 @@ AWS_*, AZURE_*, GCP_*
 ```
 
 **任务完成后，保存中间结果到缓存**：
-- 将识别的资产位置保存到 `.workspace/cache/project-profiler/task-003-assets.md`
+- 将识别的资产位置保存到 `.workspace/cache/project-profiler/subagent-task-003-assets.md`
 - 如果缓存文件已存在，可以读取并继续使用（用于中断恢复）
 
 ### 4. 任务完成。
