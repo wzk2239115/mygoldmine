@@ -167,8 +167,7 @@ init-task-json .workspace/tasks/project-profiler-tasks.json project-profiler
     {
       "id": "task-005",
       "type": "result_output",
-      "description": "输出分析结果到 .workspace/results/project-profiler-results.json",
-      "optional": true
+      "description": "输出分析结果到 .workspace/results/project-profiler-results.json"
     }
   ]'
 ```
@@ -464,6 +463,11 @@ AWS_*, AZURE_*, GCP_*
 ### 5. 输出分析结果到 .workspace/results/project-profiler-results.json (task-005)
 
 **生成流程**：统一输出到 `.workspace/results/project-profiler-results.json`
+
+**必填字段校验（执行后自检）**：
+- `generated_at`、`project_root` 必须存在且非空
+- `code_statistics` 必须包含 `total_files`、`total_lines`
+- `tech_stack` 必须包含 `primary_language`（若无法判定，需注明原因）
 
 ### 6. 任务完成。
 
