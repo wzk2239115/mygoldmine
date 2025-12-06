@@ -22,7 +22,8 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 
 所有工具脚本位于 `scripts/tools/` 目录下（已经添加到 PATH 环境变量中）：
 - `init-task-json` / `init-task-json.sh` - 初始化任务列表
-- `add-task` / `add-task.sh` - 添加任务
+- `add-task` / `add-task.sh` - 添加单个任务
+- `add-tasks` / `add-tasks.sh` - 批量添加任务
 - `update-task` / `update-task.sh` - 更新任务
 - `read-task` / `read-task.sh` - 读取任务详情
 - `list-tasks` / `list-tasks.sh` - 列出任务（支持过滤）
@@ -48,11 +49,12 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 ## 工具列表
 
 1. **init-task-json** - 初始化新的 tasks.json 文件
-2. **add-task** - 向 tasks.json 添加新任务
-3. **update-task** - 更新 tasks.json 中的现有任务
-4. **read-task** - 读取指定任务的详情
-5. **list-tasks** - 列出任务列表（支持过滤）
-6. **check-task** - 检查任务完成情况统计
+2. **add-task** - 向 tasks.json 添加单个任务
+3. **add-tasks** - 批量向 tasks.json 添加多个任务
+4. **update-task** - 更新 tasks.json 中的现有任务
+5. **read-task** - 读取指定任务的详情
+6. **list-tasks** - 列出任务列表（支持过滤）
+7. **check-task** - 检查任务完成情况统计
 
 所有工具自动更新 `updated_at`（中国时区 UTC+8）和 `summary` 统计，并在操作后进行 Schema 校验。
 
@@ -128,7 +130,82 @@ add-task ./tasks.json "task-003" "vulnerability_scan" "执行漏洞扫描" --bef
 add-task ./tasks.json "task-004" "report_generation" "生成报告" --optional --before "task-002"
 ```
 
-## 3. update-task
+## 3. add-tasks
+
+**用法：**
+```bash
+add-tasks <tasks_json_path> <tasks_json_file>
+add-tasks <tasks_json_path> --json <tasks_json_string>
+```
+
+**参数：**
+- `tasks_json_path`（必需）：tasks.json 文件路径
+- `tasks_json_file`（方式1）：包含任务数组的 JSON 文件路径
+- `--json <tasks_json_string>`（方式2）：直接提供任务数组的 JSON 字符串
+
+**任务 JSON 格式：**
+```json
+[
+  {
+    "id": "task-001",
+    "type": "asset_discovery",
+    "description": "识别资产位置",
+    "optional": false,
+    "before": "task-002"  // 可选，指定插入位置
+  },
+  {
+    "id": "task-002",
+    "type": "code_scan",
+    "description": "扫描代码",
+    "optional": true
+  }
+]
+```
+
+**字段说明：**
+- `id`（必需）：任务唯一标识符
+- `type`（必需）：任务类型
+- `description`（必需）：任务描述，不能为空
+- `optional`（可选）：是否可选，默认 `false`
+- `before`（可选）：指定插入位置的任务 ID，如果指定，新任务将插入到该任务之前
+
+**说明：**
+- 批量添加多个任务，适合一次性添加多个相关任务
+- 支持两种输入方式：从文件读取或直接提供 JSON 字符串
+- 每个任务都会进行验证，失败的任务会跳过并记录
+- 显示批量添加的进度和统计信息（总计、成功、失败）
+- 如果所有任务都成功添加，返回退出码 0；如果有失败，返回退出码 1
+
+**示例：**
+```bash
+# 方式1：从 JSON 文件批量添加任务
+add-tasks ./tasks.json tasks-to-add.json
+
+# 方式2：直接提供 JSON 字符串
+add-tasks ./tasks.json --json '[
+  {"id":"task-001","type":"asset_discovery","description":"识别资产位置"},
+  {"id":"task-002","type":"code_scan","description":"扫描代码","optional":true,"before":"task-001"}
+]'
+
+# 任务文件示例（tasks-to-add.json）
+# [
+#   {
+#     "id": "task-001",
+#     "type": "code_scan",
+#     "description": "扫描代码中的安全漏洞",
+#     "optional": false
+#   },
+#   {
+#     "id": "task-002",
+#     "type": "vulnerability_scan",
+#     "description": "执行漏洞扫描",
+#     "optional": true,
+#     "before": "task-001"
+#   }
+# ]
+```
+
+## 4. update-task
 
 **用法：**
 ```bash
@@ -155,7 +232,7 @@ update-task ./tasks.json "task-003" --status "in_progress"
 update-task ./tasks.json "task-004" --status "completed" --description "已完成" --detail '{"files": 100, "issues": 5}'
 ```
 
-## 4. read-task
+## 5. read-task
 
 **用法：**
 ```bash
@@ -180,7 +257,7 @@ read-task ./tasks.json "task-001"
 read-task ./tasks.json "task-001" --format json
 ```
 
-## 5. list-tasks
+## 6. list-tasks
 
 **用法：**
 ```bash
@@ -223,7 +300,7 @@ list-tasks ./tasks.json --status completed --type code_scan
 list-tasks ./tasks.json --format json
 ```
 
-## 6. check-task
+## 7. check-task
 
 **用法：**
 ```bash
@@ -270,11 +347,14 @@ check-task ./tasks.json --show-pending --show-failed
 # 初始化任务列表
 init-task-json ./tasks.json "project-001" "security-auditor"
 
-# 添加多个任务
+# 添加多个任务（方式1：逐个添加）
 add-task ./tasks.json "task-001" "asset_discovery" "识别资产位置"
 add-task ./tasks.json "task-002" "code_scan" "扫描代码中的安全漏洞"
 # 使用 --before 控制任务顺序：task-003 将在 task-002 之前
 add-task ./tasks.json "task-003" "vulnerability_scan" "执行漏洞扫描" --before "task-002" --optional
+
+# 添加多个任务（方式2：批量添加）
+add-tasks ./tasks.json tasks-to-add.json
 
 # 查看所有任务
 list-tasks ./tasks.json
