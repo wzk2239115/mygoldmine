@@ -201,7 +201,8 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json security-orches
 ```
 
 说明：
-- `task-003` 作为默认的 general-scanner 任务（可执行一次基础扫描或作为占位），不应被删除。
+- `task-003` 负责读取威胁建模结果并批量添加扫描任务（task-006+），自身不执行扫描。
+- 如果威胁建模未推荐扫描器，task-003 可不添加任务，流程直接进入 `task-004`（报告生成）。
 - 威胁建模后新增的扫描任务从 `task-006` 起递增，统一插入在 `task-004`（报告生成）之前。
 - 新增扫描任务的描述统一为：`调用general-scanner子智能体并激活<SKILL>进行漏洞扫描`。
 
@@ -275,11 +276,12 @@ fi
 
 ### 任务 3: 添加扫描任务 (task-006+，插入至 task-004 前)
 
-**任务目标**：根据威胁建模结果，将每一个推荐分析的 SKILL 类型作为一个扫描任务添加到 `security-orchestrator-tasks.json` 中。
+**任务目标**：读取威胁建模结果，将每一个推荐分析的 SKILL 类型添加为扫描任务（task-006+）写入 `security-orchestrator-tasks.json`；自身不执行扫描。
 
 规则：
 - 编号从 `task-006` 开始递增（006, 007, ...）。
 - 统一插入到 `task-004`（报告生成）之前，不覆盖已存在的 `task-003` 默认扫描任务。
+- 如果 `scanner_selection.enabled` 为空，则不添加扫描任务，后续可直接进入报告阶段。
 
 ```bash
 add-task .workspace/tasks/security-orchestrator-tasks.json "task-006"  "general-scanner" "调用general-scanner子智能体并激活xxx SKILL进行漏洞扫描" --before "task-004"
@@ -287,9 +289,10 @@ add-task .workspace/tasks/security-orchestrator-tasks.json "task-007"  "general-
 ...其他SKILL类型(参见支持的漏洞分析SKILL列表)...
 ```
 
-### 任务 4: 漏洞扫描 (task-003 + task-006+)
+### 任务 4: 漏洞扫描 (task-006+)
 
-**任务目标**：读取威胁建模结果，提取漏洞扫描所需的信息
+**任务目标**：根据 task-003 生成的扫描任务，调用 general-scanner 子智能体执行漏洞扫描；若未生成 task-006+（无推荐扫描器），可跳过本阶段直接进入报告生成。
+
 调用general-scanner子智能体进行漏洞扫描
 ```bash
 Task(
