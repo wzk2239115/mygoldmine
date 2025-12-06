@@ -8,7 +8,7 @@ description: |
   - threat-modeler-results.json（威胁建模结果，由 threat-modeler 生成）
   - SKILL_NAME (需要扫描的漏洞类型， 只能输入一个SKILL_NAME)
   - TASK_ID (任务ID，用于记录扫描结果)
-  - SCAN_SCOPE (可选，扫描范围，JSON格式，包含目录或模块列表)
+  - SCAN_SCOPE (可选，扫描范围，JSON格式，包含目录列表)
   - SHARED_DATA_PATH (可选，共享数据文件路径，用于同一SKILL多任务间的数据共享)
 
   输出：
@@ -239,15 +239,6 @@ fi
   "type": "directory",
   "directories": ["src/api/", "src/utils/"],
   "exclude": ["src/api/tests/"]
-}
-```
-
-**模块范围**：
-```json
-{
-  "type": "module",
-  "modules": ["auth", "payment"],
-  "files": ["src/auth/*.py", "src/payment/*.py"]
 }
 ```
 

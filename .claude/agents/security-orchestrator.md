@@ -343,20 +343,18 @@ add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
 # 示例：sql-injection-scanner有25个风险点，拆分为3个任务
 # 推荐使用 add-tasks 批量添加，提高效率
 
-# 方式1：使用 add-tasks 批量添加（推荐）
+# 方式1：使用 add-tasks 批量添加（推荐)
 add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
-  {"id":"task-006","type":"general-scanner","description":"调用general-scanner子智能体并激活sql-injection-scanner进行漏洞扫描（范围：auth、payment模块）","before":"task-004"},
-  {"id":"task-007","type":"general-scanner","description":"调用general-scanner子智能体并激活sql-injection-scanner进行漏洞扫描（范围：user、order模块）","before":"task-004"},
-  {"id":"task-008","type":"general-scanner","description":"调用general-scanner子智能体并激活sql-injection-scanner进行漏洞扫描（范围：其他模块）","before":"task-004"}
+  {"id":"task-006","type":"general-scanner","description":"调用general-scanner子智能体并激活xxx-scanner进行漏洞扫描（目录范围：auth/、payment/）","before":"task-004"},
+  {"id":"task-007","type":"general-scanner","description":"调用general-scanner子智能体并激活xxx-scanner进行漏洞扫描（目录范围：user/、order/）","before":"task-004"},
+  {"id":"task-008","type":"general-scanner","description":"调用general-scanner子智能体并激活xxx-scanner进行漏洞扫描（目录范围：其他/）","before":"task-004"}
 ]'
 
 # 方式2：使用 add-task 逐个添加（如果任务数量很少）
 # 任务1：扫描auth和payment模块
-add-task .workspace/tasks/security-orchestrator-tasks.json "task-006"  "general-scanner" "调用general-scanner子智能体并激活sql-injection-scanner进行漏洞扫描（范围：auth、payment模块）" --before "task-004"
+add-task .workspace/tasks/security-orchestrator-tasks.json "task-006"  "general-scanner" "调用general-scanner子智能体并激活xxx-scanner进行漏洞扫描（目录范围：auth/、payment/）" --before "task-004"
 # 任务2：扫描user和order模块
-add-task .workspace/tasks/security-orchestrator-tasks.json "task-007"  "general-scanner" "调用general-scanner子智能体并激活sql-injection-scanner进行漏洞扫描（范围：user、order模块）" --before "task-004"
-# 任务3：扫描其他模块
-add-task .workspace/tasks/security-orchestrator-tasks.json "task-008"  "general-scanner" "调用general-scanner子智能体并激活sql-injection-scanner进行漏洞扫描（范围：其他模块）" --before "task-004"
+add-task .workspace/tasks/security-orchestrator-tasks.json "task-007"  "general-scanner" "调用general-scanner子智能体并激活xxx-scanner进行漏洞扫描（目录范围：user/、order/）" --before "task-004"
 ```
 
 **任务调用时传递参数**：
@@ -365,7 +363,7 @@ Task(
   subagent_type: "general-scanner",
   description: "Scan SQL injection vulns",
   prompt: "## Vulnerability Scanning Request
-SKILL_NAME: sql-injection-scanner
+SKILL_NAME: xxx-scanner
 TASK_ID: task-006
 SCAN_SCOPE: {\"type\":\"module\",\"modules\":[\"auth\",\"payment\"]}
 SHARED_DATA_PATH: .workspace/shared/sql-injection-scanner-shared.json
