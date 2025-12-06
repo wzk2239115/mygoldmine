@@ -251,17 +251,41 @@ fi
 
 1. **读取threat-modeler-results.json中的风险点**，根据SCAN_SCOPE过滤（如果提供），排除已扫描文件（如果提供SHARED_DATA_PATH），将每一个风险点作为一个扫描任务添加到{TASK_ID}-tasks.json中
 
+**添加方式**：
+- **如果风险点数量较少（< 5个）**：可以使用 `add-task` 逐个添加
+- **如果风险点数量较多（≥ 5个）**：建议使用 `add-tasks` 批量添加，提高效率
+
+**方式1：使用 add-task 逐个添加**（适合少量任务）：
 ```bash
 # 如果提供了SCAN_SCOPE，使用jq过滤风险点
 # 如果提供了SHARED_DATA_PATH，排除已扫描的文件
 add-task .workspace/tasks/{TASK_ID}-tasks.json "task-010" "plan_scan_tasks" "扫描xxx文件，xxx行到xxx行，可能存在XXX问题，相关文件有xxx, xxx" --before "task-004"
 ```
 
+**方式2：使用 add-tasks 批量添加**（推荐，适合多个任务）：
+```bash
+# 先构建任务数组JSON，然后批量添加
+# 示例：创建临时文件包含所有要添加的任务
+add-tasks .workspace/tasks/{TASK_ID}-tasks.json .workspace/temp/scan-tasks.json
+
+# 或者直接使用JSON字符串
+add-tasks .workspace/tasks/{TASK_ID}-tasks.json --json '[
+  {"id":"task-010","type":"plan_scan_tasks","description":"扫描xxx文件，xxx行到xxx行，可能存在XXX问题","before":"task-004"},
+  {"id":"task-011","type":"plan_scan_tasks","description":"扫描yyy文件，yyy行到yyy行，可能存在YYY问题","before":"task-004"}
+]'
+```
+
 2. **根据SKILL的指导，定位剩余潜在风险点**，同样应用SCAN_SCOPE过滤和已扫描文件排除，将每一个风险点作为一个扫描任务添加到{TASK_ID}-tasks.json中
 
 **重要约束：为了避免遗忘，每发现5个及以上风险点，就集中添加到{TASK_ID}-tasks.json中**
+
+**推荐使用 add-tasks 批量添加**：
 ```bash
-add-task .workspace/tasks/{TASK_ID}-tasks.json "task-011" "plan_scan_tasks" "扫描xxx文件，xxx行到xxx行，可能存在XXX问题，相关文件有xxx, xxx" --before "task-004"
+# 批量添加多个风险点任务
+add-tasks .workspace/tasks/{TASK_ID}-tasks.json --json '[
+  {"id":"task-011","type":"plan_scan_tasks","description":"扫描xxx文件，xxx行到xxx行，可能存在XXX问题","before":"task-004"},
+  {"id":"task-012","type":"plan_scan_tasks","description":"扫描yyy文件，yyy行到yyy行，可能存在YYY问题","before":"task-004"}
+]'
 ```
 
 ### 任务 3: 执行扫描任务 (task-003)
