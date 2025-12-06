@@ -160,6 +160,22 @@ update-task .workspace/tasks/threat-modeler-tasks.json "task-001" --status "comp
 Read(".workspace/results/project-profiler-results.json")
 ```
 
+**按需加载缓存文件（可选）**：
+
+如果需要更详细的信息或中间结果，可以按需加载 project-profiler 的缓存文件：
+
+**project-profiler 缓存文件**（位于 `.workspace/cache/project-profiler/`）：
+- `task-001-code-statistics.json` - 代码统计信息（包含 `code_statistics` 字段）
+- `task-002-tech-stack.json` - 技术栈信息（包含 `tech_stack` 字段）
+- `task-003-endpoints.json` - API端点列表（包含 `endpoints` 数组）
+- `task-004-assets.json` - 资产位置信息（包含 `assets` 字段）
+
+**使用场景**：
+- 如果需要更详细的端点信息进行威胁映射，可以加载 `task-003-endpoints.json`
+- 如果需要更详细的技术栈信息，可以加载 `task-002-tech-stack.json`
+- 如果需要更详细的资产位置信息，可以加载 `task-004-assets.json`
+- 如果最终结果文件已包含所需信息，则无需加载缓存文件
+
 ### 任务 2: 功能点威胁建模 (task-002)
 
 对每个功能端点，基于其**路径特征**、**方法**、**参数**推理可能的威胁。
