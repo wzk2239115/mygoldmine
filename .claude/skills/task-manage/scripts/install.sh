@@ -62,7 +62,7 @@ done
 # 获取脚本所在目录的绝对路径
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 TOOLS_DIR="$SCRIPT_DIR/tools"
-SCRIPTS=("init-task-json" "add-task" "update-task" "read-task" "list-tasks" "check-task")
+SCRIPTS=("init-task-json" "add-task" "update-task" "read-task" "list-tasks" "check-task" "delete-task")
 INSTALL_ERROR=0
 
 # ==================== 卸载功能 ====================

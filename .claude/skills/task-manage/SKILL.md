@@ -28,6 +28,7 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 - `read-task` / `read-task.sh` - 读取任务详情
 - `list-tasks` / `list-tasks.sh` - 列出任务（支持过滤）
 - `check-task` / `check-task.sh` - 检查任务统计
+- `delete-task` / `delete-task.sh` - 删除任务
 
 **注意**：所有脚本都提供了不带 `.sh` 后缀的符号链接，两种调用方式都可以使用。
 
@@ -37,7 +38,8 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 2. **添加任务**：使用 `add-task` 添加新任务或使用 `add-tasks` 批量添加任务
 3. **查看任务**：使用 `list-tasks` 或 `read-task` 查看任务
 4. **更新任务**：使用 `update-task` 更新任务状态和详情
-5. **检查进度**：使用 `check-task` 查看完成情况统计
+5. **删除任务**：使用 `delete-task` 删除指定任务
+6. **检查进度**：使用 `check-task` 查看完成情况统计
 
 ### 重要注意事项
 
@@ -54,7 +56,8 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 4. **update-task** - 更新 tasks.json 中的现有任务
 5. **read-task** - 读取指定任务的详情
 6. **list-tasks** - 列出任务列表（支持过滤）
-7. **check-task** - 检查任务完成情况统计
+7. **check-task** - 检查任务完成情况
+8. **delete-task** - 删除指定任务
 
 所有工具自动更新 `updated_at`（中国时区 UTC+8）和 `summary` 统计，并在操作后进行 Schema 校验。
 
@@ -336,6 +339,31 @@ check-task ./tasks.json --show-pending
 check-task ./tasks.json --show-failed
 # 同时显示待处理和失败任务
 check-task ./tasks.json --show-pending --show-failed
+```
+
+## 8. delete-task
+
+**用法：**
+```bash
+delete-task <tasks_json_path> <task_id>
+```
+
+**参数：**
+- `tasks_json_path`（必需）：tasks.json 文件路径
+- `task_id`（必需）：要删除的任务 ID
+
+**说明：**
+- 删除指定任务，自动更新 `updated_at`（UTC+8）与 `summary` 统计。
+- 如果任务 ID 不存在会报错，不会修改文件。
+- 操作完成后执行 Schema 校验，失败则回滚。
+
+**示例：**
+```bash
+# 删除 task-005
+delete-task ./tasks.json "task-005"
+
+# 删除前可先查看列表
+list-tasks ./tasks.json --status pending
 ```
 
 ## 重要说明
