@@ -8,6 +8,8 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
 - 聚焦API端点扫描：发现项目中的所有API端点，包括公开API和内部API。
 - 不做：漏洞扫描、漏洞利用、漏洞利用链推导。
 
+**重要：不要遗漏任何API端点，包括内部API和公开API。对于上游任务给定的分析结果，需要进一步确认是否存在遗漏。**
+
 ## 主流语言/框架路由识别方法
 
 ### 通用思路
@@ -61,3 +63,20 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
 3) 提取 HTTP 方法与路径模板：记录动态参数、正则/通配符；方法默认值（未指定时多为 GET）。
 4) 关联中间件/鉴权：收集与路由同级或分组级的 auth/role/guard/interceptor；标注认证要求。
 5) 输出端点列表：`method`, `path`, `file`, `line`, `auth_hint`, `group_prefix`；标记高风险端点（debug/admin/config/internal）。
+
+# 输出要求
+
+1. API端点数量大于10，规则如下：
+
+- API端点按照分类输出到多个文件中，文件路径规则为：
+    .workspace/tasks/{TASK_ID}/route-scanner-result-{category}.md
+- 任务运行过程中及时生成对应文档，避免累计到最后导致任务失败。
+- 每个md文件对应一个下游的任务，技能为：route-function-analyzer
+    
+2. API端点数量小于10，规则如下：
+- 将API端点输出到.workspace/tasks/{TASK_ID}/route-scanner-result.md文件中
+- 生成一个下游的任务，技能为：route-function-analyzer
+    
+3. **可选Skill列表如下（禁止选择列表技能, 否则会导致任务失败）：**
+
+- `route-function-analyzer` 技能：分析API端点功能。
