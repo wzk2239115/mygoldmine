@@ -105,7 +105,7 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json init security-o
 - `task-003` 负责读取威胁建模结果并添加扫描任务，自身不执行扫描。
 - 如果威胁建模未推荐扫描器，task-003 可不添加任务，流程直接进入 `task-004`（报告生成）。
 - 威胁建模后新增的扫描任务从 `task-006` 起递增，统一插入在 `task-004`（报告生成）之前。
-- 新增扫描任务的描述统一为：`调用general-scanner子智能体并激活<SKILL>进行漏洞扫描`。
+- 新增扫描任务的描述统一为：`调用skill-runner子智能体并激活<SKILL>进行漏洞扫描`。
 
 2. 如果security-orchestrator-tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。
 ```bash
@@ -145,7 +145,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --statu
 {
   "tasks": [
     {
-      "path": "path/to/artifact, required input for the skill",
+      "artifact": "path/to/artifact, required input for the skill",
       "skill": "skill-name to process the artifact",
       "parallel": [
         "able to execute in parallel with other tasks",
@@ -164,7 +164,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --statu
   ],
   "artifacts": [
     {
-      "path": "path/to/artifact",
+      "artifact": "path/to/artifact",
       "description": "description of the artifact"
     }
   ]
