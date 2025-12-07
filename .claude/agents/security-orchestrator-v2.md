@@ -169,8 +169,8 @@ mkdir -p .workspace/
 
 **STEP 1：项目基本信息收集(Task-001)**
 - 调用 skill-runner智能体，使用`basic-info-collect` SKILL，收集项目的基本信息。
+- 要求：保持prompt简单明了，SKILL中自动判断分析范围，无需通过任务指定。
 - 输入：当前工作目录
-- 输出要求：参考Subagent输出格式要求
 - 示例：
 ```Python
 Task(
@@ -185,6 +185,7 @@ Task(
 **示例：**
 ```bash
 # --before 参数用于指定新任务插入到task-final（即报告之前）之前
+# 新增任务将依赖、要求等信息保存到description中，方便后续任务执行时使用。
 add-task .workspace/tasks/security-orchestrator-tasks.json "task-003" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Dependencies: xxx." --before "task-final"
 add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
   {"id":"task-003","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Dependencies: xxx."},
@@ -197,7 +198,7 @@ add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
 ```bash
 list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending"
 ```
-- 输入： 任务描述、 工作区文件、技能名称
+- 输入：任务描述（避免擅自扩充任务描述）、作区文件、技能名称
 - 输出要求：按照Subagent输出格式要求返回任务列表和产物列表
 - 如果任务列表为空，则结束。
 - **重要：禁止在后台运行任务，必须在前台运行任务。**

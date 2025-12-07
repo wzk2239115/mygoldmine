@@ -101,7 +101,7 @@ update-task .workspace/tasks/{TASK_ID}/tasks.json "task-001" --status "completed
 ```bash
 # task-final必须最后一步执行，因此添加--before "task-final"
 # 新增任务ID为task-002, task-003, task-004依次递增等未使用过的ID
-add-task .workspace/tasks/{TASK_ID}/tasks.json "task-002" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-final, Dependencies: xxx, Requirements: xxx." --before "task-final"
+add-task .workspace/tasks/{TASK_ID}/tasks.json "task-002" "task-name" "task-description" --before "task-final"
 ```
 
 # 退出之前必须要调用check-task查看任务状态，确保所有任务状态为 "completed"

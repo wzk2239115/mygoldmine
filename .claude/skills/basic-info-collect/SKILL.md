@@ -48,8 +48,9 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
 # 快速判定（Program.cs）：rg "WebApplication\\.CreateBuilder" . -g'Program.cs'
 ```
 
-**对于后端 HTTP 服务，后续分析需要使用的技能列表如下: **
+**对于后端 HTTP 服务，后续分析需要使用的技能列表如下（禁止添加其他技能）: **
 - route-scanner 技能：扫描API端点，识别路由信息。
+- authentication-analyzer 技能：分析API端点认证要求。
 
 2. 前端 WEB 应用
 
@@ -66,22 +67,14 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
 - 快速判定一：项目说明文档通常会明确指出是项目靶场为出于教学目的而构建的安全测试靶场, 可以重点关注。
 - 快速判定二: 项目目录结构中会包含多个不同类型的漏洞代码示例。
 
-**对于安全测试靶场，后续分析需要使用的技能列表如下: **
+**对于安全测试靶场，后续分析需要使用的技能列表如下（禁止添加其他技能）: **
 - vtr-scanner 技能：扫描靶场类型，识别测试类型。
 
 # 输出要求
 
 1. **优先使用用户指定了输出路径，默认输出到.workspace/tasks/{TASK_ID}/project-profile.md文件中**
 
-2. **可推荐Skill如下（禁止选择非可选列表之外的技能, 否则会导致任务失败）：**
-
-- `route-scanner` 技能：扫描API端点，识别路由信息。
-- `authentication-analyzer` 技能：分析API端点认证要求。
-- `vtr-scanner` 技能：扫描靶场类型，识别测试类型（与其他技能冲突， 如果判定为靶场，则不需要再执行其他技能）。
-
-**注意：以上技能没有依赖关系。**
-
-4. 总结输出规则（JSON格式）：
+2. 总结输出格式（JSON格式）：
 ```json
 {
     "tasks": [

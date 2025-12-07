@@ -114,7 +114,3 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
     ]
 }
 ```
-    
-3. **可选Skill列表如下（禁止选择列表技能, 否则会导致任务失败）：**
-
-- `route-function-analyzer` 技能：分析API端点功能。
