@@ -80,3 +80,15 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
 - `route-scanner` 技能：扫描API端点，识别路由信息。
 - `authentication-analyzer` 技能：分析API端点认证要求。
 - `vtr-scanner` 技能：扫描靶场类型，识别测试类型（与其他技能冲突， 如果判定为靶场，则不需要再执行其他技能）。
+
+4. 总结输出规则（JSON格式）：
+```json
+{
+    "tasks": [
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
+            "skill": "basic-info-collect"
+        }
+    ]
+}
+```

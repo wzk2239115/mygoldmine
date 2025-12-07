@@ -72,10 +72,37 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
     .workspace/tasks/{TASK_ID}/route-scanner-result-{category}.md
 - 任务运行过程中及时生成对应文档，避免累计到最后导致任务失败。
 - 每个md文件对应一个下游的任务，技能为：route-function-analyzer
+- 总结输出规则（JSON格式）：
+```json
+{
+    "tasks": [
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result-{category}.md",
+            "skill": "route-function-analyzer"
+        },
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result-{category}-02.md",
+            "skill": "route-function-analyzer"
+        },
+        ...
+    ]
+}
+```
     
 2. API端点数量小于10，规则如下：
 - 将API端点输出到.workspace/tasks/{TASK_ID}/route-scanner-result.md文件中
 - 生成一个下游的任务，技能为：route-function-analyzer
+- 总结输出规则（JSON格式）：
+```json
+{
+    "tasks": [
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result.md",
+            "skill": "route-function-analyzer"
+        }
+    ]
+}
+```
     
 3. **可选Skill列表如下（禁止选择列表技能, 否则会导致任务失败）：**
 

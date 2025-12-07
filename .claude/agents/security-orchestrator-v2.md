@@ -209,10 +209,14 @@ add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
 ```
 
 **STEP 2：任务执行**
-- 遍历 STEP 1 或 subagent返回的任务列表，依次调用 skill-runner智能体，并显式指定该任务推荐的 SKILL，直到任务列表为空。
+- 获取待执行任务列表, 并依据执行要求与约束执行任务（可并行执行无冲突任务）。
+```bash
+list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending"
+```
 - 输入： 任务描述、 工作区文件、技能名称
 - 输出要求：按照Subagent输出格式要求返回任务列表和产物列表
 - 如果任务列表为空，则结束。
+- **重要：禁止在后台运行任务，必须在前台运行任务。**
 - 示例：
 ```Python
 Task(
@@ -225,7 +229,7 @@ Task(
 **注意：新增的任务需要调用add-task添加到tasks.json文件中。**
 
 **STEP 3：循环**
-- 汇总本轮新增的“后续任务”；如有则回到 STEP 2 执行；如果任务列表为空，则直接进入 STEP 4。
+- 汇总本轮新增的“后续任务”并添加到tasks.json文件中；如有则未执行任务则回到 STEP 2 执行；如果未执行任务列表为空，则直接进入 STEP 4。
 
 ** STEP 4：报告生成(Task-003)**
 - 调用 report-generator智能体生成报告。

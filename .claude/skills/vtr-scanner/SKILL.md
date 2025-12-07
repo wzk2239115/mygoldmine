@@ -46,15 +46,21 @@ description: 专业靶场扫描技能：具备主流语言/框架的靶场扫描
 行号：{行号} (可选， 若一个文件中包含多个题目，则需要注明行号)
 ```
 
-**下游任务生成规则：**
-- 每个md文件生成一个下游审计任务，根据题目类型选择技能。
-    
-3. 如果一个题目类型题目数量小于10，规则如下：
-**产物输出路径规则为：**
-- 将题目信息输出到.workspace/tasks/{TASK_ID}/vtr-scanner-result-{category}.md文件中
-
-**下游任务生成示例：**
-- 生成一个下游审计任务即可，根据题目类型选择技能。
+**下游任务生成规则（总结输出）：**
+- 每个md文件生成一个下游审计任务，根据题目类型选择技能。示例:
+{
+    "tasks": [
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/vtr-scanner-result-{category}-01.md",
+            "skill": "sql-injection-analyzer"
+        },
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/vtr-scanner-result-{category}-02.md",
+            "skill": "sql-injection-analyzer"
+        },
+        ...
+    ]
+}
     
 4. **可选Skill列表如下（禁止选择列表技能, 否则会导致任务失败）：**
 
