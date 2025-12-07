@@ -12,8 +12,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-# 配置
-LOG_DIR = Path.home() / ".claude" / "logs"
+# 配置：使用当前工作目录下的 .workspace/logs
+LOG_DIR = Path.cwd() / ".workspace" / "logs"
 LOG_FILE = LOG_DIR / "operations.log"
 JSON_LOG_FILE = LOG_DIR / "operations.jsonl"
 # 简单日志轮转策略
