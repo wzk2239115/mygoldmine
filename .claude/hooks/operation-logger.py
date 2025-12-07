@@ -83,6 +83,24 @@ def sanitize_data(data: Any, max_length: int = 4096) -> Any:
     else:
         return data
 
+
+def extract_response_text(tool_response: Any, max_length: int = 4096) -> str:
+    """从 tool_response 中提取 content 的 text 字段"""
+    if not isinstance(tool_response, dict):
+        return ""
+    contents = []
+    for item in tool_response.get("content", []):
+        if isinstance(item, dict) and item.get("type") == "text":
+            txt = item.get("text", "")
+            if txt:
+                contents.append(txt)
+    if not contents:
+        return ""
+    joined = "\n---\n".join(contents)
+    if len(joined) > max_length:
+        return joined[:max_length] + f"... (truncated, total {len(joined)} chars)"
+    return joined
+
 def log_operation(data: Dict[str, Any]) -> None:
     """记录工具操作
     
@@ -99,6 +117,7 @@ def log_operation(data: Dict[str, Any]) -> None:
         tool_input = data.get('tool_input', {})
         tool_response = data.get('tool_response', {})
         session_id = data.get('session_id', 'unknown')
+        response_text = extract_response_text(tool_response)
         
         # 构建操作记录
         operation_record = {
@@ -107,6 +126,7 @@ def log_operation(data: Dict[str, Any]) -> None:
             'tool_name': tool_name,
             'tool_input': sanitize_data(tool_input),
             'tool_response': sanitize_data(tool_response),
+            'response_text': sanitize_data(response_text),
             'success': tool_response.get('error') is None if isinstance(tool_response, dict) else True
         }
         
@@ -134,6 +154,8 @@ def log_operation(data: Dict[str, Any]) -> None:
                     else command[:4096] + f"... (truncated, total {len(command)} chars)"
                 )
                 log_message = f"[{tool_name}] {cmd_preview}"
+            elif tool_name == "Task" and response_text:
+                log_message = f"[{tool_name}] response_text={response_text}"
             else:
                 input_json = json.dumps(tool_input, ensure_ascii=False, indent=4)
                 response_json = json.dumps(tool_response, ensure_ascii=False, indent=4)
