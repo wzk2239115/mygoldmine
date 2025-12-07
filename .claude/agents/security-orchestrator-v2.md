@@ -91,7 +91,7 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json init security-o
     {
       "id": "task-002",
       "type": "skill-runner",
-      "description": "循环处理上游子智能体返回的任务列表，直到任务列表为空。"
+      "description": "循环处理上游子智能体返回的任务列表，直到未执行(pengding)任务列表为空。"
     },
     {
       "id": "task-003",
