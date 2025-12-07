@@ -59,6 +59,9 @@ description: 专业靶场扫描技能：具备主流语言/框架的靶场扫描
             "skill": "sql-injection-analyzer"
         },
         ...
+    ],
+    "warnings": [
+        "**deep analysis of each task is required, never skip any task.**"
     ]
 }
     
