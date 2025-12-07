@@ -127,11 +127,15 @@ def log_operation(data: Dict[str, Any]) -> None:
             if file_path:
                 log_message = f"[{tool_name}] {file_path}"
             elif command:
-                # 截断过长的命令
-                cmd_preview = command[:100] + "..." if len(command) > 100 else command
+                # 截断过长的命令，保留前1024字节
+                cmd_preview = (
+                    command
+                    if len(command) <= 1024
+                    else command[:1024] + f"... (truncated, total {len(command)} chars)"
+                )
                 log_message = f"[{tool_name}] {cmd_preview}"
             else:
-                log_message = f"[{tool_name}] {json.dumps(tool_input, ensure_ascii=False)[:200]}"
+                log_message = f"[{tool_name}] {json.dumps(tool_input, ensure_ascii=False)[:1024]}"
             
             logger.info(log_message)
         except Exception as e:
