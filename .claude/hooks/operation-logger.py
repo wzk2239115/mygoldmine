@@ -137,7 +137,17 @@ def log_operation(data: Dict[str, Any]) -> None:
             else:
                 input_json = json.dumps(tool_input, ensure_ascii=False, indent=4)
                 response_json = json.dumps(tool_response, ensure_ascii=False, indent=4)
-                log_message = f"[{tool_name}] input={input_json[:4096]} response={response_json[:4096]}"
+                input_preview = (
+                    input_json
+                    if len(input_json) <= 4096
+                    else input_json[:4096] + f"... (truncated, total {len(input_json)} chars)"
+                )
+                response_preview = (
+                    response_json
+                    if len(response_json) <= 4096
+                    else response_json[:4096] + f"... (truncated, total {len(response_json)} chars)"
+                )
+                log_message = f"[{tool_name}] input={input_preview} response={response_preview}"
             
             logger.info(log_message)
         except Exception as e:
