@@ -66,19 +66,24 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
 
 # 输出要求
 
-1. API端点数量大于10，规则如下：
-
+1. 首先按照端点类型进行分类
+2. 如果同一种类型端点数量超过5个时，端点信息按照端点编号或先后顺序输出到多个文件，每个文件中包含不超过5个端点信息
 - API端点按照分类输出到多个文件中，文件路径规则为：
+    .workspace/tasks/{TASK_ID}/route-scanner-result-{category}-01.md
+    .workspace/tasks/{TASK_ID}/route-scanner-result-{category}-02.md
+    ...
+    .workspace/tasks/{TASK_ID}/route-scanner-result-{category}-{NN}.md
+3. 若不需要进行拆分，则一个文件包含一种类型端点信息
     .workspace/tasks/{TASK_ID}/route-scanner-result-{category}.md
 - 任务运行过程中及时生成对应文档，避免累计到最后导致任务失败。
 - 每个md文件对应一个下游的任务，技能为：route-function-analyzer
 - 端点审计任务依赖authentication-analyzer的分析结果，需要给定该任务产物路径作为输入。
-- 总结输出规则（JSON格式）：
+- 总结输出示例（JSON格式）：
 ```json
 {
     "tasks": [
         {
-            "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result-{category}.md",
+            "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result-{category}-01.md",
             "skill": "route-function-analyzer",
             "dependencies": [
                 "Require artifact of authentication-analyzer"
@@ -92,23 +97,11 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
             ]
         },
         ...
-    ]
-}
-```
-    
-2. API端点数量小于10，规则如下：
-- 将API端点输出到.workspace/tasks/{TASK_ID}/route-scanner-result.md文件中
-- 生成一个下游的任务，技能为：route-function-analyzer
-- 端点审计任务依赖authentication-analyzer的分析结果，需要给定该任务产物路径作为输入。
-- 总结输出规则（JSON格式）：
-```json
-{
-    "tasks": [
         {
-            "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result.md",
+            "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result-{category}.md",
             "skill": "route-function-analyzer",
             "dependencies": [
-                "Require artifact of authentication-analyzer skill as input"
+                "Require artifact of authentication-analyzer"
             ]
         }
     ]
