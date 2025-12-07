@@ -234,7 +234,7 @@ Task(
 ** STEP 4：报告生成(Task-003)**
 - 调用 report-generator智能体生成报告。
 - 输入：最终产物列表
-- 输出要求：按照要求生成报告文件
+- 输出要求：按照要求生成报告文件(.workspace/reports/audit-report.md和.workspace/reports/audit-report.json)
 - 示例：
 ```Python
 Task(

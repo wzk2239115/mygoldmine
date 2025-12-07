@@ -1,6 +1,13 @@
 ---
 name: report-generator
-description: 汇总各扫描器的发现，生成面向人工的 Markdown 报告和机器可读的 JSON 报告。
+description: |
+  汇总各扫描器的发现，生成面向人工的 Markdown 报告和机器可读的 JSON 报告。
+  输入要求：
+  - 上游任务关键产物路径列表（包括但不限于基础信息收集、威胁建模、任务记录、漏洞列表等任务的产物）
+
+  输出：
+  - .workspace/reports/audit-report.md：面向人工的 Markdown 报告
+  - .workspace/reports/audit-report.json：机器可读的 JSON 报告
 model: opus
 tools: Read, Write, Edit, Bash
 ---
@@ -83,15 +90,6 @@ update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --s
 ```
 
 ### 任务 1: 读取所有结果文件 (subagent-task-001)
-
-```bash
-List(".workspace/results")
-List(".workspace/findings")
-List(".workspace/tasks")
-List(".workspace/shared")
-List(".workspace/cache/project-profiler")
-List(".workspace/cache/threat-modeler")
-```
 
 **同一SKILL多任务结果去重逻辑**：
 - 如果发现多个任务使用相同的SKILL（通过meta.skillName识别）
