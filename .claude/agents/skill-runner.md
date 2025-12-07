@@ -15,27 +15,11 @@ description: |
   {
     "tasks": [
       {
-        "artifact": "artifact_path, required input for the skill",
-        "skill": "skill_name to process the artifact"
-        "parallel": [
-          "able to execute in parallel with other tasks",
-          "example: this task can be executed in parallel with task-xxx",
-          "this task can be executed in parallel with skill-xxx",
-        ],
+        "artifact": "path/to/artifact, required input for the skill",
+        "skill": "skill-name to process the artifact",
         "dependencies": [
-          "dependency-path, required input for the skill",
-          "example: this task can be executed when artifact xxx is ready"
-        ],
-        "requirements": [
-          "requirement to execute the task (if no requirements, leave it empty list)",
-          "example: this task can be executed when artifact xxx is ready"
+          "artifact path of skill xxx is required to provide when this task is executed",
         ]
-      }
-    ],
-    "artifacts": [
-      {
-        "path": "artifact_path",
-        "description": "artifact_description"
       }
     ]
   }
@@ -77,13 +61,14 @@ init-task-json .workspace/tasks/{TASK_ID}/tasks.json default {TASK_ID} \
   --tasks '[
     {
       "id": "task-001",
-      "type": "task_type",
-      "description": "task_description"
+      "type": "load-skill",
+      "description": "加载指定的技能"
     },
+    ...other tasks...
     {
-      "id": "task-002",
-      "type": "task_type",
-      "description": "task_description"
+      "id": "task-final",
+      "type": "execute-skill",
+      "description": "根据Skill描述执行任务并按照格式总结输出技能推荐任务列表"
     }
   ]'
 ```
@@ -110,4 +95,32 @@ update-task .workspace/tasks/{TASK_ID}/tasks.json "task-001" --status "in_progre
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
 update-task .workspace/tasks/{TASK_ID}/tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
+```
+
+# 中间过程需要通过add-task添加任务到tasks.json文件中
+```bash
+# task-final必须最后一步执行，因此添加--before "task-final"
+# 新增任务ID为task-002, task-003, task-004依次递增等未使用过的ID
+add-task .workspace/tasks/{TASK_ID}/tasks.json "task-002" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-final, Dependencies: xxx, Requirements: xxx." --before "task-final"
+```
+
+# 退出之前必须要调用check-task查看任务状态，确保所有任务状态为 "completed"
+```bash
+check-task .workspace/tasks/{TASK_ID}/tasks.json --show-pending
+```
+
+# 总结并推荐后续任务（JSON格式）：
+
+```json
+{
+  "tasks": [
+    {
+      "artifact": "path/to/artifact, required input for the skill",
+      "skill": "skill-name to process the artifact",
+      "dependencies": [
+        "artifact path of skill xxx is required to provide when this task is executed",
+      ]
+    }
+  ]
+}
 ```

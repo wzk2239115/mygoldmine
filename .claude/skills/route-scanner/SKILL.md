@@ -108,7 +108,7 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
             "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result.md",
             "skill": "route-function-analyzer",
             "dependencies": [
-                "Require artifact of authentication-analyzer"
+                "Require artifact of authentication-analyzer skill as input"
             ]
         }
     ]

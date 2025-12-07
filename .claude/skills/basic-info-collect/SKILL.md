@@ -79,7 +79,7 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
 - `authentication-analyzer` 技能：分析API端点认证要求。
 - `vtr-scanner` 技能：扫描靶场类型，识别测试类型（与其他技能冲突， 如果判定为靶场，则不需要再执行其他技能）。
 
-**注意：以上技能没有依赖关系，可以并行执行。**
+**注意：以上技能没有依赖关系。**
 
 4. 总结输出规则（JSON格式）：
 ```json
