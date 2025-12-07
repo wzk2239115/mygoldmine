@@ -3,12 +3,13 @@
 # 批量添加任务到 tasks.json
 #
 # 用法：
-#   add-tasks.sh <tasks_json_path> <tasks_json_file>
-#   add-tasks.sh <tasks_json_path> --json <tasks_json_string>
+#   add-tasks.sh <tasks_json_path> [--before <task_id>] <tasks_json_file>
+#   add-tasks.sh <tasks_json_path> [--before <task_id>] --json <tasks_json_string>
 #
 # 参数：
 #   tasks_json_path: tasks.json 文件的路径（必需）
 #   tasks_json_file: 包含任务数组的 JSON 文件路径
+#   --before <task_id>: 将所有新增任务插入到指定任务之前（若单个任务内含 before 字段，则优先使用该字段）
 #   --json <tasks_json_string>: 直接提供任务数组的 JSON 字符串
 #
 # 任务 JSON 格式：
@@ -33,13 +34,39 @@ set -euo pipefail
 # 检查参数
 if [ $# -lt 2 ]; then
     echo "错误: 缺少必需参数" >&2
-    echo "用法: $(basename "$0") <tasks_json_path> <tasks_json_file>" >&2
-    echo "用法: $(basename "$0") <tasks_json_path> --json <tasks_json_string>" >&2
+    echo "用法: $(basename "$0") <tasks_json_path> [--before <task_id>] <tasks_json_file>" >&2
+    echo "用法: $(basename "$0") <tasks_json_path> [--before <task_id>] --json <tasks_json_string>" >&2
     exit 1
 fi
 
 TASKS_JSON_PATH="$1"
 shift
+
+# 解析全局 --before
+GLOBAL_BEFORE=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --before)
+            if [ $# -lt 2 ]; then
+                echo "错误: --before 选项需要指定任务 ID" >&2
+                exit 1
+            fi
+            GLOBAL_BEFORE="$2"
+            shift 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# 确保仍有任务数据参数
+if [ $# -lt 1 ]; then
+    echo "错误: 缺少任务数据参数" >&2
+    echo "用法: $(basename "$0") <tasks_json_path> [--before <task_id>] <tasks_json_file>" >&2
+    echo "用法: $(basename "$0") <tasks_json_path> [--before <task_id>] --json <tasks_json_string>" >&2
+    exit 1
+fi
 
 # 检查 jq 是否安装
 if ! command -v jq &> /dev/null; then
@@ -115,6 +142,9 @@ while [ $TASK_INDEX -lt $TOTAL_TASKS ]; do
     DESCRIPTION=$(echo "$TASK" | jq -r '.description // empty')
     OPTIONAL=$(echo "$TASK" | jq -r '.optional // false')
     BEFORE_TASK_ID=$(echo "$TASK" | jq -r '.before // empty')
+    if [ -z "$BEFORE_TASK_ID" ] && [ -n "$GLOBAL_BEFORE" ]; then
+        BEFORE_TASK_ID="$GLOBAL_BEFORE"
+    fi
     
     # 验证必需字段
     if [ -z "$TASK_ID" ] || [ -z "$TASK_TYPE" ] || [ -z "$DESCRIPTION" ]; then

@@ -200,11 +200,12 @@ Task(
 
 **示例：**
 ```bash
-add-task .workspace/tasks/security-orchestrator-tasks.json "task-003" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Requirements: xxx."
+# --before 参数用于指定新任务插入到task-003（即报告之前）之前
+add-task .workspace/tasks/security-orchestrator-tasks.json "task-003" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Requirements: xxx." --before "task-003"
 add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
   {"id":"task-003","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Requirements: xxx."},
-  {"id":"task-004","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-004, Requirements: xxx."}
-]'
+  {"id":"task-004","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-004, Requirements: xxx."} 
+]' --before "task-003"
 ```
 
 **STEP 2：任务执行**
@@ -226,7 +227,7 @@ Task(
 **STEP 3：循环**
 - 汇总本轮新增的“后续任务”；如有则回到 STEP 2 执行；如果任务列表为空，则直接进入 STEP 4。
 
-** STEP 4：报告生成(Task-002)**
+** STEP 4：报告生成(Task-003)**
 - 调用 report-generator智能体生成报告。
 - 输入：最终产物列表
 - 输出要求：按照要求生成报告文件

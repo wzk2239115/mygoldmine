@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "timestamp": "2025-11-30T06:05:42.412565",
+    "tool": "SQL Injection Sink Detector",
+    "version": "1.0.0",
+    "source_path": ".",
+    "languages_scanned": [
+      "c",
+      "cpp",
+      "go",
+      "rust"
+    ]
+  },
+  "summary": {
+    "total_sinks": 0,
+    "by_category": {},
+    "by_file": {},
+    "by_sink_type": {}
+  },
+  "sinks": []
+}

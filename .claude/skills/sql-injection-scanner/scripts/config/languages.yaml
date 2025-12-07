@@ -1,0 +1,322 @@
+languages:
+  php:
+    enabled: true
+    file_patterns:
+      - "*.php"
+    sinks:
+      # Direct execution functions
+      - name: "mysqli_query"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [1]
+      - name: "mysqli_real_query"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [1]
+      - name: "mysql_query"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "pg_query"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [1]
+      # PDO execution
+      - name: "exec"
+        category: "pdo_execution"
+        type: "method_call"
+        class_names: ["PDO"]
+        vulnerable_params: [0]
+      - name: "query"
+        category: "pdo_execution"
+        type: "method_call"
+        class_names: ["PDO"]
+        vulnerable_params: [0]
+      # Prepared statement execution (without parameters)
+      - name: "execute"
+        category: "statement_execution"
+        type: "method_call"
+        vulnerable_params: []
+
+  python:
+    enabled: true
+    file_patterns:
+      - "*.py"
+    sinks:
+      # Raw SQL execution
+      - name: "execute"
+        category: "raw_sql"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "executescript"
+        category: "raw_sql"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "executemany"
+        category: "raw_sql"
+        type: "method_call"
+        vulnerable_params: [0]
+      # SQLAlchemy raw SQL
+      - name: "text"
+        category: "sqlalchemy"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "execute"
+        category: "sqlalchemy"
+        type: "method_call"
+        vulnerable_params: [0]
+      # Django ORM misuse
+      - name: "raw"
+        category: "django_orm"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "extra"
+        category: "django_orm"
+        type: "method_call"
+        vulnerable_params: [0, 1, 2]
+
+  java:
+    enabled: true
+    file_patterns:
+      - "*.java"
+    sinks:
+      # JDBC direct execution
+      - name: "executeQuery"
+        category: "jdbc"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "executeUpdate"
+        category: "jdbc"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "execute"
+        category: "jdbc"
+        type: "method_call"
+        vulnerable_params: [0]
+      # Spring JDBC
+      - name: "query"
+        category: "spring_jdbc"
+        type: "method_call"
+        class_names: ["JdbcTemplate"]
+        vulnerable_params: [0]
+      - name: "update"
+        category: "spring_jdbc"
+        type: "method_call"
+        class_names: ["JdbcTemplate"]
+        vulnerable_params: [0]
+
+  javascript:
+    enabled: true
+    file_patterns:
+      - "*.js"
+    sinks:
+      # MySQL/PostgreSQL direct execution
+      - name: "query"
+        category: "direct_execution"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "execute"
+        category: "direct_execution"
+        type: "method_call"
+        vulnerable_params: [0]
+      # Sequelize raw queries
+      - name: "sequelize"
+        category: "sequelize"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "raw"
+        category: "sequelize"
+        type: "method_call"
+        vulnerable_params: [0]
+      # Knex raw queries
+      - name: "raw"
+        category: "knex"
+        type: "method_call"
+        vulnerable_params: [0]
+
+  typescript:
+    enabled: true
+    file_patterns:
+      - "*.ts"
+      - "*.tsx"
+    sinks:
+      # MySQL/PostgreSQL direct execution
+      - name: "query"
+        category: "direct_execution"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "execute"
+        category: "direct_execution"
+        type: "method_call"
+        vulnerable_params: [0]
+      # Sequelize raw queries
+      - name: "sequelize"
+        category: "sequelize"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "raw"
+        category: "sequelize"
+        type: "method_call"
+        vulnerable_params: [0]
+      # Knex raw queries
+      - name: "raw"
+        category: "knex"
+        type: "method_call"
+        vulnerable_params: [0]
+      # TypeORM raw queries
+      - name: "query"
+        category: "typeorm"
+        type: "method_call"
+        vulnerable_params: [0]
+
+  c:
+    enabled: true
+    file_patterns:
+      - "*.c"
+      - "*.h"
+    sinks:
+      # SQLite C API
+      - name: "sqlite3_exec"
+        category: "sqlite"
+        type: "function_call"
+        vulnerable_params: [3]
+      - name: "sqlite3_prepare"
+        category: "sqlite"
+        type: "function_call"
+        vulnerable_params: [2]
+      - name: "sqlite3_prepare_v2"
+        category: "sqlite"
+        type: "function_call"
+        vulnerable_params: [2]
+      # MySQL C API
+      - name: "mysql_query"
+        category: "mysql_c"
+        type: "function_call"
+        vulnerable_params: [1]
+      - name: "mysql_real_query"
+        category: "mysql_c"
+        type: "function_call"
+        vulnerable_params: [1]
+      # PostgreSQL C API
+      - name: "PQexec"
+        category: "postgresql_c"
+        type: "function_call"
+        vulnerable_params: [1]
+      - name: "PQsendQuery"
+        category: "postgresql_c"
+        type: "function_call"
+        vulnerable_params: [1]
+
+  cpp:
+    enabled: true
+    file_patterns:
+      - "*.cpp"
+      - "*.cc"
+      - "*.cxx"
+      - "*.h"
+      - "*.hpp"
+    sinks:
+      # SQLite C++ wrapper
+      - name: "exec"
+        category: "sqlite_cpp"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "execute"
+        category: "sqlite_cpp"
+        type: "method_call"
+        vulnerable_params: [0]
+      # MySQL Connector C++
+      - name: "executeQuery"
+        category: "mysql_cpp"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "executeUpdate"
+        category: "mysql_cpp"
+        type: "method_call"
+        vulnerable_params: [0]
+      # ODB (C++ ORM)
+      - name: "query"
+        category: "odb"
+        type: "method_call"
+        vulnerable_params: [0]
+
+  go:
+    enabled: true
+    file_patterns:
+      - "*.go"
+    sinks:
+      # database/sql package
+      - name: "Query"
+        category: "database_sql"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "QueryRow"
+        category: "database_sql"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "Exec"
+        category: "database_sql"
+        type: "method_call"
+        vulnerable_params: [0]
+      # SQLite3 Go bindings
+      - name: "Exec"
+        category: "sqlite3"
+        type: "method_call"
+        vulnerable_params: [0]
+      # GORM (Go ORM)
+      - name: "Raw"
+        category: "gorm"
+        type: "method_call"
+        vulnerable_params: [0]
+      # mysql Go driver
+      - name: "Query"
+        category: "mysql_go"
+        type: "method_call"
+        vulnerable_params: [0]
+
+  rust:
+    enabled: true
+    file_patterns:
+      - "*.rs"
+    sinks:
+      # sqlx execute/query
+      - name: "execute"
+        category: "sqlx"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "query"
+        category: "sqlx"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "fetch"
+        category: "sqlx"
+        type: "method_call"
+        vulnerable_params: [0]
+      # Rusqlite
+      - name: "execute"
+        category: "rusqlite"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "query"
+        category: "rusqlite"
+        type: "method_call"
+        vulnerable_params: [0]
+      # Diesel ORM
+      - name: "execute"
+        category: "diesel"
+        type: "method_call"
+        vulnerable_params: [0]
+      # Tokio SQL
+      - name: "query"
+        category: "tokio"
+        type: "method_call"
+        vulnerable_params: [0]
+
+reporting:
+  output_formats:
+    - "json"
+    - "csv"
+    - "html"
+  json_pretty_print: true
+  include_context: true
+  context_lines: 3

@@ -62,7 +62,7 @@ def get_timestamp() -> str:
     """获取当前时间戳（ISO 8601格式）"""
     return datetime.now().isoformat()
 
-def sanitize_data(data: Any, max_length: int = 1000) -> Any:
+def sanitize_data(data: Any, max_length: int = 4096) -> Any:
     """清理数据，避免记录过大的内容
     
     Args:
@@ -127,15 +127,15 @@ def log_operation(data: Dict[str, Any]) -> None:
             if file_path:
                 log_message = f"[{tool_name}] {file_path}"
             elif command:
-                # 截断过长的命令，保留前1024字节
+                # 截断过长的命令，保留前4096字节
                 cmd_preview = (
                     command
-                    if len(command) <= 1024
-                    else command[:1024] + f"... (truncated, total {len(command)} chars)"
+                    if len(command) <= 4096
+                    else command[:4096] + f"... (truncated, total {len(command)} chars)"
                 )
                 log_message = f"[{tool_name}] {cmd_preview}"
             else:
-                log_message = f"[{tool_name}] {json.dumps(tool_input, ensure_ascii=False)[:1024]}"
+                log_message = f"[{tool_name}] {json.dumps(tool_input, ensure_ascii=False, indent=4)[:4096]}"
             
             logger.info(log_message)
         except Exception as e:
