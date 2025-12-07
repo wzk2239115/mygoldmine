@@ -67,8 +67,8 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
 # 输出要求
 
 1. 首先按照端点类型进行分类
-2. 如果同一种类型端点数量超过5个时，端点信息按照端点编号或先后顺序输出到多个文件，每个文件中包含不超过5个端点信息
-- API端点按照分类输出到多个文件中，文件路径规则为：
+2. 如果同一种类型端点数量超过5个时，端点信息按照端点编号或先后顺序分组输出到多个文件，每个分组文件中包含不超过5个端点信息
+- API端点按照分类分组输出到多个文件中，文件路径规则为：
     .workspace/tasks/{TASK_ID}/route-scanner-result-{category}-01.md
     .workspace/tasks/{TASK_ID}/route-scanner-result-{category}-02.md
     ...
