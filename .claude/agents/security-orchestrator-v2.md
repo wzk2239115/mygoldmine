@@ -137,7 +137,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --statu
 
 ## 执行流程
 
-使用 general-purpose 子智能体驱动的三步循环，直到没有新任务。
+使用 skill-runner 子智能体驱动的三步循环，直到没有新任务。
 
 **Subagent输出格式要求：**
 

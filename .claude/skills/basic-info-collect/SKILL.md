@@ -73,7 +73,7 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
 
 1. **优先使用用户指定了输出路径，默认输出到.workspace/tasks/{TASK_ID}/project-profile.md文件中**
 
-2. **可选Skill列表如下（禁止选择列表技能, 否则会导致任务失败）：**
+2. **可选Skill列表如下（禁止选择列表之外的技能, 否则会导致任务失败）：**
 
 **注意：以下技能没有依赖关系，可以并行执行。**
 
