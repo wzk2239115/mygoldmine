@@ -97,7 +97,7 @@ def log_operation(data: Dict[str, Any]) -> None:
         # 提取工具信息
         tool_name = data.get('tool_name', 'unknown')
         tool_input = data.get('tool_input', {})
-        tool_output = data.get('tool_output', {})
+        tool_response = data.get('tool_response', {})
         session_id = data.get('session_id', 'unknown')
         
         # 构建操作记录
@@ -106,8 +106,8 @@ def log_operation(data: Dict[str, Any]) -> None:
             'session_id': session_id,
             'tool_name': tool_name,
             'tool_input': sanitize_data(tool_input),
-            'tool_output': sanitize_data(tool_output),
-            'success': tool_output.get('error') is None if isinstance(tool_output, dict) else True
+            'tool_response': sanitize_data(tool_response),
+            'success': tool_response.get('error') is None if isinstance(tool_response, dict) else True
         }
         
         # 记录到JSONL文件（结构化日志）
