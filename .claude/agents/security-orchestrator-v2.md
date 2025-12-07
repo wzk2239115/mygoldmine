@@ -153,7 +153,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --statu
         "this task can be executed in parallel with skill-xxx",
       ],
       "dependencies": [
-        "dependency-path, required input for the skill",
+        "dependency artifact path, required input for the skill",
         "example: this task can be executed when artifact xxx is ready"
       ],
       "requirements": [
@@ -201,10 +201,10 @@ Task(
 **示例：**
 ```bash
 # --before 参数用于指定新任务插入到task-003（即报告之前）之前
-add-task .workspace/tasks/security-orchestrator-tasks.json "task-003" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Requirements: xxx." --before "task-003"
+add-task .workspace/tasks/security-orchestrator-tasks.json "task-003" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Dependencies: xxx, Requirements: xxx." --before "task-003"
 add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
-  {"id":"task-003","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Requirements: xxx."},
-  {"id":"task-004","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-004, Requirements: xxx."} 
+  {"id":"task-003","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Dependencies: xxx, Requirements: xxx."},
+  {"id":"task-004","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-004, Dependencies: xxx, Requirements: xxx."} 
 ]' --before "task-003"
 ```
 
