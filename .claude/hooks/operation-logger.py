@@ -117,7 +117,7 @@ def log_operation(data: Dict[str, Any]) -> None:
         tool_input = data.get('tool_input', {})
         tool_response = data.get('tool_response', {})
         session_id = data.get('session_id', 'unknown')
-        response_text = extract_response_text(tool_response)
+        response_text = extract_response_text(tool_response) if tool_name == "Task" else ""
         
         # 构建操作记录
         operation_record = {
@@ -126,7 +126,7 @@ def log_operation(data: Dict[str, Any]) -> None:
             'tool_name': tool_name,
             'tool_input': sanitize_data(tool_input),
             'tool_response': sanitize_data(tool_response),
-            'response_text': sanitize_data(response_text),
+            'response_text': sanitize_data(response_text) if tool_name == "Task" else "",
             'success': tool_response.get('error') is None if isinstance(tool_response, dict) else True
         }
         
@@ -167,7 +167,10 @@ def log_operation(data: Dict[str, Any]) -> None:
                     if len(response_json) <= 4096
                     else response_json[:4096] + f"... (truncated, total {len(response_json)} chars)"
                 )
-                log_message = f"[{tool_name}]\ninput={input_preview}\nresponse={response_preview}\nresponse_text={response_text}"
+                if tool_name == "Task" and response_text:
+                    log_message = f"[{tool_name}]\ninput={input_preview}\nresponse={response_preview}\nresponse_text={response_text}"
+                else:
+                    log_message = f"[{tool_name}]\ninput={input_preview}\nresponse={response_preview}"
             
             logger.info(log_message)
         except Exception as e:
