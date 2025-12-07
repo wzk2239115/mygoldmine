@@ -52,6 +52,22 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
 - route-scanner 技能：扫描API端点，识别路由信息。
 - authentication-analyzer 技能：分析API端点认证要求。
 
+**总结输出格式（JSON格式）：**
+```json
+{
+    "tasks": [
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
+            "skill": "route-scanner"
+        },
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
+            "skill": "authentication-analyzer"
+        }
+    ]
+}
+```
+
 2. 前端 WEB 应用
 
 **识别 WEB 应用方法（快速判定优先）：**
@@ -70,18 +86,18 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
 **对于安全测试靶场，后续分析需要使用的技能列表如下（禁止添加其他技能）: **
 - vtr-scanner 技能：扫描靶场类型，识别测试类型。
 
-# 输出要求
-
-1. **优先使用用户指定了输出路径，默认输出到.workspace/tasks/{TASK_ID}/project-profile.md文件中**
-
-2. 总结输出格式（JSON格式）：
+**总结输出格式（JSON格式）：**
 ```json
 {
     "tasks": [
         {
             "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
-            "skill": "basic-info-collect"
+            "skill": "vtr-scanner"
         }
     ]
 }
 ```
+
+# 输出要求
+
+1. **优先使用用户指定了输出路径，默认输出到.workspace/tasks/{TASK_ID}/project-profile.md文件中**
