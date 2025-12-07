@@ -154,8 +154,6 @@ def log_operation(data: Dict[str, Any]) -> None:
                     else command[:4096] + f"... (truncated, total {len(command)} chars)"
                 )
                 log_message = f"[{tool_name}] {cmd_preview}"
-            elif tool_name == "Task" and response_text:
-                log_message = f"[{tool_name}] response_text={response_text}"
             else:
                 input_json = json.dumps(tool_input, ensure_ascii=False, indent=4)
                 response_json = json.dumps(tool_response, ensure_ascii=False, indent=4)
@@ -169,7 +167,7 @@ def log_operation(data: Dict[str, Any]) -> None:
                     if len(response_json) <= 4096
                     else response_json[:4096] + f"... (truncated, total {len(response_json)} chars)"
                 )
-                log_message = f"[{tool_name}] input={input_preview} response={response_preview}"
+                log_message = f"[{tool_name}]\ninput={input_preview}\nresponse={response_preview}\nresponse_text={response_text}"
             
             logger.info(log_message)
         except Exception as e:
