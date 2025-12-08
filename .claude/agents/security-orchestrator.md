@@ -1,5 +1,5 @@
 ---
-name: security-orchestrator-v2
+name: security-orchestrator
 description: Core coordinator agent for project classification and task processing. Orchestrates project classification and task processing. Use when you need to classify projects and process tasks returned by subagents.
 model: opus
 tools: Read, Write, Edit, Bash, Task
