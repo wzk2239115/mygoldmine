@@ -415,7 +415,6 @@ class TaskChecker:
         if self.warning_level == WARNING_LEVEL_SEVERE:
             print("🚨 【严重警告】审计任务未完成，无法退出", file=sys.stderr)
             print(f"    这是第 {self.counter_value + 1} 次检测到未完成任务！", file=sys.stderr)
-            print("    如果再次忽略，系统将自动跳过检查。", file=sys.stderr)
         else:  # WARNING_LEVEL_NORMAL
             print("⚠️  【警告】审计任务未完成，无法退出", file=sys.stderr)
 
@@ -503,11 +502,9 @@ class TaskChecker:
         # 根据警告级别显示不同的结束提示
         if self.warning_level == WARNING_LEVEL_SEVERE:
             print("🚨 【严重警告】请立即完成上述未完成任务！", file=sys.stderr)
-            print("⚠️  注意：如果继续忽略，下次将自动跳过检查。", file=sys.stderr)
             print(f"    当前触发次数: {self.counter_value + 1}/{EXIT_CHECK_THRESHOLD + 1} (严重警告阶段)", file=sys.stderr)
         else:  # WARNING_LEVEL_NORMAL
             print("⚠️  请继续完成上述未完成任务后再退出。", file=sys.stderr)
-            print(f"    提示：再触发 {EXIT_CHECK_THRESHOLD + 1} 次后将自动跳过检查", file=sys.stderr)
 
         print("━" * 55 + "\n", file=sys.stderr)
 
