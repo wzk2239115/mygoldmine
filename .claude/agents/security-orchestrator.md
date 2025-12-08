@@ -33,7 +33,7 @@ tools: Read, Write, Edit, Bash, Task
 | `command-injection-analyzer` | 分析命令注入漏洞。 |
 | `code-injection-analyzer` | 分析代码注入漏洞。 |
 | `csrf-analyzer` | 分析CSRF漏洞。 |
-| `file-upload-analyzer` | 分析文件上传漏洞。 |
+| `insecure-file-uploads-analyzer` | 分析文件上传漏洞。 |
 | `http-header-injection-analyzer` | 分析HTTP头注入漏洞。 |
 | `idor-analyzer` | 分析IDOR漏洞。 |
 | `ldap-injection-analyzer` | 分析LDAP注入漏洞。 |
@@ -246,3 +246,4 @@ Task(
 - 每次调用 skill-runner智能体时，在 prompt 中写明：任务描述、工作区文件、技能名称。
 - **重要：禁止跳过skill-runner智能体推荐的任何任务(即使你已经得出了最终结论)，必须按步骤执行所有推荐的技能任务。**
 - 涉及路径时，优先使用相对路径，避免使用绝对路径。
+- 你有足够的时间和资源来执行任务，因此不需要考虑时间限制。
