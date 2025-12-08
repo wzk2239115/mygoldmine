@@ -207,7 +207,10 @@ process_initial_tasks() {
                 status: "pending",
                 description: .description,
                 optional: (.optional // false),
-                detail: (.detail // {})
+                detail: (.detail // {}),
+                start_at: null,
+                update_at: null,
+                duration: null
             }
         end
     )'
@@ -272,6 +275,7 @@ jq -n \
         "description": $description,
         "created_at": $created_at,
         "updated_at": $updated_at,
+        "duration": 0,
         "tasks": $tasks,
         "summary": {
             "total_tasks": $total_tasks,

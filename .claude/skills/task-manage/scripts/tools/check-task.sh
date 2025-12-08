@@ -65,6 +65,30 @@ IN_PROGRESS=$(echo "$SUMMARY" | jq -r '.in_progress // 0')
 PENDING=$(echo "$SUMMARY" | jq -r '.pending // 0')
 FAILED=$(echo "$SUMMARY" | jq -r '.failed // 0')
 
+# 读取 duration
+DURATION=$(jq -r '.duration // 0' "$TASKS_JSON_PATH")
+
+# 格式化 duration 为可读形式
+format_duration() {
+    local seconds=$1
+    local days=$((seconds / 86400))
+    local hours=$(((seconds % 86400) / 3600))
+    local minutes=$(((seconds % 3600) / 60))
+    local secs=$((seconds % 60))
+
+    if [ $days -gt 0 ]; then
+        echo "${days}天 ${hours}小时 ${minutes}分钟"
+    elif [ $hours -gt 0 ]; then
+        echo "${hours}小时 ${minutes}分钟"
+    elif [ $minutes -gt 0 ]; then
+        echo "${minutes}分钟 ${secs}秒"
+    else
+        echo "${secs}秒"
+    fi
+}
+
+DURATION_FORMATTED=$(format_duration "$DURATION")
+
 # 计算完成率
 if [ "$TOTAL" -gt 0 ]; then
     COMPLETION_RATE=$((COMPLETED * 100 / TOTAL))
@@ -81,6 +105,7 @@ echo "进行中:       $IN_PROGRESS"
 echo "待处理:       $PENDING"
 echo "失败:         $FAILED"
 echo "完成率:       ${COMPLETION_RATE}%"
+echo "运行时长:     $DURATION_FORMATTED"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # 检查是否全部完成

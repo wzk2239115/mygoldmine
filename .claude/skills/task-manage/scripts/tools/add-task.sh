@@ -105,6 +105,17 @@ fi
 # 更新 updated_at（使用中国时区 UTC+8）
 CURRENT_TIME="$(TZ='Asia/Shanghai' date +"%Y-%m-%dT%H:%M:%S%z" | sed 's/\([0-9][0-9]\)$/:\1/')"
 
+# 读取 created_at 并计算 duration
+CREATED_AT=$(jq -r '.created_at' "$TASKS_JSON_PATH")
+CREATED_TIMESTAMP=$(date -d "$CREATED_AT" +%s 2>/dev/null || echo "0")
+CURRENT_TIMESTAMP=$(date +%s)
+DURATION=$((CURRENT_TIMESTAMP - CREATED_TIMESTAMP))
+
+# 如果日期解析失败，duration 设为 0
+if [ "$CREATED_TIMESTAMP" = "0" ]; then
+    DURATION=0
+fi
+
 # 创建新任务对象
 NEW_TASK=$(jq -n \
     --arg id "$TASK_ID" \
@@ -119,7 +130,10 @@ NEW_TASK=$(jq -n \
         "status": $status,
         "description": $desc,
         "optional": $optional,
-        "detail": $detail
+        "detail": $detail,
+        "start_at": null,
+        "update_at": null,
+        "duration": null
     }')
 
 # 添加任务到 tasks 数组
@@ -131,16 +145,18 @@ if [ -n "$BEFORE_TASK_ID" ]; then
         --argjson new_task "$NEW_TASK" \
         --arg before_id "$BEFORE_TASK_ID" \
         --arg updated_at "$CURRENT_TIME" \
-        '.tasks = (.tasks | reduce .[] as $item ([]; 
+        --argjson duration "$DURATION" \
+        '.tasks = (.tasks | reduce .[] as $item ([];
             if $item.id == $before_id then . + [$new_task, $item] else . + [$item] end
-        )) | .updated_at = $updated_at' \
+        )) | .updated_at = $updated_at | .duration = $duration' \
         "$TASKS_JSON_PATH" > "$TEMP_FILE"
 else
     # 否则追加到末尾
     jq \
         --argjson new_task "$NEW_TASK" \
         --arg updated_at "$CURRENT_TIME" \
-        '.tasks += [$new_task] | .updated_at = $updated_at' \
+        --argjson duration "$DURATION" \
+        '.tasks += [$new_task] | .updated_at = $updated_at | .duration = $duration' \
         "$TASKS_JSON_PATH" > "$TEMP_FILE"
 fi
 

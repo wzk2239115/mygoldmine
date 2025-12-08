@@ -10,6 +10,7 @@
     "description",
     "created_at",
     "updated_at",
+    "duration",
     "tasks",
     "summary"
   ],
@@ -64,6 +65,18 @@
       "examples": [
         "2024-01-01T08:00:00+08:00",
         "2024-12-31T23:59:59+08:00"
+      ]
+    },
+    "duration": {
+      "type": "integer",
+      "description": "Duration in seconds since the task list was created, updated automatically when task list is updated",
+      "minimum": 0,
+      "default": 0,
+      "examples": [
+        0,
+        60,
+        3600,
+        86400
       ]
     },
     "tasks": {
@@ -210,6 +223,43 @@
               "severity_high": 2,
               "severity_medium": 3
             }
+          ]
+        },
+        "start_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the task started (China timezone UTC+8), set when status changes to in_progress",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$",
+          "default": null,
+          "examples": [
+            "2024-01-01T08:00:00+08:00",
+            "2024-12-31T23:59:59+08:00",
+            null
+          ]
+        },
+        "update_at": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "ISO 8601 timestamp when the task was last updated (China timezone UTC+8)",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}[+-]\\d{2}:\\d{2}$",
+          "default": null,
+          "examples": [
+            "2024-01-01T08:00:00+08:00",
+            "2024-12-31T23:59:59+08:00",
+            null
+          ]
+        },
+        "duration": {
+          "type": ["integer", "null"],
+          "description": "Duration in seconds since the task started (from start_at), null if task hasn't started yet",
+          "minimum": 0,
+          "default": null,
+          "examples": [
+            null,
+            0,
+            60,
+            3600,
+            86400
           ]
         }
       },

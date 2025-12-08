@@ -43,19 +43,32 @@ fi
 # 更新时间（UTC+8）
 CURRENT_TIME="$(TZ='Asia/Shanghai' date +"%Y-%m-%dT%H:%M:%S%z" | sed 's/\([0-9][0-9]\)$/:\1/')"
 
+# 读取 created_at 并计算 duration
+CREATED_AT=$(jq -r '.created_at' "$TASKS_JSON_PATH")
+CREATED_TIMESTAMP=$(date -d "$CREATED_AT" +%s 2>/dev/null || echo "0")
+CURRENT_TIMESTAMP=$(date +%s)
+DURATION=$((CURRENT_TIMESTAMP - CREATED_TIMESTAMP))
+
+# 如果日期解析失败，duration 设为 0
+if [ "$CREATED_TIMESTAMP" = "0" ]; then
+    DURATION=0
+fi
+
 TEMP_FILE=$(mktemp)
 
 # 删除任务并更新统计
 jq \
     --arg id "$TASK_ID" \
     --arg updated_at "$CURRENT_TIME" \
+    --argjson duration "$DURATION" \
     '.tasks = (.tasks | map(select(.id != $id))) |
      .summary.total_tasks = (.tasks | length) |
      .summary.pending = ([.tasks[] | select(.status == "pending")] | length) |
      .summary.in_progress = ([.tasks[] | select(.status == "in_progress")] | length) |
      .summary.completed = ([.tasks[] | select(.status == "completed")] | length) |
      .summary.failed = ([.tasks[] | select(.status == "failed")] | length) |
-     .updated_at = $updated_at' \
+     .updated_at = $updated_at |
+     .duration = $duration' \
     "$TASKS_JSON_PATH" > "$TEMP_FILE"
 
 # Schema 校验
