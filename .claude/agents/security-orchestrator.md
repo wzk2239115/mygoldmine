@@ -30,17 +30,22 @@ tools: Read, Write, Edit, Bash, Task
 **支持的扫描器列表：**
 | 技能 | 描述 |
 |------|------|
-| `command-injection-analyzer` | 分析命令注入漏洞。 |
+| `authentication-analyzer` | 分析认证漏洞。 |
+| `basic-info-collect` | 收集项目基本信息。 |
 | `code-injection-analyzer` | 分析代码注入漏洞。 |
+| `command-injection-analyzer` | 分析命令注入漏洞。 |
 | `csrf-analyzer` | 分析CSRF漏洞。 |
-| `insecure-file-uploads-analyzer` | 分析文件上传漏洞。 |
 | `http-header-injection-analyzer` | 分析HTTP头注入漏洞。 |
 | `idor-analyzer` | 分析IDOR漏洞。 |
+| `insecure-file-uploads-analyzer` | 分析文件上传漏洞。 |
 | `ldap-injection-analyzer` | 分析LDAP注入漏洞。 |
 | `open-redirect-analyzer` | 分析开放重定向漏洞。 |
 | `path-traversal-lfi-rfi-analyzer` | 分析路径遍历/文件包含漏洞。 |
+| `route-scanner` | 扫描API端点。 |
+| `sensitive-info-scanner` | 扫描敏感信息。 |
 | `sql-injection-analyzer` | 分析SQL注入漏洞。 |
 | `ssrf-analyzer` | 分析SSRF漏洞。 |
+| `vtr-scanner` | 扫描漏洞靶场。 |
 | `xxe-analyzer` | 分析XXE漏洞。 |
 | `xss-analyzer` | 分析XSS漏洞。 |
 
