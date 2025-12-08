@@ -59,11 +59,11 @@ fi
 
 # 读取统计信息
 SUMMARY=$(jq '.summary' "$TASKS_JSON_PATH")
-TOTAL=$(echo "$SUMMARY" | jq -r '.total_tasks')
-COMPLETED=$(echo "$SUMMARY" | jq -r '.completed')
-IN_PROGRESS=$(echo "$SUMMARY" | jq -r '.in_progress')
-PENDING=$(echo "$SUMMARY" | jq -r '.pending')
-FAILED=$(echo "$SUMMARY" | jq -r '.failed')
+TOTAL=$(echo "$SUMMARY" | jq -r '.total_tasks // 0')
+COMPLETED=$(echo "$SUMMARY" | jq -r '.completed // 0')
+IN_PROGRESS=$(echo "$SUMMARY" | jq -r '.in_progress // 0')
+PENDING=$(echo "$SUMMARY" | jq -r '.pending // 0')
+FAILED=$(echo "$SUMMARY" | jq -r '.failed // 0')
 
 # 计算完成率
 if [ "$TOTAL" -gt 0 ]; then
