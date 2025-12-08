@@ -255,10 +255,10 @@ class TaskChecker:
             True: 标记文件存在，跳过检查
             False: 标记文件不存在，需要执行检查
         """
-        if SKIP_CHECK_MARKER.exists():
-            self.log_message(f"发现跳过检查标记文件: {SKIP_CHECK_MARKER}，跳过任务检查，允许退出")
-            print(f"Skip check marker found: {SKIP_CHECK_MARKER}, allow exit")
-            return True
+        # if SKIP_CHECK_MARKER.exists():
+        #     self.log_message(f"发现跳过检查标记文件: {SKIP_CHECK_MARKER}，跳过任务检查，允许退出")
+        #     print(f"Skip check marker found: {SKIP_CHECK_MARKER}, allow exit")
+        #     return True
         return False
 
     def create_skip_marker(self):
@@ -321,14 +321,14 @@ class TaskChecker:
             print("━" * 55)
             return
 
-        print("\n" + "━" * 55)
-        print("⚠️  审计任务未完成，无法退出")
-        print("━" * 55 + "\n")
+        print("\n" + "━" * 55, file=sys.stderr)
+        print("⚠️  审计任务未完成，无法退出", file=sys.stderr)
+        print("━" * 55 + "\n", file=sys.stderr)
 
         # 显示 general-scanner 的分组信息
         if self.general_scanner_groups:
             agent_type = "通用扫描智能体"
-            print(f"【general-scanner ({agent_type})】")
+            print(f"【general-scanner ({agent_type})】", file=sys.stderr)
             for agent_task_id, group_data in sorted(self.general_scanner_groups.items()):
                 status_parts = []
                 if group_data['pending_count'] > 0:
@@ -336,33 +336,33 @@ class TaskChecker:
                 if group_data['in_progress_count'] > 0:
                     status_parts.append(f"进行中: {group_data['in_progress_count']}")
                 status_summary = " | ".join(status_parts) if status_parts else "未知状态"
-                print(f"  任务ID: {agent_task_id} - {group_data['total_incomplete']} 个未完成任务 ({status_summary})")
-            print()
+                print(f"  任务ID: {agent_task_id} - {group_data['total_incomplete']} 个未完成任务 ({status_summary})", file=sys.stderr)
+            print("", file=sys.stderr)
 
         # 显示其他智能体问题
         if self.agent_issues:
-            print("\n".join(self.agent_issues))
+            print("\n".join(self.agent_issues), file=sys.stderr)
 
         # 显示其他智能体的产物问题（general-scanner 不检查产物）
         if self.artifact_issues:
-            print("━" * 55)
-            print("📁 产物完整性检查结果")
-            print("━" * 55)
-            print("\n".join(self.artifact_issues))
+            print("━" * 55, file=sys.stderr)
+            print("📁 产物完整性检查结果", file=sys.stderr)
+            print("━" * 55, file=sys.stderr)
+            print("\n".join(self.artifact_issues), file=sys.stderr)
 
-            print("需要完成的产物：")
+            print("需要完成的产物：", file=sys.stderr)
             for issue in self.artifact_issues:
                 if issue.startswith("  预期产物:"):
                     artifact_path = issue.split(":", 1)[1].strip()
-                    print(f"  - {artifact_path}")
-            print("\n请先生成上述产物文件后再退出。")
+                    print(f"  - {artifact_path}", file=sys.stderr)
+            print("\n请先生成上述产物文件后再退出。", file=sys.stderr)
 
-        print("\n" + "━" * 55)
-        print("请继续完成上述未完成任务后再退出。")
-        print("━" * 55)
-        print(f"\n提示: 已创建跳过检查标记文件: {SKIP_CHECK_MARKER}")
-        print("下次退出时将自动跳过检查。如需重新启用检查，请删除该文件。")
-        print("━" * 55 + "\n")
+        print("\n" + "━" * 55, file=sys.stderr)
+        print("请继续完成上述未完成任务后再退出。", file=sys.stderr)
+        print("━" * 55, file=sys.stderr)
+        print(f"\n提示: 已创建跳过检查标记文件: {SKIP_CHECK_MARKER}", file=sys.stderr)
+        print("下次退出时将自动跳过检查。如需重新启用检查，请删除该文件。", file=sys.stderr)
+        print("━" * 55 + "\n", file=sys.stderr)
 
 
 def main():
