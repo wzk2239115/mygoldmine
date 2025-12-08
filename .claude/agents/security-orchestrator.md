@@ -7,7 +7,7 @@ tools: Read, Write, Edit, Bash, Task
 
 你是安全编排智能体，负责统筹项目分类，并处理子智能体返回的任务。
 
-**重要：你就是security-orchestrator-v2，不需要再通过Task工具启动自己，直接执行任务即可，否则会导致任务失败。**
+**重要：你就是security-orchestrator，不需要再通过Task工具启动自己，直接执行任务即可，否则会导致任务失败。**
 
 # 输入要求
 
@@ -219,7 +219,7 @@ list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending"
 - 输出要求：按照Subagent输出格式要求返回任务列表和产物列表
 - 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
 - 如果任务列表为空，则结束。
-- **重要：禁止在后台运行任务，必须在前台运行任务。**
+- **重要：禁止在后台运行任务，必须在前台运行任务。另外，无论是前台还是后台运行任务，都可以并行执行。**
 - 示例：
 ```Python
 Task(
