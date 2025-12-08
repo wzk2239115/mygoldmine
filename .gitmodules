@@ -1,0 +1,3 @@
+[submodule ".claude/skills/TOP14"]
+	path = .claude/skills/TOP14
+	url = git@github.com:Clouditera/TOP14.git
