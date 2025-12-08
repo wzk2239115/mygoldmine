@@ -121,6 +121,7 @@ check-task .workspace/tasks/{TASK_ID}/tasks.json --show-pending
         "artifact path of skill xxx is required to provide when this task is executed",
       ]
     }
-  ]
+  ],
+  "warnings": ["warning message1", "warning message2", ...]
 }
 ```

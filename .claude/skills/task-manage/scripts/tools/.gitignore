@@ -6,4 +6,5 @@ init-task-json
 list-tasks
 read-task
 update-task
+delete-task
 

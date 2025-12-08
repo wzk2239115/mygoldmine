@@ -56,7 +56,7 @@ description: 专业靶场扫描技能：具备主流语言/框架的靶场扫描
         },
         {
             "artifact": ".workspace/tasks/{TASK_ID}/vtr-scanner-result-{category}-02.md",
-            "skill": "sql-injection-analyzer"
+            "skill": "xss-analyzer"
         },
         ...
     ],
@@ -68,3 +68,4 @@ description: 专业靶场扫描技能：具备主流语言/框架的靶场扫描
 4. **可选Skill列表如下（禁止选择列表技能, 否则会导致任务失败）：**
 
 - `sql-injection-analyzer` 技能：分析SQL注入漏洞。
+- `xss-analyzer` 技能：分析XSS漏洞。
