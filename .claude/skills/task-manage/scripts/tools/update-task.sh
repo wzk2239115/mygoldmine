@@ -8,7 +8,7 @@
 # 参数：
 #   tasks_json_path: tasks.json 文件的路径（必需）
 #   task_id: 要更新的任务 ID（必需）
-#   --status <status>: 更新任务状态（必需，可选值: pending, in_progress, completed, failed）
+#   --status <status>: 更新任务状态（必需，可选值: pending, in_progress, completed, failed, skipped）
 #   --description <description>: 更新任务描述（可选）
 #   --detail <json>: 更新任务详情 JSON 字符串（可选）
 #   --optional <true|false>: 更新任务是否可选（可选）
@@ -62,9 +62,9 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --status)
             UPDATE_STATUS="$2"
-            if [[ ! "$UPDATE_STATUS" =~ ^(pending|in_progress|completed|failed)$ ]]; then
+            if [[ ! "$UPDATE_STATUS" =~ ^(pending|in_progress|completed|failed|skipped)$ ]]; then
                 echo "错误: 无效的状态值: $UPDATE_STATUS" >&2
-                echo "有效值: pending, in_progress, completed, failed" >&2
+                echo "有效值: pending, in_progress, completed, failed, skipped" >&2
                 exit 1
             fi
             shift 2
@@ -214,7 +214,8 @@ jq \
      .summary.pending = ([.tasks[] | select(.status == "pending")] | length) |
      .summary.in_progress = ([.tasks[] | select(.status == "in_progress")] | length) |
      .summary.completed = ([.tasks[] | select(.status == "completed")] | length) |
-     .summary.failed = ([.tasks[] | select(.status == "failed")] | length)' \
+     .summary.failed = ([.tasks[] | select(.status == "failed")] | length) |
+     .summary.skipped = ([.tasks[] | select(.status == "skipped")] | length)' \
     "$TEMP_FILE" > "$TASKS_JSON_PATH"
 
 rm -f "$TEMP_FILE"

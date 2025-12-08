@@ -64,6 +64,7 @@ COMPLETED=$(echo "$SUMMARY" | jq -r '.completed // 0')
 IN_PROGRESS=$(echo "$SUMMARY" | jq -r '.in_progress // 0')
 PENDING=$(echo "$SUMMARY" | jq -r '.pending // 0')
 FAILED=$(echo "$SUMMARY" | jq -r '.failed // 0')
+SKIPPED=$(echo "$SUMMARY" | jq -r '.skipped // 0')
 
 # 读取 duration
 DURATION=$(jq -r '.duration // 0' "$TASKS_JSON_PATH")
@@ -104,6 +105,7 @@ echo "已完成:       $COMPLETED"
 echo "进行中:       $IN_PROGRESS"
 echo "待处理:       $PENDING"
 echo "失败:         $FAILED"
+echo "已跳过:       $SKIPPED"
 echo "完成率:       ${COMPLETION_RATE}%"
 echo "运行时长:     $DURATION_FORMATTED"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -114,6 +116,9 @@ if [ "$TOTAL" -eq 0 ]; then
     exit 0
 elif [ "$PENDING" -eq 0 ] && [ "$IN_PROGRESS" -eq 0 ] && [ "$FAILED" -eq 0 ]; then
     echo "✅ 所有任务已完成"
+    if [ "$SKIPPED" -gt 0 ]; then
+        echo "ℹ️  已跳过 $SKIPPED 个任务"
+    fi
     exit 0
 elif [ "$FAILED" -gt 0 ]; then
     echo "❌ 有 $FAILED 个任务失败"

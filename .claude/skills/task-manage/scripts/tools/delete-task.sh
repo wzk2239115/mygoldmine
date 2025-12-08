@@ -67,6 +67,7 @@ jq \
      .summary.in_progress = ([.tasks[] | select(.status == "in_progress")] | length) |
      .summary.completed = ([.tasks[] | select(.status == "completed")] | length) |
      .summary.failed = ([.tasks[] | select(.status == "failed")] | length) |
+     .summary.skipped = ([.tasks[] | select(.status == "skipped")] | length) |
      .updated_at = $updated_at |
      .duration = $duration' \
     "$TASKS_JSON_PATH" > "$TEMP_FILE"

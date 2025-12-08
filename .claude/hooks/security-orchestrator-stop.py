@@ -148,7 +148,7 @@ class TaskChecker:
                     pending_count += 1
                 elif status == 'in_progress':
                     in_progress_count += 1
-                elif status in ['completed', 'failed']:
+                elif status in ['completed', 'failed', 'skipped']:
                     # 检查已完成或失败任务的执行时间
                     # duration 可能是 None/null，需要检查
                     if duration is not None and isinstance(duration, (int, float)):
@@ -236,8 +236,8 @@ class TaskChecker:
         # 检查所有 tasks 是否都完成
         if 'tasks' in data:
             tasks = data.get('tasks', [])
-            incomplete_tasks = [t for t in tasks 
-                              if isinstance(t, dict) and t.get('status') not in ['completed', 'failed']]
+            incomplete_tasks = [t for t in tasks
+                              if isinstance(t, dict) and t.get('status') not in ['completed', 'failed', 'skipped']]
             if incomplete_tasks:
                 self.log_message(f"智能体 '{agent_name}' 仍有未完成任务，跳过产物检查")
                 return

@@ -95,7 +95,8 @@
         "completed",
         "in_progress",
         "pending",
-        "failed"
+        "failed",
+        "skipped"
       ],
       "properties": {
         "total_tasks": {
@@ -125,6 +126,12 @@
         "failed": {
           "type": "integer",
           "description": "Number of failed tasks",
+          "minimum": 0,
+          "default": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "description": "Number of skipped tasks",
           "minimum": 0,
           "default": 0
         }
@@ -183,7 +190,8 @@
             "pending",
             "in_progress",
             "completed",
-            "failed"
+            "failed",
+            "skipped"
           ],
           "default": "pending"
         },

@@ -15,7 +15,7 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 - 创建新的任务列表文件（tasks.json）
 - 添加、更新或查询任务
 - 检查任务完成情况统计
-- 管理任务状态（pending, in_progress, completed, failed）
+- 管理任务状态（pending, in_progress, completed, failed, skipped）
 - 按条件过滤和查询任务
 
 ### 工具脚本位置
@@ -227,7 +227,7 @@ update-task <tasks_json_path> <task_id> --status <status> [--description <descri
 **参数：**
 - `tasks_json_path`（必需）：tasks.json 文件路径
 - `task_id`（必需）：要更新的任务 ID
-- `--status <status>`（必需）：更新任务状态（pending, in_progress, completed, failed）
+- `--status <status>`（必需）：更新任务状态（pending, in_progress, completed, failed, skipped）
 - `--description <description>`（条件必需）：当状态为 `completed` 或 `failed` 时必需，其他状态可选
 - `--detail <json>`（条件必需）：当状态为 `completed` 时必需，其他状态可选
 - `--optional <true|false>`（可选）：更新任务是否可选
@@ -282,7 +282,7 @@ list-tasks <tasks_json_path> [--format <json|pretty>] [--status <status>] [--typ
   - `json`：输出原始 JSON 数组
   - `pretty`：输出格式化的可读文本
 - `--status <status>`（可选）：按状态过滤任务
-  - 有效值：`pending`、`in_progress`、`completed`、`failed`
+  - 有效值：`pending`、`in_progress`、`completed`、`failed`、`skipped`
 - `--type <type>`（可选）：按任务类型过滤（如 "asset_discovery", "code_scan"）
 - `--optional`（可选）：只显示可选任务
 - `--required`（可选）：只显示必需任务（非可选）

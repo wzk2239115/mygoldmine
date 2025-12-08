@@ -167,7 +167,8 @@ jq \
      .summary.pending = ([.tasks[] | select(.status == "pending")] | length) |
      .summary.in_progress = ([.tasks[] | select(.status == "in_progress")] | length) |
      .summary.completed = ([.tasks[] | select(.status == "completed")] | length) |
-     .summary.failed = ([.tasks[] | select(.status == "failed")] | length)' \
+     .summary.failed = ([.tasks[] | select(.status == "failed")] | length) |
+     .summary.skipped = ([.tasks[] | select(.status == "skipped")] | length)' \
     "$TEMP_FILE" > "$TASKS_JSON_PATH"
 
 rm -f "$TEMP_FILE"

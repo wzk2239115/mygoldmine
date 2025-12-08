@@ -282,7 +282,8 @@ jq -n \
             "completed": 0,
             "in_progress": 0,
             "pending": $pending,
-            "failed": 0
+            "failed": 0,
+            "skipped": 0
         }
     }' > "$TEMP_FILE"
 
