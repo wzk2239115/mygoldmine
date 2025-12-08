@@ -6,13 +6,12 @@
 # 在Agent退出时运行，如果任务未完成或产物缺失，阻止退出并提示
 # 适配最新的 tasks.json 格式（agent, agent_task_id, tasks, summary）
 
-import os
 import sys
 import json
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any
 
 # 配置
 WORKSPACE_DIR = Path(".workspace/tasks")
@@ -47,6 +46,8 @@ class TaskChecker:
         self.skipped_by_counter = False  # 标记是否因计数器超过阈值而跳过检查
         # 用于按 agent_task_id 分组存储 general-scanner 的数据
         self.general_scanner_groups: Dict[str, Dict[str, Any]] = {}
+        # 用于存储执行时间异常的任务（小于10秒）
+        self.abnormal_duration_tasks: List[Dict[str, Any]] = []
 
     def log_message(self, message: str):
         """记录日志"""
@@ -76,11 +77,10 @@ class TaskChecker:
             sys.exit(0)  # 直接退出，允许结束
         return True
 
-    def check_artifact_completeness(self, task_file: Path, identifier: str, artifact_path: str) -> bool:
+    def check_artifact_completeness(self, identifier: str, artifact_path: str) -> bool:
         """检查产物完整性
-        
+
         Args:
-            task_file: 任务文件路径
             identifier: 标识符（agent_name 或 task_id）
             artifact_path: 产物文件路径
         """
@@ -108,7 +108,7 @@ class TaskChecker:
         """处理通用智能体任务"""
         agent_name = data.get('agent', 'unknown')
         agent_task_id = data.get('agent_task_id', 'unknown')
-        
+
         # 对于 general-scanner，如果 agent_task_id 无效（为空或等于 agent_name），从文件名提取
         if agent_name == "general-scanner":
             if not agent_task_id or agent_task_id == agent_name or agent_task_id == 'unknown':
@@ -126,15 +126,36 @@ class TaskChecker:
         tasks = data.get('tasks', [])
         pending_count = 0
         in_progress_count = 0
+        abnormal_duration_count = 0
+        DURATION_THRESHOLD = 10  # 10秒阈值
 
         for task in tasks:
             if isinstance(task, dict):
                 status = task.get('status', '')
+                task_id = task.get('id', 'unknown')
+                duration = task.get('duration')
+
                 if status == 'pending':
                     pending_count += 1
                 elif status == 'in_progress':
                     in_progress_count += 1
+                elif status in ['completed', 'failed']:
+                    # 检查已完成或失败任务的执行时间
+                    # duration 可能是 None/null，需要检查
+                    if duration is not None and isinstance(duration, (int, float)):
+                        if duration < DURATION_THRESHOLD:
+                            abnormal_duration_count += 1
+                            self.log_message(f"发现异常任务 [{task_id}]: 执行时间仅 {duration} 秒（< {DURATION_THRESHOLD}秒）")
+                            self.abnormal_duration_tasks.append({
+                                'agent_name': agent_name,
+                                'agent_task_id': agent_task_id,
+                                'task_id': task_id,
+                                'status': status,
+                                'duration': duration,
+                                'description': task.get('description', '无描述')
+                            })
 
+        # 统计未完成任务
         if pending_count > 0 or in_progress_count > 0:
             total_incomplete = pending_count + in_progress_count
             self.log_message(f"智能体 '{agent_name}' 发现未完成任务: {total_incomplete} 个 (pending: {pending_count}, in_progress: {in_progress_count})")
@@ -162,9 +183,9 @@ class TaskChecker:
                 status_parts.append(f"待处理: {pending_count}")
             if in_progress_count > 0:
                 status_parts.append(f"进行中: {in_progress_count}")
-            
+
             status_summary = " | ".join(status_parts) if status_parts else "未知状态"
-            
+
             # 对于 general-scanner，按 agent_task_id 分组存储
             if agent_name == "general-scanner":
                 if agent_task_id not in self.general_scanner_groups:
@@ -183,9 +204,14 @@ class TaskChecker:
                 self.agent_issues.append(f"未完成任务: {total_incomplete} 个 ({status_summary})")
                 self.agent_issues.append("")
 
+        # 如果发现异常执行时间的任务，也标记为有问题
+        if abnormal_duration_count > 0:
+            self.has_issues = True
+            self.log_message(f"智能体 '{agent_name}' 发现 {abnormal_duration_count} 个执行时间异常的任务（< {DURATION_THRESHOLD}秒）")
+
         return True
 
-    def check_artifact_integrity(self, task_file: Path, data: Dict[str, Any]):
+    def check_artifact_integrity(self, data: Dict[str, Any]):
         """检查产物完整性"""
         if not ARTIFACT_CHECK_ENABLED:
             return
@@ -217,7 +243,7 @@ class TaskChecker:
         for artifact_path in expected_artifacts:
             self.log_message(f"检查 Agent '{agent_name}' 的约定产物: {artifact_path}")
 
-            if not self.check_artifact_completeness(task_file, agent_name, artifact_path):
+            if not self.check_artifact_completeness(agent_name, artifact_path):
                 self.has_issues = True
 
                 # 其他智能体的产物问题直接添加到 artifact_issues
@@ -248,7 +274,7 @@ class TaskChecker:
         self.process_general_task(task_file, data)
 
         # 检查产物完整性
-        self.check_artifact_integrity(task_file, data)
+        self.check_artifact_integrity(data)
 
     def get_counter_value(self) -> int:
         """获取当前计数器值
@@ -384,6 +410,51 @@ class TaskChecker:
         # 显示其他智能体问题
         if self.agent_issues:
             print("\n".join(self.agent_issues), file=sys.stderr)
+
+        # 显示执行时间异常的任务
+        if self.abnormal_duration_tasks:
+            print("━" * 55, file=sys.stderr)
+            print("⏱️  执行时间异常任务检测", file=sys.stderr)
+            print("━" * 55, file=sys.stderr)
+            print(f"发现 {len(self.abnormal_duration_tasks)} 个执行时间小于10秒的任务，可能未正常完成：\n", file=sys.stderr)
+
+            # 按 agent_name 分组显示
+            grouped_tasks: Dict[str, List[Dict[str, Any]]] = {}
+            for task in self.abnormal_duration_tasks:
+                agent_key = f"{task['agent_name']} (ID: {task['agent_task_id']})"
+                if agent_key not in grouped_tasks:
+                    grouped_tasks[agent_key] = []
+                grouped_tasks[agent_key].append(task)
+
+            for agent_key, tasks in sorted(grouped_tasks.items()):
+                print(f"【{agent_key}】", file=sys.stderr)
+                for task in tasks:
+                    print(f"  - 任务ID: {task['task_id']}", file=sys.stderr)
+                    print(f"    描述: {task['description']}", file=sys.stderr)
+                    print(f"    状态: {task['status']}", file=sys.stderr)
+                    print(f"    执行时长: {task['duration']}秒 (< 10秒)", file=sys.stderr)
+                print("", file=sys.stderr)
+
+            print("⚠️  建议操作：", file=sys.stderr)
+            print("这些任务可能因为执行过快而未正确完成，建议：", file=sys.stderr)
+            print("1. 使用 update-task.sh 将这些任务的状态恢复为 pending", file=sys.stderr)
+            print("2. 重新执行这些任务，确保任务充分执行", file=sys.stderr)
+            print("3. 检查任务执行逻辑是否存在问题\n", file=sys.stderr)
+
+            # 提供具体的恢复命令示例
+            print("恢复命令示例：", file=sys.stderr)
+            for task in self.abnormal_duration_tasks[:3]:  # 只显示前3个示例
+                task_file = WORKSPACE_DIR / f"{task['agent_task_id']}-tasks.json"
+                if not task_file.exists():
+                    # 尝试其他可能的文件名格式
+                    task_file = WORKSPACE_DIR / f"{task['agent_name']}-tasks.json"
+                print(f"  .claude/skills/task-manage/scripts/tools/update-task.sh \\", file=sys.stderr)
+                print(f"    {task_file} \\", file=sys.stderr)
+                print(f"    {task['task_id']} \\", file=sys.stderr)
+                print(f"    --status pending", file=sys.stderr)
+            if len(self.abnormal_duration_tasks) > 3:
+                print(f"  ... (还有 {len(self.abnormal_duration_tasks) - 3} 个任务)", file=sys.stderr)
+            print("", file=sys.stderr)
 
         # 显示其他智能体的产物问题（general-scanner 不检查产物）
         if self.artifact_issues:
