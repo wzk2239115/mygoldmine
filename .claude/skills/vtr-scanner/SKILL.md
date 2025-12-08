@@ -67,5 +67,16 @@ description: 专业靶场扫描技能：具备主流语言/框架的靶场扫描
     
 4. **可选Skill列表如下（禁止选择列表技能, 否则会导致任务失败）：**
 
+- `command-injection-analyzer` 技能：分析命令注入漏洞。
+- `code-injection-analyzer` 技能：分析代码注入漏洞。
+- `csrf-analyzer` 技能：分析CSRF漏洞。
+- `file-upload-analyzer` 技能：分析文件上传漏洞。
+- `http-header-injection-analyzer` 技能：分析HTTP头注入漏洞。
+- `idor-analyzer` 技能：分析IDOR漏洞。
+- `ldap-injection-analyzer` 技能：分析LDAP注入漏洞。
+- `open-redirect-analyzer` 技能：分析开放重定向漏洞。
+- `path-traversal-lfi-rfi-analyzer` 技能：分析路径遍历/文件包含漏洞。
 - `sql-injection-analyzer` 技能：分析SQL注入漏洞。
+- `ssrf-analyzer` 技能：分析SSRF漏洞。
+- `xxe-analyzer` 技能：分析XXE漏洞。
 - `xss-analyzer` 技能：分析XSS漏洞。
