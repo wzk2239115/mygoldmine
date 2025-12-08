@@ -136,6 +136,7 @@
         "id": {
           "type": "string",
           "description": "Unique task identifier",
+          "minLength": 1,
           "pattern": "^[a-zA-Z0-9_-]+$",
           "examples": [
             "task-001",
@@ -146,6 +147,7 @@
         "type": {
           "type": "string",
           "description": "Type of the task",
+          "minLength": 1,
           "examples": [
             "load_skill",
             "load_previous_results",

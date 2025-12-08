@@ -145,12 +145,28 @@ while [ $TASK_INDEX -lt $TOTAL_TASKS ]; do
     if [ -z "$BEFORE_TASK_ID" ] && [ -n "$GLOBAL_BEFORE" ]; then
         BEFORE_TASK_ID="$GLOBAL_BEFORE"
     fi
-    
-    # 验证必需字段
-    if [ -z "$TASK_ID" ] || [ -z "$TASK_TYPE" ] || [ -z "$DESCRIPTION" ]; then
-        echo "警告: 跳过任务 #$((TASK_INDEX + 1))，缺少必需字段 (id, type, description)" >&2
+
+    # 验证必需字段：不能为空或仅包含空白字符
+    if [ -z "$TASK_ID" ] || [ -z "${TASK_ID// }" ]; then
+        echo "警告: 跳过任务 #$((TASK_INDEX + 1))，id 字段为空或无效" >&2
         FAILED_COUNT=$((FAILED_COUNT + 1))
-        FAILED_TASKS+=("任务 #$((TASK_INDEX + 1))")
+        FAILED_TASKS+=("任务 #$((TASK_INDEX + 1)) - id 为空")
+        TASK_INDEX=$((TASK_INDEX + 1))
+        continue
+    fi
+
+    if [ -z "$TASK_TYPE" ] || [ -z "${TASK_TYPE// }" ]; then
+        echo "警告: 跳过任务 #$((TASK_INDEX + 1)) ($TASK_ID)，type 字段为空或无效" >&2
+        FAILED_COUNT=$((FAILED_COUNT + 1))
+        FAILED_TASKS+=("$TASK_ID - type 为空")
+        TASK_INDEX=$((TASK_INDEX + 1))
+        continue
+    fi
+
+    if [ -z "$DESCRIPTION" ] || [ -z "${DESCRIPTION// }" ]; then
+        echo "警告: 跳过任务 #$((TASK_INDEX + 1)) ($TASK_ID)，description 字段为空或无效" >&2
+        FAILED_COUNT=$((FAILED_COUNT + 1))
+        FAILED_TASKS+=("$TASK_ID - description 为空")
         TASK_INDEX=$((TASK_INDEX + 1))
         continue
     fi

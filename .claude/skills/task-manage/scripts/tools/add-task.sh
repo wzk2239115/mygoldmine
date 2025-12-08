@@ -28,8 +28,20 @@ TASK_TYPE="$3"
 DESCRIPTION="$4"
 shift 4
 
-# 参数验证：description 不能为空
-if [ -z "$DESCRIPTION" ]; then
+# 参数验证：task_id 不能为空或仅包含空白字符
+if [ -z "$TASK_ID" ] || [ -z "${TASK_ID// }" ]; then
+    echo "错误: task_id 不能为空" >&2
+    exit 1
+fi
+
+# 参数验证：task_type 不能为空或仅包含空白字符
+if [ -z "$TASK_TYPE" ] || [ -z "${TASK_TYPE// }" ]; then
+    echo "错误: task_type 不能为空" >&2
+    exit 1
+fi
+
+# 参数验证：description 不能为空或仅包含空白字符
+if [ -z "$DESCRIPTION" ] || [ -z "${DESCRIPTION// }" ]; then
     echo "错误: description 不能为空" >&2
     exit 1
 fi
