@@ -17,7 +17,8 @@ from typing import List, Dict, Any, Optional, Tuple
 # 配置
 WORKSPACE_DIR = Path(".workspace/tasks")
 WORKSPACE_ROOT = Path(".workspace")
-SKIP_CHECK_MARKER = WORKSPACE_ROOT / ".skip-task-check"  # 跳过检查的标记文件
+EXIT_CHECK_COUNTER = WORKSPACE_ROOT / ".exit-check-counter.json"  # 退出检查计数器文件
+EXIT_CHECK_THRESHOLD = 2  # 异常触发超过此次数才跳过检查
 LOG_FILE = Path("/tmp/security-orchestrator-stop.log")
 ARTIFACT_CHECK_ENABLED = True  # 是否启用产物检查
 
@@ -43,6 +44,7 @@ class TaskChecker:
         self.agent_issues: List[str] = []
         self.artifact_issues: List[str] = []
         self.task_file_count = 0
+        self.skipped_by_counter = False  # 标记是否因计数器超过阈值而跳过检查
         # 用于按 agent_task_id 分组存储 general-scanner 的数据
         self.general_scanner_groups: Dict[str, Dict[str, Any]] = {}
 
@@ -248,46 +250,80 @@ class TaskChecker:
         # 检查产物完整性
         self.check_artifact_integrity(task_file, data)
 
-    def check_skip_marker(self) -> bool:
-        """检查是否存在跳过检查的标记文件
-        
+    def get_counter_value(self) -> int:
+        """获取当前计数器值
+
         Returns:
-            True: 标记文件存在，跳过检查
-            False: 标记文件不存在，需要执行检查
+            当前计数器值，文件不存在返回0
         """
-        # if SKIP_CHECK_MARKER.exists():
-        #     self.log_message(f"发现跳过检查标记文件: {SKIP_CHECK_MARKER}，跳过任务检查，允许退出")
-        #     print(f"Skip check marker found: {SKIP_CHECK_MARKER}, allow exit")
-        #     return True
+        if not EXIT_CHECK_COUNTER.exists():
+            return 0
+
+        try:
+            with open(EXIT_CHECK_COUNTER, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return data.get('count', 0)
+        except Exception as e:
+            self.log_message(f"读取计数器文件失败: {e}")
+            return 0
+
+    def check_counter(self) -> bool:
+        """检查计数器是否超过阈值
+
+        Returns:
+            True: 计数器超过阈值，跳过检查
+            False: 计数器未超过阈值，需要执行检查
+        """
+        count = self.get_counter_value()
+        if count > EXIT_CHECK_THRESHOLD:
+            self.skipped_by_counter = True
+            self.log_message(f"退出检查计数器已超过阈值 ({count} > {EXIT_CHECK_THRESHOLD})，跳过任务检查，允许退出")
+            print(f"Exit check counter exceeded threshold ({count} > {EXIT_CHECK_THRESHOLD}), allow exit")
+            return True
         return False
 
-    def create_skip_marker(self):
-        """创建跳过检查的标记文件"""
+    def increment_counter(self):
+        """增加计数器"""
         try:
             # 确保 .workspace 目录存在
             WORKSPACE_ROOT.mkdir(parents=True, exist_ok=True)
-            
-            # 创建标记文件，写入时间戳和原因
-            marker_content = {
-                "created_at": datetime.now().isoformat(),
-                "reason": "未完成任务已检测到，用户选择跳过检查",
-                "note": "删除此文件可重新启用任务完成检查"
+
+            # 读取当前计数器值
+            count = self.get_counter_value()
+            count += 1
+
+            # 更新计数器文件
+            counter_content = {
+                "count": count,
+                "created_at": datetime.now().isoformat() if count == 1 else (
+                    json.loads(EXIT_CHECK_COUNTER.read_text(encoding='utf-8')).get('created_at', datetime.now().isoformat())
+                ),
+                "last_updated": datetime.now().isoformat()
             }
-            
-            with open(SKIP_CHECK_MARKER, 'w', encoding='utf-8') as f:
-                json.dump(marker_content, f, ensure_ascii=False, indent=2)
-            
-            self.log_message(f"已创建跳过检查标记文件: {SKIP_CHECK_MARKER}")
+
+            with open(EXIT_CHECK_COUNTER, 'w', encoding='utf-8') as f:
+                json.dump(counter_content, f, ensure_ascii=False, indent=2)
+
+            self.log_message(f"退出检查计数器已更新: {count}")
         except Exception as e:
-            self.log_message(f"创建标记文件失败: {e}")
+            self.log_message(f"更新计数器失败: {e}")
+
+    def reset_counter(self):
+        """重置计数器"""
+        try:
+            if EXIT_CHECK_COUNTER.exists():
+                EXIT_CHECK_COUNTER.unlink()
+                self.log_message("退出检查计数器已重置")
+        except Exception as e:
+            self.log_message(f"重置计数器失败: {e}")
 
     def check_all_tasks(self):
         """检查所有任务文件"""
         self.log_message("脚本启动: security-orchestrator-stop.py")
 
-        # # 检查是否存在跳过检查的标记文件
-        # if self.check_skip_marker():
-        #     return True  # 标记文件存在，跳过检查，允许退出
+        # 检查计数器是否超过阈值
+        if self.check_counter():
+            return True  # 计数器超过阈值，跳过检查，允许退出
 
         if not self.check_workspace_directory():
             return False
@@ -306,15 +342,21 @@ class TaskChecker:
 
         if not self.has_issues:
             self.log_message("所有任务均已完成，产物完整，允许退出")
+            # 重置计数器
+            self.reset_counter()
         else:
             self.log_message("发现未完成任务或缺失产物，将阻止退出")
-            # 发现未完成任务时，创建标记文件
-            self.create_skip_marker()
+            # 发现未完成任务时，增加计数器
+            self.increment_counter()
 
         return not self.has_issues
 
     def display_results(self):
         """显示检查结果"""
+        # 如果是因为计数器超过阈值而跳过，不显示任何消息
+        if self.skipped_by_counter:
+            return
+
         if not self.has_issues:
             print("\n" + "━" * 55)
             print("✅  所有审计任务已完成，产物完整")
@@ -359,9 +401,6 @@ class TaskChecker:
 
         print("\n" + "━" * 55, file=sys.stderr)
         print("请继续完成上述未完成任务后再退出。", file=sys.stderr)
-        print("━" * 55, file=sys.stderr)
-        print(f"\n提示: 已创建跳过检查标记文件: {SKIP_CHECK_MARKER}", file=sys.stderr)
-        print("下次退出时将自动跳过检查。如需重新启用检查，请删除该文件。", file=sys.stderr)
         print("━" * 55 + "\n", file=sys.stderr)
 
 
