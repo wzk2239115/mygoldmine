@@ -143,7 +143,7 @@ def log_operation(data: Dict[str, Any]) -> None:
             # 提取关键信息用于文本日志
             file_path = tool_input.get('file_path', '')
             command = tool_input.get('command', '')
-            
+
             if file_path:
                 log_message = f"[{tool_name}] {file_path}"
             elif command:
@@ -153,7 +153,28 @@ def log_operation(data: Dict[str, Any]) -> None:
                     if len(command) <= 4096
                     else command[:4096] + f"... (truncated, total {len(command)} chars)"
                 )
-                log_message = f"[{tool_name}] {cmd_preview}"
+                # 对于Bash命令，提取stdout和stderr
+                if tool_name == "Bash":
+                    stdout = tool_response.get('stdout', '')
+                    stderr = tool_response.get('stderr', '')
+                    # success来自data本身，不是tool_response
+                    success = data.get('success', False)
+
+                    # 截断过长的输出
+                    stdout_preview = (
+                        stdout
+                        if len(stdout) <= 2048
+                        else stdout[:2048] + f"... (truncated, total {len(stdout)} chars)"
+                    )
+                    stderr_preview = (
+                        stderr
+                        if len(stderr) <= 2048
+                        else stderr[:2048] + f"... (truncated, total {len(stderr)} chars)"
+                    )
+
+                    log_message = f"[{tool_name}] {cmd_preview}\nstdout={stdout_preview}\nstderr={stderr_preview}\nsuccess={success}"
+                else:
+                    log_message = f"[{tool_name}] {cmd_preview}"
             else:
                 input_json = json.dumps(tool_input, ensure_ascii=False, indent=4)
                 response_json = json.dumps(tool_response, ensure_ascii=False, indent=4)
@@ -171,7 +192,7 @@ def log_operation(data: Dict[str, Any]) -> None:
                     log_message = f"[{tool_name}]\ninput={input_preview}\nresponse={response_preview}\nresponse_text={response_text}"
                 else:
                     log_message = f"[{tool_name}]\ninput={input_preview}\nresponse={response_preview}"
-            
+
             logger.info(log_message)
         except Exception as e:
             logger.error(f"写入文本日志失败: {e}")
