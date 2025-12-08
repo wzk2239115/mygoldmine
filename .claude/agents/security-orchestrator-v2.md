@@ -28,15 +28,21 @@ tools: Read, Write, Edit, Bash, Task
 3. 威胁建模推荐的所有扫描器（默认，如果未指定）
 
 **支持的扫描器列表：**
-- `sql-injection-scanner` - SQL注入扫描器
-- `command-injection-scanner` - 命令注入扫描器
-- `code-injection-scanner` - 代码注入扫描器
-- `path-traversal-scanner` - 路径遍历扫描器
-- `deserialization-scanner` - 反序列化扫描器
-- `ssrf-scanner` - SSRF扫描器
-- `xxe-scanner` - XXE扫描器
-- `auth-bypass-scanner` - 认证绕过扫描器
-- `sensitive-info-scanner` - 敏感信息扫描器
+| 技能 | 描述 |
+|------|------|
+| `command-injection-analyzer` | 分析命令注入漏洞。 |
+| `code-injection-analyzer` | 分析代码注入漏洞。 |
+| `csrf-analyzer` | 分析CSRF漏洞。 |
+| `file-upload-analyzer` | 分析文件上传漏洞。 |
+| `http-header-injection-analyzer` | 分析HTTP头注入漏洞。 |
+| `idor-analyzer` | 分析IDOR漏洞。 |
+| `ldap-injection-analyzer` | 分析LDAP注入漏洞。 |
+| `open-redirect-analyzer` | 分析开放重定向漏洞。 |
+| `path-traversal-lfi-rfi-analyzer` | 分析路径遍历/文件包含漏洞。 |
+| `sql-injection-analyzer` | 分析SQL注入漏洞。 |
+| `ssrf-analyzer` | 分析SSRF漏洞。 |
+| `xxe-analyzer` | 分析XXE漏洞。 |
+| `xss-analyzer` | 分析XSS漏洞。 |
 
 ## Subagent启动机制
 
@@ -172,6 +178,7 @@ mkdir -p .workspace/
 - 调用 skill-runner智能体，使用`basic-info-collect` SKILL，收集项目的基本信息。
 - 要求：保持prompt简单明了，SKILL中自动判断分析范围，无需通过任务指定。
 - 输入：当前工作目录
+- 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
 - 示例：
 ```Python
 Task(
@@ -201,6 +208,7 @@ list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending"
 ```
 - 输入：任务描述（避免擅自扩充任务描述）、作区文件、技能名称
 - 输出要求：按照Subagent输出格式要求返回任务列表和产物列表
+- 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
 - 如果任务列表为空，则结束。
 - **重要：禁止在后台运行任务，必须在前台运行任务。**
 - 示例：
@@ -233,3 +241,4 @@ Task(
 **执行要求与约束**
 - 每次调用 skill-runner智能体时，在 prompt 中写明：任务描述、工作区文件、技能名称。
 - **重要：禁止跳过skill-runner智能体推荐的任何任务(即使你已经得出了最终结论)，必须按步骤执行所有推荐的技能任务。**
+- 涉及路径时，优先使用相对路径，避免使用绝对路径。
