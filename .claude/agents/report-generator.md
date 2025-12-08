@@ -60,7 +60,7 @@ init-task-json .workspace/tasks/report-generator-tasks.json default report-gener
     }
   ]'
 ```
-**路径说明**：涉及路径时，优先使用相对路径(.workspace默认处于当前工作目录），避免使用绝对路径。
+**路径说明**：涉及路径时，优先使用相对路径(.workspace默认处于当前工作目录，当前目录默认为工程目录），避免使用绝对路径。
 **工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
 
 2. 如果tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。

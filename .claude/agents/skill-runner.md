@@ -72,7 +72,7 @@ init-task-json .workspace/tasks/{TASK_ID}/tasks.json default {TASK_ID} \
     }
   ]'
 ```
-**路径说明**：涉及路径时，优先使用相对路径(.workspace默认处于当前工作目录），避免使用绝对路径。
+**路径说明**：涉及路径时，优先使用相对路径(.workspace默认处于当前工作目录，当前目录默认为工程目录），避免使用绝对路径。
 **工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
 
 ### 执行任务: 根据 {TASK_ID}-tasks.json 文件执行任务
