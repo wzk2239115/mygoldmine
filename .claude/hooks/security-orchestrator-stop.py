@@ -17,9 +17,14 @@ from typing import List, Dict, Any
 WORKSPACE_DIR = Path(".workspace/tasks")
 WORKSPACE_ROOT = Path(".workspace")
 EXIT_CHECK_COUNTER = WORKSPACE_ROOT / ".exit-check-counter.json"  # 退出检查计数器文件
-EXIT_CHECK_THRESHOLD = 2  # 异常触发超过此次数才跳过检查
+EXIT_CHECK_THRESHOLD = 1  # 异常触发达到此次数时显示严重警告，超过则跳过检查
 LOG_FILE = Path("/tmp/security-orchestrator-stop.log")
 ARTIFACT_CHECK_ENABLED = True  # 是否启用产物检查
+
+# 警告级别定义
+WARNING_LEVEL_NORMAL = "normal"       # 普通警告（第1次触发，count=0）
+WARNING_LEVEL_SEVERE = "severe"       # 严重警告（第2次触发，count=1）
+WARNING_LEVEL_SKIP = "skip"           # 跳过检查（第3次及以上，count>1）
 
 # 日志配置
 def setup_logging():
@@ -48,6 +53,10 @@ class TaskChecker:
         self.general_scanner_groups: Dict[str, Dict[str, Any]] = {}
         # 用于存储执行时间异常的任务（小于10秒）
         self.abnormal_duration_tasks: List[Dict[str, Any]] = []
+        # 当前警告级别
+        self.warning_level: str = WARNING_LEVEL_NORMAL
+        # 计数器值
+        self.counter_value: int = 0
 
     def log_message(self, message: str):
         """记录日志"""
@@ -294,18 +303,29 @@ class TaskChecker:
             return 0
 
     def check_counter(self) -> bool:
-        """检查计数器是否超过阈值
+        """检查计数器并确定警告级别
 
         Returns:
             True: 计数器超过阈值，跳过检查
             False: 计数器未超过阈值，需要执行检查
         """
         count = self.get_counter_value()
+        self.counter_value = count
+
+        # 根据计数器值确定警告级别
         if count > EXIT_CHECK_THRESHOLD:
+            self.warning_level = WARNING_LEVEL_SKIP
             self.skipped_by_counter = True
             self.log_message(f"退出检查计数器已超过阈值 ({count} > {EXIT_CHECK_THRESHOLD})，跳过任务检查，允许退出")
             print(f"Exit check counter exceeded threshold ({count} > {EXIT_CHECK_THRESHOLD}), allow exit")
             return True
+        elif count == EXIT_CHECK_THRESHOLD:
+            self.warning_level = WARNING_LEVEL_SEVERE
+            self.log_message(f"退出检查计数器达到阈值 ({count} = {EXIT_CHECK_THRESHOLD})，将显示严重警告")
+        else:
+            self.warning_level = WARNING_LEVEL_NORMAL
+            self.log_message(f"退出检查计数器: {count}，将显示普通警告")
+
         return False
 
     def increment_counter(self):
@@ -389,8 +409,16 @@ class TaskChecker:
             print("━" * 55)
             return
 
+        # 根据警告级别显示不同的标题和提示
         print("\n" + "━" * 55, file=sys.stderr)
-        print("⚠️  审计任务未完成，无法退出", file=sys.stderr)
+
+        if self.warning_level == WARNING_LEVEL_SEVERE:
+            print("🚨 【严重警告】审计任务未完成，无法退出", file=sys.stderr)
+            print(f"    这是第 {self.counter_value + 1} 次检测到未完成任务！", file=sys.stderr)
+            print("    如果再次忽略，系统将自动跳过检查。", file=sys.stderr)
+        else:  # WARNING_LEVEL_NORMAL
+            print("⚠️  【警告】审计任务未完成，无法退出", file=sys.stderr)
+
         print("━" * 55 + "\n", file=sys.stderr)
 
         # 显示 general-scanner 的分组信息
@@ -471,7 +499,16 @@ class TaskChecker:
             print("\n请先生成上述产物文件后再退出。", file=sys.stderr)
 
         print("\n" + "━" * 55, file=sys.stderr)
-        print("请继续完成上述未完成任务后再退出。", file=sys.stderr)
+
+        # 根据警告级别显示不同的结束提示
+        if self.warning_level == WARNING_LEVEL_SEVERE:
+            print("🚨 【严重警告】请立即完成上述未完成任务！", file=sys.stderr)
+            print("⚠️  注意：如果继续忽略，下次将自动跳过检查。", file=sys.stderr)
+            print(f"    当前触发次数: {self.counter_value + 1}/{EXIT_CHECK_THRESHOLD + 1} (严重警告阶段)", file=sys.stderr)
+        else:  # WARNING_LEVEL_NORMAL
+            print("⚠️  请继续完成上述未完成任务后再退出。", file=sys.stderr)
+            print(f"    提示：再触发 {EXIT_CHECK_THRESHOLD + 1} 次后将自动跳过检查", file=sys.stderr)
+
         print("━" * 55 + "\n", file=sys.stderr)
 
 
