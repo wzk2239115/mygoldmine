@@ -285,9 +285,9 @@ class TaskChecker:
         """检查所有任务文件"""
         self.log_message("脚本启动: security-orchestrator-stop.py")
 
-        # 检查是否存在跳过检查的标记文件
-        if self.check_skip_marker():
-            return True  # 标记文件存在，跳过检查，允许退出
+        # # 检查是否存在跳过检查的标记文件
+        # if self.check_skip_marker():
+        #     return True  # 标记文件存在，跳过检查，允许退出
 
         if not self.check_workspace_directory():
             return False

@@ -72,7 +72,7 @@ description: 专业靶场扫描技能：具备主流语言/框架的靶场扫描
 | `command-injection-analyzer` | 分析命令注入漏洞。 |
 | `code-injection-analyzer` | 分析代码注入漏洞。 |
 | `csrf-analyzer` | 分析CSRF漏洞。 |
-| `file-upload-analyzer` | 分析文件上传漏洞。 |
+| `insecure-file-uploads-analyzer` | 分析文件上传漏洞。 |
 | `http-header-injection-analyzer` | 分析HTTP头注入漏洞。 |
 | `idor-analyzer` | 分析IDOR漏洞。 |
 | `ldap-injection-analyzer` | 分析LDAP注入漏洞。 |

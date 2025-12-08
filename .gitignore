@@ -4,3 +4,4 @@ __pycache__/
 *.pyo
 *.pyd
 .workspace/
+.claude/skills/TOP14/

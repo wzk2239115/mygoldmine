@@ -32,6 +32,8 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 
 **注意**：所有脚本都提供了不带 `.sh` 后缀的符号链接，两种调用方式都可以使用。
 
+**工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
+
 ### 使用步骤
 
 1. **初始化任务列表**：使用 `init-task-json` 创建新的 tasks.json 文件

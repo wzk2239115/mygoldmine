@@ -61,6 +61,8 @@ init-task-json .workspace/tasks/report-generator-tasks.json default report-gener
   ]'
 ```
 
+**工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
+
 2. 如果tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。
 ```bash
 list-tasks .workspace/tasks/report-generator-tasks.json

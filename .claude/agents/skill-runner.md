@@ -73,6 +73,8 @@ init-task-json .workspace/tasks/{TASK_ID}/tasks.json default {TASK_ID} \
   ]'
 ```
 
+**工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
+
 ### 执行任务: 根据 {TASK_ID}-tasks.json 文件执行任务
 
 **重要流程**： 对于单个任务

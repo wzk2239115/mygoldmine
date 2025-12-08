@@ -109,7 +109,9 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json init security-o
   ]'
 ```
 
-说明：
+**工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
+
+**任务说明**：
 - `task-003` 负责读取威胁建模结果并添加扫描任务，自身不执行扫描。
 - 如果威胁建模未推荐扫描器，task-003 可不添加任务，流程直接进入 `task-004`（报告生成）。
 - 威胁建模后新增的扫描任务从 `task-006` 起递增，统一插入在 `task-004`（报告生成）之前。
