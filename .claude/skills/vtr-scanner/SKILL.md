@@ -65,7 +65,7 @@ description: 专业靶场扫描技能：具备主流语言/框架的靶场扫描
     ]
 }
     
-4. **可选Skill列表如下（禁止推荐列表之外的技能, 否则会导致任务失败）：**
+4. **可选Skill列表如下：**
 
 | 技能 | 描述 |
 |------|------|
@@ -82,3 +82,6 @@ description: 专业靶场扫描技能：具备主流语言/框架的靶场扫描
 | `ssrf-analyzer` | 分析SSRF漏洞。 |
 | `xxe-analyzer` | 分析XXE漏洞。 |
 | `xss-analyzer` | 分析XSS漏洞。 |
+
+**重要：如果一个题目需要综合使用多个技能，skill字段需要填写多个技能，以逗号分隔，如`skill: "sql-injection-analyzer,xss-analyzer"`**
+**警告：不要推荐列表之外的技能, 因为这些技能还没有实现**

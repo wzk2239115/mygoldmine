@@ -44,6 +44,8 @@ tools: Read, Write, Edit, Bash, Task
 | `xxe-analyzer` | 分析XXE漏洞。 |
 | `xss-analyzer` | 分析XSS漏洞。 |
 
+**重要：如果skill-runner推荐的`skill`字段中包含列表之外的技能, 对应的任务应该被跳过, 并给出警告。**
+
 ## Subagent启动机制
 
 **重要**: 所有子智能体都通过 **Task工具** 启动。Task工具接受以下参数：
