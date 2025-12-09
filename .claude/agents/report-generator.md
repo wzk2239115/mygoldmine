@@ -25,7 +25,18 @@ tools: Read, Write, Edit, Bash
 
 ## 任务执行流程
 
-NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.claude/skills/task-manage/SKILL.md)。
+### 任务状态管理命令
+
+以下命令为系统内置的任务管理命令，可直接调用，无需额外安装（详见 `.claude/skills/task-manage/SKILL.md`）：
+
+| 命令 | 用途 | 示例 |
+|------|------|------|
+| `init-task-json` | 初始化任务文件 | `init-task-json <path> <task_id> <agent> --description <text> [--tasks <json>]` |
+| `read-task` | 读取任务状态 | `read-task <path> <task_id> [--format json\|pretty]` |
+| `update-task` | 更新任务状态 | `update-task <path> <task_id> --status <status> [--description <desc>] [--detail <json>]` |
+| `list-tasks` | 列出任务 | `list-tasks <path> [--status <status>] [--type <type>] [--format json\|pretty]` |
+| `add-task` | 添加单个任务 | `add-task <path> <task_id> <type> <desc> [--optional] [--before <task_id>]` |
+| `add-tasks` | 批量添加任务 | `add-tasks <path> [--before <task_id>] --json '<json_array>'` |
 
 ### 初始化: 创建工作区和生成 report-generator-tasks.json
 
@@ -56,7 +67,6 @@ init-task-json .workspace/tasks/report-generator-tasks.json rg report-generator 
 ```
 
 **路径说明**：涉及路径时，优先使用相对路径(.workspace默认处于当前工作目录，当前目录默认为工程目录），避免使用绝对路径。
-**工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
 
 2. 如果 tasks.json 已经存在，调用 list-tasks 获取任务列表并继续执行未完成的任务。
 ```bash

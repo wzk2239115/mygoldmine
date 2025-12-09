@@ -76,7 +76,18 @@ Task(
 
 ### 任务执行流程
 
-NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.claude/skills/task-manage/SKILL.md)。
+#### 任务状态管理命令
+
+以下命令为系统内置的任务管理命令，可直接调用，无需额外安装（详见 `.claude/skills/task-manage/SKILL.md`）：
+
+| 命令 | 用途 | 示例 |
+|------|------|------|
+| `init-task-json` | 初始化任务文件 | `init-task-json <path> <task_id> <agent> --description <text> [--tasks <json>]` |
+| `read-task` | 读取任务状态 | `read-task <path> <task_id> [--format json\|pretty]` |
+| `update-task` | 更新任务状态 | `update-task <path> <task_id> --status <status> [--description <desc>] [--detail <json>]` |
+| `list-tasks` | 列出任务 | `list-tasks <path> [--status <status>] [--type <type>] [--format json\|pretty]` |
+| `add-task` | 添加单个任务 | `add-task <path> <task_id> <type> <desc> [--optional] [--before <task_id>]` |
+| `add-tasks` | 批量添加任务 | `add-tasks <path> [--before <task_id>] --json '<json_array>'` |
 
 #### 步骤 0: 创建工作区和生成 tasks.json
 
@@ -111,8 +122,6 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json orch security-o
     }
   ]'
 ```
-
-**工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
 
 **任务说明**：
 - `orch-001` 执行完成后，根据返回的任务列表动态添加扫描任务（`orch-002`, `orch-003`, ...），统一插入在 `orch-final` 之前。
