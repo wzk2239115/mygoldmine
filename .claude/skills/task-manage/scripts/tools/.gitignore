@@ -1,0 +1,10 @@
+# 忽略软链接（符号链接）
+add-task
+add-tasks
+check-task
+init-task-json
+list-tasks
+read-task
+update-task
+delete-task
+

@@ -8,7 +8,7 @@
 # 参数：
 #   tasks_json_path: tasks.json 文件的路径（必需）
 #   task_id: 要更新的任务 ID（必需）
-#   --status <status>: 更新任务状态（必需，可选值: pending, in_progress, completed, failed）
+#   --status <status>: 更新任务状态（必需，可选值: pending, in_progress, completed, failed, skipped）
 #   --description <description>: 更新任务描述（可选）
 #   --detail <json>: 更新任务详情 JSON 字符串（可选）
 #   --optional <true|false>: 更新任务是否可选（可选）
@@ -62,9 +62,9 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --status)
             UPDATE_STATUS="$2"
-            if [[ ! "$UPDATE_STATUS" =~ ^(pending|in_progress|completed|failed)$ ]]; then
+            if [[ ! "$UPDATE_STATUS" =~ ^(pending|in_progress|completed|failed|skipped)$ ]]; then
                 echo "错误: 无效的状态值: $UPDATE_STATUS" >&2
-                echo "有效值: pending, in_progress, completed, failed" >&2
+                echo "有效值: pending, in_progress, completed, failed, skipped" >&2
                 exit 1
             fi
             shift 2
@@ -125,6 +125,42 @@ fi
 # 更新 updated_at（使用中国时区 UTC+8）
 CURRENT_TIME="$(TZ='Asia/Shanghai' date +"%Y-%m-%dT%H:%M:%S%z" | sed 's/\([0-9][0-9]\)$/:\1/')"
 
+# 读取 created_at 并计算全局 duration
+CREATED_AT=$(jq -r '.created_at' "$TASKS_JSON_PATH")
+CREATED_TIMESTAMP=$(date -d "$CREATED_AT" +%s 2>/dev/null || echo "0")
+CURRENT_TIMESTAMP=$(date +%s)
+GLOBAL_DURATION=$((CURRENT_TIMESTAMP - CREATED_TIMESTAMP))
+
+# 如果日期解析失败，duration 设为 0
+if [ "$CREATED_TIMESTAMP" = "0" ]; then
+    GLOBAL_DURATION=0
+fi
+
+# 读取当前任务的状态和start_at
+CURRENT_TASK_STATUS=$(jq -r --arg id "$TASK_ID" '.tasks[] | select(.id == $id) | .status // "pending"' "$TASKS_JSON_PATH")
+CURRENT_TASK_START_AT=$(jq -r --arg id "$TASK_ID" '.tasks[] | select(.id == $id) | .start_at // "null"' "$TASKS_JSON_PATH")
+
+# 判断是否需要设置start_at（状态变为in_progress且start_at为null）
+SHOULD_SET_START_AT=false
+if [ "$UPDATE_STATUS" = "in_progress" ] && [ "$CURRENT_TASK_START_AT" = "null" ]; then
+    SHOULD_SET_START_AT=true
+fi
+
+# 计算任务的duration
+TASK_DURATION="null"
+if [ "$SHOULD_SET_START_AT" = "true" ]; then
+    # 刚开始，duration为0
+    TASK_DURATION="0"
+elif [ "$CURRENT_TASK_START_AT" != "null" ]; then
+    # 已经有start_at，计算duration
+    TASK_START_TIMESTAMP=$(date -d "$CURRENT_TASK_START_AT" +%s 2>/dev/null || echo "0")
+    if [ "$TASK_START_TIMESTAMP" != "0" ]; then
+        TASK_DURATION=$((CURRENT_TIMESTAMP - TASK_START_TIMESTAMP))
+    else
+        TASK_DURATION="null"
+    fi
+fi
+
 # 构建 jq 命令参数
 JQ_ARGS=()
 JQ_EXPR=".tasks |= map(if .id == \"$TASK_ID\" then ."
@@ -147,7 +183,22 @@ if [ -n "$UPDATE_OPTIONAL" ]; then
     JQ_EXPR="$JQ_EXPR | .optional = $UPDATE_OPTIONAL"
 fi
 
-JQ_EXPR="$JQ_EXPR else . end) | .updated_at = \"$CURRENT_TIME\""
+# 设置任务的start_at
+if [ "$SHOULD_SET_START_AT" = "true" ]; then
+    JQ_EXPR="$JQ_EXPR | .start_at = \"$CURRENT_TIME\""
+fi
+
+# 设置任务的update_at
+JQ_EXPR="$JQ_EXPR | .update_at = \"$CURRENT_TIME\""
+
+# 设置任务的duration
+if [ "$TASK_DURATION" = "null" ]; then
+    JQ_EXPR="$JQ_EXPR | .duration = null"
+else
+    JQ_EXPR="$JQ_EXPR | .duration = $TASK_DURATION"
+fi
+
+JQ_EXPR="$JQ_EXPR else . end) | .updated_at = \"$CURRENT_TIME\" | .duration = $GLOBAL_DURATION"
 
 # 执行更新
 TEMP_FILE=$(mktemp)
@@ -163,7 +214,8 @@ jq \
      .summary.pending = ([.tasks[] | select(.status == "pending")] | length) |
      .summary.in_progress = ([.tasks[] | select(.status == "in_progress")] | length) |
      .summary.completed = ([.tasks[] | select(.status == "completed")] | length) |
-     .summary.failed = ([.tasks[] | select(.status == "failed")] | length)' \
+     .summary.failed = ([.tasks[] | select(.status == "failed")] | length) |
+     .summary.skipped = ([.tasks[] | select(.status == "skipped")] | length)' \
     "$TEMP_FILE" > "$TASKS_JSON_PATH"
 
 rm -f "$TEMP_FILE"

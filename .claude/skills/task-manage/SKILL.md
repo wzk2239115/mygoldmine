@@ -15,28 +15,33 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 - 创建新的任务列表文件（tasks.json）
 - 添加、更新或查询任务
 - 检查任务完成情况统计
-- 管理任务状态（pending, in_progress, completed, failed）
+- 管理任务状态（pending, in_progress, completed, failed, skipped）
 - 按条件过滤和查询任务
 
 ### 工具脚本位置
 
 所有工具脚本位于 `scripts/tools/` 目录下（已经添加到 PATH 环境变量中）：
 - `init-task-json` / `init-task-json.sh` - 初始化任务列表
-- `add-task` / `add-task.sh` - 添加任务
+- `add-task` / `add-task.sh` - 添加单个任务
+- `add-tasks` / `add-tasks.sh` - 批量添加任务
 - `update-task` / `update-task.sh` - 更新任务
 - `read-task` / `read-task.sh` - 读取任务详情
 - `list-tasks` / `list-tasks.sh` - 列出任务（支持过滤）
 - `check-task` / `check-task.sh` - 检查任务统计
+- `delete-task` / `delete-task.sh` - 删除任务
 
 **注意**：所有脚本都提供了不带 `.sh` 后缀的符号链接，两种调用方式都可以使用。
+
+**工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
 
 ### 使用步骤
 
 1. **初始化任务列表**：使用 `init-task-json` 创建新的 tasks.json 文件
-2. **添加任务**：使用 `add-task` 添加新任务
+2. **添加任务**：使用 `add-task` 添加新任务或使用 `add-tasks` 批量添加任务
 3. **查看任务**：使用 `list-tasks` 或 `read-task` 查看任务
 4. **更新任务**：使用 `update-task` 更新任务状态和详情
-5. **检查进度**：使用 `check-task` 查看完成情况统计
+5. **删除任务**：使用 `delete-task` 删除指定任务
+6. **检查进度**：使用 `check-task` 查看完成情况统计
 
 ### 重要注意事项
 
@@ -48,11 +53,13 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 ## 工具列表
 
 1. **init-task-json** - 初始化新的 tasks.json 文件
-2. **add-task** - 向 tasks.json 添加新任务
-3. **update-task** - 更新 tasks.json 中的现有任务
-4. **read-task** - 读取指定任务的详情
-5. **list-tasks** - 列出任务列表（支持过滤）
-6. **check-task** - 检查任务完成情况统计
+2. **add-task** - 向 tasks.json 添加单个任务
+3. **add-tasks** - 批量向 tasks.json 添加多个任务
+4. **update-task** - 更新 tasks.json 中的现有任务
+5. **read-task** - 读取指定任务的详情
+6. **list-tasks** - 列出任务列表（支持过滤）
+7. **check-task** - 检查任务完成情况
+8. **delete-task** - 删除指定任务
 
 所有工具自动更新 `updated_at`（中国时区 UTC+8）和 `summary` 统计，并在操作后进行 Schema 校验。
 
@@ -60,7 +67,7 @@ description: 基于 tasks.json 的任务管理工具集。用于创建、跟踪�
 
 **用法：**
 ```bash
-init-task-json <tasks_json_path> <agent_task_id> [agent_name] [--tasks <json>]
+init-task-json <tasks_json_path> <agent_task_id> <agent_name> --description "<text>" [--tasks <json>]
 ```
 
 **参数：**
@@ -68,7 +75,12 @@ init-task-json <tasks_json_path> <agent_task_id> [agent_name] [--tasks <json>]
 - `agent_task_id`（必需）：任务列表唯一标识符，用于区分同一 agent 的不同任务列表
   - 只能包含字母、数字、连字符(-)和下划线(_)
   - 长度不超过 100 字符，不能为空
-- `agent_name`（可选）：代理名称，默认为空字符串
+- `agent_name`（必需）：代理名称
+  - 只能包含字母、数字、连字符(-)和下划线(_)
+  - 长度不超过 100 字符，不能为空
+  - 不能以连字符(-)或下划线(_)开头或结尾
+- `--description "<text>"`（必需）：任务列表描述
+  - 不能为空，不含控制字符，建议长度 ≤ 1024
 - `--tasks <json>`（可选）：初始任务列表的 JSON 字符串
   - 格式：`'[{"id":"task-001","description":"任务描述"},{"id":"task-002","description":"任务描述2","type":"code_scan"}]'`
   - 每个任务对象需要包含：
@@ -80,14 +92,16 @@ init-task-json <tasks_json_path> <agent_task_id> [agent_name] [--tasks <json>]
 **示例：**
 ```bash
 # 创建空任务列表
-init-task-json ./tasks.json "project-audit-001" "security-auditor"
+init-task-json ./tasks.json "project-audit-001" "security-auditor" --description "项目审计任务列表"
 
 # 创建带初始任务的任务列表
-init-task-json ./tasks.json "project-audit-001" "security-auditor" --tasks '[
+init-task-json ./tasks.json "project-audit-001" "security-auditor" --description "项目审计任务列表" --tasks '[
   {"id":"task-001","description":"项目分析"},
   {"id":"task-002","description":"漏洞扫描","type":"vulnerability_scan"}
 ]'
 ```
+
+**注意：** `agent_name` 是必需参数，不能省略。
 
 ## 2. add-task
 
@@ -128,7 +142,82 @@ add-task ./tasks.json "task-003" "vulnerability_scan" "执行漏洞扫描" --bef
 add-task ./tasks.json "task-004" "report_generation" "生成报告" --optional --before "task-002"
 ```
 
-## 3. update-task
+## 3. add-tasks
+
+**用法：**
+```bash
+add-tasks <tasks_json_path> <tasks_json_file>
+add-tasks <tasks_json_path> --json <tasks_json_string>
+```
+
+**参数：**
+- `tasks_json_path`（必需）：tasks.json 文件路径
+- `tasks_json_file`（方式1）：包含任务数组的 JSON 文件路径
+- `--json <tasks_json_string>`（方式2）：直接提供任务数组的 JSON 字符串
+
+**任务 JSON 格式：**
+```json
+[
+  {
+    "id": "task-001",
+    "type": "asset_discovery",
+    "description": "识别资产位置",
+    "optional": false,
+    "before": "task-002"  // 可选，指定插入位置
+  },
+  {
+    "id": "task-002",
+    "type": "code_scan",
+    "description": "扫描代码",
+    "optional": true
+  }
+]
+```
+
+**字段说明：**
+- `id`（必需）：任务唯一标识符
+- `type`（必需）：任务类型
+- `description`（必需）：任务描述，不能为空
+- `optional`（可选）：是否可选，默认 `false`
+- `before`（可选）：指定插入位置的任务 ID，如果指定，新任务将插入到该任务之前
+
+**说明：**
+- 批量添加多个任务，适合一次性添加多个相关任务
+- 支持两种输入方式：从文件读取或直接提供 JSON 字符串
+- 每个任务都会进行验证，失败的任务会跳过并记录
+- 显示批量添加的进度和统计信息（总计、成功、失败）
+- 如果所有任务都成功添加，返回退出码 0；如果有失败，返回退出码 1
+
+**示例：**
+```bash
+# 方式1：从 JSON 文件批量添加任务
+add-tasks ./tasks.json tasks-to-add.json
+
+# 方式2：直接提供 JSON 字符串
+add-tasks ./tasks.json --json '[
+  {"id":"task-001","type":"asset_discovery","description":"识别资产位置"},
+  {"id":"task-002","type":"code_scan","description":"扫描代码","optional":true,"before":"task-001"}
+]'
+
+# 任务文件示例（tasks-to-add.json）
+# [
+#   {
+#     "id": "task-001",
+#     "type": "code_scan",
+#     "description": "扫描代码中的安全漏洞",
+#     "optional": false
+#   },
+#   {
+#     "id": "task-002",
+#     "type": "vulnerability_scan",
+#     "description": "执行漏洞扫描",
+#     "optional": true,
+#     "before": "task-001"
+#   }
+# ]
+```
+
+## 4. update-task
 
 **用法：**
 ```bash
@@ -138,7 +227,7 @@ update-task <tasks_json_path> <task_id> --status <status> [--description <descri
 **参数：**
 - `tasks_json_path`（必需）：tasks.json 文件路径
 - `task_id`（必需）：要更新的任务 ID
-- `--status <status>`（必需）：更新任务状态（pending, in_progress, completed, failed）
+- `--status <status>`（必需）：更新任务状态（pending, in_progress, completed, failed, skipped）
 - `--description <description>`（条件必需）：当状态为 `completed` 或 `failed` 时必需，其他状态可选
 - `--detail <json>`（条件必需）：当状态为 `completed` 时必需，其他状态可选
 - `--optional <true|false>`（可选）：更新任务是否可选
@@ -155,7 +244,7 @@ update-task ./tasks.json "task-003" --status "in_progress"
 update-task ./tasks.json "task-004" --status "completed" --description "已完成" --detail '{"files": 100, "issues": 5}'
 ```
 
-## 4. read-task
+## 5. read-task
 
 **用法：**
 ```bash
@@ -180,7 +269,7 @@ read-task ./tasks.json "task-001"
 read-task ./tasks.json "task-001" --format json
 ```
 
-## 5. list-tasks
+## 6. list-tasks
 
 **用法：**
 ```bash
@@ -193,7 +282,7 @@ list-tasks <tasks_json_path> [--format <json|pretty>] [--status <status>] [--typ
   - `json`：输出原始 JSON 数组
   - `pretty`：输出格式化的可读文本
 - `--status <status>`（可选）：按状态过滤任务
-  - 有效值：`pending`、`in_progress`、`completed`、`failed`
+  - 有效值：`pending`、`in_progress`、`completed`、`failed`、`skipped`
 - `--type <type>`（可选）：按任务类型过滤（如 "asset_discovery", "code_scan"）
 - `--optional`（可选）：只显示可选任务
 - `--required`（可选）：只显示必需任务（非可选）
@@ -223,7 +312,7 @@ list-tasks ./tasks.json --status completed --type code_scan
 list-tasks ./tasks.json --format json
 ```
 
-## 6. check-task
+## 7. check-task
 
 **用法：**
 ```bash
@@ -254,6 +343,31 @@ check-task ./tasks.json --show-failed
 check-task ./tasks.json --show-pending --show-failed
 ```
 
+## 8. delete-task
+
+**用法：**
+```bash
+delete-task <tasks_json_path> <task_id>
+```
+
+**参数：**
+- `tasks_json_path`（必需）：tasks.json 文件路径
+- `task_id`（必需）：要删除的任务 ID
+
+**说明：**
+- 删除指定任务，自动更新 `updated_at`（UTC+8）与 `summary` 统计。
+- 如果任务 ID 不存在会报错，不会修改文件。
+- 操作完成后执行 Schema 校验，失败则回滚。
+
+**示例：**
+```bash
+# 删除 task-005
+delete-task ./tasks.json "task-005"
+
+# 删除前可先查看列表
+list-tasks ./tasks.json --status pending
+```
+
 ## 重要说明
 
 - **agent_task_id**：用于区分同一 agent 创建的不同任务列表，必须唯一且非空
@@ -268,13 +382,16 @@ check-task ./tasks.json --show-pending --show-failed
 
 ```bash
 # 初始化任务列表
-init-task-json ./tasks.json "project-001" "security-auditor"
+init-task-json ./tasks.json "project-001" "security-auditor" --description "项目任务列表"
 
-# 添加多个任务
+# 添加多个任务（方式1：逐个添加）
 add-task ./tasks.json "task-001" "asset_discovery" "识别资产位置"
 add-task ./tasks.json "task-002" "code_scan" "扫描代码中的安全漏洞"
 # 使用 --before 控制任务顺序：task-003 将在 task-002 之前
 add-task ./tasks.json "task-003" "vulnerability_scan" "执行漏洞扫描" --before "task-002" --optional
+
+# 添加多个任务（方式2：批量添加）
+add-tasks ./tasks.json tasks-to-add.json
 
 # 查看所有任务
 list-tasks ./tasks.json
@@ -328,7 +445,7 @@ check-task ./tasks.json --show-failed
 
 ```bash
 # 1. 初始化任务列表
-init-task-json ./tasks.json "project-001" "agent-name"
+init-task-json ./tasks.json "project-001" "agent-name" --description "示例工作流"
 
 # 2. 添加任务（可以指定插入顺序）
 add-task ./tasks.json "task-001" "asset_discovery" "识别资产位置"
@@ -355,7 +472,7 @@ check-task ./tasks.json --show-pending
 
 ```bash
 # 1. 初始化
-init-task-json ./tasks.json "project-001" "agent-name"
+init-task-json ./tasks.json "project-001" "agent-name" --description "示例工作流"
 
 # 2. 添加任务
 add-task ./tasks.json "task-001" "type" "描述"

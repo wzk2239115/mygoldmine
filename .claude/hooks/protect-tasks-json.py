@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# .claude/hooks/pre-write.py
-# Write 操作拦截钩子
+# .claude/hooks/protect-tasks-json.py
+# Tasks.json 文件保护钩子
 #
-# 功能：拦截对 .workspace/tasks/*tasks.json 文件的 Write 操作
+# 功能：保护 .workspace/tasks/*tasks.json 文件，防止直接修改
 # 只允许通过 init-task-json.sh、update-task.sh 和 add-task.sh 脚本修改
 
 import os
@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 # 配置
-LOG_FILE = Path("/tmp/claude-pre-write.log")
+LOG_FILE = Path("/tmp/claude-protect-tasks-json.log")
 
 # 日志配置
 def setup_logging():

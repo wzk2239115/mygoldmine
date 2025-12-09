@@ -10,7 +10,7 @@
 #   --format <json|pretty>: 输出格式（可选，默认: pretty）
 #     json: 输出原始 JSON
 #     pretty: 输出格式化的可读文本
-#   --status <pending|in_progress|completed|failed>: 按状态过滤任务（可选）
+#   --status <pending|in_progress|completed|failed|skipped>: 按状态过滤任务（可选）
 #   --type <task_type>: 按任务类型过滤（可选）
 #   --optional: 只显示可选任务（可选）
 #   --required: 只显示必需任务（可选）
@@ -47,9 +47,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --status)
             STATUS_FILTER="$2"
-            if [[ ! "$STATUS_FILTER" =~ ^(pending|in_progress|completed|failed)$ ]]; then
+            if [[ ! "$STATUS_FILTER" =~ ^(pending|in_progress|completed|failed|skipped)$ ]]; then
                 echo "错误: 无效的状态值: $STATUS_FILTER" >&2
-                echo "有效值: pending, in_progress, completed, failed" >&2
+                echo "有效值: pending, in_progress, completed, failed, skipped" >&2
                 exit 1
             fi
             shift 2
@@ -129,14 +129,17 @@ else
     # 显示任务列表
     echo "任务列表 (共 $TASK_COUNT 个任务)"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
+
     # 遍历每个任务并格式化输出
-    echo "$TASKS" | jq -r '.[] | 
+    echo "$TASKS" | jq -r '.[] |
         "[" + .id + "]\n" +
         "  类型:        " + .type + "\n" +
         "  状态:        " + .status + "\n" +
         "  描述:        " + .description + "\n" +
         "  可选:        " + (if .optional then "是" else "否" end) + "\n" +
+        "  开始时间:    " + (if .start_at != null then .start_at else "未开始" end) + "\n" +
+        "  更新时间:    " + (if .update_at != null then .update_at else "未更新" end) + "\n" +
+        "  运行时长:    " + (if .duration != null then (.duration | tostring) + "秒" else "未开始" end) + "\n" +
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"'
 fi
 

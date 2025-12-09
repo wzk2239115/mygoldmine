@@ -72,6 +72,49 @@ fi
 if [ "$OUTPUT_FORMAT" == "json" ]; then
     echo "$TASK" | jq .
 else
+    # 格式化 duration 为可读形式
+    format_duration() {
+        local seconds=$1
+        if [ "$seconds" = "null" ] || [ -z "$seconds" ]; then
+            echo "未开始"
+            return
+        fi
+        local days=$((seconds / 86400))
+        local hours=$(((seconds % 86400) / 3600))
+        local minutes=$(((seconds % 3600) / 60))
+        local secs=$((seconds % 60))
+
+        if [ $days -gt 0 ]; then
+            echo "${days}天 ${hours}小时 ${minutes}分钟"
+        elif [ $hours -gt 0 ]; then
+            echo "${hours}小时 ${minutes}分钟"
+        elif [ $minutes -gt 0 ]; then
+            echo "${minutes}分钟 ${secs}秒"
+        else
+            echo "${secs}秒"
+        fi
+    }
+
+    # 读取字段
+    TASK_START_AT=$(echo "$TASK" | jq -r '.start_at // "null"')
+    TASK_UPDATE_AT=$(echo "$TASK" | jq -r '.update_at // "null"')
+    TASK_DURATION=$(echo "$TASK" | jq -r '.duration // "null"')
+
+    # 格式化显示
+    if [ "$TASK_START_AT" = "null" ]; then
+        TASK_START_AT_DISPLAY="未开始"
+    else
+        TASK_START_AT_DISPLAY="$TASK_START_AT"
+    fi
+
+    if [ "$TASK_UPDATE_AT" = "null" ]; then
+        TASK_UPDATE_AT_DISPLAY="未更新"
+    else
+        TASK_UPDATE_AT_DISPLAY="$TASK_UPDATE_AT"
+    fi
+
+    TASK_DURATION_DISPLAY=$(format_duration "$TASK_DURATION")
+
     # 格式化输出
     echo "任务详情:"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -80,6 +123,9 @@ else
     echo "状态:        $(echo "$TASK" | jq -r '.status')"
     echo "描述:        $(echo "$TASK" | jq -r '.description')"
     echo "可选:        $(echo "$TASK" | jq -r 'if .optional then "是" else "否" end')"
+    echo "开始时间:    $TASK_START_AT_DISPLAY"
+    echo "更新时间:    $TASK_UPDATE_AT_DISPLAY"
+    echo "运行时长:    $TASK_DURATION_DISPLAY"
     echo "详情:"
     echo "$TASK" | jq -r '.detail' | jq .
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

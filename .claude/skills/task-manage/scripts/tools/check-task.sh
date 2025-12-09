@@ -59,11 +59,36 @@ fi
 
 # 读取统计信息
 SUMMARY=$(jq '.summary' "$TASKS_JSON_PATH")
-TOTAL=$(echo "$SUMMARY" | jq -r '.total_tasks')
-COMPLETED=$(echo "$SUMMARY" | jq -r '.completed')
-IN_PROGRESS=$(echo "$SUMMARY" | jq -r '.in_progress')
-PENDING=$(echo "$SUMMARY" | jq -r '.pending')
-FAILED=$(echo "$SUMMARY" | jq -r '.failed')
+TOTAL=$(echo "$SUMMARY" | jq -r '.total_tasks // 0')
+COMPLETED=$(echo "$SUMMARY" | jq -r '.completed // 0')
+IN_PROGRESS=$(echo "$SUMMARY" | jq -r '.in_progress // 0')
+PENDING=$(echo "$SUMMARY" | jq -r '.pending // 0')
+FAILED=$(echo "$SUMMARY" | jq -r '.failed // 0')
+SKIPPED=$(echo "$SUMMARY" | jq -r '.skipped // 0')
+
+# 读取 duration
+DURATION=$(jq -r '.duration // 0' "$TASKS_JSON_PATH")
+
+# 格式化 duration 为可读形式
+format_duration() {
+    local seconds=$1
+    local days=$((seconds / 86400))
+    local hours=$(((seconds % 86400) / 3600))
+    local minutes=$(((seconds % 3600) / 60))
+    local secs=$((seconds % 60))
+
+    if [ $days -gt 0 ]; then
+        echo "${days}天 ${hours}小时 ${minutes}分钟"
+    elif [ $hours -gt 0 ]; then
+        echo "${hours}小时 ${minutes}分钟"
+    elif [ $minutes -gt 0 ]; then
+        echo "${minutes}分钟 ${secs}秒"
+    else
+        echo "${secs}秒"
+    fi
+}
+
+DURATION_FORMATTED=$(format_duration "$DURATION")
 
 # 计算完成率
 if [ "$TOTAL" -gt 0 ]; then
@@ -80,7 +105,9 @@ echo "已完成:       $COMPLETED"
 echo "进行中:       $IN_PROGRESS"
 echo "待处理:       $PENDING"
 echo "失败:         $FAILED"
+echo "已跳过:       $SKIPPED"
 echo "完成率:       ${COMPLETION_RATE}%"
+echo "运行时长:     $DURATION_FORMATTED"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # 检查是否全部完成
@@ -89,6 +116,9 @@ if [ "$TOTAL" -eq 0 ]; then
     exit 0
 elif [ "$PENDING" -eq 0 ] && [ "$IN_PROGRESS" -eq 0 ] && [ "$FAILED" -eq 0 ]; then
     echo "✅ 所有任务已完成"
+    if [ "$SKIPPED" -gt 0 ]; then
+        echo "ℹ️  已跳过 $SKIPPED 个任务"
+    fi
     exit 0
 elif [ "$FAILED" -gt 0 ]; then
     echo "❌ 有 $FAILED 个任务失败"
