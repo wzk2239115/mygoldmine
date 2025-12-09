@@ -2,6 +2,19 @@
 
 基于 Claude Code 的自动化安全审计框架，通过 AI 智能体协作完成代码安全扫描。
 
+## 安装
+
+```bash
+# HTTPS 方式
+git clone --recursive https://github.com/Clouditera/Vul-AI-V2.git
+
+# SSH 方式
+git clone --recursive git@github.com:Clouditera/Vul-AI-V2.git
+
+# 已克隆后初始化子模块
+git submodule update --init --recursive
+```
+
 ## 快速开始
 
 ### 1. 链接配置到目标工程
