@@ -190,6 +190,20 @@ flowchart TB
     CSA -.->|"代码执行"| CODEI
     CSA -.->|"文件上传"| UPLOAD
 
+    %% 靶场扫描直接推荐漏洞分析器
+    VTR -.->|"题目类型"| SQLI
+    VTR -.->|"题目类型"| CMDI
+    VTR -.->|"题目类型"| XSS
+    VTR -.->|"题目类型"| SSRF
+    VTR -.->|"题目类型"| XXE
+    VTR -.->|"题目类型"| CSRF
+    VTR -.->|"题目类型"| IDOR
+    VTR -.->|"题目类型"| REDIRECT
+    VTR -.->|"题目类型"| PATH
+    VTR -.->|"题目类型"| LDAPI
+    VTR -.->|"题目类型"| CODEI
+    VTR -.->|"题目类型"| UPLOAD
+
     %% 漏洞报告输出
     SQLI --> BR
     CMDI --> BR
@@ -232,6 +246,7 @@ flowchart TB
 | route-scanner | route-function-analyzer | 每个路由文件 |
 | route-function-analyzer | code-security-analyzer | 每个 API 端点 |
 | code-security-analyzer | 漏洞分析器 | 根据代码风险点激活 |
+| vtr-scanner | 漏洞分析器 | 根据靶场题目类型推荐 |
 | 漏洞分析器 | bug-report | 发现漏洞时 |
 
 ## 目录结构
