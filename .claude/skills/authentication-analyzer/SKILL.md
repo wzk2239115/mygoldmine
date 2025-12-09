@@ -36,5 +36,11 @@ description: 专业认证分析技能：分析API端点认证要求，包括认�
 
 # 输出要求
 
-1. 分析结果保存到.workspace/tasks/{TASK_ID}/authentication-analyzer-result.md文件中
-2. 不需要生成下游任务
+## 产物输出
+
+分析结果保存到 `.workspace/tasks/{TASK_ID}/authentication-analysis.md` 文件中，供下游技能（如 `route-function-analyzer`）使用。
+
+## 重要约束
+
+- **禁止推荐下游任务**：该技能仅输出认证分析产物，不生成任何 `tasks` 列表
+- 输出格式为 `{"tasks": []}`，表示无后续任务

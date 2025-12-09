@@ -29,6 +29,70 @@ description: |
 6) 外部依赖：列出 DB/缓存/消息队列/第三方 API/内部 RPC 调用，记录核心参数与错误处理/事务/幂等策略。
 7) 输出要点：形成条目 `method/path/file/line/group_prefix/middlewares/inputs/function_summary/risks`，标注高风险（debug/admin/config/internal/批量写入/文件上传/脚本执行）。
 
+# 路由数量限制与拆分机制
+
+## 触发条件
+
+当待分析的路由数量超过 **10 个**时，触发拆分机制。
+
+## 处理流程
+
+1. **立即停止分析**：不执行任何路由的详细分析
+2. **按组拆分**：将路由按每 10 个一组进行拆分
+3. **生成子任务**：为每一组创建一个新的 `route-function-analyzer` 任务
+
+## 拆分输出格式
+
+1. **生成分组路由文件**：为每组生成独立的路由清单文件 `.workspace/tasks/{TASK_ID}/routes-group-{N}.md`
+2. **输出任务列表**：每组对应一个子任务
+
+```json
+{
+  "split": true,
+  "total_routes": 25,
+  "groups": 3,
+  "tasks": [
+    {
+      "artifact": ".workspace/tasks/{TASK_ID}/routes-group-1.md",
+      "skill": "route-function-analyzer"
+    },
+    {
+      "artifact": ".workspace/tasks/{TASK_ID}/routes-group-2.md",
+      "skill": "route-function-analyzer"
+    },
+    {
+      "artifact": ".workspace/tasks/{TASK_ID}/routes-group-3.md",
+      "skill": "route-function-analyzer"
+    }
+  ]
+}
+```
+
+## 分组路由文件格式
+
+每个 `routes-group-{N}.md` 文件内容：
+
+```markdown
+# 路由分组 {N}
+
+## 基本信息
+- **分组编号**：{N}
+- **路由数量**：{count}
+
+## 路由列表
+
+| 序号 | 方法 | 路径 | 源文件 | 行号 |
+|------|------|------|--------|------|
+| 1 | GET | /api/users | src/routes/user.js | 15 |
+| 2 | POST | /api/users | src/routes/user.js | 28 |
+| ... | ... | ... | ... | ... |
+```
+
+## 注意事项
+
+- 每组生成独立的 `routes-group-{N}.md` 文件，包含该组的完整路由信息
+- 子任务读取对应的分组文件，仅分析其中列出的路由
+
 # 输出要求
 
 ## 1. 端点分析文件
