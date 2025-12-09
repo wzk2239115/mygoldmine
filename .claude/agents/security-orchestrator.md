@@ -228,7 +228,7 @@ Task(
 **STEP 3：循环**
 - 汇总本轮新增的“后续任务”并添加到tasks.json文件中；如有则未执行任务则回到 STEP 2 执行；如果未执行任务列表为空，则直接进入 STEP 4。
 
-** STEP 4：报告生成(Task-003)**
+**STEP 4：报告生成(task-final)**
 - 调用 report-generator智能体生成报告。
 - 输入：最终产物列表
 - 输出要求：按照要求生成报告文件(.workspace/reports/audit-report.md和.workspace/reports/audit-report.json)
