@@ -116,8 +116,16 @@ add-task .workspace/tasks/{TASK_ID}/tasks.json "task-002" "task-name" "task-desc
 check-task .workspace/tasks/{TASK_ID}/tasks.json --show-pending
 ```
 
-# 总结并推荐后续任务（JSON格式）：
+# 输出要求：
 
+## 遵循Skill要求生成产物，分为两个部分：
+  - Skill要求的产物
+  - 总结结论（不超过50行, 保存到.workspace/tasks/{TASK_ID}/summary.md文件中），格式为：本次任务已完成， 生成了xxx产物， 得出xxx结论。
+## 总结结论并推荐后续任务， 格式如下：
+
+{总结结论}
+
+任务列表(JSON格式)：
 ```json
 {
   "tasks": [
