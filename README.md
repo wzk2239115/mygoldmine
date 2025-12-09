@@ -176,33 +176,24 @@ flowchart TB
     RS --> RFA
     RFA --> CSA
 
-    %% 代码安全分析激活漏洞扫描器
-    CSA -.->|"SQL查询"| SQLI
-    CSA -.->|"命令执行"| CMDI
-    CSA -.->|"页面渲染"| XSS
-    CSA -.->|"HTTP请求"| SSRF
-    CSA -.->|"XML解析"| XXE
-    CSA -.->|"表单提交"| CSRF
-    CSA -.->|"资源访问"| IDOR
-    CSA -.->|"URL跳转"| REDIRECT
-    CSA -.->|"文件操作"| PATH
-    CSA -.->|"LDAP查询"| LDAPI
-    CSA -.->|"代码执行"| CODEI
-    CSA -.->|"文件上传"| UPLOAD
+    %% 虚拟节点：风险点识别
+    RISK{{"风险点识别"}}
+    CSA -.->|"代码风险"| RISK
+    VTR -.->|"题目类型"| RISK
 
-    %% 靶场扫描直接推荐漏洞分析器
-    VTR -.->|"题目类型"| SQLI
-    VTR -.->|"题目类型"| CMDI
-    VTR -.->|"题目类型"| XSS
-    VTR -.->|"题目类型"| SSRF
-    VTR -.->|"题目类型"| XXE
-    VTR -.->|"题目类型"| CSRF
-    VTR -.->|"题目类型"| IDOR
-    VTR -.->|"题目类型"| REDIRECT
-    VTR -.->|"题目类型"| PATH
-    VTR -.->|"题目类型"| LDAPI
-    VTR -.->|"题目类型"| CODEI
-    VTR -.->|"题目类型"| UPLOAD
+    %% 风险点激活漏洞扫描器
+    RISK -.-> SQLI
+    RISK -.-> CMDI
+    RISK -.-> XSS
+    RISK -.-> SSRF
+    RISK -.-> XXE
+    RISK -.-> CSRF
+    RISK -.-> IDOR
+    RISK -.-> REDIRECT
+    RISK -.-> PATH
+    RISK -.-> LDAPI
+    RISK -.-> CODEI
+    RISK -.-> UPLOAD
 
     %% 漏洞报告输出
     SQLI --> BR
