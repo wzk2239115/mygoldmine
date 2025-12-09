@@ -3,22 +3,23 @@
 # 更新 tasks.json 中的任务
 #
 # 用法：
-#   update-task.sh <tasks_json_path> <task_id> --status <status> [--description <description>] [--detail <json>] [--optional <true|false>]
+#   update-task.sh <tasks_json_path> <task_id> --status <status> [--detail <json>] [--optional <true|false>]
 #
 # 参数：
 #   tasks_json_path: tasks.json 文件的路径（必需）
 #   task_id: 要更新的任务 ID（必需）
 #   --status <status>: 更新任务状态（必需，可选值: pending, in_progress, completed, failed, skipped）
-#   --description <description>: 更新任务描述（可选）
 #   --detail <json>: 更新任务详情 JSON 字符串（可选）
 #   --optional <true|false>: 更新任务是否可选（可选）
+#
+# 注意：description 字段只能在 init-task-json 或 add-task/add-tasks 时设置，不能通过此命令更新
 
 set -euo pipefail
 
 # 检查参数
 if [ $# -lt 4 ]; then
     echo "错误: 缺少必需参数" >&2
-    echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status <status> [--description <description>] [--detail <json>] [--optional <true|false>]" >&2
+    echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status <status> [--detail <json>] [--optional <true|false>]" >&2
     exit 1
 fi
 
@@ -47,14 +48,13 @@ fi
 
 # 解析参数
 UPDATE_STATUS=""
-UPDATE_DESCRIPTION=""
 UPDATE_DETAIL=""
 UPDATE_OPTIONAL=""
 
 # 检查第一个参数是否为 --status（必需）
 if [ "$1" != "--status" ]; then
     echo "错误: --status 是必需参数，必须作为第一个参数提供" >&2
-    echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status <status> [--description <description>] [--detail <json>] [--optional <true|false>]" >&2
+    echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status <status> [--detail <json>] [--optional <true|false>]" >&2
     exit 1
 fi
 
@@ -67,10 +67,6 @@ while [[ $# -gt 0 ]]; do
                 echo "有效值: pending, in_progress, completed, failed, skipped" >&2
                 exit 1
             fi
-            shift 2
-            ;;
-        --description)
-            UPDATE_DESCRIPTION="$2"
             shift 2
             ;;
         --detail)
@@ -100,24 +96,15 @@ done
 # 检查 status 是否已提供（必需）
 if [ -z "$UPDATE_STATUS" ]; then
     echo "错误: --status 是必需参数" >&2
-    echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status <status> [--description <description>] [--detail <json>] [--optional <true|false>]" >&2
+    echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status <status> [--detail <json>] [--optional <true|false>]" >&2
     exit 1
 fi
-
-# # 检查：当状态为 completed 或 failed 时，description 为必填
-# if [[ "$UPDATE_STATUS" == "completed" ]] || [[ "$UPDATE_STATUS" == "failed" ]]; then
-#     if [ -z "$UPDATE_DESCRIPTION" ]; then
-#         echo "错误: 当任务状态为 'completed' 或 'failed' 时，--description 是必需参数" >&2
-#         echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status $UPDATE_STATUS --description <description> [--detail <json>] [--optional <true|false>]" >&2
-#         exit 1
-#     fi
-# fi
 
 # 检查：当状态为 completed 时，detail 为必填
 if [[ "$UPDATE_STATUS" == "completed" ]]; then
     if [ -z "$UPDATE_DETAIL" ]; then
         echo "错误: 当任务状态为 'completed' 时，--detail 是必需参数" >&2
-        echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status completed --description <description> --detail <json> [--optional <true|false>]" >&2
+        echo "用法: $(basename "$0") <tasks_json_path> <task_id> --status completed --detail <json> [--optional <true|false>]" >&2
         exit 1
     fi
 fi
@@ -167,10 +154,6 @@ JQ_EXPR=".tasks |= map(if .id == \"$TASK_ID\" then ."
 
 if [ -n "$UPDATE_STATUS" ]; then
     JQ_EXPR="$JQ_EXPR | .status = \"$UPDATE_STATUS\""
-fi
-
-if [ -n "$UPDATE_DESCRIPTION" ]; then
-    JQ_EXPR="$JQ_EXPR | .description = \"$UPDATE_DESCRIPTION\""
 fi
 
 if [ -n "$UPDATE_DETAIL" ]; then
@@ -257,9 +240,6 @@ fi
 echo "✓ 已更新任务: $TASK_ID"
 if [ -n "$UPDATE_STATUS" ]; then
     echo "  - 状态: $UPDATE_STATUS"
-fi
-if [ -n "$UPDATE_DESCRIPTION" ]; then
-    echo "  - 描述: $UPDATE_DESCRIPTION"
 fi
 if [ -n "$UPDATE_DETAIL" ]; then
     echo "  - 详情: 已更新"

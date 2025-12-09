@@ -221,27 +221,28 @@ add-tasks ./tasks.json --json '[
 
 **用法：**
 ```bash
-update-task <tasks_json_path> <task_id> --status <status> [--description <description>] [--detail <json>] [--optional <true|false>]
+update-task <tasks_json_path> <task_id> --status <status> [--detail <json>] [--optional <true|false>]
 ```
 
 **参数：**
 - `tasks_json_path`（必需）：tasks.json 文件路径
 - `task_id`（必需）：要更新的任务 ID
 - `--status <status>`（必需）：更新任务状态（pending, in_progress, completed, failed, skipped）
-- `--description <description>`（条件必需）：当状态为 `completed` 或 `failed` 时必需，其他状态可选
 - `--detail <json>`（条件必需）：当状态为 `completed` 时必需，其他状态可选
 - `--optional <true|false>`（可选）：更新任务是否可选
 
+**注意**：`description` 字段只能在 `init-task-json` 或 `add-task`/`add-tasks` 时设置，不能通过此命令更新。
+
 **示例：**
 ```bash
-# 更新为 completed（需要 description 和 detail）
-update-task ./tasks.json "task-001" --status "completed" --description "任务已完成" --detail '{"result": "success"}'
-# 更新为 failed（需要 description，detail 可选）
-update-task ./tasks.json "task-002" --status "failed" --description "任务执行失败：原因说明"
-# 更新为其他状态（description 和 detail 可选）
+# 更新为 completed（需要 detail）
+update-task ./tasks.json "task-001" --status "completed" --detail '{"result": "success"}'
+# 更新为 failed
+update-task ./tasks.json "task-002" --status "failed" --detail '{"error": "任务执行失败：原因说明"}'
+# 更新为其他状态
 update-task ./tasks.json "task-003" --status "in_progress"
 # 同时更新多个字段
-update-task ./tasks.json "task-004" --status "completed" --description "已完成" --detail '{"files": 100, "issues": 5}'
+update-task ./tasks.json "task-004" --status "completed" --detail '{"files": 100, "issues": 5}'
 ```
 
 ## 5. read-task
@@ -484,7 +485,7 @@ list-tasks ./tasks.json
 read-task ./tasks.json "task-001"
 
 # 5. 更新任务
-update-task ./tasks.json "task-001" --status "completed" --description "任务已完成" --detail '{"result": "success"}'
+update-task ./tasks.json "task-001" --status "completed" --detail '{"result": "success"}'
 
 # 6. 检查任务完成情况
 check-task ./tasks.json --show-pending

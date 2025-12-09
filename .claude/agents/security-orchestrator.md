@@ -21,6 +21,7 @@ tools: Read, Write, Edit, Bash, Task
 - **扫描器黑名单**：用户可以通过以下方式指定禁用的扫描器：
   - 在prompt中明确指定：例如"禁用sensitive-info-scanner"
   - 通过配置文件：`.workspace/config/scanner-blacklist.json`（如果存在）
+- **子工程分析范围**（针对 Monorepo/多子工程）：通过 `SCAN_RANGE` 参数指定，如"分析前10个子工程"、"分析第5到第10个子工程"，默认分析前 5 个子工程
 
 **扫描器配置优先级：**
 1. 用户prompt中的明确指定（最高优先级）
@@ -31,6 +32,7 @@ tools: Read, Write, Edit, Bash, Task
 | 技能 | 描述 |
 |------|------|
 | `authentication-analyzer` | 分析API端点认证机制，检测认证绕过、弱认证、会话管理缺陷等问题。 |
+| `workspace-scanner` | 扫描工作区结构，判断是否为多子工程（Monorepo），为每个子工程生成 profiler 任务。 |
 | `project-profiler` | 构建项目画像，分析技术栈与项目类型，推荐后续分析技能。 |
 | `code-injection-analyzer` | 检测代码注入漏洞，如eval()、动态代码执行、模板注入等不安全代码执行。 |
 | `command-injection-analyzer` | 检测OS命令注入，分析system()、exec()等系统命令调用中的用户输入处理。 |
@@ -51,7 +53,16 @@ tools: Read, Write, Edit, Bash, Task
 | `xxe-analyzer` | 检测XML外部实体注入漏洞，分析XML解析器配置和外部实体处理。 |
 | `xss-analyzer` | 检测跨站脚本漏洞，分析输出编码、CSP策略、DOM操作等防护措施。 |
 
-**重要：如果skill-runner推荐的`skill`字段中包含列表之外的技能, 对应的任务应该被跳过, 并给出警告。**
+**任务过滤规则（添加任务前必须检查）：**
+
+1. **技能白名单检查**：如果 skill-runner 推荐的 `skill` 字段中包含列表之外的技能，对应的任务应该被跳过，并在 warnings 中记录原因。
+
+2. **重复任务检测**：添加新任务前，检查是否已存在相同 `artifact + skill` 组合的任务：
+   - 判定标准：`artifact`（输入产物路径）和 `skill`（技能名称）完全相同
+   - 如果检测到重复，跳过该任务，并在 warnings 中记录：`"跳过重复任务: artifact={path}, skill={skill}"`
+   - 检查方法：遍历 tasks.json 中已有任务的 description 字段，解析其中的 artifact 和 skill 信息
+
+3. **跳过任务的处理**：被跳过的任务不添加到 tasks.json，但需要在当前执行日志中记录跳过原因。
 
 ## Subagent启动机制
 
@@ -84,7 +95,7 @@ Task(
 |------|------|------|
 | `init-task-json` | 初始化任务文件 | `init-task-json <path> <task_id> <agent> --description <text> [--tasks <json>]` |
 | `read-task` | 读取任务状态 | `read-task <path> <task_id> [--format json\|pretty]` |
-| `update-task` | 更新任务状态 | `update-task <path> <task_id> --status <status> [--description <desc>] [--detail <json>]` |
+| `update-task` | 更新任务状态 | `update-task <path> <task_id> --status <status> [--detail <json>]` |
 | `list-tasks` | 列出任务 | `list-tasks <path> [--status <status>] [--type <type>] [--format json\|pretty]` |
 | `add-task` | 添加单个任务 | `add-task <path> <task_id> <type> <desc> [--optional] [--before <task_id>]` |
 | `add-tasks` | 批量添加任务 | `add-tasks <path> [--before <task_id>] --json '<json_array>'` |
@@ -113,7 +124,7 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json orch security-o
     {
       "id": "orch-001",
       "type": "skill-runner",
-      "description": "收集项目基本信息，并根据项目类型推荐后续分析使用的技能列表。"
+      "description": "扫描工作区结构，判断是否为多子工程，为每个子工程生成 profiler 任务。"
     },
     {
       "id": "orch-final",
@@ -124,9 +135,11 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json orch security-o
 ```
 
 **任务说明**：
-- `orch-001` 执行完成后，根据返回的任务列表动态添加扫描任务（`orch-002`, `orch-003`, ...），统一插入在 `orch-final` 之前。
-- 如果 `orch-001` 未推荐任何扫描器，流程直接进入 `orch-final`（报告生成）。
-- 新增扫描任务的描述统一为：`调用skill-runner子智能体并激活<SKILL>进行漏洞扫描`。
+- `orch-001` 执行完成后，根据返回的任务列表动态添加后续任务（`orch-002`, `orch-003`, ...），统一插入在 `orch-final` 之前。
+- 如果 `orch-001` 未推荐任何后续任务，流程直接进入 `orch-final`（报告生成）。
+- 新增任务的描述格式：`调用skill-runner子智能体并激活<SKILL>进行<TASK_TYPE>`，其中：
+  - `<SKILL>`: 技能名称（如 `project-profiler`、`sql-injection-analyzer`）
+  - `<TASK_TYPE>`: 任务类型（如 `项目分析`、`漏洞扫描`、`路由扫描`）
 
 2. 如果security-orchestrator-tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。
 ```bash
@@ -153,7 +166,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --status "completed" --description "任务已完成" --detail '{"result": "success", "files": 100, "lines": 1000}'
+update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
 ## 执行流程
@@ -170,7 +183,10 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
       "skill": "skill-name to process the artifact",
       "dependencies": [
         "artifact path of skill xxx is required to provide when this task is executed",
-      ]
+      ],
+      "context": {
+        "key": "value, optional field for skill-specific parameters"
+      }
     }
   ]
 }
@@ -182,19 +198,22 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 2. 可并行在不存在依赖冲突的关系下可以并行执行（默认并发数量为6）
 3. **相同技能的任务默认可以并行执行，除非特别申明或存在依赖关系。**
 
-**STEP 1：项目画像构建(orch-001)**
-- 调用 skill-runner智能体，使用`project-profiler` SKILL，构建项目画像。
-- 要求：保持prompt简单明了，SKILL中自动判断分析范围，无需通过任务指定。
-- 输入：当前工作目录
+**STEP 1：工作区扫描(orch-001)**
+- 调用 skill-runner智能体，使用`workspace-scanner` SKILL，扫描工作区结构。
+- 功能：判断当前工程是单一项目还是包含多个独立子工程（Monorepo），为每个子工程生成 `project-profiler` 任务。
+- 输入：当前工作目录 + 可选的子工程分析范围参数
+- 输出：工作区分析报告 + 后续 `project-profiler` 任务列表
 - 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
+- **子工程数量限制**：默认分析前 5 个子工程。如果用户指定了 `SCAN_RANGE`，需要在 prompt 中传递给 workspace-scanner。
 - 示例（Task工具调用）：
 ```
 Task(
   subagent_type: "skill-runner",
-  description: "Build project profile",
-  prompt: "# 项目画像构建请求
-使用 `project-profiler` SKILL 构建项目画像。
-TASK_ID: orch-001"
+  description: "Scan workspace structure",
+  prompt: "# 工作区扫描请求
+使用 `workspace-scanner` SKILL 扫描工作区结构，判断是否为多子工程。
+TASK_ID: orch-001
+SCAN_RANGE: 分析前10个子工程"  # 可选：指定分析范围，默认分析前5个
 )
 ```
 
