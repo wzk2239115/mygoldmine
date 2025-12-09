@@ -33,12 +33,12 @@ description: |
 
 ## 触发条件
 
-当待分析的路由数量超过 **10 个**时，触发拆分机制。
+当待分析的路由数量超过 **3 个**时，触发拆分机制。
 
 ## 处理流程
 
 1. **立即停止分析**：不执行任何路由的详细分析
-2. **按组拆分**：将路由按每 10 个一组进行拆分
+2. **按组拆分**：将路由按每 3 个一组进行拆分
 3. **生成子任务**：为每一组创建一个新的 `route-function-analyzer` 任务
 
 ## 拆分输出格式
@@ -81,7 +81,7 @@ description: |
 
 ## 路由列表
 
-| 序号 | 方法 | 路径 | 源文件 | 行号 |
+| 序号 | 方法 | 路由路径 | 源文件 | 行号 |
 |------|------|------|--------|------|
 | 1 | GET | /api/users | src/routes/user.js | 15 |
 | 2 | POST | /api/users | src/routes/user.js | 28 |
@@ -97,7 +97,7 @@ description: |
 
 ## 1. 端点分析文件
 
-每一个API端点对应一个md文件，文件路径规则为：`.workspace/tasks/{TASK_ID}/{slugified_path}-{method}-{category}.md`
+每一个API端点对应一个md文件，文件路径规则为：`.workspace/tasks/{TASK_ID}/{slugified_path}-{method}.md`
 
 **命名规则**：
 - 路径转 slug：`/` 与 `\` → `-`，连续分隔符合并；`{id}`/`:id`/`<id>` 统一为 `id`；`*`/`**` → `wildcard`；`[` `]` → `-`；去除空格与不可见字符，非 ASCII 与特殊符号替换为 `-`。
@@ -105,43 +105,86 @@ description: |
 - 去重策略：同名时在 `.md` 前追加短序号或短 hash（如 `-2` 或 `-a1b2`）。
 - 长度控制：文件名不超过约 120 字符，过长时截断中间，保留首尾。
 
+**文件内容格式**（供 `code-security-analyzer` 使用）：
+
+```markdown
+# {METHOD} {path}
+
+## 基本信息
+- **路由路径**：{full_path}
+- **HTTP 方法**：{method}
+- **源文件**：{file_path}:{line_number}
+- **函数名称**：{handler_function_name}
+
+## 认证与授权
+- **认证要求**：{auth_required: 是/否}
+- **认证方式**：{auth_type: JWT/Session/API Key/无}
+- **权限要求**：{permissions}
+- **中间件链**：{middleware_list}
+
+## 请求参数
+### 路径参数
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| {name} | {type} | {required} | {description} |
+
+### 查询参数
+| 参数名 | 类型 | 必填 | 默认值 | 说明 |
+|--------|------|------|--------|------|
+
+### 请求体
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+
+## 响应结构
+- **成功响应**：{success_response_structure}
+- **错误响应**：{error_response_structure}
+
+## 函数逻辑摘要
+{function_logic_summary}
+
+## 关键代码片段
+
+### {file_path}
+\`\`\`{language}
+// L{start_line}-L{end_line}
+{line_number}: {code_line}
+{line_number}: {code_line}
+...
+\`\`\`
+
+**示例**：
+\`\`\`javascript
+// src/controllers/userController.js L42-L58
+42: async function getUser(req, res) {
+43:   const userId = req.params.id;
+44:   const query = `SELECT * FROM users WHERE id = ${userId}`;
+45:   const result = await db.query(query);
+46:   res.json(result);
+47: }
+\`\`\`
+```
+
 ## 2. 下游任务推荐
 
-根据端点功能分析结果，推荐对应的漏洞扫描任务。
-
-**推荐规则**：
-| 端点特征 | 推荐技能 |
-|----------|----------|
-| 包含 SQL 查询/数据库操作 | `sql-injection-analyzer` |
-| 包含命令执行/系统调用 | `command-injection-analyzer` |
-| 包含文件上传功能 | `insecure-file-uploads-analyzer` |
-| 包含 URL 跳转/重定向 | `open-redirect-analyzer` |
-| 包含 XML 解析 | `xxe-analyzer` |
-| 包含用户输入渲染到页面 | `xss-analyzer` |
-| 包含外部 HTTP 请求 | `ssrf-analyzer` |
-| 包含文件读取/路径操作 | `path-traversal-lfi-rfi-analyzer` |
-| 包含 LDAP 查询 | `ldap-injection-analyzer` |
-| 包含动态代码执行 | `code-injection-analyzer` |
-| 包含资源 ID 访问 | `idor-analyzer` |
-| 包含表单提交（非 GET） | `csrf-analyzer` |
+每个端点分析文件对应一个 `code-security-analyzer` 任务，用于对该路由函数进行代码安全分析。
 
 **总结输出格式（JSON格式）**：
 ```json
 {
     "tasks": [
         {
-            "artifact": ".workspace/tasks/{TASK_ID}/api-users-id-get-query.md",
-            "skill": "sql-injection-analyzer"
+            "artifact": ".workspace/tasks/{TASK_ID}/api-users-get.md",
+            "skill": "code-security-analyzer"
         },
         {
-            "artifact": ".workspace/tasks/{TASK_ID}/api-upload-post-file.md",
-            "skill": "insecure-file-uploads-analyzer"
+            "artifact": ".workspace/tasks/{TASK_ID}/api-users-post.md",
+            "skill": "code-security-analyzer"
         }
     ]
 }
 ```
 
 **注意**：
-- 一个端点可能推荐多个扫描器（如同时存在 SQL 查询和文件上传）
-- 如果端点无明显风险特征，可不推荐下游任务，返回空数组 `{"tasks": []}`
+- 每个端点分析文件都必须生成对应的 `code-security-analyzer` 任务，禁止省略
 - `{TASK_ID}` 需替换为实际的任务 ID（如 `orch-003`）
