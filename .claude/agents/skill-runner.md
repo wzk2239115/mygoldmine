@@ -48,7 +48,7 @@ color: red
 
 NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.claude/skills/task-manage/SKILL.md)。
 
-### 初始化: 加载指定的技能并创建工作区，根据SKILL指导制定任务计划，生成{TASK_ID}-tasks.json文件
+### 初始化: 创建工作区，根据SKILL指导制定任务计划，生成{TASK_ID}-tasks.json文件
 
 ```bash
 # 创建工作区目录结构
@@ -74,6 +74,11 @@ init-task-json .workspace/tasks/{TASK_ID}/tasks.json default {TASK_ID} \
 ```
 **路径说明**：涉及路径时，优先使用相对路径(.workspace默认处于当前工作目录，当前目录默认为工程目录），避免使用绝对路径。
 **工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
+
+### 加载技能: 加载指定的技能
+```
+SKill({SKILL_NAME})
+```
 
 ### 执行任务: 根据 {TASK_ID}-tasks.json 文件执行任务
 
