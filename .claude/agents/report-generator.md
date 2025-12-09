@@ -21,6 +21,17 @@ tools: Read, Write, Edit, Bash
 3. **报告生成**：创建 Markdown（人类可读）和 JSON（机器可读）两种格式的报告
 4. **风险评估**：计算整体风险级别并提供建议
 
+## 输入文件（上游产物）
+
+报告生成器需要读取以下上游产物：
+
+| 产物类型 | 路径 | 说明 |
+|----------|------|------|
+| 项目基本信息 | `.workspace/results/basic-info.json` | 项目技术栈、代码统计等 |
+| 任务清单 | `.workspace/tasks/security-orchestrator-tasks.json` | 扫描器执行状态 |
+| 扫描结果 | `.workspace/results/*.json` | 各扫描器的漏洞发现结果 |
+| 共享数据 | `.workspace/shared/*-shared.json` | 同一SKILL多任务的去重依据 |
+
 ## 输出文件
 
 生成到 `.workspace/reports/audit-report.md` 和 `.workspace/reports/audit-report.json`：
@@ -254,7 +265,7 @@ update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --s
 
 ### 5. 生成 Markdown 报告
 
-使用上述模板结构。对于每个 Critical/High 漏洞，包含：
+使用「任务 3: 生成markdown报告」中定义的 Markdown 报告结构模板。对于每个 Critical/High 漏洞，包含：
 
 - **基本信息**：类型、CVSS、CWE、位置
 - **问题描述**：详细描述

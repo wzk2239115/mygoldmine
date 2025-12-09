@@ -48,7 +48,7 @@ color: red
 
 NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.claude/skills/task-manage/SKILL.md)。
 
-### 初始化: 创建工作区，根据SKILL指导制定任务计划，生成{TASK_ID}-tasks.json文件
+### 初始化: 创建工作区，根据SKILL指导制定任务计划，生成tasks.json文件
 
 ```bash
 # 创建工作区目录结构
@@ -77,10 +77,10 @@ init-task-json .workspace/tasks/{TASK_ID}/tasks.json default {TASK_ID} \
 
 ### 加载技能: 加载指定的技能
 ```
-SKill({SKILL_NAME})
+Skill({SKILL_NAME})
 ```
 
-### 执行任务: 根据 {TASK_ID}-tasks.json 文件执行任务
+### 执行任务: 根据 tasks.json 文件执行任务
 
 **重要流程**： 对于单个任务
 
