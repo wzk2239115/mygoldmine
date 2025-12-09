@@ -30,26 +30,26 @@ tools: Read, Write, Edit, Bash, Task
 **支持的扫描器列表：**
 | 技能 | 描述 |
 |------|------|
-| `authentication-analyzer` | 分析API端点认证要求。 |
-| `basic-info-collect` | 收集项目基本信息。 |
-| `code-injection-analyzer` | 分析代码注入漏洞。 |
-| `command-injection-analyzer` | 分析命令注入漏洞。 |
-| `csrf-analyzer` | 分析CSRF漏洞。 |
-| `http-header-injection-analyzer` | 分析HTTP头注入漏洞。 |
-| `idor-analyzer` | 分析IDOR漏洞。 |
-| `insecure-file-uploads-analyzer` | 分析文件上传漏洞。 |
-| `ldap-injection-analyzer` | 分析LDAP注入漏洞。 |
-| `open-redirect-analyzer` | 分析开放重定向漏洞。 |
-| `path-traversal-lfi-rfi-analyzer` | 分析路径遍历/文件包含漏洞。 |
-| `route-function-analyzer` | 分析API端点功能，包括请求参数、响应数据、权限要求等。 |
-| `route-scanner` | 扫描API端点。 |
-| `sensitive-info-scanner` | 扫描敏感信息泄露。 |
-| `sql-injection-analyzer` | 分析SQL注入漏洞。 |
-| `ssrf-analyzer` | 分析SSRF漏洞。 |
-| `vtr-scanner` | 扫描漏洞靶场。 |
-| `xml-xpath-injection-analyzer` | 分析XML/XPath注入漏洞。 |
-| `xxe-analyzer` | 分析XXE漏洞。 |
-| `xss-analyzer` | 分析XSS漏洞。 |
+| `authentication-analyzer` | 分析API端点认证机制，检测认证绕过、弱认证、会话管理缺陷等问题。 |
+| `basic-info-collect` | 收集项目基本信息（技术栈、框架、目录结构），并推荐后续分析技能。 |
+| `code-injection-analyzer` | 检测代码注入漏洞，如eval()、动态代码执行、模板注入等不安全代码执行。 |
+| `command-injection-analyzer` | 检测OS命令注入，分析system()、exec()等系统命令调用中的用户输入处理。 |
+| `csrf-analyzer` | 检测跨站请求伪造漏洞，分析Token验证、SameSite属性、Referer检查等防护措施。 |
+| `http-header-injection-analyzer` | 检测HTTP头注入漏洞，包括CRLF注入、响应拆分、Host头攻击等。 |
+| `idor-analyzer` | 检测不安全的直接对象引用，分析资源访问时的权限校验和所有权验证。 |
+| `insecure-file-uploads-analyzer` | 检测文件上传漏洞，分析文件类型校验、存储路径、执行权限等安全控制。 |
+| `ldap-injection-analyzer` | 检测LDAP注入漏洞，分析LDAP查询构造中的用户输入处理。 |
+| `open-redirect-analyzer` | 检测开放重定向漏洞，分析URL跳转参数的验证和白名单机制。 |
+| `path-traversal-lfi-rfi-analyzer` | 检测路径遍历和文件包含漏洞（LFI/RFI），分析文件路径参数的过滤和限制。 |
+| `route-function-analyzer` | 深度分析API端点功能实现，提取请求参数、响应结构、权限要求、数据流向。 |
+| `route-scanner` | 扫描发现项目中的所有API端点和路由定义，生成端点清单。 |
+| `sensitive-info-scanner` | 检测敏感信息泄露，包括硬编码密钥、API凭证、PII数据暴露、日志泄露等。 |
+| `sql-injection-analyzer` | 检测SQL注入漏洞，分析数据库查询构造中的参数化和输入过滤。 |
+| `ssrf-analyzer` | 检测服务端请求伪造漏洞，分析URL参数验证、内网访问控制、协议限制。 |
+| `vtr-scanner` | 识别项目中的漏洞靶场类型（如WebGoat、DVWA），用于测试环境检测。 |
+| `xml-xpath-injection-analyzer` | 检测XML/XPath注入漏洞，分析XML解析和XPath查询中的输入处理。 |
+| `xxe-analyzer` | 检测XML外部实体注入漏洞，分析XML解析器配置和外部实体处理。 |
+| `xss-analyzer` | 检测跨站脚本漏洞，分析输出编码、CSP策略、DOM操作等防护措施。 |
 
 **重要：如果skill-runner推荐的`skill`字段中包含列表之外的技能, 对应的任务应该被跳过, 并给出警告。**
 
