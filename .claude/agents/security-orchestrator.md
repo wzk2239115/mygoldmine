@@ -31,6 +31,7 @@ tools: Read, Write, Edit, Bash, Task
 | 技能 | 描述 |
 |------|------|
 | `authentication-analyzer` | 分析API端点认证机制，检测认证绕过、弱认证、会话管理缺陷等问题。 |
+| `workspace-scanner` | 扫描工作区结构，判断是否为多子工程（Monorepo），为每个子工程生成 profiler 任务。 |
 | `project-profiler` | 构建项目画像，分析技术栈与项目类型，推荐后续分析技能。 |
 | `code-injection-analyzer` | 检测代码注入漏洞，如eval()、动态代码执行、模板注入等不安全代码执行。 |
 | `command-injection-analyzer` | 检测OS命令注入，分析system()、exec()等系统命令调用中的用户输入处理。 |
@@ -122,7 +123,7 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json orch security-o
     {
       "id": "orch-001",
       "type": "skill-runner",
-      "description": "收集项目基本信息，并根据项目类型推荐后续分析使用的技能列表。"
+      "description": "扫描工作区结构，判断是否为多子工程，为每个子工程生成 profiler 任务。"
     },
     {
       "id": "orch-final",
@@ -191,18 +192,19 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 2. 可并行在不存在依赖冲突的关系下可以并行执行（默认并发数量为6）
 3. **相同技能的任务默认可以并行执行，除非特别申明或存在依赖关系。**
 
-**STEP 1：项目画像构建(orch-001)**
-- 调用 skill-runner智能体，使用`project-profiler` SKILL，构建项目画像。
-- 要求：保持prompt简单明了，SKILL中自动判断分析范围，无需通过任务指定。
+**STEP 1：工作区扫描(orch-001)**
+- 调用 skill-runner智能体，使用`workspace-scanner` SKILL，扫描工作区结构。
+- 功能：判断当前工程是单一项目还是包含多个独立子工程（Monorepo），为每个子工程生成 `project-profiler` 任务。
 - 输入：当前工作目录
+- 输出：工作区分析报告 + 后续 `project-profiler` 任务列表
 - 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
 - 示例（Task工具调用）：
 ```
 Task(
   subagent_type: "skill-runner",
-  description: "Build project profile",
-  prompt: "# 项目画像构建请求
-使用 `project-profiler` SKILL 构建项目画像。
+  description: "Scan workspace structure",
+  prompt: "# 工作区扫描请求
+使用 `workspace-scanner` SKILL 扫描工作区结构，判断是否为多子工程。
 TASK_ID: orch-001"
 )
 ```
