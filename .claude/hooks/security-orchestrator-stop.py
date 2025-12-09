@@ -9,16 +9,28 @@
 import sys
 import json
 import logging
+import fcntl
+import tempfile
+import getpass
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # 配置
 WORKSPACE_DIR = Path(".workspace/tasks")
 WORKSPACE_ROOT = Path(".workspace")
 EXIT_CHECK_COUNTER = WORKSPACE_ROOT / ".exit-check-counter.json"  # 退出检查计数器文件
 EXIT_CHECK_THRESHOLD = 1  # 异常触发达到此次数时显示严重警告，超过则跳过检查
-LOG_FILE = Path("/tmp/security-orchestrator-stop.log")
+# 使用用户特定的日志文件路径，避免多用户环境下的冲突和安全问题
+def get_log_file_path() -> Path:
+    """获取用户特定的日志文件路径"""
+    try:
+        username = getpass.getuser()
+    except Exception:
+        username = "unknown"
+    return Path(tempfile.gettempdir()) / f"security-orchestrator-stop-{username}.log"
+
+LOG_FILE = get_log_file_path()
 ARTIFACT_CHECK_ENABLED = True  # 是否启用产物检查
 
 # 警告级别定义
@@ -77,13 +89,18 @@ class TaskChecker:
 
         return artifacts
 
-    def check_workspace_directory(self) -> bool:
-        """检查工作区目录是否存在"""
+    def check_workspace_directory(self) -> Optional[bool]:
+        """检查工作区目录是否存在
+
+        Returns:
+            True: 目录存在，继续检查
+            None: 目录不存在，无审计进行中，应允许退出
+        """
         self.log_message(f"检查工作区目录: {WORKSPACE_DIR}")
         if not WORKSPACE_DIR.exists() or not WORKSPACE_DIR.is_dir():
             self.log_message("工作区目录不存在，无审计进行中，允许退出")
             print("No audit in progress, allow exit")
-            sys.exit(0)  # 直接退出，允许结束
+            return None  # 返回 None 表示无审计，应允许退出
         return True
 
     def check_artifact_completeness(self, identifier: str, artifact_path: str) -> bool:
@@ -268,8 +285,17 @@ class TaskChecker:
         try:
             with open(task_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+        except FileNotFoundError:
+            self.log_message(f"❌ 任务文件不存在: {task_file}")
+            return
+        except PermissionError:
+            self.log_message(f"❌ 无权限读取任务文件: {task_file}")
+            return
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             self.log_message(f"❌ 无法解析任务文件 {task_file}: {e}")
+            return
+        except OSError as e:
+            self.log_message(f"❌ 读取任务文件时发生IO错误 {task_file}: {e}")
             return
 
         # 验证 tasks.json 格式（必须包含 agent, agent_task_id, tasks, summary）
@@ -329,28 +355,47 @@ class TaskChecker:
         return False
 
     def increment_counter(self):
-        """增加计数器"""
+        """增加计数器（带文件锁保护）"""
         try:
             # 确保 .workspace 目录存在
             WORKSPACE_ROOT.mkdir(parents=True, exist_ok=True)
 
-            # 读取当前计数器值
-            count = self.get_counter_value()
-            count += 1
+            # 使用文件锁保护读写操作
+            with open(EXIT_CHECK_COUNTER, 'a+', encoding='utf-8') as f:
+                # 获取排他锁
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                try:
+                    # 移动到文件开头读取
+                    f.seek(0)
+                    content = f.read()
 
-            # 更新计数器文件
-            counter_content = {
-                "count": count,
-                "created_at": datetime.now().isoformat() if count == 1 else (
-                    json.loads(EXIT_CHECK_COUNTER.read_text(encoding='utf-8')).get('created_at', datetime.now().isoformat())
-                ),
-                "last_updated": datetime.now().isoformat()
-            }
+                    # 解析现有数据
+                    existing_data = {}
+                    if content.strip():
+                        try:
+                            existing_data = json.loads(content)
+                        except json.JSONDecodeError:
+                            pass
 
-            with open(EXIT_CHECK_COUNTER, 'w', encoding='utf-8') as f:
-                json.dump(counter_content, f, ensure_ascii=False, indent=2)
+                    count = existing_data.get('count', 0) + 1
+                    created_at = existing_data.get('created_at', datetime.now().isoformat())
 
-            self.log_message(f"退出检查计数器已更新: {count}")
+                    # 构建新的计数器内容
+                    counter_content = {
+                        "count": count,
+                        "created_at": created_at,
+                        "last_updated": datetime.now().isoformat()
+                    }
+
+                    # 清空文件并写入新内容
+                    f.seek(0)
+                    f.truncate()
+                    json.dump(counter_content, f, ensure_ascii=False, indent=2)
+
+                    self.log_message(f"退出检查计数器已更新: {count}")
+                finally:
+                    # 释放锁
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
         except Exception as e:
             self.log_message(f"更新计数器失败: {e}")
 
@@ -363,16 +408,23 @@ class TaskChecker:
         except Exception as e:
             self.log_message(f"重置计数器失败: {e}")
 
-    def check_all_tasks(self):
-        """检查所有任务文件"""
+    def check_all_tasks(self) -> Optional[bool]:
+        """检查所有任务文件
+
+        Returns:
+            True: 所有任务完成，允许退出
+            False: 有未完成任务，阻止退出
+            None: 无审计进行中，允许退出
+        """
         self.log_message("脚本启动: security-orchestrator-stop.py")
 
         # 检查计数器是否超过阈值
         if self.check_counter():
             return True  # 计数器超过阈值，跳过检查，允许退出
 
-        if not self.check_workspace_directory():
-            return False
+        workspace_check = self.check_workspace_directory()
+        if workspace_check is None:
+            return None  # 无审计进行中，允许退出
 
         # 查找所有任务文件
         task_files = list(WORKSPACE_DIR.glob("*-tasks.json"))
@@ -514,10 +566,17 @@ def main():
     checker = TaskChecker()
 
     try:
-        if checker.check_all_tasks():
+        result = checker.check_all_tasks()
+
+        if result is None:
+            # 无审计进行中，允许退出（不显示结果）
+            sys.exit(0)
+        elif result:
+            # 所有任务完成，允许退出
             checker.display_results()
-            sys.exit(0)  # 允许退出
+            sys.exit(0)
         else:
+            # 有未完成任务，阻止退出
             checker.display_results()
             sys.exit(2)  # 退出码2表示让输出转交给Agent处理
     except Exception as e:
