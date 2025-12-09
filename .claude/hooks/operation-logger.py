@@ -17,7 +17,7 @@ LOG_DIR = Path.cwd() / ".workspace" / "logs"
 LOG_FILE = LOG_DIR / "operations.log"
 JSON_LOG_FILE = LOG_DIR / "operations.jsonl"
 # 简单日志轮转策略
-MAX_LOG_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_LOG_SIZE = 30 * 1024 * 1024  # 30MB
 MAX_BACKUPS = 2  # 保留 operations.log.1、operations.log.2
 
 # 确保日志目录存在
@@ -163,13 +163,13 @@ def log_operation(data: Dict[str, Any]) -> None:
                     # 截断过长的输出
                     stdout_preview = (
                         stdout
-                        if len(stdout) <= 2048
-                        else stdout[:2048] + f"... (truncated, total {len(stdout)} chars)"
+                        if len(stdout) <= 4096
+                        else stdout[:4096] + f"... (truncated, total {len(stdout)} chars)"
                     )
                     stderr_preview = (
                         stderr
-                        if len(stderr) <= 2048
-                        else stderr[:2048] + f"... (truncated, total {len(stderr)} chars)"
+                        if len(stderr) <= 4096
+                        else stderr[:4096] + f"... (truncated, total {len(stderr)} chars)"
                     )
 
                     log_message = f"[{tool_name}] {cmd_preview}\nstdout={stdout_preview}\nstderr={stderr_preview}\nsuccess={success}"
