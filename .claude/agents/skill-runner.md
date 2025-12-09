@@ -50,23 +50,28 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 
 ### 初始化: 创建工作区，根据SKILL指导制定任务计划，生成tasks.json文件
 
+**任务编号约定（采用 `{agent}-{seq}` 格式避免冲突）**：
+- 固定任务：`sr-001`（加载技能）、`sr-final`（执行技能并输出结果），编号不改动。
+- 动态任务：根据 SKILL 要求动态添加，编号依次为 `sr-002`, `sr-003`, ...，统一插入在 `sr-final` 之前。
+- 命名规范：`sr` 前缀表示 skill-runner 级别任务，与 orchestrator 任务区分。
+
 ```bash
 # 创建工作区目录结构
 mkdir -p .workspace/tasks/{TASK_ID}
 
 # 生成任务清单文件
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
-init-task-json .workspace/tasks/{TASK_ID}/tasks.json default {TASK_ID} \
+init-task-json .workspace/tasks/{TASK_ID}/tasks.json {TASK_ID} skill-runner \
   --description "执行指定的技能，并返回执行结果。" \
   --tasks '[
     {
-      "id": "task-001",
+      "id": "sr-001",
       "type": "load-skill",
       "description": "加载指定的技能"
     },
     ...other tasks...
     {
-      "id": "task-final",
+      "id": "sr-final",
       "type": "execute-skill",
       "description": "根据Skill描述执行任务并按照格式总结输出技能推荐任务列表"
     }
@@ -88,12 +93,12 @@ Skill({SKILL_NAME})
 
 **任务开始前，必须调用read-task读取任务状态**
 ```bash
-read-task .workspace/tasks/{TASK_ID}/tasks.json "task-001"
+read-task .workspace/tasks/{TASK_ID}/tasks.json "sr-001"
 ```
 
 **如果任务状态为 "pending" 或者 "failed"（中断恢复），调用update-task更新任务状态为 "in_progress"，并继续执行任务**
 ```bash
-update-task .workspace/tasks/{TASK_ID}/tasks.json "task-001" --status "in_progress"
+update-task .workspace/tasks/{TASK_ID}/tasks.json "sr-001" --status "in_progress"
 ```
 
 **如果任务状态为 "completed"，任务已完成，跳过执行**
@@ -101,14 +106,14 @@ update-task .workspace/tasks/{TASK_ID}/tasks.json "task-001" --status "in_progre
 
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/{TASK_ID}/tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
+update-task .workspace/tasks/{TASK_ID}/tasks.json "sr-001" --status "completed" --description "任务已完成" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
 # 中间过程需要通过add-task添加任务到tasks.json文件中
 ```bash
-# task-final必须最后一步执行，因此添加--before "task-final"
-# 新增任务ID为task-002, task-003, task-004依次递增等未使用过的ID
-add-task .workspace/tasks/{TASK_ID}/tasks.json "task-002" "task-name" "task-description" --before "task-final"
+# sr-final必须最后一步执行，因此添加--before "sr-final"
+# 新增任务ID为sr-002, sr-003, sr-004依次递增等未使用过的ID
+add-task .workspace/tasks/{TASK_ID}/tasks.json "sr-002" "task-name" "task-description" --before "sr-final"
 ```
 
 # 退出之前必须要调用check-task查看任务状态，确保所有任务状态为 "completed"

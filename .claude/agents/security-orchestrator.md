@@ -30,7 +30,7 @@ tools: Read, Write, Edit, Bash, Task
 **支持的扫描器列表：**
 | 技能 | 描述 |
 |------|------|
-| `authentication-analyzer` | 分析认证漏洞。 |
+| `authentication-analyzer` | 分析API端点认证要求。 |
 | `basic-info-collect` | 收集项目基本信息。 |
 | `code-injection-analyzer` | 分析代码注入漏洞。 |
 | `command-injection-analyzer` | 分析命令注入漏洞。 |
@@ -41,11 +41,13 @@ tools: Read, Write, Edit, Bash, Task
 | `ldap-injection-analyzer` | 分析LDAP注入漏洞。 |
 | `open-redirect-analyzer` | 分析开放重定向漏洞。 |
 | `path-traversal-lfi-rfi-analyzer` | 分析路径遍历/文件包含漏洞。 |
+| `route-function-analyzer` | 分析API端点功能，包括请求参数、响应数据、权限要求等。 |
 | `route-scanner` | 扫描API端点。 |
-| `sensitive-info-scanner` | 扫描敏感信息。 |
+| `sensitive-info-scanner` | 扫描敏感信息泄露。 |
 | `sql-injection-analyzer` | 分析SQL注入漏洞。 |
 | `ssrf-analyzer` | 分析SSRF漏洞。 |
 | `vtr-scanner` | 扫描漏洞靶场。 |
+| `xml-xpath-injection-analyzer` | 分析XML/XPath注入漏洞。 |
 | `xxe-analyzer` | 分析XXE漏洞。 |
 | `xss-analyzer` | 分析XSS漏洞。 |
 
@@ -80,10 +82,11 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 
 **任务目标**：创建工作区目录结构，生成任务清单文件
 
-**任务编号约定（避免歧义）**：
-- 固定任务：`task-001`（项目基本信息收集）、`task-final`（报告生成），编号不改动。
-- 动态任务：根据 skill-runner 返回的任务列表动态添加，编号依次为 `task-003`, `task-004`, `task-005`, ...，统一插入在 `task-final` 之前。
+**任务编号约定（采用 `{agent}-{seq}` 格式避免冲突）**：
+- 固定任务：`orch-001`（项目基本信息收集）、`orch-final`（报告生成），编号不改动。
+- 动态任务：根据 skill-runner 返回的任务列表动态添加，编号依次为 `orch-002`, `orch-003`, `orch-004`, ...，统一插入在 `orch-final` 之前。
 - 中断恢复：已有编号保持不变，不因重试或补充任务而重新分配。
+- 命名规范：`orch` 前缀表示 orchestrator 级别任务，与子智能体任务区分。
 
 1. **生成 `.workspace/tasks/security-orchestrator-tasks.json` 文件**：
 
@@ -93,16 +96,16 @@ mkdir -p .workspace/{tasks,results,findings,reports}
 
 # 生成任务清单文件
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
-init-task-json .workspace/tasks/security-orchestrator-tasks.json init security-orchestrator \
+init-task-json .workspace/tasks/security-orchestrator-tasks.json orch security-orchestrator \
   --description "安全编排器，负责协调项目分类、处理subagent任务返回的任务。" \
   --tasks '[
     {
-      "id": "task-001",
+      "id": "orch-001",
       "type": "skill-runner",
       "description": "收集项目基本信息，并根据项目类型推荐后续分析使用的技能列表。"
     },
     {
-      "id": "task-final",
+      "id": "orch-final",
       "type": "report-generator",
       "description": "报告生成：汇总所有结果"
     }
@@ -112,8 +115,8 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json init security-o
 **工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
 
 **任务说明**：
-- `task-001` 执行完成后，根据返回的任务列表动态添加扫描任务（`task-003`, `task-004`, ...），统一插入在 `task-final` 之前。
-- 如果 `task-001` 未推荐任何扫描器，流程直接进入 `task-final`（报告生成）。
+- `orch-001` 执行完成后，根据返回的任务列表动态添加扫描任务（`orch-002`, `orch-003`, ...），统一插入在 `orch-final` 之前。
+- 如果 `orch-001` 未推荐任何扫描器，流程直接进入 `orch-final`（报告生成）。
 - 新增扫描任务的描述统一为：`调用skill-runner子智能体并激活<SKILL>进行漏洞扫描`。
 
 2. 如果security-orchestrator-tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。
@@ -128,12 +131,12 @@ list-tasks .workspace/tasks/security-orchestrator-tasks.json
 
 **任务开始前，必须调用read-task读取任务状态**
 ```bash
-read-task .workspace/tasks/security-orchestrator-tasks.json "task-001"
+read-task .workspace/tasks/security-orchestrator-tasks.json "orch-001"
 ```
 
 **如果任务状态为 "pending" 或者 "failed"（中断恢复），调用update-task更新任务状态为 "in_progress"，并继续执行任务**
 ```bash
-update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --status "in_progress"
+update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --status "in_progress"
 ```
 
 **如果任务状态为 "completed"，任务已完成，跳过执行**
@@ -141,7 +144,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --statu
 
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
+update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --status "completed" --description "任务已完成" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
 ## 执行流程
@@ -177,7 +180,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "task-001" --statu
 mkdir -p .workspace/
 ```
 
-**STEP 1：项目基本信息收集(Task-001)**
+**STEP 1：项目基本信息收集(orch-001)**
 - 调用 skill-runner智能体，使用`basic-info-collect` SKILL，收集项目的基本信息。
 - 要求：保持prompt简单明了，SKILL中自动判断分析范围，无需通过任务指定。
 - 输入：当前工作目录
@@ -187,7 +190,7 @@ mkdir -p .workspace/
 Task(
   subagent_type: "skill-runner",
   description: "Collect basic information of the project",
-  prompt: "# Project Basic Information Collection Request\n Use `basic-info-collect`SKILL to collect basic information of the project\n TASK_ID: task-001..."
+  prompt: "# Project Basic Information Collection Request\n Use `basic-info-collect`SKILL to collect basic information of the project\n TASK_ID: orch-001..."
 )
 ```
 
@@ -195,13 +198,13 @@ Task(
 
 **示例：**
 ```bash
-# --before 参数用于指定新任务插入到task-final（即报告之前）之前
+# --before 参数用于指定新任务插入到orch-final（即报告之前）之前
 # 新增任务将依赖、要求等信息保存到description中，方便后续任务执行时使用。
-add-task .workspace/tasks/security-orchestrator-tasks.json "task-003" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Dependencies: xxx." --before "task-final"
+add-task .workspace/tasks/security-orchestrator-tasks.json "orch-002" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-002, Dependencies: xxx." --before "orch-final"
 add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
-  {"id":"task-003","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-003, Dependencies: xxx."},
-  {"id":"task-004","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: task-004, Dependencies: xxx"} 
-]' --before "task-final"
+  {"id":"orch-002","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-002, Dependencies: xxx."},
+  {"id":"orch-003","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-003, Dependencies: xxx"}
+]' --before "orch-final"
 ```
 
 **STEP 2：任务执行**
@@ -228,7 +231,7 @@ Task(
 **STEP 3：循环**
 - 汇总本轮新增的“后续任务”并添加到tasks.json文件中；如有则未执行任务则回到 STEP 2 执行；如果未执行任务列表为空，则直接进入 STEP 4。
 
-**STEP 4：报告生成(task-final)**
+**STEP 4：报告生成(orch-final)**
 - 调用 report-generator智能体生成报告。
 - 输入：最终产物列表
 - 输出要求：按照要求生成报告文件(.workspace/reports/audit-report.md和.workspace/reports/audit-report.json)

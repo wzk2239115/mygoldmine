@@ -27,10 +27,18 @@ tools: Read, Write, Edit, Bash
 
 | 产物类型 | 路径 | 说明 |
 |----------|------|------|
-| 项目基本信息 | `.workspace/results/basic-info.json` | 项目技术栈、代码统计等 |
 | 任务清单 | `.workspace/tasks/security-orchestrator-tasks.json` | 扫描器执行状态 |
-| 扫描结果 | `.workspace/results/*.json` | 各扫描器的漏洞发现结果 |
-| 共享数据 | `.workspace/shared/*-shared.json` | 同一SKILL多任务的去重依据 |
+| 项目基本信息 | `.workspace/tasks/{TASK_ID}/project-profile.md` | 项目分类、技术栈、代码统计等 |
+| 路由扫描结果 | `.workspace/tasks/{TASK_ID}/route-scanner-result*.md` | API端点列表 |
+| 认证分析结果 | `.workspace/tasks/{TASK_ID}/authentication-analyzer-result.md` | 认证要求分析 |
+| 端点分析结果 | `.workspace/tasks/{TASK_ID}/*-{method}-*.md` | 各端点功能分析 |
+| 漏洞扫描结果 | `.workspace/tasks/{TASK_ID}/*-analyzer-result*.md` | 各扫描器的漏洞发现结果 |
+| 靶场扫描结果 | `.workspace/tasks/{TASK_ID}/vtr-scanner-result*.md` | 靶场类型识别结果 |
+
+**路径说明**：
+- `{TASK_ID}` 对应 orchestrator 任务 ID（如 `orch-001`, `orch-002` 等）
+- 需要遍历 `.workspace/tasks/` 下所有以 `orch-` 开头的子目录
+- 优先读取 orchestrator-tasks.json 获取已完成任务列表，再根据任务 ID 定位产物目录
 
 ## 输出文件
 
@@ -45,27 +53,31 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 
 ### 初始化: 创建工作区和生成 report-generator-tasks.json
 
+**任务编号约定（采用 `{agent}-{seq}` 格式避免冲突）**：
+- 固定任务：`rg-001`（读取结果）、`rg-002`（生成JSON报告）、`rg-003`（生成Markdown报告），编号不改动。
+- 命名规范：`rg` 前缀表示 report-generator 级别任务，与 orchestrator 和 skill-runner 任务区分。
+
 1. **生成 report-generator-tasks.json 文件**：
 ```bash
 # 创建工作区目录结构
 mkdir -p .workspace/reports
 
 # 禁止直接调用Write工具修改tasks.json文件，否则会导致格式检查失败
-init-task-json .workspace/tasks/report-generator-tasks.json default report-generator \
+init-task-json .workspace/tasks/report-generator-tasks.json rg report-generator \
   --description "汇总各扫描器的发现，生成面向人工的 Markdown 报告和机器可读的 JSON 报告" \
   --tasks '[
     {
-      "id": "subagent-task-001",
+      "id": "rg-001",
       "type": "load_all_results",
       "description": "读取所有结果文件"
     },
     {
-      "id": "subagent-task-002",
+      "id": "rg-002",
       "type": "generate_json_report",
       "description": "生成json报告audit-report.json"
     },
     {
-      "id": "subagent-task-003",
+      "id": "rg-003",
       "type": "generate_markdown_report",
       "description": "生成markdown报告audit-report.md"
     }
@@ -86,12 +98,12 @@ list-tasks .workspace/tasks/report-generator-tasks.json
 
 **任务开始前，必须调用read-task读取任务状态**
 ```bash
-read-task .workspace/tasks/report-generator-tasks.json "subagent-task-001"
+read-task .workspace/tasks/report-generator-tasks.json "rg-001"
 ```
 
 **如果任务状态为 "pending" 或者 "failed"（中断恢复），调用update-task更新任务状态为 "in_progress"，并继续执行任务**
 ```bash
-update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --status "in_progress"
+update-task .workspace/tasks/report-generator-tasks.json "rg-001" --status "in_progress"
 ```
 
 **如果任务状态为 "completed"，任务已完成，跳过执行**
@@ -99,20 +111,28 @@ update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --s
 
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
+update-task .workspace/tasks/report-generator-tasks.json "rg-001" --status "completed" --description "任务已完成" --detail '{"result": "success", "files": 100, "lines": 1000}'
 ```
 
-### 任务 1: 读取所有结果文件 (subagent-task-001)
+### 任务 1: 读取所有结果文件 (rg-001)
+
+**读取步骤**：
+1. 读取 `.workspace/tasks/security-orchestrator-tasks.json` 获取所有已完成任务列表
+2. 遍历每个任务的 `{TASK_ID}` 目录，收集所有产物文件
+3. 根据文件名模式识别产物类型：
+   - `project-profile.md` → 项目基本信息
+   - `route-scanner-result*.md` → 路由扫描结果
+   - `authentication-analyzer-result.md` → 认证分析结果
+   - `*-analyzer-result*.md` → 漏洞扫描结果
+   - `vtr-scanner-result*.md` → 靶场扫描结果
 
 **同一SKILL多任务结果去重逻辑**：
-- 如果发现多个任务使用相同的SKILL（通过meta.skillName识别）
-- 读取对应的共享数据文件（.workspace/shared/{SKILL_NAME}-shared.json）
-- 基于共享数据中的found_vulnerabilities列表进行去重
-- 去重规则：相同文件+相同行号+相同漏洞类型 = 相同漏洞
-- 如果多个任务报告了相同的漏洞，只保留一个（优先保留最早发现的或严重程度最高的）
+- 如果发现多个任务使用相同的SKILL（通过文件名前缀识别，如 `sql-injection-analyzer`）
+- 去重规则：相同文件路径 + 相同行号 + 相同漏洞类型 = 相同漏洞
+- 如果多个任务报告了相同的漏洞，只保留一个（优先保留严重程度最高的）
 
 
-### 任务 2: 生成json报告audit-report.json (subagent-task-002)
+### 任务 2: 生成json报告audit-report.json (rg-002)
 
 ```json
 {
@@ -183,7 +203,7 @@ update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --s
 }
 ```
 
-### 任务 3: 生成markdown报告audit-report.md (subagent-task-003)
+### 任务 3: 生成markdown报告audit-report.md (rg-003)
 
 ## Markdown 报告结构
 
@@ -226,16 +246,12 @@ update-task .workspace/tasks/report-generator-tasks.json "subagent-task-001" --s
 ## 要求
 ### 1. 聚合漏洞
 
-- 从所有扫描器结果中收集所有漏洞
-- **同一SKILL多任务结果去重**：
-  - 如果发现多个任务使用相同的SKILL（通过meta.skillName识别），读取对应的共享数据文件（.workspace/shared/{SKILL_NAME}-shared.json）
-  - 基于共享数据中的found_vulnerabilities列表进行去重
-  - 去重规则：相同文件 + 相同行号 + 相同漏洞类型 = 相同漏洞
-  - 如果多个任务报告了相同的漏洞，只保留一个（优先保留最早发现的或严重程度最高的）
-- **跨SKILL去重**：相同文件 + 行号 + 类型 = 相同漏洞
+- 从所有扫描器结果中收集所有漏洞（遍历 `.workspace/tasks/{TASK_ID}/` 目录）
+- **去重规则**：相同文件路径 + 相同行号 + 相同漏洞类型 = 相同漏洞
+- 如果多个任务报告了相同的漏洞，只保留一个（优先保留严重程度最高的）
 - 按严重程度排序（Critical > High > Medium > Low）
 - 分配全局漏洞 ID（VULN-001, VULN-002, 等）
-- 若未执行定制扫描（无 `task-*-results.json`），仍需生成报告，统计值为 0，风险级别默认为 Low，并在执行摘要中注明"未执行定制扫描（无推荐扫描器或扫描被跳过）"。
+- 若未执行定制扫描（无 `*-analyzer-result*.md` 文件），仍需生成报告，统计值为 0，风险级别默认为 Low，并在执行摘要中注明"未执行定制扫描（无推荐扫描器或扫描被跳过）"。
 
 ### 2. 计算风险评估
 

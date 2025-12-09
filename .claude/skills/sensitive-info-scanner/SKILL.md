@@ -155,3 +155,46 @@ def calculate_entropy(string):
 EXAMPLE_KEYWORDS = ['example','test','mock','fake','sample','demo','placeholder','dummy','template','your_key_here']
 SENSITIVE_KEYWORDS = ['secret','password','passwd','pwd','token','api_key','private_key','access_key','auth','credential','apikey']
 ```
+
+## 输出要求
+
+1. **扫描结果文件**：输出到 `.workspace/tasks/{TASK_ID}/sensitive-info-scanner-result.md`
+
+**文件内容格式**：
+```markdown
+# 敏感信息扫描结果
+
+## 扫描概要
+- 扫描范围：[代码/配置/日志/文档]
+- 发现数量：[P0: X, P1: Y, P2: Z]
+
+## P0 Critical 级别发现
+### [FINDING-001] {secretType}
+- **位置**：{file}:{line}
+- **类型**：{secretType}
+- **证据**：{evidence}
+- **置信度**：{confidence}
+- **CWE**：{cwe}
+- **修复建议**：{recommendation}
+
+## P1 High 级别发现
+...
+
+## P2 Medium/Low 级别发现
+...
+```
+
+2. **不需要生成下游任务**
+
+**总结输出格式（JSON格式）**：
+```json
+{
+    "tasks": [],
+    "summary": {
+        "p0_count": 0,
+        "p1_count": 0,
+        "p2_count": 0,
+        "total": 0
+    }
+}
+```
