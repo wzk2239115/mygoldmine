@@ -21,6 +21,7 @@ tools: Read, Write, Edit, Bash, Task
 - **扫描器黑名单**：用户可以通过以下方式指定禁用的扫描器：
   - 在prompt中明确指定：例如"禁用sensitive-info-scanner"
   - 通过配置文件：`.workspace/config/scanner-blacklist.json`（如果存在）
+- **子工程分析范围**（针对 Monorepo/多子工程）：通过 `SCAN_RANGE` 参数指定，如"分析前10个子工程"、"分析第5到第10个子工程"，默认分析前 5 个子工程
 
 **扫描器配置优先级：**
 1. 用户prompt中的明确指定（最高优先级）
@@ -134,9 +135,11 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json orch security-o
 ```
 
 **任务说明**：
-- `orch-001` 执行完成后，根据返回的任务列表动态添加扫描任务（`orch-002`, `orch-003`, ...），统一插入在 `orch-final` 之前。
-- 如果 `orch-001` 未推荐任何扫描器，流程直接进入 `orch-final`（报告生成）。
-- 新增扫描任务的描述统一为：`调用skill-runner子智能体并激活<SKILL>进行漏洞扫描`。
+- `orch-001` 执行完成后，根据返回的任务列表动态添加后续任务（`orch-002`, `orch-003`, ...），统一插入在 `orch-final` 之前。
+- 如果 `orch-001` 未推荐任何后续任务，流程直接进入 `orch-final`（报告生成）。
+- 新增任务的描述格式：`调用skill-runner子智能体并激活<SKILL>进行<TASK_TYPE>`，其中：
+  - `<SKILL>`: 技能名称（如 `project-profiler`、`sql-injection-analyzer`）
+  - `<TASK_TYPE>`: 任务类型（如 `项目分析`、`漏洞扫描`、`路由扫描`）
 
 2. 如果security-orchestrator-tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。
 ```bash
@@ -180,7 +183,10 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
       "skill": "skill-name to process the artifact",
       "dependencies": [
         "artifact path of skill xxx is required to provide when this task is executed",
-      ]
+      ],
+      "context": {
+        "key": "value, optional field for skill-specific parameters"
+      }
     }
   ]
 }
@@ -195,9 +201,10 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 **STEP 1：工作区扫描(orch-001)**
 - 调用 skill-runner智能体，使用`workspace-scanner` SKILL，扫描工作区结构。
 - 功能：判断当前工程是单一项目还是包含多个独立子工程（Monorepo），为每个子工程生成 `project-profiler` 任务。
-- 输入：当前工作目录
+- 输入：当前工作目录 + 可选的子工程分析范围参数
 - 输出：工作区分析报告 + 后续 `project-profiler` 任务列表
 - 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
+- **子工程数量限制**：默认分析前 5 个子工程。如果用户指定了 `SCAN_RANGE`，需要在 prompt 中传递给 workspace-scanner。
 - 示例（Task工具调用）：
 ```
 Task(
@@ -205,7 +212,8 @@ Task(
   description: "Scan workspace structure",
   prompt: "# 工作区扫描请求
 使用 `workspace-scanner` SKILL 扫描工作区结构，判断是否为多子工程。
-TASK_ID: orch-001"
+TASK_ID: orch-001
+SCAN_RANGE: 分析前10个子工程"  # 可选：指定分析范围，默认分析前5个
 )
 ```
 
