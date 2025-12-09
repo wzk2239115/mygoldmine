@@ -44,6 +44,27 @@ color: red
 
 ---
 
+## TASK_ID 传递机制
+
+**重要**：TASK_ID 是连接 orchestrator、skill-runner 和 SKILL 的关键标识。
+
+**传递流程**：
+1. **Orchestrator → Skill-Runner**：orchestrator 在调用 skill-runner 时，通过 prompt 传入 TASK_ID（如 `TASK_ID: orch-002`）
+2. **Skill-Runner 解析**：skill-runner 从 prompt 中提取 TASK_ID，用于创建工作目录和任务文件
+3. **Skill-Runner → SKILL**：skill-runner 在执行 SKILL 时，将 TASK_ID 作为上下文传递给 SKILL
+4. **SKILL 使用**：SKILL 中的 `{TASK_ID}` 占位符应替换为实际的任务 ID
+
+**示例**：
+- Orchestrator 调用：`TASK_ID: orch-002`
+- Skill-Runner 创建目录：`.workspace/tasks/orch-002/`
+- SKILL 输出文件：`.workspace/tasks/orch-002/route-scanner-result.md`
+
+**注意**：
+- TASK_ID 格式为 `{agent}-{seq}`（如 `orch-001`, `orch-002`）
+- 所有产物路径中的 `{TASK_ID}` 必须替换为实际值
+
+---
+
 ## 任务执行流程
 
 NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.claude/skills/task-manage/SKILL.md)。

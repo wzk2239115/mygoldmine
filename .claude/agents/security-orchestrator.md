@@ -173,24 +173,19 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 2. 可并行在不存在依赖冲突的关系下可以并行执行（默认并发数量为6）
 3. **相同技能的任务默认可以并行执行，除非特别申明或存在依赖关系。**
 
-**STEP 0：初始化**
-
-- 创建工作区
-```bash
-mkdir -p .workspace/
-```
-
 **STEP 1：项目基本信息收集(orch-001)**
 - 调用 skill-runner智能体，使用`basic-info-collect` SKILL，收集项目的基本信息。
 - 要求：保持prompt简单明了，SKILL中自动判断分析范围，无需通过任务指定。
 - 输入：当前工作目录
 - 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
-- 示例：
-```Python
+- 示例（Task工具调用）：
+```
 Task(
   subagent_type: "skill-runner",
-  description: "Collect basic information of the project",
-  prompt: "# Project Basic Information Collection Request\n Use `basic-info-collect`SKILL to collect basic information of the project\n TASK_ID: orch-001..."
+  description: "Collect basic info",
+  prompt: "# 项目基本信息收集请求
+使用 `basic-info-collect` SKILL 收集项目基本信息。
+TASK_ID: orch-001"
 )
 ```
 
@@ -217,12 +212,15 @@ list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending"
 - 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
 - 如果任务列表为空，则结束。
 - **重要：禁止在后台运行任务，必须在前台运行任务。另外，无论是前台还是后台运行任务，都可以并行执行。**
-- 示例：
-```Python
+- 示例（Task工具调用）：
+```
 Task(
   subagent_type: "skill-runner",
-  description: "Execute xxx task",
-  prompt: "# Task Execution Request\n Use `xxx` SKILL to execute xxx task. Input: xxx;"
+  description: "Execute route scan",
+  prompt: "# 任务执行请求
+使用 `route-scanner` SKILL 扫描API端点。
+TASK_ID: orch-002
+Input: .workspace/tasks/orch-001/project-profile.md"
 )
 ```
 
@@ -235,12 +233,13 @@ Task(
 - 调用 report-generator智能体生成报告。
 - 输入：最终产物列表
 - 输出要求：按照要求生成报告文件(.workspace/reports/audit-report.md和.workspace/reports/audit-report.json)
-- 示例：
-```Python
+- 示例（Task工具调用）：
+```
 Task(
   subagent_type: "report-generator",
   description: "Generate audit report",
-  prompt: "# Report Generation Request\n Generate audit report based on files in .workspace/results..."
+  prompt: "# 报告生成请求
+根据 .workspace/tasks/ 目录下的扫描结果生成审计报告。"
 )
 ```
 

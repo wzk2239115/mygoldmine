@@ -31,8 +31,53 @@ description: |
 
 # 输出要求
 
-1. 每一个API端点对应一个md文件，文件路径规则为：`.workspace/tasks/{TASK_ID}/{slugified_path}-{method}-{category}.md`，命名规则：
-    - 路径转 slug：`/` 与 `\` → `-`，连续分隔符合并；`{id}`/`:id`/`<id>` 统一为 `id`；`*`/`**` → `wildcard`；`[` `]` → `-`；去除空格与不可见字符，非 ASCII 与特殊符号替换为 `-`。
-    - 方法前缀：HTTP 方法小写放入文件名（如 `get`/`post`），避免同路径不同方法冲突。
-    - 去重策略：同名时在 `.md` 前追加短序号或短 hash（如 `-2` 或 `-a1b2`）。
-    - 长度控制：文件名不超过约 120 字符，过长时截断中间，保留首尾。
+## 1. 端点分析文件
+
+每一个API端点对应一个md文件，文件路径规则为：`.workspace/tasks/{TASK_ID}/{slugified_path}-{method}-{category}.md`
+
+**命名规则**：
+- 路径转 slug：`/` 与 `\` → `-`，连续分隔符合并；`{id}`/`:id`/`<id>` 统一为 `id`；`*`/`**` → `wildcard`；`[` `]` → `-`；去除空格与不可见字符，非 ASCII 与特殊符号替换为 `-`。
+- 方法前缀：HTTP 方法小写放入文件名（如 `get`/`post`），避免同路径不同方法冲突。
+- 去重策略：同名时在 `.md` 前追加短序号或短 hash（如 `-2` 或 `-a1b2`）。
+- 长度控制：文件名不超过约 120 字符，过长时截断中间，保留首尾。
+
+## 2. 下游任务推荐
+
+根据端点功能分析结果，推荐对应的漏洞扫描任务。
+
+**推荐规则**：
+| 端点特征 | 推荐技能 |
+|----------|----------|
+| 包含 SQL 查询/数据库操作 | `sql-injection-analyzer` |
+| 包含命令执行/系统调用 | `command-injection-analyzer` |
+| 包含文件上传功能 | `insecure-file-uploads-analyzer` |
+| 包含 URL 跳转/重定向 | `open-redirect-analyzer` |
+| 包含 XML 解析 | `xxe-analyzer` |
+| 包含用户输入渲染到页面 | `xss-analyzer` |
+| 包含外部 HTTP 请求 | `ssrf-analyzer` |
+| 包含文件读取/路径操作 | `path-traversal-lfi-rfi-analyzer` |
+| 包含 LDAP 查询 | `ldap-injection-analyzer` |
+| 包含动态代码执行 | `code-injection-analyzer` |
+| 包含资源 ID 访问 | `idor-analyzer` |
+| 包含表单提交（非 GET） | `csrf-analyzer` |
+
+**总结输出格式（JSON格式）**：
+```json
+{
+    "tasks": [
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/api-users-id-get-query.md",
+            "skill": "sql-injection-analyzer"
+        },
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/api-upload-post-file.md",
+            "skill": "insecure-file-uploads-analyzer"
+        }
+    ]
+}
+```
+
+**注意**：
+- 一个端点可能推荐多个扫描器（如同时存在 SQL 查询和文件上传）
+- 如果端点无明显风险特征，可不推荐下游任务，返回空数组 `{"tasks": []}`
+- `{TASK_ID}` 需替换为实际的任务 ID（如 `orch-003`）

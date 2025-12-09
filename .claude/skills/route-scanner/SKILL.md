@@ -81,20 +81,23 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
             "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result-{category-01}.md",
             "skill": "route-function-analyzer",
             "dependencies": [
-                "Require artifact of authentication-analyzer"
+                ".workspace/tasks/{AUTH_TASK_ID}/authentication-analyzer-result.md"
             ]
         },
         {
             "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result-{category-02}.md",
             "skill": "route-function-analyzer",
             "dependencies": [
-                "Require artifact of authentication-analyzer"
+                ".workspace/tasks/{AUTH_TASK_ID}/authentication-analyzer-result.md"
             ]
-        },
-        ...
+        }
     ]
 }
 ```
+
+**依赖路径说明**：
+- `{TASK_ID}` 为当前任务 ID（如 `orch-002`）
+- `{AUTH_TASK_ID}` 为 authentication-analyzer 任务的 ID，需从 orchestrator-tasks.json 中查找对应任务
     
 2. API端点数量小于10，规则如下：
 - 将API端点输出到.workspace/tasks/{TASK_ID}/route-scanner-result.md文件中
@@ -108,7 +111,7 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
             "artifact": ".workspace/tasks/{TASK_ID}/route-scanner-result.md",
             "skill": "route-function-analyzer",
             "dependencies": [
-                "Require artifact of authentication-analyzer skill as input"
+                ".workspace/tasks/{AUTH_TASK_ID}/authentication-analyzer-result.md"
             ]
         }
     ]

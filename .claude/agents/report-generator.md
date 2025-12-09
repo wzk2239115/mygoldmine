@@ -51,6 +51,24 @@ tools: Read, Write, Edit, Bash
 
 NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.claude/skills/task-manage/SKILL.md)。
 
+### 前置检查：确认上游任务完成
+
+在开始生成报告之前，必须检查 orchestrator 的所有扫描任务是否已完成：
+
+```bash
+check-task .workspace/tasks/security-orchestrator-tasks.json
+```
+
+**检查结果处理**：
+- 如果所有任务已完成（退出码 0）：继续执行报告生成
+- 如果存在未完成任务（退出码 1）：记录警告，仍然生成报告但在报告中注明"部分任务未完成"
+- 如果存在失败任务（退出码 2）：记录警告，在报告中列出失败的任务
+
+```bash
+# 查看未完成和失败的任务详情
+check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --show-failed
+```
+
 ### 初始化: 创建工作区和生成 report-generator-tasks.json
 
 **任务编号约定（采用 `{agent}-{seq}` 格式避免冲突）**：
