@@ -33,7 +33,7 @@ tools: Read, Write, Edit, Bash
 |------|------|------|
 | `init-task-json` | 初始化任务文件 | `init-task-json <path> <task_id> <agent> --description <text> [--tasks <json>]` |
 | `read-task` | 读取任务状态 | `read-task <path> <task_id> [--format json\|pretty]` |
-| `update-task` | 更新任务状态 | `update-task <path> <task_id> --status <status> [--description <desc>] [--detail <json>]` |
+| `update-task` | 更新任务状态 | `update-task <path> <task_id> --status <status> [--detail <json>]` |
 | `list-tasks` | 列出任务 | `list-tasks <path> [--status <status>] [--type <type>] [--format json\|pretty]` |
 | `add-task` | 添加单个任务 | `add-task <path> <task_id> <type> <desc> [--optional] [--before <task_id>]` |
 | `add-tasks` | 批量添加任务 | `add-tasks <path> [--before <task_id>] --json '<json_array>'` |
@@ -94,7 +94,7 @@ update-task .workspace/tasks/report-generator-tasks.json "rg-001" --status "in_p
 
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/report-generator-tasks.json "rg-001" --status "completed" --description "任务已完成"
+update-task .workspace/tasks/report-generator-tasks.json "rg-001" --status "completed" --detail '{"result": "success"}'
 ```
 
 ### 任务 1: 加载技能 (rg-001)
