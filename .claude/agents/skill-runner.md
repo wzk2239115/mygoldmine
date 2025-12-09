@@ -155,24 +155,40 @@ check-task .workspace/tasks/{TASK_ID}/tasks.json --show-pending
 
 ## 输出要求
 
-执行完成后需要生成以下产物：
+执行完成后的输出分为三个部分：
 
-### 1. Skill 产物
+### 1. 中间步骤关键结果（文件输出）
 
-按照所加载 Skill 的要求生成对应产物文件。
+按照所加载 Skill 的要求，将中间步骤的关键结果输出到对应产物文件：
+- 产物路径：按 Skill 规范存放于 `.workspace/tasks/{TASK_ID}/` 目录下
+- 文件内容：完整的分析结果、扫描数据等详细信息
 
-### 2. 任务总结
+### 2. 任务总结文件（summary.md）
 
-生成总结文件 `.workspace/tasks/{TASK_ID}/summary.md`，内容不超过 50 行，格式：
+生成总结文件 `.workspace/tasks/{TASK_ID}/summary.md`，要求：
+- 内容简洁，不超过 50 行
+- 只包含核心结论和关键发现
+- 格式示例：
+```markdown
+## 执行结果
+- 扫描范围：xxx
+- 发现数量：xxx
 
+## 关键发现
+1. xxx
+2. xxx
+
+## 产物清单
+- `xxx.md`: 描述
 ```
-本次任务已完成，生成了 xxx 产物，得出 xxx 结论。
-```
 
-### 3. 后续任务推荐
+### 3. 返回消息（summary + 技能推荐）
 
-在返回消息中输出后续任务列表，格式如下：
+在返回消息中输出两部分内容：
 
+**Part A - 任务总结**（与 summary.md 内容一致）
+
+**Part B - 后续任务推荐**（JSON 格式）：
 ```json
 {
   "tasks": [
@@ -190,4 +206,4 @@ check-task .workspace/tasks/{TASK_ID}/tasks.json --show-pending
 - `artifact`: 后续任务的输入产物路径
 - `skill`: 处理该产物的技能名称
 - `dependencies`: 该任务依赖的其他产物路径列表
-- `warnings`: 执行过程中的警告信息（可选）
+- `warnings`: 执行过程中的警告信息（可选，如无则省略该字段）
