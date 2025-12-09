@@ -81,8 +81,8 @@ NOTICE: 任务状态管理参考 `task-manage` skill 的 `SKILL.md` 文件(.clau
 **任务目标**：创建工作区目录结构，生成任务清单文件
 
 **任务编号约定（避免歧义）**：
-- 固定任务保留：task-001（项目分析）、task-002（报告生成），编号不改动。
-- 新增编号规则：新增任务编号依次为task-003, task-004, task-005, task-006, task-007, ...，依次类推。
+- 固定任务：`task-001`（项目基本信息收集）、`task-final`（报告生成），编号不改动。
+- 动态任务：根据 skill-runner 返回的任务列表动态添加，编号依次为 `task-003`, `task-004`, `task-005`, ...，统一插入在 `task-final` 之前。
 - 中断恢复：已有编号保持不变，不因重试或补充任务而重新分配。
 
 1. **生成 `.workspace/tasks/security-orchestrator-tasks.json` 文件**：
@@ -102,11 +102,6 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json init security-o
       "description": "收集项目基本信息，并根据项目类型推荐后续分析使用的技能列表。"
     },
     {
-      "id": "task-002",
-      "type": "skill-runner",
-      "description": "循环处理上游子智能体返回的任务列表，直到未执行(pengding)任务列表为空。"
-    },
-    {
       "id": "task-final",
       "type": "report-generator",
       "description": "报告生成：汇总所有结果"
@@ -117,9 +112,8 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json init security-o
 **工具说明**：`init-task-json`、`add-task`、`add-tasks`、`list-tasks`、`read-task`、`update-task` 等命令均为系统内置的任务管理命令，可直接调用，无需额外安装。
 
 **任务说明**：
-- `task-003` 负责读取威胁建模结果并添加扫描任务，自身不执行扫描。
-- 如果威胁建模未推荐扫描器，task-003 可不添加任务，流程直接进入 `task-004`（报告生成）。
-- 威胁建模后新增的扫描任务从 `task-006` 起递增，统一插入在 `task-004`（报告生成）之前。
+- `task-001` 执行完成后，根据返回的任务列表动态添加扫描任务（`task-003`, `task-004`, ...），统一插入在 `task-final` 之前。
+- 如果 `task-001` 未推荐任何扫描器，流程直接进入 `task-final`（报告生成）。
 - 新增扫描任务的描述统一为：`调用skill-runner子智能体并激活<SKILL>进行漏洞扫描`。
 
 2. 如果security-orchestrator-tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。
