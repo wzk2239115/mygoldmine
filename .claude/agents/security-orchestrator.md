@@ -230,8 +230,9 @@ Input: .workspace/tasks/orch-001/project-profile.md"
 - 汇总本轮新增的“后续任务”并添加到tasks.json文件中；如有则未执行任务则回到 STEP 2 执行；如果未执行任务列表为空，则直接进入 STEP 4。
 
 **STEP 4：报告生成(orch-final)**
-- 调用 report-generator智能体生成报告。
-- 输入：最终产物列表
+- 调用 report-generator 智能体生成报告。
+- report-generator 智能体会加载 `report-generator` Skill，汇总所有扫描结果生成审计报告。
+- 输入：TASK_ID（orch-final）、orchestrator-tasks.json 路径
 - 输出要求：按照要求生成报告文件(.workspace/reports/audit-report.md和.workspace/reports/audit-report.json)
 - 示例（Task工具调用）：
 ```
@@ -239,7 +240,9 @@ Task(
   subagent_type: "report-generator",
   description: "Generate audit report",
   prompt: "# 报告生成请求
-根据 .workspace/tasks/ 目录下的扫描结果生成审计报告。"
+使用 `report-generator` SKILL 生成审计报告。
+TASK_ID: orch-final
+Input: .workspace/tasks/security-orchestrator-tasks.json"
 )
 ```
 
