@@ -176,6 +176,9 @@ flowchart TB
     RS --> RFA
     RFA --> CSA
 
+    %% 产物依赖关系
+    AA -.->|"认证信息"| CSA
+
     %% 虚拟节点：风险点识别
     RISK{{"风险点识别"}}
     CSA -.->|"代码风险"| RISK
