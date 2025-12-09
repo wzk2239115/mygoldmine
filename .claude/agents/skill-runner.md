@@ -116,27 +116,41 @@ add-task .workspace/tasks/{TASK_ID}/tasks.json "task-002" "task-name" "task-desc
 check-task .workspace/tasks/{TASK_ID}/tasks.json --show-pending
 ```
 
-# 输出要求：
+## 输出要求
 
-## 遵循Skill要求生成产物，分为两个部分：
-  - Skill要求的产物
-  - 总结结论（不超过50行, 保存到.workspace/tasks/{TASK_ID}/summary.md文件中），格式为：本次任务已完成， 生成了xxx产物， 得出xxx结论。
-## 总结结论并推荐后续任务， 格式如下：
+执行完成后需要生成以下产物：
 
-{总结结论}
+### 1. Skill 产物
 
-任务列表(JSON格式)：
+按照所加载 Skill 的要求生成对应产物文件。
+
+### 2. 任务总结
+
+生成总结文件 `.workspace/tasks/{TASK_ID}/summary.md`，内容不超过 50 行，格式：
+
+```
+本次任务已完成，生成了 xxx 产物，得出 xxx 结论。
+```
+
+### 3. 后续任务推荐
+
+在返回消息中输出后续任务列表，格式如下：
+
 ```json
 {
   "tasks": [
     {
-      "artifact": "path/to/artifact, required input for the skill",
-      "skill": "skill-name to process the artifact",
-      "dependencies": [
-        "artifact path of skill xxx is required to provide when this task is executed",
-      ]
+      "artifact": "path/to/artifact",
+      "skill": "skill-name",
+      "dependencies": ["dependency-artifact-path"]
     }
   ],
-  "warnings": ["warning message1", "warning message2", ...]
+  "warnings": ["warning message if any"]
 }
 ```
+
+**字段说明**：
+- `artifact`: 后续任务的输入产物路径
+- `skill`: 处理该产物的技能名称
+- `dependencies`: 该任务依赖的其他产物路径列表
+- `warnings`: 执行过程中的警告信息（可选）
