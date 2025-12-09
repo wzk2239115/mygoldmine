@@ -25,9 +25,9 @@ description: |
   }
   ```
   <example>
-  Context: 用户想要收集项目的基础信息
-  user: "使用basic-info-collect技能，收集项目的基础信息"
-  assistant: "我将使用basic-info-collect技能，收集项目的基础信息"
+  Context: 用户想要构建项目画像
+  user: "使用project-profiler技能，构建项目画像"
+  assistant: "我将使用project-profiler技能，构建项目画像"
   </example>
 model: inherit
 color: red

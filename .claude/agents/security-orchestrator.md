@@ -31,7 +31,7 @@ tools: Read, Write, Edit, Bash, Task
 | 技能 | 描述 |
 |------|------|
 | `authentication-analyzer` | 分析API端点认证机制，检测认证绕过、弱认证、会话管理缺陷等问题。 |
-| `basic-info-collect` | 收集项目基本信息（技术栈、框架、目录结构），并推荐后续分析技能。 |
+| `project-profiler` | 构建项目画像，分析技术栈与项目类型，推荐后续分析技能。 |
 | `code-injection-analyzer` | 检测代码注入漏洞，如eval()、动态代码执行、模板注入等不安全代码执行。 |
 | `command-injection-analyzer` | 检测OS命令注入，分析system()、exec()等系统命令调用中的用户输入处理。 |
 | `csrf-analyzer` | 检测跨站请求伪造漏洞，分析Token验证、SameSite属性、Referer检查等防护措施。 |
@@ -173,8 +173,8 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 2. 可并行在不存在依赖冲突的关系下可以并行执行（默认并发数量为6）
 3. **相同技能的任务默认可以并行执行，除非特别申明或存在依赖关系。**
 
-**STEP 1：项目基本信息收集(orch-001)**
-- 调用 skill-runner智能体，使用`basic-info-collect` SKILL，收集项目的基本信息。
+**STEP 1：项目画像构建(orch-001)**
+- 调用 skill-runner智能体，使用`project-profiler` SKILL，构建项目画像。
 - 要求：保持prompt简单明了，SKILL中自动判断分析范围，无需通过任务指定。
 - 输入：当前工作目录
 - 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
@@ -182,9 +182,9 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 ```
 Task(
   subagent_type: "skill-runner",
-  description: "Collect basic info",
-  prompt: "# 项目基本信息收集请求
-使用 `basic-info-collect` SKILL 收集项目基本信息。
+  description: "Build project profile",
+  prompt: "# 项目画像构建请求
+使用 `project-profiler` SKILL 构建项目画像。
 TASK_ID: orch-001"
 )
 ```

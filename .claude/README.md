@@ -50,7 +50,7 @@
 
 **核心安全分析技能：**
 - `authentication-analyzer` - API认证分析
-- `basic-info-collect` - 项目基础信息收集
+- `project-profiler` - 项目画像构建
 - `route-scanner` - API端点扫描
 - `sensitive-info-scanner` - 敏感信息泄露审计
 - `vtr-scanner` - 靶场类型识别

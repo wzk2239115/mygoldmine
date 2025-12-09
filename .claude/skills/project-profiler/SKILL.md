@@ -1,6 +1,6 @@
 ---
-name: basic-info-collect
-description: 专业基础信息收集技能：快速收集项目基本信息，并根据项目类型推荐后续分析使用的技能列表。
+name: project-profiler
+description: 项目画像技能：构建项目画像，分析技术栈与项目类型，并推荐后续分析技能。
 ---
 
 # 概述与边界
