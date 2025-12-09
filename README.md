@@ -220,19 +220,6 @@ flowchart TB
 
     %% 最终报告
     BR --> RG
-
-    %% 样式
-    classDef agent fill:#e1f5fe,stroke:#01579b
-    classDef discovery fill:#f3e5f5,stroke:#4a148c
-    classDef analysis fill:#e8f5e9,stroke:#1b5e20
-    classDef scanner fill:#fff3e0,stroke:#e65100
-    classDef output fill:#fce4ec,stroke:#880e4f
-
-    class SO agent
-    class WS,PP discovery
-    class RS,RFA,AA,VTR,CSA analysis
-    class SQLI,CMDI,XSS,SSRF,XXE,CSRF,IDOR,REDIRECT,PATH,LDAPI,CODEI,UPLOAD scanner
-    class BR,RG output
 ```
 
 ### 推荐关系说明
