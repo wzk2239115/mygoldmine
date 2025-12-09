@@ -51,7 +51,16 @@ tools: Read, Write, Edit, Bash, Task
 | `xxe-analyzer` | 检测XML外部实体注入漏洞，分析XML解析器配置和外部实体处理。 |
 | `xss-analyzer` | 检测跨站脚本漏洞，分析输出编码、CSP策略、DOM操作等防护措施。 |
 
-**重要：如果skill-runner推荐的`skill`字段中包含列表之外的技能, 对应的任务应该被跳过, 并给出警告。**
+**任务过滤规则（添加任务前必须检查）：**
+
+1. **技能白名单检查**：如果 skill-runner 推荐的 `skill` 字段中包含列表之外的技能，对应的任务应该被跳过，并在 warnings 中记录原因。
+
+2. **重复任务检测**：添加新任务前，检查是否已存在相同 `artifact + skill` 组合的任务：
+   - 判定标准：`artifact`（输入产物路径）和 `skill`（技能名称）完全相同
+   - 如果检测到重复，跳过该任务，并在 warnings 中记录：`"跳过重复任务: artifact={path}, skill={skill}"`
+   - 检查方法：遍历 tasks.json 中已有任务的 description 字段，解析其中的 artifact 和 skill 信息
+
+3. **跳过任务的处理**：被跳过的任务不添加到 tasks.json，但需要在当前执行日志中记录跳过原因。
 
 ## Subagent启动机制
 
