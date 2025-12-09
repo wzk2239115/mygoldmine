@@ -64,6 +64,64 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
 4) 关联中间件/鉴权：收集与路由同级或分组级的 auth/role/guard/interceptor；标注认证要求。
 5) 输出端点列表：`method`, `path`, `file`, `line`, `auth_hint`, `group_prefix`；标记高风险端点（debug/admin/config/internal）。
 
+# 路由文件拆分机制
+
+## 触发条件
+
+当检测到路由注册文件数量超过 **3 个**时，触发拆分机制。
+
+## 处理流程
+
+1. **立即停止扫描**：不执行详细的路由解析
+2. **生成文件清单**：列出所有包含路由注册的文件
+3. **按文件拆分任务**：为每个路由文件生成一个独立的 `route-scanner` 任务
+
+## 拆分输出格式
+
+1. **生成路由文件清单**：`.workspace/tasks/{TASK_ID}/route-files-inventory.md`
+2. **为每个文件生成子任务**
+
+```json
+{
+  "split": true,
+  "total_files": 5,
+  "tasks": [
+    {
+      "artifact": ".workspace/tasks/{TASK_ID}/route-file-1.md",
+      "skill": "route-scanner"
+    },
+    {
+      "artifact": ".workspace/tasks/{TASK_ID}/route-file-2.md",
+      "skill": "route-scanner"
+    },
+    {
+      "artifact": ".workspace/tasks/{TASK_ID}/route-file-3.md",
+      "skill": "route-scanner"
+    }
+  ]
+}
+```
+
+## 路由文件清单格式
+
+每个 `route-file-{N}.md` 文件内容：
+
+```markdown
+# 路由文件分析任务
+
+## 目标文件
+- **文件路径**：src/routes/user.js
+- **框架类型**：Express
+
+## 分析范围
+仅分析该文件中的路由注册，输出端点列表。
+```
+
+## 注意事项
+
+- 子任务收到单个文件时，仅分析该文件中的路由，不再触发拆分
+- 子任务完成后按正常流程输出端点列表和下游 `route-function-analyzer` 任务
+
 # 输出要求
 
 1. API端点数量大于10，规则如下：
