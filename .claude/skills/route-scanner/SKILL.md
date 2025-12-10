@@ -12,15 +12,16 @@ description: 专业路由扫描技能：具备主流语言/框架的API端点扫
 
 ## 执行流程
 
-**第一步：收集路由注册文件**
+**第一步：识别路由功能模块**
 
-在执行任何路由解析之前，必须先收集所有涉及路由注册的文件：
+在执行任何路由解析之前，必须先识别所有路由功能模块：
 
 1. 根据项目的语言/框架类型，搜索可能包含路由注册的文件
-2. 统计路由注册文件的数量
-3. 根据文件数量决定后续处理方式：
-   - 文件数量 > 3：触发拆分机制，为每个文件生成子任务
-   - 文件数量 ≤ 3：继续执行详细的路由解析
+2. 按业务功能、目录结构、路由前缀划分功能模块
+3. 统计功能模块的数量
+4. 根据模块数量决定后续处理方式：
+   - 模块数量 > 3：触发拆分机制，为每个模块生成子任务
+   - 模块数量 ≤ 3：继续执行详细的路由解析
 
 ## 主流语言/框架路由识别方法
 
@@ -159,63 +160,76 @@ server/api/**/*.ts
 4) **关联中间件/鉴权**：收集 auth/role/guard/interceptor；标注认证要求
 5) **输出端点列表**：`method`, `path`, `file`, `line`, `auth_hint`, `group_prefix`；标记高风险端点
 
-# 路由文件拆分机制
+# 路由模块拆分机制
 
 ## 触发条件
 
-当检测到路由注册文件数量超过 **3 个**时，触发拆分机制。
+当检测到路由功能模块数量超过 **3 个**时，触发拆分机制。
+
+**模块识别标准**：
+- 按业务功能划分的路由分组（如 `users`、`orders`、`products`）
+- 独立的路由文件或目录（如 `routes/user.js`、`routes/order/`）
+- 框架定义的路由前缀分组（如 `/api/v1/users`、`/api/v1/orders`）
 
 ## 处理流程
 
-1. **立即停止扫描**：不执行详细的路由解析
-2. **生成文件清单**：列出所有包含路由注册的文件
-3. **按文件拆分任务**：为每个路由文件生成一个独立的 `route-scanner` 任务
+1. **生成模块清单**：列出所有功能模块及其包含的文件
+2. **识别功能模块**：根据路由前缀、目录结构、业务分组识别功能模块
+3. **按模块拆分任务**：为每个功能模块生成一个独立的 `route-scanner` 任务
 
 ## 拆分输出格式
 
-1. **生成路由文件清单**：`.workspace/tasks/{TASK_ID}/route-files-inventory.md`
-2. **为每个文件生成子任务**
+1. **生成模块清单**：`.workspace/tasks/{TASK_ID}/route-modules-inventory.md`
+2. **为每个模块生成子任务**
 
 ```json
 {
   "split": true,
-  "total_files": 5,
+  "total_modules": 5,
   "tasks": [
     {
-      "artifact": ".workspace/tasks/{TASK_ID}/route-file-1.md",
+      "artifact": ".workspace/tasks/{TASK_ID}/route-module-users.md",
       "skill": "route-scanner"
     },
     {
-      "artifact": ".workspace/tasks/{TASK_ID}/route-file-2.md",
+      "artifact": ".workspace/tasks/{TASK_ID}/route-module-orders.md",
       "skill": "route-scanner"
     },
     {
-      "artifact": ".workspace/tasks/{TASK_ID}/route-file-3.md",
+      "artifact": ".workspace/tasks/{TASK_ID}/route-module-products.md",
       "skill": "route-scanner"
     }
   ]
 }
 ```
 
-## 路由文件清单格式
+## 模块清单格式
 
-每个 `route-file-{N}.md` 文件内容：
+每个 `route-module-{name}.md` 文件内容：
 
 ```markdown
-# 路由文件分析任务
+# 路由模块分析任务
 
-## 目标文件
-- **文件路径**：src/routes/user.js
+## 模块信息
+- **模块名称**：users
+- **路由前缀**：/api/v1/users
 - **框架类型**：Express
 
+## 包含文件
+| 文件路径 | 描述 |
+|---------|------|
+| src/routes/user.js | 用户路由主文件 |
+| src/routes/user/profile.js | 用户资料相关路由 |
+| src/routes/user/settings.js | 用户设置相关路由 |
+
 ## 分析范围
-仅分析该文件中的路由注册，输出端点列表。
+仅分析该模块包含的文件中的路由注册，输出端点列表。
 ```
 
 ## 注意事项
 
-- **禁止省略任何文件**：每一个检测到的路由文件都必须创建对应的子任务，不允许跳过或合并
-- 子任务收到单个文件时，仅分析该文件中的路由，不再触发拆分
+- **禁止省略任何模块**：每一个检测到的功能模块都必须创建对应的子任务，不允许跳过或合并
+- 子任务收到单个模块时，仅分析该模块包含的文件，不再触发拆分
 - 子任务完成后按正常流程输出端点列表和下游 `route-function-analyzer` 任务
 
 # 输出要求
