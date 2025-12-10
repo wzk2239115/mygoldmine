@@ -88,7 +88,7 @@ description: 专业认证分析技能：分析API端点认证要求，包括认�
 
 ## 产物输出
 
-分析结果保存到 `.workspace/tasks/{TASK_ID}/authentication-analysis.md` 文件中即可。
+分析结果保存到 `.workspace/tasks/{TASK_ID}/authentication-analyzer.md` 文件中即可。
 
 ## 重要约束
 
