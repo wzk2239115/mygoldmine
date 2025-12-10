@@ -204,18 +204,23 @@ description: |
 
 ## 2. 下游任务推荐
 
-每个端点分析文件对应一个 `code-security-analyzer` 任务，用于对该路由函数进行代码安全分析。
+将端点分析文件按每 **3 个 API** 分组，每组生成一个 `code-security-analyzer` 任务。
+
+**分组规则**：
+- 每 3 个端点分析文件合并为一个下游任务
+- 不足 3 个的剩余端点单独成组
+- 在任务的 `artifact` 中使用逗号分隔多个文件路径
 
 **总结输出格式（JSON格式）**：
 ```json
 {
     "tasks": [
         {
-            "artifact": ".workspace/tasks/{TASK_ID}/api-users-get.md",
+            "artifact": ".workspace/tasks/{TASK_ID}/api-users-get.md,.workspace/tasks/{TASK_ID}/api-users-post.md,.workspace/tasks/{TASK_ID}/api-users-id-get.md",
             "skill": "code-security-analyzer"
         },
         {
-            "artifact": ".workspace/tasks/{TASK_ID}/api-users-post.md",
+            "artifact": ".workspace/tasks/{TASK_ID}/api-orders-get.md,.workspace/tasks/{TASK_ID}/api-orders-post.md",
             "skill": "code-security-analyzer"
         }
     ]
@@ -223,5 +228,6 @@ description: |
 ```
 
 **注意**：
-- 每个端点分析文件都必须生成对应的 `code-security-analyzer` 任务，禁止省略
+- 所有端点分析文件都必须包含在下游任务中，禁止省略
 - `{TASK_ID}` 需替换为实际的任务 ID（如 `orch-003`）
+- 每个任务的 `artifact` 字段包含最多 3 个文件路径，用逗号分隔
