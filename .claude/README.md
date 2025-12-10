@@ -49,9 +49,12 @@
 本工作区包含完整的安全漏洞分析技能集，基于 OWASP TOP14 漏洞分类：
 
 **核心安全分析技能：**
-- `authentication-analyzer` - API认证分析
+- `web-auth-analyzer` - API认证与角色体系分析
 - `project-profiler` - 项目画像构建
-- `route-scanner` - API端点扫描
+- `unauth-route-scanner` - 未授权API端点扫描
+- `normal-route-scanner` - 普通用户路由扫描
+- `route-deep-analyzer` - API端点深度分析
+- `code-security-analyzer` - 代码安全分析
 - `sensitive-info-scanner` - 敏感信息泄露审计
 - `vtr-scanner` - 靶场类型识别
 - `task-manage` - 任务管理工作流

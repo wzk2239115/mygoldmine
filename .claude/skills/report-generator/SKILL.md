@@ -16,9 +16,10 @@ description: 专业报告生成技能：汇总各扫描器的发现，生成面�
 |----------|------|------|
 | 任务清单 | `.workspace/tasks/security-orchestrator-tasks.json` | 扫描器执行状态 |
 | 项目基本信息 | `.workspace/tasks/{TASK_ID}/project-profile.md` | 项目分类、技术栈、代码统计等 |
-| 路由扫描结果 | `.workspace/tasks/{TASK_ID}/route-scanner-result*.md` | API端点列表 |
-| 认证分析结果 | `.workspace/tasks/{TASK_ID}/authentication-analysis.md` | 认证要求分析 |
-| 端点分析结果 | `.workspace/tasks/{TASK_ID}/*-{method}-*.md` | 各端点功能分析 |
+| 认证分析结果 | `.workspace/tasks/{TASK_ID}/web-auth-analyzer.md` | 认证机制和角色体系分析 |
+| 未授权路由 | `.workspace/tasks/{TASK_ID}/unauth-route-scanner.md` | 无需认证的API端点列表 |
+| 普通用户路由 | `.workspace/tasks/{TASK_ID}/normal-route-scanner.md` | 普通用户可访问的API端点列表 |
+| 端点分析结果 | `.workspace/tasks/{TASK_ID}/route-analysis-group-*.md` | 各端点功能分析 |
 | 漏洞扫描结果 | `.workspace/tasks/{TASK_ID}/*-analyzer-result*.md` | 各扫描器的漏洞发现结果 |
 | 靶场扫描结果 | `.workspace/tasks/{TASK_ID}/vtr-scanner-result*.md` | 靶场类型识别结果 |
 
@@ -61,8 +62,10 @@ check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --sh
 2. 遍历每个任务的 `{TASK_ID}` 目录，收集所有产物文件
 3. 根据文件名模式识别产物类型：
    - `project-profile.md` → 项目基本信息
-   - `route-scanner-result*.md` → 路由扫描结果
-   - `authentication-analyzer-result.md` → 认证分析结果
+   - `web-auth-analyzer.md` → 认证分析结果
+   - `unauth-route-scanner.md` → 未授权路由清单
+   - `normal-route-scanner.md` → 普通用户路由清单
+   - `route-analysis-group-*.md` → 端点深度分析结果
    - `*-analyzer-result*.md` → 漏洞扫描结果
    - `vtr-scanner-result*.md` → 靶场扫描结果
 

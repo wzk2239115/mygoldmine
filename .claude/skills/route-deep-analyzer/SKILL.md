@@ -1,8 +1,8 @@
 ---
-name: route-function-analyzer
+name: route-deep-analyzer
 description: |
-    专业路由功能分析技能：分析API端点功能，包括请求参数、响应数据、权限要求等。
-    依赖上游任务authentication-analyzer的分析结果，需要给定该任务产物路径作为输入。
+    专业路由深度分析技能：分析API端点功能，包括请求参数、响应数据、权限要求等。
+    依赖上游任务web-auth-analyzer的分析结果，需要给定该任务产物路径作为输入。
 ---
 
 # 概述与边界
@@ -76,7 +76,7 @@ description: |
 
 1. **立即停止分析**：不执行任何路由的详细分析
 2. **按组拆分**：将路由按每 10 个一组进行拆分
-3. **生成子任务**：为每一组创建一个新的 `route-function-analyzer` 任务
+3. **生成子任务**：为每一组创建一个新的 `route-deep-analyzer` 任务
 
 ## 拆分输出格式
 
@@ -91,15 +91,15 @@ description: |
   "tasks": [
     {
       "artifact": ".workspace/tasks/{TASK_ID}/routes-group-1.md",
-      "skill": "route-function-analyzer"
+      "skill": "route-deep-analyzer"
     },
     {
       "artifact": ".workspace/tasks/{TASK_ID}/routes-group-2.md",
-      "skill": "route-function-analyzer"
+      "skill": "route-deep-analyzer"
     },
     {
       "artifact": ".workspace/tasks/{TASK_ID}/routes-group-3.md",
-      "skill": "route-function-analyzer"
+      "skill": "route-deep-analyzer"
     }
   ]
 }
@@ -134,100 +134,125 @@ description: |
 
 ## 1. 端点分析文件
 
-每一个API端点对应一个md文件，文件路径规则为：`.workspace/tasks/{TASK_ID}/{slugified_path}-{method}.md`
-
-**命名规则**：
-- 路径转 slug：`/` 与 `\` → `-`，连续分隔符合并；`{id}`/`:id`/`<id>` 统一为 `id`；`*`/`**` → `wildcard`；`[` `]` → `-`；去除空格与不可见字符，非 ASCII 与特殊符号替换为 `-`。
-- 方法前缀：HTTP 方法小写放入文件名（如 `get`/`post`），避免同路径不同方法冲突。
-- 去重策略：同名时在 `.md` 前追加短序号或短 hash（如 `-2` 或 `-a1b2`）。
-- 长度控制：文件名不超过约 120 字符，过长时截断中间，保留首尾。
+每组路由（最多 10 个）输出到一个 md 文件，文件路径规则为：`.workspace/tasks/{TASK_ID}/route-analysis-group-{N}.md`
 
 **文件内容格式**（供 `code-security-analyzer` 使用）：
 
 ```markdown
-# {METHOD} {path}
+# 路由功能分析 - 分组 {N}
 
-## 基本信息
+## 分组信息
+- **分组编号**：{N}
+- **端点数量**：{count}
+
+---
+
+## 端点 1: {METHOD} {path}
+
+### 基本信息
 - **路由路径**：{full_path}
 - **HTTP 方法**：{method}
-- **源文件**：{file_path}:{line_number}
+- **源文件**：{file_path}:{start_line}-{end_line}
 - **函数名称**：{handler_function_name}
 
-## 认证与授权
+### 认证与授权
 - **认证要求**：{auth_required: 是/否}
 - **认证方式**：{auth_type: JWT/Session/API Key/无}
 - **权限要求**：{permissions}
 - **中间件链**：{middleware_list}
 
-## 请求参数
-### 路径参数
+### 请求参数
+#### 路径参数
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
 | {name} | {type} | {required} | {description} |
 
-### 查询参数
+#### 查询参数
 | 参数名 | 类型 | 必填 | 默认值 | 说明 |
 |--------|------|------|--------|------|
 
-### 请求体
+#### 请求体
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 
-## 响应结构
+### 响应结构
 - **成功响应**：{success_response_structure}
 - **错误响应**：{error_response_structure}
 
-## 函数逻辑摘要
+### 函数逻辑摘要
 {function_logic_summary}
 
-## 关键代码片段
+### 关键代码位置
 
-### {file_path}
-\`\`\`{language}
-// L{start_line}-L{end_line}
-{line_number}: {code_line}
-{line_number}: {code_line}
+**要求**：尽可能全面收集与该端点相关的所有代码位置，包括但不限于：
+
+| 文件路径 | 起始行 | 结束行 | 代码类型 |
+|----------|--------|--------|----------|
+| {file_path} | {start_line} | {end_line} | 路由注册 |
+| {file_path} | {start_line} | {end_line} | Handler/Controller |
+| {file_path} | {start_line} | {end_line} | 中间件 |
+| {file_path} | {start_line} | {end_line} | 参数校验 |
+| {file_path} | {start_line} | {end_line} | 业务逻辑/Service |
+| {file_path} | {start_line} | {end_line} | 数据访问/DAO |
+| {file_path} | {start_line} | {end_line} | 工具函数 |
+
+---
+
+## 端点 2: {METHOD} {path}
 ...
-\`\`\`
-
-**示例**：
-\`\`\`javascript
-// src/controllers/userController.js L42-L58
-42: async function getUser(req, res) {
-43:   const userId = req.params.id;
-44:   const query = `SELECT * FROM users WHERE id = ${userId}`;
-45:   const result = await db.query(query);
-46:   res.json(result);
-47: }
-\`\`\`
 ```
+
+**说明**：
+- 每个分组文件包含最多 10 个端点的分析结果
+- 不输出代码片段，仅保留文件路径和行号范围
+- 端点之间使用 `---` 分隔
+
+**关键代码位置收集要求**：
+- **路由注册**：路由定义、路径映射
+- **Handler/Controller**：请求处理函数的完整范围
+- **中间件**：认证、授权、日志、限流等中间件
+- **参数校验**：输入验证、DTO/Schema 定义
+- **业务逻辑**：Service 层调用的相关方法
+- **数据访问**：数据库查询、ORM 操作、Repository 方法
+- **工具函数**：被调用的辅助函数、工具类方法
+- **外部调用**：第三方 API、内部 RPC、消息队列操作
+
+**重要**：代码位置收集要尽可能完整，确保下游 `code-security-analyzer` 能获取足够的上下文进行安全分析。遗漏关键代码位置可能导致漏洞被忽略。
 
 ## 2. 下游任务推荐
 
-将端点分析文件按每 **3 个 API** 分组，每组生成一个 `code-security-analyzer` 任务。
-
-**分组规则**：
-- 每 3 个端点分析文件合并为一个下游任务
-- 不足 3 个的剩余端点单独成组
-- 在任务的 `artifact` 中使用逗号分隔多个文件路径
+每个分组文件对应一个 `code-security-analyzer` 任务。
 
 **总结输出格式（JSON格式）**：
 ```json
 {
     "tasks": [
         {
-            "artifact": ".workspace/tasks/{TASK_ID}/api-users-get.md,.workspace/tasks/{TASK_ID}/api-users-post.md,.workspace/tasks/{TASK_ID}/api-users-id-get.md",
-            "skill": "code-security-analyzer"
+            "artifact": ".workspace/tasks/{TASK_ID}/route-analysis-group-1.md",
+            "skill": "code-security-analyzer",
+            "dependencies": [
+                ".workspace/tasks/{PROFILE_TASK_ID}/project-profile.md",
+                ".workspace/tasks/{AUTH_TASK_ID}/web-auth-analyzer.md"
+            ]
         },
         {
-            "artifact": ".workspace/tasks/{TASK_ID}/api-orders-get.md,.workspace/tasks/{TASK_ID}/api-orders-post.md",
-            "skill": "code-security-analyzer"
+            "artifact": ".workspace/tasks/{TASK_ID}/route-analysis-group-2.md",
+            "skill": "code-security-analyzer",
+            "dependencies": [
+                ".workspace/tasks/{PROFILE_TASK_ID}/project-profile.md",
+                ".workspace/tasks/{AUTH_TASK_ID}/web-auth-analyzer.md"
+            ]
         }
     ]
 }
 ```
 
+**依赖说明**：
+- `{PROFILE_TASK_ID}`: 项目画像任务 ID（包含技术栈、框架信息）
+- `{AUTH_TASK_ID}`: 认证分析任务 ID（包含认证机制、角色体系信息）
+- 这些依赖为下游 `code-security-analyzer` 提供项目上下文，有助于更准确地识别漏洞
+
 **注意**：
-- 所有端点分析文件都必须包含在下游任务中，禁止省略
+- 所有端点都必须包含在分组文件中，禁止遗漏
 - `{TASK_ID}` 需替换为实际的任务 ID（如 `orch-003`）
-- 每个任务的 `artifact` 字段包含最多 3 个文件路径，用逗号分隔
+- `{N}` 为分组序号，从 1 开始
