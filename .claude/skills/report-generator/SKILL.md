@@ -181,6 +181,19 @@ check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --sh
 
 ### 步骤 7: 生成 Markdown 报告
 
+**使用 Python 脚本转换**：
+
+```bash
+# 从 JSON 报告生成 Markdown 报告
+python .claude/skills/report-generator/json2md.py .workspace/reports/audit-report.json .workspace/reports/audit-report.md
+```
+
+脚本会自动：
+- 解析 JSON 报告中的漏洞数据
+- 按严重程度分组（Critical/High 详细展示，Medium/Low 表格展示）
+- 生成执行摘要、风险评估、修复优先级建议
+- 输出格式化的 Markdown 报告
+
 生成到 `.workspace/reports/audit-report.md`：
 
 ```markdown
