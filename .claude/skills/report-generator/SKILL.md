@@ -17,7 +17,7 @@ description: 专业报告生成技能：汇总各扫描器的发现，生成面�
 | 任务清单 | `.workspace/tasks/security-orchestrator-tasks.json` | 扫描器执行状态 |
 | 项目基本信息 | `.workspace/tasks/{TASK_ID}/project-profile.md` | 项目分类、技术栈、代码统计等 |
 | 路由扫描结果 | `.workspace/tasks/{TASK_ID}/route-scanner-result*.md` | API端点列表 |
-| 认证分析结果 | `.workspace/tasks/{TASK_ID}/authentication-analyzer-result.md` | 认证要求分析 |
+| 认证分析结果 | `.workspace/tasks/{TASK_ID}/authentication-analysis.md` | 认证要求分析 |
 | 端点分析结果 | `.workspace/tasks/{TASK_ID}/*-{method}-*.md` | 各端点功能分析 |
 | 漏洞扫描结果 | `.workspace/tasks/{TASK_ID}/*-analyzer-result*.md` | 各扫描器的漏洞发现结果 |
 | 靶场扫描结果 | `.workspace/tasks/{TASK_ID}/vtr-scanner-result*.md` | 靶场类型识别结果 |

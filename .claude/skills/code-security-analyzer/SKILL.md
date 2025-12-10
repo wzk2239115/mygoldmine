@@ -59,6 +59,7 @@ description: |
 | 动态代码执行 | `code-injection-analyzer` |
 | 资源 ID 访问 | `idor-analyzer` |
 | 表单提交（非 GET） | `csrf-analyzer` |
+| HTTP 头构造/响应头设置 | `http-header-injection-analyzer` |
 
 **激活流程**：
 1. 分析端点代码，识别潜在风险点
