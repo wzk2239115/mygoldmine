@@ -127,6 +127,13 @@ fi
 CURRENT_TASK_STATUS=$(jq -r --arg id "$TASK_ID" '.tasks[] | select(.id == $id) | .status // "pending"' "$TASKS_JSON_PATH")
 CURRENT_TASK_START_AT=$(jq -r --arg id "$TASK_ID" '.tasks[] | select(.id == $id) | .start_at // "null"' "$TASKS_JSON_PATH")
 
+# 检查：禁止从 pending 状态直接切换到 completed 状态
+if [[ "$CURRENT_TASK_STATUS" == "pending" && "$UPDATE_STATUS" == "completed" ]]; then
+    echo "错误: 任务不能从 'pending' 状态直接切换到 'completed' 状态" >&2
+    echo "请先将任务状态设置为 'in_progress'，再设置为 'completed'" >&2
+    exit 1
+fi
+
 # 判断是否需要设置start_at（状态变为in_progress且start_at为null）
 SHOULD_SET_START_AT=false
 if [ "$UPDATE_STATUS" = "in_progress" ] && [ "$CURRENT_TASK_START_AT" = "null" ]; then
