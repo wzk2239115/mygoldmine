@@ -122,6 +122,114 @@ STEP 4: 报告生成 (report-generator)
 @.claude/agents/security-orchestrator.md 安全审计，禁用 sensitive-info-scanner
 ```
 
+## 技能推荐关系图
+
+```mermaid
+flowchart TB
+    subgraph Agent["智能体层"]
+        SO[security-orchestrator]
+    end
+
+    subgraph Discovery["发现层"]
+        WS[workspace-scanner]
+        PP[project-profiler]
+    end
+
+    subgraph Analysis["分析层"]
+        RS[route-scanner]
+        RFA[route-function-analyzer]
+        AA[authentication-analyzer]
+        VTR[vtr-scanner]
+        CSA[code-security-analyzer]
+    end
+
+    subgraph Scanners["漏洞扫描层"]
+        SQLI[sql-injection-analyzer]
+        CMDI[command-injection-analyzer]
+        XSS[xss-analyzer]
+        SSRF[ssrf-analyzer]
+        XXE[xxe-analyzer]
+        CSRF[csrf-analyzer]
+        IDOR[idor-analyzer]
+        REDIRECT[open-redirect-analyzer]
+        PATH[path-traversal-lfi-rfi-analyzer]
+        LDAPI[ldap-injection-analyzer]
+        CODEI[code-injection-analyzer]
+        UPLOAD[insecure-file-uploads-analyzer]
+    end
+
+    subgraph Output["输出层"]
+        BR[bug-report]
+        RG[report-generator]
+    end
+
+    %% 主流程
+    SO --> WS
+    WS -->|"子工程"| PP
+
+    %% 项目画像分支
+    PP -->|"HTTP服务"| RS
+    PP -->|"HTTP服务"| AA
+    PP -->|"安全靶场"| VTR
+
+    %% 路由分析流程
+    RS --> RFA
+    RFA --> CSA
+
+    %% 产物依赖关系
+    AA -.->|"认证信息"| CSA
+
+    %% 虚拟节点：风险点识别
+    RISK{{"风险点识别"}}
+    CSA -.->|"代码风险"| RISK
+    VTR -.->|"题目类型"| RISK
+
+    %% 风险点激活漏洞扫描器
+    RISK -.-> SQLI
+    RISK -.-> CMDI
+    RISK -.-> XSS
+    RISK -.-> SSRF
+    RISK -.-> XXE
+    RISK -.-> CSRF
+    RISK -.-> IDOR
+    RISK -.-> REDIRECT
+    RISK -.-> PATH
+    RISK -.-> LDAPI
+    RISK -.-> CODEI
+    RISK -.-> UPLOAD
+
+    %% 漏洞报告输出
+    SQLI --> BR
+    CMDI --> BR
+    XSS --> BR
+    SSRF --> BR
+    XXE --> BR
+    CSRF --> BR
+    IDOR --> BR
+    REDIRECT --> BR
+    PATH --> BR
+    LDAPI --> BR
+    CODEI --> BR
+    UPLOAD --> BR
+
+    %% 最终报告
+    BR --> RG
+```
+
+### 推荐关系说明
+
+| 上游技能 | 下游技能 | 触发条件 |
+|---------|---------|---------|
+| workspace-scanner | project-profiler | 每个子工程 |
+| project-profiler | route-scanner | HTTP 服务类型 |
+| project-profiler | authentication-analyzer | HTTP 服务类型 |
+| project-profiler | vtr-scanner | 安全靶场类型 |
+| route-scanner | route-function-analyzer | 每个路由文件 |
+| route-function-analyzer | code-security-analyzer | 每个 API 端点 |
+| code-security-analyzer | 漏洞分析器 | 根据代码风险点激活 |
+| vtr-scanner | 漏洞分析器 | 根据靶场题目类型推荐 |
+| 漏洞分析器 | bug-report | 发现漏洞时 |
+
 ## 目录结构
 
 ```
@@ -132,9 +240,15 @@ STEP 4: 报告生成 (report-generator)
     ├── workspace-scanner/          # 工作区扫描
     ├── project-profiler/           # 项目画像
     ├── route-scanner/              # 路由扫描
-    ├── sql-injection-analyzer/     # SQL 注入检测
-    ├── xss-analyzer/               # XSS 检测
-    └── ...                         # 其他扫描技能
+    ├── route-function-analyzer/    # 路由功能分析
+    ├── code-security-analyzer/     # 代码安全分析
+    ├── bug-report/                 # 漏洞报告模板
+    ├── report-generator/           # 报告生成
+    └── TOP14/                      # 漏洞扫描器
+        ├── sql-injection-analyzer/
+        ├── xss-analyzer/
+        ├── command-injection-analyzer/
+        └── ...
 ```
 
 ## License

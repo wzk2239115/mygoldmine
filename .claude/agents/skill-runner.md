@@ -182,13 +182,10 @@ check-task .workspace/tasks/{TASK_ID}/tasks.json --show-pending
 - `xxx.md`: 描述
 ```
 
-### 3. 返回消息（summary + 技能推荐）
+### 3. 返回消息（仅输出推荐任务）
 
-在返回消息中输出两部分内容：
+**重要**：返回消息中**只能**输出后续任务推荐的 JSON，**不要**输出任何其他内容（如总结、说明文字等）。
 
-**Part A - 任务总结**（与 summary.md 内容一致）
-
-**Part B - 后续任务推荐**（JSON 格式）：
 ```json
 {
   "tasks": [
@@ -207,3 +204,8 @@ check-task .workspace/tasks/{TASK_ID}/tasks.json --show-pending
 - `skill`: 处理该产物的技能名称
 - `dependencies`: 该任务依赖的其他产物路径列表
 - `warnings`: 执行过程中的警告信息（可选，如无则省略该字段）
+
+**禁止**：在返回消息中添加任何非 JSON 内容，包括但不限于：
+- 任务总结文字
+- 执行过程描述
+- 额外说明或注释
