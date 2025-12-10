@@ -376,24 +376,18 @@ else
     else
         echo -e "  ${YELLOW}⚠${NC} PATH 配置不存在于 ${SHELL_CONFIG}"
         echo ""
-        if [ "$NO_INTERACTIVE" = true ]; then
-            echo -e "  ${YELLOW}⚠${NC} 非交互模式，跳过 PATH 配置"
-            echo -e "    您可以稍后手动添加: ${YELLOW}export PATH=\"\$PATH:${TOOLS_DIR}\"${NC}"
-        else
-            echo "是否要将以下内容添加到 ${SHELL_CONFIG}? (y/n)"
-            echo "  export PATH=\"\$PATH:${TOOLS_DIR}\""
-            read -r response
-            if [[ "$response" =~ ^[Yy]$ ]]; then
-                echo "" >> "$SHELL_CONFIG"
-                echo "# Task-Manage tools directory" >> "$SHELL_CONFIG"
-                echo "export PATH=\"\$PATH:${TOOLS_DIR}\"" >> "$SHELL_CONFIG"
-                echo -e "  ${GREEN}✓${NC} 已添加到 ${SHELL_CONFIG}"
-                echo -e "  ${YELLOW}提示:${NC} 请运行 ${BLUE}source ${SHELL_CONFIG}${NC} 或重新打开终端以使配置生效"
-            else
-                echo -e "  ${YELLOW}⚠${NC} 跳过 PATH 配置"
-                echo -e "    您可以稍后手动添加: ${YELLOW}export PATH=\"\$PATH:${TOOLS_DIR}\"${NC}"
-            fi
-        fi
+        echo "" >> "$SHELL_CONFIG"
+        echo "# Task-Manage tools directory" >> "$SHELL_CONFIG"
+        echo "export PATH=\"\$PATH:${TOOLS_DIR}\"" >> "$SHELL_CONFIG"
+        echo -e "  ${GREEN}✓${NC} 已添加到 ${SHELL_CONFIG}"
+        echo -e "  ${GREEN}→${NC} 正在重新加载配置: source ${SHELL_CONFIG}"
+        # 直接重新加载配置，使 PATH 立即生效
+        # 临时禁用 set -u，因为 .bashrc 中可能检查未定义的 PS1 变量
+        set +u
+        # shellcheck disable=SC1090
+        source "$SHELL_CONFIG"
+        set -u
+        echo -e "  ${GREEN}✓${NC} 配置加载完成，PATH 已更新"
     fi
 fi
 
