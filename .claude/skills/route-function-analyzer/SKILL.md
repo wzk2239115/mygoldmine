@@ -53,9 +53,9 @@ description: |
 ### 判断标准
 
 识别需要高权限的接口特征：
-- 路由路径包含：`/admin/`、`/management/`、`/internal/`、`/superuser/`
-- 中间件/装饰器包含：`@admin_required`、`@superuser_only`、`AdminGuard`、`RoleGuard('admin')`
-- 权限注解包含：`roles=['admin']`、`permission='admin'`、`is_staff=True`、`is_superuser=True`
+- 路由路径包含：`/admin/`、`/management/`、`/internal/`、`/superuser/`等管理员路径
+- 中间件/装饰器包含：`@admin_required`、`@superuser_only`、`AdminGuard`、`RoleGuard('admin')`等管理员中间件/装饰器
+- 权限注解包含：`roles=['admin']`、`permission='admin'`、`is_staff=True`、`is_superuser=True`等管理员权限注解
 
 ### 过滤记录
 
