@@ -240,7 +240,7 @@ list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending"
 - 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
 - 如果任务列表为空，则结束。
 - **重要：禁止在后台运行任务，必须在前台运行任务。另外，无论是前台还是后台运行任务，都可以并行执行。**
-- 示例（Task工具调用）：
+- 示例（单个Task工具调用）：
 ```
 Task(
   subagent_type: "skill-runner",
@@ -251,6 +251,42 @@ TASK_ID: orch-002
 Input: .workspace/tasks/orch-001/project-profile.md"
 )
 ```
+
+- **并行任务执行示例**：当多个任务之间无依赖关系时，可以在同一消息中发起多个 Task 调用实现并行执行：
+```
+# 在同一消息中发起多个 Task 调用，实现并行执行
+Task(
+  subagent_type: "skill-runner",
+  description: "SQL injection scan",
+  prompt: "# 任务执行请求
+使用 `sql-injection-analyzer` SKILL 进行SQL注入分析。
+TASK_ID: orch-003
+Input: .workspace/tasks/orch-002/api-users-get.md"
+)
+
+Task(
+  subagent_type: "skill-runner",
+  description: "XSS vulnerability scan",
+  prompt: "# 任务执行请求
+使用 `xss-analyzer` SKILL 进行XSS漏洞分析。
+TASK_ID: orch-004
+Input: .workspace/tasks/orch-002/api-users-post.md"
+)
+
+Task(
+  subagent_type: "skill-runner",
+  description: "SSRF vulnerability scan",
+  prompt: "# 任务执行请求
+使用 `ssrf-analyzer` SKILL 进行SSRF漏洞分析。
+TASK_ID: orch-005
+Input: .workspace/tasks/orch-002/api-proxy-get.md"
+)
+```
+
+**并行执行注意事项**：
+- 确保并行任务之间无依赖关系
+- 默认并发数量为 6，超过时系统会自动排队
+- 所有并行任务必须在同一消息中发起多个 Task 调用
 
 **注意：新增的任务需要调用add-task添加到tasks.json文件中。**
 
