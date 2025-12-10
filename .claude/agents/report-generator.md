@@ -38,6 +38,20 @@ tools: Read, Write, Edit, Bash
 | `add-task` | 添加单个任务 | `add-task <path> <task_id> <type> <desc> [--optional] [--before <task_id>]` |
 | `add-tasks` | 批量添加任务 | `add-tasks <path> [--before <task_id>] --json '<json_array>'` |
 
+### 前置检查: 确认上游任务已完成
+
+**重要**：在开始执行报告生成任务前，必须先检查 security-orchestrator 的任务列表，确保所有上游任务已完成。
+
+```bash
+# 检查 security-orchestrator 任务状态
+list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending" --format json
+```
+
+**检查规则**：
+- 如果存在 `pending` 状态的任务（除 `orch-final` 外），**禁止执行**报告生成
+- 必须等待所有上游任务完成后才能生成报告
+- 如果检查失败，返回错误信息并退出
+
 ### 初始化: 创建工作区和生成 report-generator-tasks.json
 
 **任务编号约定（采用 `{agent}-{seq}` 格式避免冲突）**：

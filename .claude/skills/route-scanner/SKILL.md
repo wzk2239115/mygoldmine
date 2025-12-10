@@ -173,14 +173,10 @@ server/api/**/*.ts
 
 ## 处理流程
 
-1. **生成模块清单**：列出所有功能模块及其包含的文件
-2. **识别功能模块**：根据路由前缀、目录结构、业务分组识别功能模块
-3. **按模块拆分任务**：为每个功能模块生成一个独立的 `route-scanner` 任务
-
-## 拆分输出格式
-
-1. **生成模块清单**：`.workspace/tasks/{TASK_ID}/route-modules-inventory.md`
-2. **为每个模块生成子任务**
+1. **识别功能模块**：根据路由前缀、目录结构、业务分组识别功能模块
+2. **生成总体路由功能清单**：`.workspace/tasks/{TASK_ID}/route-modules-inventory.md`
+3. **针对单个模块路由清单**：`.workspace/tasks/{TASK_ID}/route-module-{name}.md`
+4. **为每个模块生成子任务**
 
 ```json
 {
