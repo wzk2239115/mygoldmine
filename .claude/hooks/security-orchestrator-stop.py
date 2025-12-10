@@ -527,9 +527,7 @@ class TaskChecker:
                 if not task_file.exists():
                     # 尝试其他可能的文件名格式
                     task_file = WORKSPACE_DIR / f"{task['agent_name']}-tasks.json"
-                print(f"  .claude/skills/task-manage/scripts/tools/update-task.sh \\", file=sys.stderr)
-                print(f"    {task_file} \\", file=sys.stderr)
-                print(f"    {task['task_id']} \\", file=sys.stderr)
+                print(f"  update-task {task_file} {task['task_id']} \\", file=sys.stderr)
                 print(f"    --status pending", file=sys.stderr)
             if len(self.abnormal_duration_tasks) > 3:
                 print(f"  ... (还有 {len(self.abnormal_duration_tasks) - 3} 个任务)", file=sys.stderr)
