@@ -9,6 +9,61 @@ description: 普通用户路由扫描技能：从项目中提取普通用户（�
 - **输入依赖**：`web-auth-analyzer` 产物（认证分析和角色体系分析）
 - **不做**：漏洞利用、深度安全分析（由下游技能完成）
 
+### 核心约束：全面接口发现
+
+**重要：必须尽可能找到所有满足条件的接口，不允许遗漏任何潜在攻击面。**
+
+扫描范围必须覆盖：
+
+| 接口类型 | 说明 | 常见特征 |
+|---------|------|----------|
+| **公开接口** | 对外暴露的用户 API | `/api/user/*`, `/api/profile/*` |
+| **未公开接口** | 未在文档中声明但存在的接口 | 注释掉的路由、测试接口、遗留代码 |
+| **内部接口** | 仅供内部服务调用 | `/internal/*`, `X-Internal-*` 头校验 |
+| **外部接口** | 第三方集成回调 | `/webhook/*`, `/callback/*`, `/notify/*` |
+| **调试接口** | 开发调试用途（需认证） | `/debug/*`, `/test/*`, `/_/*` |
+| **特殊配置激活接口** | 需特定配置/环境变量启用 | `if (DEBUG)`, `@ConditionalOnProperty` |
+
+**特殊配置激活接口识别方法**：
+
+```python
+# 条件启用的路由
+if os.getenv('ENABLE_BETA_FEATURES'):
+    @app.route('/api/beta/feature')
+    @login_required
+    def beta_feature(): ...
+
+if settings.FEATURE_FLAGS.get('new_payment'):
+    router.add_route('/api/payment/v2', payment_v2_handler)
+```
+
+```java
+// Spring 条件注解
+@ConditionalOnProperty(name = "app.feature.beta")
+@PreAuthorize("isAuthenticated()")
+@GetMapping("/api/beta/export")
+public String betaExport() { ... }
+
+@Profile("!prod")
+@RestController
+public class TestController { ... }
+```
+
+```javascript
+// Feature flag 控制
+if (config.features.experimentalApi) {
+    app.get('/api/experimental/:action', authMiddleware, experimentalHandler);
+}
+```
+
+**隐藏接口发现策略**：
+1. 搜索被注释的路由定义
+2. 检查条件编译/条件加载的代码块
+3. 分析配置文件中的 feature flag
+4. 检查测试文件中引用的未公开接口
+5. 搜索 `TODO`/`FIXME`/`HACK` 注释附近的路由
+6. 分析 A/B 测试相关的路由配置
+
 ## 执行流程
 
 ### 1. 读取上游产物
@@ -22,9 +77,139 @@ description: 普通用户路由扫描技能：从项目中提取普通用户（�
 - 管理员专属路由前缀
 - 权限控制实现方式
 
-### 2. 普通用户路由识别标准
+### 2. 路由识别方法（主流语言/框架）
 
-#### 2.1 定义：普通用户可访问的路由
+#### 2.1 通用思路
+
+- **查找路由声明位置**：路由表文件、装饰器/注解、注册函数（router、app、server）、中间件挂载点
+- **识别前缀与分组**：`group/prefix/subrouter`、`namespace`、`Area`、`MapControllerRoute` 等
+- **识别动态参数**：`:param`、`{param}`、`<type:param>`、正则/通配符（`*`, `**`），以及方法限定（GET/POST/...）
+- **关联中间件/过滤器**：auth/role/guard/interceptor，标记优先级与认证需求
+
+#### 2.2 Node.js / TypeScript（Express/Koa/Fastify/Nest）
+
+**路由特征**：
+- Express：`app.METHOD(path, ...)`、`router.METHOD(path, ...)`、`router.use(prefix, ...)`；文件：`routes/*.js/ts`、`app.js`、`server.js`
+- Koa-Router：`router.get/post/...`、`router.use(prefix, nestedRouter.routes())`
+- Fastify：`fastify.route({ method, url, ... })`、`fastify.register(plugin, { prefix })`
+- NestJS：`@Controller(prefix)` + `@Get/@Post/@Patch/@Delete`；`setGlobalPrefix`
+
+**匹配正则**：
+```regex
+\w+\s*\.\s*(get|post|put|patch|delete|options|head|all|use)\s*\(\s*['"`]
+(express\.Router|Router)\s*\(\s*\)
+\w+\s*\.\s*(route|register)\s*\(\s*\{
+@(Controller|Get|Post|Put|Patch|Delete|Options|Head|All)\s*\(\s*['"`]?
+```
+
+#### 2.3 Python（Flask/FastAPI/Django）
+
+**路由特征**：
+- Flask：`@app.route` / `@blueprint.route`，`url_prefix`；`methods=["GET","POST"]`
+- FastAPI：`APIRouter(prefix=...)` + `@router.get/post/...`；`app.include_router(router, prefix=...)`
+- Django：`urlpatterns = [ path(...), re_path(...), include(...) ]`；DRF `DefaultRouter`/`SimpleRouter`
+
+**匹配正则**：
+```regex
+@\w+\s*\.\s*(route|get|post|put|patch|delete)\s*\(\s*['"]
+APIRouter\s*\(\s*(prefix\s*=\s*['"])?
+(path|re_path|url)\s*\(\s*['"]
+include\s*\(\s*['"]
+```
+
+#### 2.4 Java（Spring MVC / Spring Boot）
+
+**路由特征**：
+- 类级 `@RequestMapping("/api")` + 方法级 `@GetMapping("/x")` 等组合
+- 路径变量 `/{id}`、通配符 `/**`
+- 常见端点：Actuator `/actuator/**`，Swagger `/v2/api-docs`、`/swagger-ui`
+
+**匹配正则**：
+```regex
+@(RequestMapping|RestController|Controller)\s*(\(\s*(['"]|value\s*=\s*['"]))?
+@(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping)\s*\(\s*(['"]|value\s*=\s*['"]|path\s*=\s*['"])?
+```
+
+#### 2.5 Go（Gin/Echo/Chi/net/http）
+
+**路由特征**：
+- Gin：`r.GET/POST`，`r.Group("/api")`；中间件 `Use`
+- Echo：`e.GET/POST`，`e.Group("/api")`；路由模板 `/:id/*`
+- Chi：`r.Route("/api", func(r chi.Router){ r.Get(...) })`，`Mount`
+- net/http：`http.HandleFunc("/path", handler)`
+- gorilla/mux：`r.HandleFunc("/path", handler)`
+
+**匹配正则**：
+```regex
+\w+\s*\.\s*(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|Any|Handle|Group)\s*\(\s*["']
+\w+\s*\.\s*(Get|Post|Put|Patch|Delete|Options|Head|Route|Mount)\s*\(\s*["']
+http\s*\.\s*(HandleFunc|Handle)\s*\(\s*["']
+\w+\s*\.\s*(HandleFunc|Handle|PathPrefix)\s*\(\s*["']
+```
+
+#### 2.6 PHP（Laravel / Symfony）
+
+**路由特征**：
+- Laravel：`routes/web.php`、`routes/api.php`；`Route::get/post/put/delete`，`Route::group`，`Route::resource/apiResource`
+- Symfony：`config/routes/*.yaml` / 注解 / 属性路由
+
+**匹配正则**：
+```regex
+Route\s*::\s*(get|post|put|patch|delete|options|any|match|resource|apiResource|group)\s*\(\s*['"]
+Route\s*::\s*(prefix|middleware|namespace|group)\s*\(
+#\[(Route|Get|Post|Put|Patch|Delete)\s*\(\s*['"]
+@(Route|Get|Post|Put|Patch|Delete)\s*\(\s*['"]
+```
+
+#### 2.7 Ruby on Rails
+
+**路由特征**：
+- `config/routes.rb`：`resources :users`、`namespace :admin`、`scope path: "/api"`、`match`/`get/post`
+
+**匹配正则**：
+```regex
+(get|post|put|patch|delete|match|root)\s+['"]
+(resources?|namespace|scope|constraints)\s+[:'"]
+```
+
+#### 2.8 .NET（ASP.NET Core）
+
+**路由特征**：
+- Minimal APIs：`app.MapGet/MapPost/...`；`MapGroup("/api")`
+- MVC/Controllers：`[Route("api/[controller]")]` + `[HttpGet("x")]`
+
+**匹配正则**：
+```regex
+\w+\s*\.\s*(MapGet|MapPost|MapPut|MapPatch|MapDelete|MapMethods|MapGroup)\s*\(\s*["']
+\[(Route|HttpGet|HttpPost|HttpPut|HttpPatch|HttpDelete)\s*\(\s*["']?
+```
+
+#### 2.9 JavaScript 前后端一体框架（Next.js / Nuxt）
+
+**路由特征**：
+- Next.js API Routes：`pages/api/*` 或 `app/api/*/route.{js,ts}`；动态 `[id]`，catch-all `[...slug]`
+- Nuxt 3 Nitro：`server/api/**/*.ts`
+
+**匹配方式**：基于文件路径匹配
+```
+pages/api/**/*.{js,ts}
+app/api/**/route.{js,ts}
+server/api/**/*.ts
+```
+
+#### 2.10 通用匹配（兜底）
+
+当框架特定正则无法匹配时，使用宽松匹配：
+```regex
+\b(route|router|endpoint|api|controller)\b.*\b(get|post|put|patch|delete)\b
+['"`]\/[a-zA-Z0-9_\-\/\{\}\:\*\[\]]+['"`]
+```
+
+> **注意**：通用匹配可能产生误报，需结合上下文确认。
+
+### 3. 普通用户路由识别标准
+
+#### 3.1 定义：普通用户可访问的路由
 
 普通用户路由 = 需要登录认证 + 非管理员专属
 
@@ -38,7 +223,7 @@ description: 普通用户路由扫描技能：从项目中提取普通用户（�
 - 管理员/超级管理员专属路由
 - 内部/调试路由
 
-#### 2.2 识别方法
+#### 3.2 识别方法
 
 **识别需要认证的路由**：
 
@@ -97,14 +282,14 @@ authGroup := r.Group("/api", authMiddleware)
 | 中间件 | `AdminGuard`, `adminMiddleware`, `IsAdminMiddleware` |
 | 权限配置 | `permission: 'admin'`, `is_staff=True`, `is_superuser=True` |
 
-#### 2.3 认证可绕过时的处理
+#### 3.3 认证可绕过时的处理
 
 当 `web-auth-analyzer` 判定认证机制可绕过时：
 - **包含管理员路由**：因为攻击者可能绕过认证访问这些路由
 - 在产物中标注：`认证绕过风险: 是`
 - 将管理员路由单独分组标记
 
-### 3. 风险分级
+### 4. 风险分级
 
 | 风险等级 | 描述 | 路由特征 |
 |---------|------|----------|
@@ -112,9 +297,9 @@ authGroup := r.Group("/api", authMiddleware)
 | **中危** | 数据修改 | 个人信息修改、订单操作、文件上传 |
 | **低危** | 数据读取 | 查看个人资料、订单列表、消息记录 |
 
-### 4. 输出格式
+### 5. 输出格式
 
-#### 4.1 产物文件
+#### 5.1 产物文件
 
 输出路径：`.workspace/tasks/{TASK_ID}/normal-route-scanner.md`
 
