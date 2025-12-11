@@ -64,6 +64,19 @@ if (config.features.experimentalApi) {
 5. 搜索 `TODO`/`FIXME`/`HACK` 注释附近的路由
 6. 分析 A/B 测试相关的路由配置
 
+## 工具使用
+
+### quick-scan.py 使用说明
+
+`quick-scan.py` 是一个基于 tree-sitter 的路由扫描工具，用于从项目中提取所有路由注册信息。
+
+#### 基本用法
+
+```bash
+# 扫描指定目录（输出到标准输出）
+python3 ./quick-scan.py /path/to/project
+```
+
 ## 执行流程
 
 ### 1. 读取上游产物
