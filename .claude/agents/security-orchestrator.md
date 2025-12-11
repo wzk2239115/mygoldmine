@@ -46,12 +46,14 @@ tools: Read, Write, Edit, Bash, Task
 | `insecure-file-uploads-analyzer` | 检测文件上传漏洞，分析文件类型校验、存储路径、执行权限等安全控制。 |
 | `ldap-injection-analyzer` | 检测LDAP注入漏洞，分析LDAP查询构造中的用户输入处理。 |
 | `open-redirect-analyzer` | 检测开放重定向漏洞，分析URL跳转参数的验证和白名单机制。 |
-| `path-traversal-lfi-rfi-analyzer` | 检测路径遍历和文件包含漏洞（LFI/RFI），分析文件路径参数的过滤和限制。 |
+| `path-traversal-analyzer` | 检测路径遍历漏洞，分析文件路径参数的过滤和限制。 |
+| `lfi-analyzer` | 检测本地文件包含漏洞（LFI），分析文件包含操作中的路径验证。 |
+| `rfi-analyzer` | 检测远程文件包含漏洞（RFI），分析远程文件加载的安全控制。 |
 | `sensitive-info-scanner` | 检测敏感信息泄露，包括硬编码密钥、API凭证、PII数据暴露、日志泄露等。 |
 | `sql-injection-analyzer` | 检测SQL注入漏洞，分析数据库查询构造中的参数化和输入过滤。 |
 | `ssrf-analyzer` | 检测服务端请求伪造漏洞，分析URL参数验证、内网访问控制、协议限制。 |
 | `vtr-scanner` | 识别项目中的漏洞靶场类型（如WebGoat、DVWA），用于测试环境检测。 |
-| `xml-xpath-injection-analyzer` | 检测XML/XPath注入漏洞，分析XML解析和XPath查询中的输入处理。 |
+| `xpath-injection-analyzer` | 检测XPath注入漏洞，分析XPath查询中的输入处理。 |
 | `xxe-analyzer` | 检测XML外部实体注入漏洞，分析XML解析器配置和外部实体处理。 |
 | `xss-analyzer` | 检测跨站脚本漏洞，分析输出编码、CSP策略、DOM操作等防护措施。 |
 

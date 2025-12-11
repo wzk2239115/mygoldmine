@@ -59,22 +59,26 @@
 - `vtr-scanner` - 靶场类型识别
 - `task-manage` - 任务管理工作流
 
-**漏洞专项分析技能（来自 TOP14 子模块）：**
+**漏洞专项分析技能（来自 SecSkills 子模块）：**
 - `sql-injection-analyzer` - SQL注入分析
 - `xss-analyzer` - 跨站脚本攻击分析
 - `command-injection-analyzer` - 命令注入分析
-- `path-traversal-lfi-rfi-analyzer` - 路径遍历和文件包含分析
+- `path-traversal-analyzer` - 路径遍历分析
+- `lfi-analyzer` - 本地文件包含分析
+- `rfi-analyzer` - 远程文件包含分析
 - `csrf-analyzer` - 跨站请求伪造分析
 - `ssrf-analyzer` - 服务器端请求伪造分析
-- `xml-xpath-injection-analyzer` - XML/XPath注入分析
+- `xpath-injection-analyzer` - XPath注入分析
 - `idor-analyzer` - 不安全的直接对象引用分析
 - `insecure-file-uploads-analyzer` - 不安全文件上传分析
 - `code-injection-analyzer` - 代码注入分析
 - `ldap-injection-analyzer` - LDAP注入分析
 - `http-header-injection-analyzer` - HTTP头注入分析
 - `open-redirect-analyzer` - 开放重定向分析
+- `xxe-analyzer` - XML外部实体注入分析
+- 以及更多专业安全分析技能...
 
-技能通过 `.claude/skills/TOP14/` git 子模块集成，支持自动激活。
+技能通过 `.claude/skills/SecSkills/` git 子模块集成，支持自动激活。
 
 ### 钩子 (Hooks) - 3个Python钩子
 
