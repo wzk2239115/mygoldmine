@@ -26,12 +26,28 @@ description: 专业敏感信息泄露审计工作流：以静态代码+配置+�
 
 `quick-scan.py` 是一个基于 tree-sitter 的敏感信息扫描工具，用于从项目中提取硬编码敏感信息和泄露函数。
 
-#### 基本用法
+#### 快速扫描方法
 
+运行 `quick-scan.py` 脚本进行快速敏感信息扫描，自动识别硬编码敏感信息和泄露函数。
 ```bash
 # 扫描指定目录（输出到标准输出）
 python3 ./quick-scan.py /path/to/project
+
+# 输出到文件
+python3 ./quick-scan.py /path/to/project --output sensitive-info.md
 ```
+
+**脚本覆盖范围**：
+- ✅ **硬编码敏感信息检测**：自动识别 AWS Key、GitHub Token、数据库凭据、私钥、JWT Secret、API Key、PII 等
+- ✅ **泄露函数检测**：自动识别环境变量导出函数（os.environ、process.env、System.getenv 等）和配置对象返回
+- ✅ **多语言支持**：支持 Python、JavaScript/TypeScript、Go、Java、PHP、Ruby 等
+- ✅ **误报过滤**：自动过滤注释、测试文件、环境变量名、十六进制哈希等误报
+- ✅ **优先级判定**：自动为不同类型的敏感信息分配优先级（P0/P1/P2）
+- ❌ **深度分析**：敏感信息的实际泄露风险需要结合上下文进行手动分析
+
+**提示词规则覆盖**：
+- 以下章节中的扫描内容已由脚本自动实现，以下内容为参考说明
+- 敏感信息的风险评估和修复建议需要结合脚本结果进行手动分析
 
 #### 扫描内容
 

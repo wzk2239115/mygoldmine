@@ -70,12 +70,27 @@ if (config.features.experimentalApi) {
 
 `quick-scan.py` 是一个基于 tree-sitter 的路由扫描工具，用于从项目中提取所有路由注册信息。
 
-#### 基本用法
+#### 快速扫描方法
 
+运行 `quick-scan.py` 脚本进行快速路由扫描，自动识别和提取项目中的路由注册信息。
 ```bash
 # 扫描指定目录（输出到标准输出）
 python3 ./quick-scan.py /path/to/project
+
+# 输出到文件
+python3 ./quick-scan.py /path/to/project --output routes.md
 ```
+
+**脚本覆盖范围**：
+- ✅ **路由识别**：自动识别主流框架的路由注册模式（Express、Flask、Spring、Gin 等）
+- ✅ **路由提取**：提取 HTTP 方法、路径、Handler 函数名、文件位置等信息
+- ✅ **多语言支持**：支持 Go、JavaScript/TypeScript、Python、Java、PHP、Ruby 等
+- ❌ **认证检查**：脚本仅提取路由信息，不进行认证分析（需结合上游产物手动分析）
+- ❌ **权限分析**：权限分析和 IDOR 检测需要结合上游产物进行手动分析
+
+**提示词规则覆盖**：
+- 以下章节中的路由识别模式（2.2-2.10）已由脚本自动实现，以下内容为参考说明
+- 权限分析和 IDOR 检测需要结合脚本提取的路由信息和上游产物进行手动分析
 
 ## 执行流程
 
@@ -92,6 +107,8 @@ python3 ./quick-scan.py /path/to/project
 
 ### 2. 路由识别方法（主流语言/框架）
 
+> **脚本覆盖说明**：`quick-scan.py` 脚本已自动实现以下路由识别功能，使用 tree-sitter AST 分析准确提取路由信息。以下内容为参考说明，帮助理解脚本的工作原理。
+
 #### 2.1 通用思路
 
 - **查找路由声明位置**：路由表文件、装饰器/注解、注册函数（router、app、server）、中间件挂载点
@@ -99,7 +116,11 @@ python3 ./quick-scan.py /path/to/project
 - **识别动态参数**：`:param`、`{param}`、`<type:param>`、正则/通配符（`*`, `**`），以及方法限定（GET/POST/...）
 - **关联中间件/过滤器**：auth/role/guard/interceptor，标记优先级与认证需求
 
+> **脚本实现**：脚本使用 tree-sitter 查询自动识别上述模式，无需手动正则匹配。
+
 #### 2.2 Node.js / TypeScript（Express/Koa/Fastify/Nest）
+
+> **脚本覆盖**：✅ 已由 `quick-scan.py` 自动实现，使用 tree-sitter 查询识别 Express、Koa、Fastify、NestJS 路由模式。
 
 **路由特征**：
 - Express：`app.METHOD(path, ...)`、`router.METHOD(path, ...)`、`router.use(prefix, ...)`；文件：`routes/*.js/ts`、`app.js`、`server.js`
