@@ -130,21 +130,44 @@ include\s*\(\s*['"]
 @(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping)\s*\(\s*(['"]|value\s*=\s*['"]|path\s*=\s*['"])?
 ```
 
-#### 2.5 Go（Gin/Echo/Chi/net/http）
+#### 2.5 Go（Gin/Echo/Chi/Fiber/Mux/net/http）
 
 **路由特征**：
 - Gin：`r.GET/POST`，`r.Group("/api")`；中间件 `Use`
 - Echo：`e.GET/POST`，`e.Group("/api")`；路由模板 `/:id/*`
 - Chi：`r.Route("/api", func(r chi.Router){ r.Get(...) })`，`Mount`
-- net/http：`http.HandleFunc("/path", handler)`
-- gorilla/mux：`r.HandleFunc("/path", handler)`
+- Fiber：`app.Get/Post`，`app.Group("/api")`
+- net/http：`http.HandleFunc("/path", handler)`，`ServeMux`
+- gorilla/mux：`r.HandleFunc`，`PathPrefix`，`Methods`
+- httprouter：`router.GET/POST`
+- Beego：`beego.Router`，`@router` 注释路由
+- Iris：`app.Get/Post`，`Party` 分组
 
 **匹配正则**：
 ```regex
-\w+\s*\.\s*(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|Any|Handle|Group)\s*\(\s*["']
-\w+\s*\.\s*(Get|Post|Put|Patch|Delete|Options|Head|Route|Mount)\s*\(\s*["']
-http\s*\.\s*(HandleFunc|Handle)\s*\(\s*["']
-\w+\s*\.\s*(HandleFunc|Handle|PathPrefix)\s*\(\s*["']
+# Gin/Echo
+\w+\s*\.\s*(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|Any|Handle|Group|Add|Match)\s*\(\s*["']
+
+# Chi/Fiber
+\w+\s*\.\s*(Get|Post|Put|Patch|Delete|Options|Head|Route|Mount|Connect|Trace|With|All|Use)\s*\(\s*["']
+
+# net/http 标准库
+http\s*\.\s*(HandleFunc|Handle|ListenAndServe|NewServeMux)\s*\(
+ServeMux
+
+# gorilla/mux
+\w+\s*\.\s*(HandleFunc|Handle|PathPrefix|Methods|Path|Queries|Schemes|Host)\s*\(
+mux\.(NewRouter|Router)
+
+# httprouter
+\w+\s*\.\s*(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|Handler|ServeFiles)\s*\(\s*["']
+
+# Beego
+beego\.(Router|NSRouter|NSNamespace|Include|Get|Post|Put|Patch|Delete)
+@router\s+
+
+# Iris
+\w+\s*\.\s*(Party|PartyFunc)\s*\(\s*["']
 ```
 
 #### 2.6 PHP（Laravel / Symfony）
