@@ -54,7 +54,9 @@ description: |
 | XML 解析 | `xxe-analyzer` |
 | 用户输入渲染到页面 | `xss-analyzer` |
 | 外部 HTTP 请求 | `ssrf-analyzer` |
-| 文件读取/路径操作 | `path-traversal-lfi-rfi-analyzer` |
+| 路径操作/目录遍历 | `path-traversal-analyzer` |
+| 本地文件包含 | `lfi-analyzer` |
+| 远程文件包含 | `rfi-analyzer` |
 | LDAP 查询 | `ldap-injection-analyzer` |
 | 动态代码执行 | `code-injection-analyzer` |
 | 资源 ID 访问 | `idor-analyzer` |

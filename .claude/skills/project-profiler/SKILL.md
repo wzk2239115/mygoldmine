@@ -51,8 +51,7 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
 ```
 
 **对于后端 HTTP 服务，后续分析需要使用的技能列表如下（禁止添加其他技能）: **
-- route-scanner 技能：扫描API端点，识别路由信息。
-- authentication-analyzer 技能：分析API端点认证要求。
+- web-auth-analyzer 技能：分析API端点认证要求和用户角色体系。
 
 **总结输出格式（JSON格式）：**
 ```json
@@ -60,15 +59,15 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
     "tasks": [
         {
             "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
-            "skill": "route-scanner"
-        },
-        {
-            "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
-            "skill": "authentication-analyzer"
+            "skill": "web-auth-analyzer"
         }
     ]
 }
 ```
+
+**说明**：
+- `{TASK_ID}` 为当前任务 ID
+- web-auth-analyzer 会根据分析结果自动触发下游任务（unauth-route-scanner / normal-route-scanner）
 
 2. 前端 WEB 应用
 

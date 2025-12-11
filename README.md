@@ -84,10 +84,12 @@ STEP 4: 报告生成 (report-generator)
 | `xxe-analyzer` | XML 外部实体注入 |
 | `csrf-analyzer` | 跨站请求伪造 |
 | `idor-analyzer` | 不安全的直接对象引用 |
-| `path-traversal-lfi-rfi-analyzer` | 路径遍历 / 文件包含 |
+| `path-traversal-analyzer` | 路径遍历 |
+| `lfi-analyzer` | 本地文件包含 |
+| `rfi-analyzer` | 远程文件包含 |
 | `open-redirect-analyzer` | 开放重定向 |
 | `ldap-injection-analyzer` | LDAP 注入 |
-| `xml-xpath-injection-analyzer` | XPath 注入 |
+| `xpath-injection-analyzer` | XPath 注入 |
 | `http-header-injection-analyzer` | HTTP 头注入 |
 | `insecure-file-uploads-analyzer` | 不安全文件上传 |
 | `sensitive-info-scanner` | 敏感信息泄露 |
@@ -152,7 +154,9 @@ flowchart TB
         CSRF[csrf-analyzer]
         IDOR[idor-analyzer]
         REDIRECT[open-redirect-analyzer]
-        PATH[path-traversal-lfi-rfi-analyzer]
+        PATHTR[path-traversal-analyzer]
+        LFI[lfi-analyzer]
+        RFI[rfi-analyzer]
         LDAPI[ldap-injection-analyzer]
         CODEI[code-injection-analyzer]
         UPLOAD[insecure-file-uploads-analyzer]

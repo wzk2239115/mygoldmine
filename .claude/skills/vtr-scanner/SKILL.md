@@ -77,7 +77,9 @@ description: 专业靶场扫描技能：具备主流语言/框架的靶场扫描
 | `idor-analyzer` | 分析IDOR漏洞。 |
 | `ldap-injection-analyzer` | 分析LDAP注入漏洞。 |
 | `open-redirect-analyzer` | 分析开放重定向漏洞。 |
-| `path-traversal-lfi-rfi-analyzer` | 分析路径遍历/文件包含漏洞。 |
+| `path-traversal-analyzer` | 分析路径遍历漏洞。 |
+| `lfi-analyzer` | 分析本地文件包含漏洞。 |
+| `rfi-analyzer` | 分析远程文件包含漏洞。 |
 | `sql-injection-analyzer` | 分析SQL注入漏洞。 |
 | `ssrf-analyzer` | 分析SSRF漏洞。 |
 | `xxe-analyzer` | 分析XXE漏洞。 |

@@ -31,9 +31,13 @@ tools: Read, Write, Edit, Bash, Task
 **支持的扫描器列表：**
 | 技能 | 描述 |
 |------|------|
-| `authentication-analyzer` | 分析API端点认证机制，检测认证绕过、弱认证、会话管理缺陷等问题。 |
 | `workspace-scanner` | 扫描工作区结构，判断是否为多子工程（Monorepo），为每个子工程生成 profiler 任务。 |
 | `project-profiler` | 构建项目画像，分析技术栈与项目类型，推荐后续分析技能。 |
+| `web-auth-analyzer` | 分析API端点认证要求、认证机制安全性、用户角色体系，触发下游路由扫描任务。 |
+| `unauth-route-scanner` | 从项目中提取无需认证即可访问的API端点，生成未授权访问路由清单。 |
+| `normal-route-scanner` | 从项目中提取普通用户（非管理员）可访问的API端点，生成普通用户路由清单。 |
+| `route-deep-analyzer` | 深度分析API端点功能实现，提取请求参数、响应结构、权限要求、数据流向。 |
+| `code-security-analyzer` | 基于功能点代码片段进行安全审计，识别漏洞并生成 BUG 报告。 |
 | `code-injection-analyzer` | 检测代码注入漏洞，如eval()、动态代码执行、模板注入等不安全代码执行。 |
 | `command-injection-analyzer` | 检测OS命令注入，分析system()、exec()等系统命令调用中的用户输入处理。 |
 | `csrf-analyzer` | 检测跨站请求伪造漏洞，分析Token验证、SameSite属性、Referer检查等防护措施。 |
@@ -42,14 +46,14 @@ tools: Read, Write, Edit, Bash, Task
 | `insecure-file-uploads-analyzer` | 检测文件上传漏洞，分析文件类型校验、存储路径、执行权限等安全控制。 |
 | `ldap-injection-analyzer` | 检测LDAP注入漏洞，分析LDAP查询构造中的用户输入处理。 |
 | `open-redirect-analyzer` | 检测开放重定向漏洞，分析URL跳转参数的验证和白名单机制。 |
-| `path-traversal-lfi-rfi-analyzer` | 检测路径遍历和文件包含漏洞（LFI/RFI），分析文件路径参数的过滤和限制。 |
-| `route-function-analyzer` | 深度分析API端点功能实现，提取请求参数、响应结构、权限要求、数据流向。 |
-| `route-scanner` | 扫描发现项目中的所有API端点和路由定义，生成端点清单。 |
+| `path-traversal-analyzer` | 检测路径遍历漏洞，分析文件路径参数的过滤和限制。 |
+| `lfi-analyzer` | 检测本地文件包含漏洞（LFI），分析文件包含操作中的路径验证。 |
+| `rfi-analyzer` | 检测远程文件包含漏洞（RFI），分析远程文件加载的安全控制。 |
 | `sensitive-info-scanner` | 检测敏感信息泄露，包括硬编码密钥、API凭证、PII数据暴露、日志泄露等。 |
 | `sql-injection-analyzer` | 检测SQL注入漏洞，分析数据库查询构造中的参数化和输入过滤。 |
 | `ssrf-analyzer` | 检测服务端请求伪造漏洞，分析URL参数验证、内网访问控制、协议限制。 |
 | `vtr-scanner` | 识别项目中的漏洞靶场类型（如WebGoat、DVWA），用于测试环境检测。 |
-| `xml-xpath-injection-analyzer` | 检测XML/XPath注入漏洞，分析XML解析和XPath查询中的输入处理。 |
+| `xpath-injection-analyzer` | 检测XPath注入漏洞，分析XPath查询中的输入处理。 |
 | `xxe-analyzer` | 检测XML外部实体注入漏洞，分析XML解析器配置和外部实体处理。 |
 | `xss-analyzer` | 检测跨站脚本漏洞，分析输出编码、CSP策略、DOM操作等防护措施。 |
 
@@ -244,9 +248,9 @@ list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending"
 ```
 Task(
   subagent_type: "skill-runner",
-  description: "Execute route scan",
+  description: "Execute auth analysis",
   prompt: "# 任务执行请求
-使用 `route-scanner` SKILL 扫描API端点。
+使用 `web-auth-analyzer` SKILL 分析认证机制。
 TASK_ID: orch-002
 Input: .workspace/tasks/orch-001/project-profile.md"
 )

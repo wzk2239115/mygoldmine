@@ -47,42 +47,33 @@ description: 工作区扫描技能：判断工程是否由多个相对独立的�
 
 ## 扫描流程
 
-### 步骤 1: 检测工作区配置
+### 步骤 1: 一次性 Glob 检测（推荐）
 
-```bash
-# 检查 Node.js monorepo
-cat package.json 2>/dev/null | grep -q '"workspaces"' && echo "npm-workspaces"
-ls pnpm-workspace.yaml 2>/dev/null && echo "pnpm-workspace"
-ls lerna.json 2>/dev/null && echo "lerna"
-ls rush.json 2>/dev/null && echo "rush"
+使用单次 Glob 匹配快速检测所有工作区配置文件和潜在子工程：
 
-# 检查 Java 多模块
-grep -l '<modules>' pom.xml 2>/dev/null && echo "maven-modules"
-grep -l 'include' settings.gradle* 2>/dev/null && echo "gradle-modules"
-
-# 检查 Go workspace
-ls go.work 2>/dev/null && echo "go-workspace"
-
-# 检查 .NET 解决方案
-ls *.sln 2>/dev/null && echo "dotnet-solution"
+```glob
+# 一次性匹配所有工作区配置文件
+{package.json,pnpm-workspace.yaml,lerna.json,rush.json,pom.xml,settings.gradle,settings.gradle.kts,go.work,*.sln}
 ```
 
-### 步骤 2: 扫描子工程目录
-
-如果检测到工作区配置，进一步扫描子工程：
-
-```bash
-# Node.js: 从 package.json workspaces 或 pnpm-workspace.yaml 获取
-# Maven: 从 pom.xml <modules> 获取
-# Gradle: 从 settings.gradle include 获取
-# 通用: 扫描 packages/*/package.json, apps/*/package.json, services/*/pom.xml 等
+```glob
+# 一次性匹配所有潜在子工程的依赖配置文件
+{packages,apps,services,modules,projects,libs}/*/{package.json,pom.xml,build.gradle,go.mod,Cargo.toml,requirements.txt,pyproject.toml,composer.json,*.csproj}
 ```
+
+### 步骤 2: 快速判定逻辑
+
+根据 Glob 结果快速判定：
+
+1. **无 monorepo 配置** → 直接判定为单一项目，跳过后续扫描
+2. **有 monorepo 配置** → 检查子工程依赖文件数量：
+   - 子工程数量 = 0 → 单一项目
+   - 子工程数量 ≥ 1 → 多子工程
 
 ### 步骤 3: 验证子工程独立性
 
-对每个潜在子工程，检查：
-- 是否有独立的依赖配置文件
-- 是否有可识别的项目结构
+仅在检测到多子工程时执行，对 Glob 匹配到的子工程目录：
+- 确认依赖配置文件有效（非空、格式正确）
 - 排除测试目录、示例目录、文档目录等非独立工程
 
 ## 输出要求

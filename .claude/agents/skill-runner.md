@@ -57,7 +57,7 @@ color: red
 **示例**：
 - Orchestrator 调用：`TASK_ID: orch-002`
 - Skill-Runner 创建目录：`.workspace/tasks/orch-002/`
-- SKILL 输出文件：`.workspace/tasks/orch-002/route-scanner-result.md`
+- SKILL 输出文件：`.workspace/tasks/orch-002/web-auth-analyzer.md`
 
 **注意**：
 - TASK_ID 格式为 `{agent}-{seq}`（如 `orch-001`, `orch-002`）

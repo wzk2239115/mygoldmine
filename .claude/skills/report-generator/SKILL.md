@@ -15,17 +15,29 @@ description: 专业报告生成技能：汇总各扫描器的发现，生成面�
 | 产物类型 | 路径 | 说明 |
 |----------|------|------|
 | 任务清单 | `.workspace/tasks/security-orchestrator-tasks.json` | 扫描器执行状态 |
-| 项目基本信息 | `.workspace/tasks/{TASK_ID}/project-profile.md` | 项目分类、技术栈、代码统计等 |
-| 路由扫描结果 | `.workspace/tasks/{TASK_ID}/route-scanner-result*.md` | API端点列表 |
-| 认证分析结果 | `.workspace/tasks/{TASK_ID}/authentication-analysis.md` | 认证要求分析 |
-| 端点分析结果 | `.workspace/tasks/{TASK_ID}/*-{method}-*.md` | 各端点功能分析 |
-| 漏洞扫描结果 | `.workspace/tasks/{TASK_ID}/*-analyzer-result*.md` | 各扫描器的漏洞发现结果 |
-| 靶场扫描结果 | `.workspace/tasks/{TASK_ID}/vtr-scanner-result*.md` | 靶场类型识别结果 |
+| 项目基本信息 | `.workspace/tasks/{PROFILE_TASK_ID}/project-profile.md` | 项目分类、技术栈、代码统计等 |
+| 认证分析结果 | `.workspace/tasks/{AUTH_TASK_ID}/web-auth-analyzer.md` | 认证机制和角色体系分析 |
+| 未授权路由 | `.workspace/tasks/{UNAUTH_SCANNER_TASK_ID}/unauth-route-scanner.md` | 无需认证的API端点列表 |
+| 普通用户路由 | `.workspace/tasks/{NORMAL_SCANNER_TASK_ID}/normal-route-scanner.md` | 普通用户可访问的API端点列表 |
+| 端点分析结果 | `.workspace/tasks/{ROUTE_ANALYZER_TASK_ID}/route-analysis-group-*.md` | 各端点功能分析 |
+| 漏洞扫描结果（tasks） | `.workspace/tasks/{SCANNER_TASK_ID}/*-analyzer-result*.md` | 各扫描器的漏洞发现结果（tasks目录） |
+| 漏洞扫描结果（findings） | `.workspace/findings/**/*.md` | 各扫描器的漏洞发现结果（findings目录） |
+| 靶场扫描结果 | `.workspace/tasks/{VTR_TASK_ID}/vtr-scanner-result*.md` | 靶场类型识别结果 |
 
 **路径说明**：
-- `{TASK_ID}` 对应 orchestrator 任务 ID（如 `orch-001`, `orch-002` 等）
-- 需要遍历 `.workspace/tasks/` 下所有以 `orch-` 开头的子目录
-- 优先读取 orchestrator-tasks.json 获取已完成任务列表，再根据任务 ID 定位产物目录
+- 各产物路径使用明确的任务 ID 变量，与其他技能保持一致：
+  - `{PROFILE_TASK_ID}`: 项目画像任务 ID
+  - `{AUTH_TASK_ID}`: 认证分析任务 ID
+  - `{UNAUTH_SCANNER_TASK_ID}`: 未授权路由扫描任务 ID
+  - `{NORMAL_SCANNER_TASK_ID}`: 普通用户路由扫描任务 ID
+  - `{ROUTE_ANALYZER_TASK_ID}`: 路由深度分析任务 ID
+  - `{SCANNER_TASK_ID}`: 漏洞扫描器任务 ID（可能有多个）
+  - `{VTR_TASK_ID}`: 靶场扫描任务 ID
+- 实际执行时，需要从 `security-orchestrator-tasks.json` 读取各任务的实际 ID（如 `orch-001`, `orch-002` 等）
+- 产物收集策略：
+  - **tasks 目录**：遍历 `.workspace/tasks/` 下所有以 `orch-` 开头的子目录
+  - **findings 目录**：递归扫描 `.workspace/findings/` 下所有 `.md` 文件（漏洞报告）
+  - 两个目录的漏洞结果需要合并去重
 
 ## 核心职责
 
@@ -57,28 +69,43 @@ check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --sh
 ### 步骤 1: 读取所有结果文件
 
 **读取步骤**：
-1. 读取 `.workspace/tasks/security-orchestrator-tasks.json` 获取所有已完成任务列表
-2. 遍历每个任务的 `{TASK_ID}` 目录，收集所有产物文件
-3. 根据文件名模式识别产物类型：
-   - `project-profile.md` → 项目基本信息
-   - `route-scanner-result*.md` → 路由扫描结果
-   - `authentication-analyzer-result.md` → 认证分析结果
-   - `*-analyzer-result*.md` → 漏洞扫描结果
-   - `vtr-scanner-result*.md` → 靶场扫描结果
+1. **读取任务清单**：读取 `.workspace/tasks/security-orchestrator-tasks.json` 获取所有已完成任务列表
+2. **读取 tasks 目录产物**：遍历每个任务目录，根据技能名称（skill字段）和产物文件名识别产物类型：
+   - `project-profiler` 技能 → `project-profile.md`（项目基本信息）
+   - `web-auth-analyzer` 技能 → `web-auth-analyzer.md`（认证分析结果）
+   - `unauth-route-scanner` 技能 → `unauth-route-scanner.md`（未授权路由清单）
+   - `normal-route-scanner` 技能 → `normal-route-scanner.md`（普通用户路由清单）
+   - `route-deep-analyzer` 技能 → `route-analysis-group-*.md`（端点深度分析结果）
+   - 各扫描器技能（`*-analyzer`）→ `*-analyzer-result*.md`（漏洞扫描结果）
+   - `vtr-scanner` 技能 → `vtr-scanner-result*.md`（靶场扫描结果）
+3. **读取 findings 目录产物**：递归扫描 `.workspace/findings/` 目录下所有 `.md` 文件（漏洞报告）
+   - 识别文件名模式（如 `sql-injection-*.md`, `xss-*.md` 等）确定漏洞类型
+   - 解析 Markdown 文件提取漏洞信息（位置、严重程度、描述等）
+4. **映射任务 ID**：将任务 ID 映射到相应的变量名（如 `orch-001` → `{PROFILE_TASK_ID}`）
 
-**同一SKILL多任务结果去重逻辑**：
-- 如果发现多个任务使用相同的SKILL（通过文件名前缀识别，如 `sql-injection-analyzer`）
-- 去重规则：相同文件路径 + 相同行号 + 相同漏洞类型 = 相同漏洞
-- 如果多个任务报告了相同的漏洞，只保留一个（优先保留严重程度最高的）
+**去重逻辑**：
+- **同一SKILL多任务去重**：如果发现多个任务使用相同的SKILL（通过文件名前缀识别，如 `sql-injection-analyzer`）
+- **tasks 与 findings 目录去重**：来自 tasks 目录和 findings 目录的漏洞结果也需要去重
+- **去重规则**：相同文件路径 + 相同行号 + 相同漏洞类型 = 相同漏洞
+- **冲突处理**：如果多个来源报告了相同的漏洞，只保留一个（优先保留严重程度最高的）
 
 ### 步骤 2: 聚合漏洞
 
-- 从所有扫描器结果中收集所有漏洞（遍历 `.workspace/tasks/{TASK_ID}/` 目录）
-- **去重规则**：相同文件路径 + 相同行号 + 相同漏洞类型 = 相同漏洞
-- 如果多个任务报告了相同的漏洞，只保留一个（优先保留严重程度最高的）
-- 按严重程度排序（Critical > High > Medium > Low）
-- 分配全局漏洞 ID（VULN-001, VULN-002, 等）
-- 若未执行定制扫描（无 `*-analyzer-result*.md` 文件），仍需生成报告，统计值为 0，风险级别默认为 Low，并在执行摘要中注明"未执行定制扫描（无推荐扫描器或扫描被跳过）"。
+**漏洞收集源**：
+- **tasks 目录**：遍历各 `{SCANNER_TASK_ID}` 目录下的 `*-analyzer-result*.md` 文件
+- **findings 目录**：递归扫描 `.workspace/findings/` 下所有 `.md` 文件
+
+**聚合流程**：
+1. 从两个目录收集所有漏洞
+2. 应用去重规则：相同文件路径 + 相同行号 + 相同漏洞类型 = 相同漏洞
+3. 冲突处理：如果多个来源报告了相同的漏洞，只保留一个（优先保留严重程度最高的）
+4. 按严重程度排序（Critical > High > Medium > Low）
+5. 分配全局漏洞 ID（VULN-001, VULN-002, 等）
+
+**特殊情况处理**：
+- 若未执行定制扫描（tasks 和 findings 目录下均无漏洞报告），仍需生成报告
+- 统计值为 0，风险级别默认为 Low
+- 在执行摘要中注明"未执行定制扫描（无推荐扫描器或扫描被跳过）"
 
 ### 步骤 3: 计算风险评估
 
