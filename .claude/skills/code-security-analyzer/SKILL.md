@@ -48,10 +48,12 @@ description: |
 | 风险点特征 | 激活技能 |
 |----------|----------|
 | SQL 查询/数据库操作 | `sql-injection-analyzer` |
+| NoSQL 数据库操作 | `nosql-injection-analyzer` |
 | 命令执行/系统调用 | `command-injection-analyzer` |
 | 文件上传功能 | `insecure-file-uploads-analyzer` |
 | URL 跳转/重定向 | `open-redirect-analyzer` |
 | XML 解析 | `xxe-analyzer` |
+| XPath 查询 | `xpath-injection-analyzer` |
 | 用户输入渲染到页面 | `xss-analyzer` |
 | 外部 HTTP 请求 | `ssrf-analyzer` |
 | 路径操作/目录遍历 | `path-traversal-analyzer` |
@@ -59,9 +61,29 @@ description: |
 | 远程文件包含 | `rfi-analyzer` |
 | LDAP 查询 | `ldap-injection-analyzer` |
 | 动态代码执行 | `code-injection-analyzer` |
+| 表达式求值/模板引擎 | `expression-injection-analyzer` |
+| 服务端模板渲染 | `ssti-analyzer` |
+| 邮件发送功能 | `email-injection-analyzer` |
 | 资源 ID 访问 | `idor-analyzer` |
 | 表单提交（非 GET） | `csrf-analyzer` |
 | HTTP 头构造/响应头设置 | `http-header-injection-analyzer` |
+| HTTP 响应拼接 | `http-splitting-analyzer` |
+| JWT 认证实现 | `authentication-jwt-analyzer` |
+| 会话/认证管理 | `session-and-auth-analyzer` |
+| 功能级权限控制 | `broken-function-level-authorization-analyzer` |
+| 批量赋值/参数绑定 | `mass-assignment-analyzer` |
+| 反序列化操作 | `insecure-deserialization-analyzer` |
+| 加密/哈希操作 | `cryptography-analyzer` |
+| 弱加密算法使用 | `weak-cryptography-analyzer` |
+| 整数运算/类型转换 | `integer-overflow-analyzer` |
+| 数值类型转换 | `numeric-conversion-error-analyzer` |
+| 并发/竞态操作 | `race-conditions-analyzer` |
+| 登录/验证接口 | `brute-analyzer` |
+| 支付/金额处理 | `payment-analyzer` |
+| 业务逻辑流程 | `business-logic-analyzer` |
+| LLM/AI 集成 | `llm-security-analyzer` |
+| CSP 策略配置 | `csp-analyzer` |
+| 安全配置检查 | `security-configuration-analyzer` |
 
 **激活流程**：
 1. 分析端点代码，识别潜在风险点

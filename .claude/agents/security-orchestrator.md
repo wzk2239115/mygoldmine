@@ -23,43 +23,14 @@ tools: Read, Write, Edit, Bash, Task
   - 通过配置文件：`.workspace/config/scanner-blacklist.json`（如果存在）
 - **子工程分析范围**（针对 Monorepo/多子工程）：通过 `SCAN_RANGE` 参数指定，如"分析前10个子工程"、"分析第5到第10个子工程"，默认分析前 5 个子工程
 
-**扫描器配置优先级：**
-1. 用户prompt中的明确指定（最高优先级）
-2. 配置文件（如果存在）
-3. 威胁建模推荐的所有扫描器（默认，如果未指定）
+**子任务Skill过滤规则（添加子任务前必须检查）：**
 
-**支持的扫描器列表：**
-| 技能 | 描述 |
-|------|------|
-| `workspace-scanner` | 扫描工作区结构，判断是否为多子工程（Monorepo），为每个子工程生成 profiler 任务。 |
-| `project-profiler` | 构建项目画像，分析技术栈与项目类型，推荐后续分析技能。 |
-| `web-auth-analyzer` | 分析API端点认证要求、认证机制安全性、用户角色体系，触发下游路由扫描任务。 |
-| `unauth-route-scanner` | 从项目中提取无需认证即可访问的API端点，生成未授权访问路由清单。 |
-| `normal-route-scanner` | 从项目中提取普通用户（非管理员）可访问的API端点，生成普通用户路由清单。 |
-| `route-deep-analyzer` | 深度分析API端点功能实现，提取请求参数、响应结构、权限要求、数据流向。 |
-| `code-security-analyzer` | 基于功能点代码片段进行安全审计，识别漏洞并生成 BUG 报告。 |
-| `code-injection-analyzer` | 检测代码注入漏洞，如eval()、动态代码执行、模板注入等不安全代码执行。 |
-| `command-injection-analyzer` | 检测OS命令注入，分析system()、exec()等系统命令调用中的用户输入处理。 |
-| `csrf-analyzer` | 检测跨站请求伪造漏洞，分析Token验证、SameSite属性、Referer检查等防护措施。 |
-| `http-header-injection-analyzer` | 检测HTTP头注入漏洞，包括CRLF注入、响应拆分、Host头攻击等。 |
-| `idor-analyzer` | 检测不安全的直接对象引用，分析资源访问时的权限校验和所有权验证。 |
-| `insecure-file-uploads-analyzer` | 检测文件上传漏洞，分析文件类型校验、存储路径、执行权限等安全控制。 |
-| `ldap-injection-analyzer` | 检测LDAP注入漏洞，分析LDAP查询构造中的用户输入处理。 |
-| `open-redirect-analyzer` | 检测开放重定向漏洞，分析URL跳转参数的验证和白名单机制。 |
-| `path-traversal-analyzer` | 检测路径遍历漏洞，分析文件路径参数的过滤和限制。 |
-| `lfi-analyzer` | 检测本地文件包含漏洞（LFI），分析文件包含操作中的路径验证。 |
-| `rfi-analyzer` | 检测远程文件包含漏洞（RFI），分析远程文件加载的安全控制。 |
-| `sensitive-info-scanner` | 检测敏感信息泄露，包括硬编码密钥、API凭证、PII数据暴露、日志泄露等。 |
-| `sql-injection-analyzer` | 检测SQL注入漏洞，分析数据库查询构造中的参数化和输入过滤。 |
-| `ssrf-analyzer` | 检测服务端请求伪造漏洞，分析URL参数验证、内网访问控制、协议限制。 |
-| `vtr-scanner` | 识别项目中的漏洞靶场类型（如WebGoat、DVWA），用于测试环境检测。 |
-| `xpath-injection-analyzer` | 检测XPath注入漏洞，分析XPath查询中的输入处理。 |
-| `xxe-analyzer` | 检测XML外部实体注入漏洞，分析XML解析器配置和外部实体处理。 |
-| `xss-analyzer` | 检测跨站脚本漏洞，分析输出编码、CSP策略、DOM操作等防护措施。 |
-
-**任务过滤规则（添加任务前必须检查）：**
-
-1. **技能白名单检查**：如果 skill-runner 推荐的 `skill` 字段中包含列表之外的技能，对应的任务应该被跳过，并在 warnings 中记录原因。
+1. **技能命名规则检查**：子智能体推荐的 `skill` 字段必须符合以下命名规则之一，否则对应的任务应该被跳过，并在 warnings 中记录原因：
+   - 以 `-scanner` 结尾（如 `workspace-scanner`、`vtr-scanner`、`normal-route-scanner`）
+   - 以 `-analyzer` 结尾（如 `sql-injection-analyzer`、`xss-analyzer`、`web-auth-analyzer`）
+   - 内置技能例外：`project-profiler`、`report-generator`、`code-security-analyzer`、`bug-report`
+   - **验证方法**：检查技能名称是否以 `-scanner` 或 `-analyzer` 结尾，或属于内置技能白名单
+   - **不合规示例**：`test-skill`、`custom-checker`、`security-audit` 等不符合命名规则的技能将被拒绝
 
 2. **重复任务检测**：添加新任务前，检查是否已存在相同 `artifact + skill` 组合的任务：
    - 判定标准：`artifact`（输入产物路径）和 `skill`（技能名称）完全相同
