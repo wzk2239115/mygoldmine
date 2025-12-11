@@ -69,6 +69,9 @@ check_tool() {
             rg|ripgrep)
                 version=$(rg --version 2>/dev/null | head -1 | awk '{print $2}' || echo "")
                 ;;
+            tree)
+                version=$(tree --version 2>/dev/null | head -1 | awk '{print $2}' || echo "")
+                ;;
         esac
         
         if [[ -n "$version" ]]; then
@@ -238,6 +241,16 @@ get_install_command() {
                 echo "请访问 https://github.com/BurntSushi/ripgrep/releases"
             fi
             ;;
+        tree)
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                echo "brew install tree"
+            elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+                echo "sudo apt-get install tree  # Debian/Ubuntu"
+                echo "    sudo yum install tree  # CentOS/RHEL"
+            else
+                echo "请访问 http://mama.indstate.edu/users/ice/tree/"
+            fi
+            ;;
         *)
             echo "请查阅相关文档"
             ;;
@@ -261,6 +274,7 @@ main() {
     check_tool "rg" "required" "ripgrep - 快速文本搜索工具（grep 的高性能替代品）"
     check_tool "python3" "required" "Python 解释器（threat-modeler 可选，用于生成 Markdown）"
     check_python_module "jsonschema" "required" "JSON Schema 验证库（tasks.json 工具需要，用于 Schema 校验）"
+    check_tool "tree" "optional" "目录树显示工具（workspace-scanner 需要，用于生成文件树）"
     
     echo ""
     echo "=========================================="
