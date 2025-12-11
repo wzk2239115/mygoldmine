@@ -52,6 +52,7 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
 
 **对于后端 HTTP 服务，后续分析需要使用的技能列表如下（禁止添加其他技能）: **
 - web-auth-analyzer 技能：分析API端点认证要求和用户角色体系。
+- sensitive-info-scanner 技能：扫描敏感信息泄露风险。
 
 **总结输出格式（JSON格式）：**
 ```json
@@ -60,6 +61,10 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
         {
             "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
             "skill": "web-auth-analyzer"
+        },
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
+            "skill": "sensitive-info-scanner"
         }
     ]
 }
