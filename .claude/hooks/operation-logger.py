@@ -3,14 +3,20 @@
 # 操作记录钩子
 #
 # 功能：记录所有工具操作，包括工具类型、输入、输出和时间戳
+# 日志存储默认使用 base64 编码，可通过环境变量关闭：
+#   OPERATION_LOGGER_BASE64_DISABLED=1  关闭 base64 编码，使用明文存储
 
 import os
 import sys
 import json
 import logging
+import base64
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
+
+# 环境变量控制：OPERATION_LOGGER_BASE64_DISABLED=1 关闭 base64 编码，默认开启 base64 编码
+BASE64_DISABLED = os.environ.get('OPERATION_LOGGER_BASE64_DISABLED', '').lower() in ('1', 'true', 'yes')
 
 # 配置：使用当前工作目录下的 .workspace/logs
 LOG_DIR = Path.cwd() / ".workspace" / "logs"
@@ -62,13 +68,27 @@ def get_timestamp() -> str:
     """获取当前时间戳（ISO 8601格式）"""
     return datetime.now().isoformat()
 
+def encode_for_storage(data: str) -> str:
+    """根据配置决定是否进行 base64 编码
+
+    Args:
+        data: 要处理的字符串
+
+    Returns:
+        base64 编码后的字符串（默认），或原始字符串（当 BASE64_DISABLED=1 时）
+    """
+    if BASE64_DISABLED:
+        return data
+    return base64.b64encode(data.encode('utf-8')).decode('utf-8')
+
+
 def sanitize_data(data: Any, max_length: int = 4096) -> Any:
     """清理数据，避免记录过大的内容
-    
+
     Args:
         data: 要清理的数据
         max_length: 字符串最大长度
-        
+
     Returns:
         清理后的数据
     """
@@ -103,7 +123,7 @@ def extract_response_text(tool_response: Any, max_length: int = 4096) -> str:
 
 def log_operation(data: Dict[str, Any]) -> None:
     """记录工具操作
-    
+
     Args:
         data: 从 stdin 读取的 JSON 数据
     """
@@ -118,7 +138,7 @@ def log_operation(data: Dict[str, Any]) -> None:
         tool_response = data.get('tool_response', {})
         session_id = data.get('session_id', 'unknown')
         response_text = extract_response_text(tool_response) if tool_name == "Task" else ""
-        
+
         # 构建操作记录
         operation_record = {
             'timestamp': get_timestamp(),
@@ -129,16 +149,18 @@ def log_operation(data: Dict[str, Any]) -> None:
             'response_text': sanitize_data(response_text) if tool_name == "Task" else "",
             'success': tool_response.get('error') is None if isinstance(tool_response, dict) else True
         }
-        
-        # 记录到JSONL文件（结构化日志）
+
+        # 记录到JSONL文件（结构化日志，base64编码）
         try:
+            json_str = json.dumps(operation_record, ensure_ascii=False)
+            encoded_record = encode_for_storage(json_str)
             with open(JSON_LOG_FILE, 'a', encoding='utf-8') as f:
-                json.dump(operation_record, f, ensure_ascii=False)
+                f.write(encoded_record)
                 f.write('\n')
         except Exception as e:
             logger.error(f"写入JSONL日志失败: {e}")
         
-        # 记录到文本日志（人类可读）
+        # 记录到文本日志（通过 logger，数据经过 encode 编码）
         try:
             # 提取关键信息用于文本日志
             file_path = tool_input.get('file_path', '')
@@ -193,7 +215,9 @@ def log_operation(data: Dict[str, Any]) -> None:
                 else:
                     log_message = f"[{tool_name}]\ninput={input_preview}\nresponse={response_preview}"
 
-            logger.info(log_message)
+            # 对日志消息进行编码后通过 logger 写入
+            encoded_message = encode_for_storage(log_message)
+            logger.info(encoded_message)
         except Exception as e:
             logger.error(f"写入文本日志失败: {e}")
             
@@ -205,13 +229,13 @@ def main():
     try:
         # 从 stdin 读取 JSON 数据
         input_data = json.load(sys.stdin)
-        
+
         # 记录操作
         log_operation(input_data)
-        
+
         # 正常退出（不影响工具执行）
         sys.exit(0)
-        
+
     except json.JSONDecodeError as e:
         logger.error(f"JSON 解析错误: {e}")
         sys.exit(0)  # JSON 解析错误时不影响正常流程
