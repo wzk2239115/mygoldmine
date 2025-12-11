@@ -14,9 +14,12 @@
 """
 
 import argparse
-import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+# Tree-sitter 支持（使用 tree-sitter-language-pack）
+from tree_sitter import Parser, Language, Query  # type: ignore
+from tree_sitter_language_pack import get_parser  # type: ignore
 
 # 认证机制搜索模式
 AUTH_MECHANISM_PATTERNS = {
@@ -190,167 +193,225 @@ AUTH_SECURITY_RISK_PATTERNS = {
     ],
 }
 
+# 语言映射常量（用于 Tree-sitter）
+# 将项目语言名称映射到 tree-sitter 语言标识符
+LANGUAGE_MAP = {
+    "JavaScript/TypeScript": "javascript",  # JavaScript 和 TypeScript 都使用 javascript parser
+    "Python": "python",
+    "Go": "go",
+    "Java": "java",
+    "PHP": "php",
+    "Ruby": "ruby",
+    "Rust": "rust",
+    "C": "c",
+    "C++": "cpp",
+    ".NET": "csharp",
+    "Swift": "swift",
+    "Kotlin": "kotlin",
+    "Scala": "scala",
+    "Lua": "lua",
+    "Bash": "bash",
+    "YAML": "yaml",
+    "JSON": "json",
+    "HTML": "html",
+    "CSS": "css",
+}
 
-def search_patterns(
-    root: Path, patterns: List[str], file_extensions: Optional[Tuple[str, ...]] = None, max_results: int = 50
+# 测试文件后缀列表（统一管理）
+TEST_FILE_SUFFIXES = [
+    "_test.go", "_test.py", "_test.php", "_test.rs",
+    ".test.js", ".test.ts", ".test.jsx", ".test.tsx",
+    "Test.java", "Tests.java",
+    "_spec.rb", "_test.rb",
+    ".spec.js", ".spec.ts",
+    "_test.scala",
+]
+
+
+class TreeSitterParserManager:
+    """Tree-sitter 解析器管理器，使用 tree-sitter-language-pack。
+    
+    该包包含 160+ 种语言的解析器，支持所有常用编程语言。
+    """
+    
+    def __init__(self):
+        self.parsers: Dict[str, Parser] = {}
+        self._init_parsers()
+    
+    def _init_parsers(self):
+        """初始化解析器管理器（language-pack 不需要预先初始化）。"""
+        # tree-sitter-language-pack 使用动态加载，不需要预先初始化
+        pass
+    
+    def get_parser(self, language: str) -> Optional[Parser]:
+        """获取指定语言的解析器。"""
+        # 如果已缓存，直接返回
+        if language in self.parsers:
+            return self.parsers[language]
+        
+        # 使用 tree-sitter-language-pack 动态获取
+        parser = get_parser(language)
+        if parser:
+            # 缓存解析器
+            self.parsers[language] = parser
+            return parser
+        return None
+    
+    def get_language(self, language: str) -> Optional[Language]:
+        """获取指定语言的 Language 对象。"""
+        parser = self.get_parser(language)
+        if parser:
+            return parser.language
+        return None
+    
+    def is_supported(self, language: str) -> bool:
+        """检查语言是否支持。"""
+        parser = self.get_parser(language)
+        return parser is not None
+
+
+def search_with_treesitter(
+    file_path: Path, 
+    language: str, 
+    parser_manager: TreeSitterParserManager,
+    search_keywords: Optional[List[str]] = None,
+    root: Optional[Path] = None
 ) -> List[Tuple[str, str, str]]:
-    """使用 ripgrep 搜索模式，返回 (文件路径, 行号, 内容) 列表。"""
+    """使用 Tree-sitter 搜索包含特定关键词的代码。
+    
+    Args:
+        file_path: 要搜索的文件路径
+        language: 语言标识符（如 'python', 'javascript'）
+        parser_manager: Tree-sitter 解析器管理器
+        search_keywords: 要搜索的关键词列表，如果为 None 则搜索所有认证相关关键词
+    
+    Returns:
+        匹配结果列表，格式为 (文件路径, 行号, 代码内容)
+    """
+    results = []
+    
+    parser = parser_manager.get_parser(language)
+    if not parser:
+        return results
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+        
+        # 跳过测试文件
+        if any(test_suffix in str(file_path) for test_suffix in TEST_FILE_SUFFIXES):
+            return results
+        
+        # 如果没有提供关键词，使用默认的认证相关关键词
+        if search_keywords is None:
+            search_keywords = [
+                "auth", "authentication", "authorization", "authenticate", "authorize",
+                "token", "jwt", "session", "login", "logout", "password",
+                "credential", "permission", "role", "user", "admin", "policy",
+                "oauth", "oidc", "bearer", "api_key", "secret", "key",
+                "middleware", "guard", "filter", "interceptor", "decorator",
+                "public", "anonymous", "whitelist", "bypass", "skip",
+            ]
+        
+        # 首先进行简单的文本搜索，找到包含关键词的行
+        lines = content.split('\n')
+        matching_lines = []
+        for line_num, line in enumerate(lines, 1):
+            line_lower = line.lower()
+            if any(keyword.lower() in line_lower for keyword in search_keywords):
+                # 过滤掉明显不相关的行
+                if len(line.strip()) > 0 and len(line.strip()) < 500:
+                    matching_lines.append((line_num, line))
+        
+        # 使用 tree-sitter 解析代码，获取更精确的位置信息
+        tree = parser.parse(content.encode('utf-8'))
+        lang_obj = parser_manager.get_language(language)
+        if not lang_obj:
+            # 如果无法获取语言对象，直接返回文本搜索结果
+            for line_num, line in matching_lines:
+                rel_path = str(file_path.relative_to(file_path.parent.parent.parent.parent) if file_path.is_absolute() else file_path)
+                results.append((rel_path, str(line_num), line.strip()))
+            return results
+        
+        # 对于匹配的行，尝试使用 tree-sitter 获取更精确的节点信息
+        for line_num, line in matching_lines:
+            # 查找包含该行的 AST 节点
+            root_node = tree.root_node
+            node = root_node
+            
+            # 找到包含该行的最小节点
+            for child in root_node.children:
+                if child.start_point[0] <= line_num - 1 <= child.end_point[0]:
+                    node = child
+                    break
+            
+            # 提取代码片段
+            code_line = line.strip()
+            if code_line:
+                try:
+                    # 转换为相对路径
+                    if root:
+                        try:
+                            rel_path = str(file_path.relative_to(root))
+                        except ValueError:
+                            rel_path = str(file_path)
+                    else:
+                        rel_path = str(file_path)
+                    results.append((rel_path, str(line_num), code_line))
+                except Exception:
+                    pass
+                    
+    except Exception:
+        # 解析失败，返回空结果
+        pass
+    
+    return results
+
+
+def search_files_with_treesitter(
+    root: Path,
+    language: str,
+    parser_manager: TreeSitterParserManager,
+    code_extensions: Tuple[str, ...],
+    search_keywords: Optional[List[str]] = None,
+    max_results: int = 50
+) -> List[Tuple[str, str, str]]:
+    """使用 Tree-sitter 在目录中搜索包含特定关键词的文件。
+    
+    Args:
+        root: 搜索根目录
+        language: 语言标识符
+        parser_manager: Tree-sitter 解析器管理器
+        code_extensions: 代码文件扩展名列表
+        search_keywords: 要搜索的关键词列表
+        max_results: 最大结果数
+    
+    Returns:
+        匹配结果列表，格式为 (文件路径, 行号, 代码内容)
+    """
     results = []
     seen = set()  # 去重
     
-    if not patterns:
+    if not parser_manager.is_supported(language):
         return results
     
-    # 测试文件模式（排除）- 使用 **/ 匹配所有子目录
-    test_file_patterns = [
-        "**/*_test.go", "**/*_test.py", "**/*_test.php", "**/*_test.rs",
-        "**/*.test.js", "**/*.test.ts", "**/*.test.jsx", "**/*.test.tsx",
-        "**/*Test.java", "**/*Tests.java",
-        "**/*_spec.rb", "**/*_test.rb",
-        "**/*.spec.js", "**/*.spec.ts",
-        "**/*_test.scala",
-    ]
-    
-    # 对每个模式分别搜索，避免复杂正则表达式问题
-    for pattern in patterns:
+    # 搜索所有匹配的代码文件
+    for ext in code_extensions:
         if len(results) >= max_results:
             break
-        
-        # 构建 ripgrep 命令
-        cmd = ["rg", "-n", "--max-count", str(max_results)]
-        
-        # 排除测试文件（使用 ! 前缀）
-        for test_pattern in test_file_patterns:
-            cmd.extend(["-g", f"!{test_pattern}"])
-        
-        # 限制文件类型
-        if file_extensions:
-            for ext in file_extensions:
-                cmd.extend(["-g", f"*{ext}"])
-        
-        cmd.append(pattern)
-        cmd.append(str(root))
-        
-        try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-            )
-            
-            if result.returncode == 0 and result.stdout.strip():
-                for line in result.stdout.splitlines():
-                    if ":" in line:
-                        parts = line.split(":", 2)
-                        if len(parts) >= 3:
-                            file_path = parts[0]
-                            line_num = parts[1]
-                            content = parts[2].strip()
-                            
-                            # 转换为相对路径
-                            try:
-                                rel_path = str(Path(file_path).relative_to(root))
-                            except ValueError:
-                                rel_path = file_path
-                            
-                            # 过滤测试文件（双重检查，确保排除）
-                            test_suffixes = [
-                                "_test.go", "_test.py", "_test.php", "_test.rs",
-                                ".test.js", ".test.ts", ".test.jsx", ".test.tsx",
-                                "Test.java", "Tests.java",
-                                "_spec.rb", "_test.rb",
-                                ".spec.js", ".spec.ts",
-                                "_test.scala",
-                            ]
-                            if any(
-                                rel_path.endswith(suffix) 
-                                or f"/{suffix}" in rel_path 
-                                or f"\\{suffix}" in rel_path
-                                or f"_{suffix}" in rel_path
-                                for suffix in test_suffixes
-                            ):
-                                continue
-                            
-                            # 过滤不相关的代码片段（内容相关性检查）
-                            content_lower = content.lower()
-                            
-                            # 排除明显不相关的关键词（更全面的列表）
-                            irrelevant_keywords = [
-                                # I/O 操作
-                                "skipbytes", "skip_bytes", "skip bytes", "skipfile", "skip file",
-                                "ioutil", "io/util", "internal/util", "internal/ioutil",
-                                "buffer", "read", "write", "copy", "stream",
-                                # 数据处理
-                                "len(", "length", "size", "offset", "compressed", "decompressed",
-                                "metadata", "cache", "heal", "replication",
-                                # 注释和文档
-                                "// configured", "// also skips", "// skipping", "// should skip",
-                                "// check", "// returns", "// find", "// apply",
-                                # 文件操作
-                                "fileinfo", "modtime", "version", "entry", "entries",
-                            ]
-                            
-                            # 认证相关关键词（更全面的列表）
-                            auth_keywords = [
-                                "auth", "authentication", "authorization", "authenticate", "authorize",
-                                "token", "jwt", "session", "login", "logout", "password",
-                                "credential", "permission", "role", "user", "admin", "policy",
-                                "oauth", "oidc", "bearer", "api_key", "secret", "key",
-                                "middleware", "guard", "filter", "interceptor", "decorator",
-                                "public", "anonymous", "whitelist", "bypass", "skip.*auth",
-                            ]
-                            
-                            # 检查是否包含认证相关关键词
-                            has_auth_keyword = any(kw in content_lower for kw in auth_keywords)
-                            
-                            # 检查是否只包含不相关关键词
-                            has_irrelevant_only = any(
-                                kw in content_lower 
-                                for kw in irrelevant_keywords
-                            ) and not has_auth_keyword
-                            
-                            # 如果代码片段很短且只包含不相关关键词，则跳过
-                            if len(content.strip()) < 60 and has_irrelevant_only:
-                                continue
-                            
-                            # 对于认证豁免搜索，需要更严格的检查
-                            # 如果包含 skip/exclude 但没有认证上下文，则跳过
-                            if any(kw in content_lower for kw in ["skip", "exclude"]) and not has_auth_keyword:
-                                # 检查是否是明显的非认证上下文
-                                non_auth_contexts = [
-                                    "compression", "compress", "decompress",
-                                    "healing", "heal", "disk",
-                                    "metadata", "cache", "file",
-                                    "offset", "length", "size",
-                                    "buffer", "stream", "read", "write",
-                                ]
-                                if any(ctx in content_lower for ctx in non_auth_contexts):
-                                    continue
-                            
-                            # 过滤超长的字符串常量（通常是错误码定义等）
-                            if len(content.strip()) > 500:
-                                continue
-                            
-                            # 过滤明显是错误码或常量定义的行
-                            if content.strip().startswith("const ") and "=" in content and len(content) > 200:
-                                continue
-                            
-                            # 去重
-                            key = (rel_path, line_num, content)
-                            if key not in seen:
-                                seen.add(key)
-                                results.append((rel_path, line_num, content))
-                                
-                                if len(results) >= max_results:
-                                    break
-            
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            # ripgrep 不存在或超时，继续下一个模式
-            continue
-        except Exception:
-            continue
+        for file_path in root.rglob(f"*{ext}"):
+            if len(results) >= max_results:
+                break
+            if file_path.is_file():
+                # 传递 root 参数以便计算相对路径
+                file_results = search_with_treesitter(file_path, language, parser_manager, search_keywords, root)
+                for result in file_results:
+                    key = (result[0], result[1], result[2])
+                    if key not in seen:
+                        seen.add(key)
+                        results.append(result)
+                        if len(results) >= max_results:
+                            break
     
     return results[:max_results]
 
@@ -358,17 +419,38 @@ def search_patterns(
 def detect_language(root: Path) -> Optional[str]:
     """检测项目主要语言。"""
     dep_files = {
+        # JavaScript/TypeScript
         "package.json": "JavaScript/TypeScript",
-        "go.mod": "Go",
+        "tsconfig.json": "JavaScript/TypeScript",
+        "yarn.lock": "JavaScript/TypeScript",
+        "pnpm-lock.yaml": "JavaScript/TypeScript",
+        # Python
+        "requirements.txt": "Python",
+        "pyproject.toml": "Python",
+        "setup.py": "Python",
+        "Pipfile": "Python",
+        # Java
         "pom.xml": "Java",
         "build.gradle": "Java",
         "build.gradle.kts": "Java",
-        "requirements.txt": "Python",
-        "pyproject.toml": "Python",
+        # Go
+        "go.mod": "Go",
+        "go.sum": "Go",
+        # PHP
         "composer.json": "PHP",
+        "composer.lock": "PHP",
+        # Rust
         "Cargo.toml": "Rust",
+        "Cargo.lock": "Rust",
+        # Ruby
         "Gemfile": "Ruby",
+        "Gemfile.lock": "Ruby",
+        # Scala
         "build.sbt": "Scala",
+        # Swift
+        "Package.swift": "Swift",
+        # Kotlin
+        "build.gradle.kts": "Kotlin",  # 可能与 Java 冲突，但通常 Kotlin 项目也会用
     }
     
     for dep_file, lang in dep_files.items():
@@ -376,8 +458,15 @@ def detect_language(root: Path) -> Optional[str]:
             return lang
     
     # 检查 .NET
-    if list(root.glob("*.csproj")):
+    if list(root.glob("*.csproj")) or list(root.glob("*.sln")):
         return ".NET"
+    
+    # 检查 C/C++
+    if list(root.glob("CMakeLists.txt")) or list(root.glob("Makefile")) or list(root.glob("*.c")) or list(root.glob("*.cpp")):
+        # 优先检查 C++
+        if list(root.glob("*.cpp")) or list(root.glob("*.hpp")) or list(root.glob("*.cc")):
+            return "C++"
+        return "C"
     
     return None
 
@@ -385,17 +474,28 @@ def detect_language(root: Path) -> Optional[str]:
 def get_code_extensions(language: Optional[str]) -> Tuple[str, ...]:
     """根据语言返回代码文件扩展名。"""
     ext_map = {
-        "JavaScript/TypeScript": (".js", ".ts", ".jsx", ".tsx"),
-        "Python": (".py",),
+        "JavaScript/TypeScript": (".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs"),
+        "Python": (".py", ".pyw", ".pyi"),
         "Java": (".java",),
         "Go": (".go",),
-        "PHP": (".php",),
-        ".NET": (".cs",),
+        "PHP": (".php", ".phtml", ".php3", ".php4", ".php5"),
+        ".NET": (".cs", ".vb", ".fs"),
         "Rust": (".rs",),
-        "Ruby": (".rb",),
-        "Scala": (".scala",),
+        "Ruby": (".rb", ".rake", ".ru"),
+        "Scala": (".scala", ".sc"),
+        "C": (".c", ".h"),
+        "C++": (".cpp", ".cxx", ".cc", ".hpp", ".hxx", ".hh", ".h"),
+        "Swift": (".swift",),
+        "Kotlin": (".kt", ".kts"),
+        "Lua": (".lua",),
+        "Bash": (".sh", ".bash", ".zsh"),
+        "YAML": (".yaml", ".yml"),
+        "JSON": (".json",),
+        "HTML": (".html", ".htm", ".xhtml"),
+        "CSS": (".css", ".scss", ".sass", ".less"),
     }
-    return ext_map.get(language, (".js", ".ts", ".py", ".java", ".go", ".php", ".cs", ".rs", ".rb"))
+    # 如果没有匹配的语言，返回常见扩展名
+    return ext_map.get(language, (".js", ".ts", ".py", ".java", ".go", ".php", ".cs", ".rs", ".rb", ".cpp", ".c", ".swift", ".kt"))
 
 
 def format_results(category: str, results: List[Tuple[str, str, str]]) -> None:
@@ -431,8 +531,23 @@ def main():
     language = detect_language(root)
     code_extensions = get_code_extensions(language)
     
+    # 初始化 Tree-sitter（必须）
+    parser_manager = TreeSitterParserManager()
+    ts_lang = LANGUAGE_MAP.get(language)
+    
+    if not ts_lang:
+        print(f"警告: 未检测到支持的语言（检测到: {language}）")
+        print("将尝试使用通用搜索模式")
+        ts_lang = "python"  # 默认使用 python
+    
+    if not parser_manager.is_supported(ts_lang):
+        print(f"警告: 语言 {ts_lang} 在 tree-sitter-language-pack 中不支持")
+        print("请检查语言标识符是否正确，或更新 tree-sitter-language-pack")
+        return
+    
     print(f"项目路径: {root}")
     print(f"检测到语言: {language or '未知'}")
+    print(f"Tree-sitter 语言: {ts_lang}")
     print(f"搜索代码文件: {', '.join(code_extensions)}")
     print("=" * 80)
     
@@ -440,31 +555,40 @@ def main():
     if args.category in ("all", "mechanism"):
         print("\n# 1. 认证机制识别")
         
-        for auth_type, patterns in AUTH_MECHANISM_PATTERNS.items():
-            results = search_patterns(root, patterns, code_extensions, max_results=20)
-            if results:
-                format_results(f"认证机制: {auth_type}", results)
+        # 提取认证机制相关的关键词
+        auth_keywords = []
+        for patterns in AUTH_MECHANISM_PATTERNS.values():
+            for pattern in patterns:
+                # 从正则模式中提取关键词（简化处理）
+                keywords = pattern.replace("\\", "").replace("(", "").replace(")", "").replace("|", " ").split()
+                auth_keywords.extend([kw for kw in keywords if len(kw) > 2 and kw.isalpha()])
         
-        # 框架特定的认证模式
-        if language:
-            lang_lower = language.lower()
-            for fw_name, patterns in FRAMEWORK_AUTH_PATTERNS.items():
-                if fw_name in lang_lower or any(fw in lang_lower for fw in ["javascript", "typescript", "python", "java", "go", "php"]):
-                    results = search_patterns(root, patterns, code_extensions, max_results=20)
-                    if results:
-                        format_results(f"框架认证模式: {fw_name}", results)
+        results = search_files_with_treesitter(
+            root, ts_lang, parser_manager, code_extensions, 
+            search_keywords=list(set(auth_keywords)), max_results=20
+        )
+        if results:
+            format_results("认证机制检测", results)
     
     # 2. 认证豁免/白名单
     if args.category in ("all", "bypass"):
         print("\n# 2. 认证豁免/白名单分析")
-        results = search_patterns(root, AUTH_BYPASS_PATTERNS, code_extensions, max_results=30)
+        bypass_keywords = ["whitelist", "exclude", "skip", "public", "anonymous", "bypass", "disable", "auth"]
+        results = search_files_with_treesitter(
+            root, ts_lang, parser_manager, code_extensions,
+            search_keywords=bypass_keywords, max_results=30
+        )
         if results:
             format_results("认证豁免配置", results)
     
     # 3. 用户角色体系
     if args.category in ("all", "role"):
         print("\n# 3. 用户角色体系分析")
-        results = search_patterns(root, ROLE_PATTERNS, code_extensions, max_results=30)
+        role_keywords = ["role", "roles", "user_type", "is_admin", "is_staff", "authorize", "permission", "access_control"]
+        results = search_files_with_treesitter(
+            root, ts_lang, parser_manager, code_extensions,
+            search_keywords=role_keywords, max_results=30
+        )
         if results:
             format_results("角色定义和权限控制", results)
     
@@ -472,13 +596,20 @@ def main():
     if args.category in ("all", "permission"):
         print("\n# 4. 权限模型分析")
         
-        for model_type, patterns in PERMISSION_MODEL_PATTERNS.items():
-            results = search_patterns(root, patterns, code_extensions, max_results=20)
-            if results:
-                format_results(f"权限模型: {model_type}", results)
+        permission_keywords = ["permission", "policy", "rbac", "abac", "acl", "casbin", "opa", "cedar"]
+        results = search_files_with_treesitter(
+            root, ts_lang, parser_manager, code_extensions,
+            search_keywords=permission_keywords, max_results=20
+        )
+        if results:
+            format_results("权限模型检测", results)
         
         # 权限提升风险
-        results = search_patterns(root, PRIVILEGE_ESCALATION_PATTERNS, code_extensions, max_results=20)
+        escalation_keywords = ["update", "set", "change", "modify", "role", "permission", "admin", "grant", "assign"]
+        results = search_files_with_treesitter(
+            root, ts_lang, parser_manager, code_extensions,
+            search_keywords=escalation_keywords, max_results=20
+        )
         if results:
             format_results("权限提升风险点", results)
     
@@ -486,15 +617,22 @@ def main():
     if args.category in ("all", "session"):
         print("\n# 5. 会话管理安全分析")
         
-        for sec_type, patterns in SESSION_SECURITY_PATTERNS.items():
-            results = search_patterns(root, patterns, code_extensions, max_results=20)
-            if results:
-                format_results(f"会话安全: {sec_type}", results)
+        session_keywords = ["session", "httpOnly", "secure", "sameSite", "regenerate", "maxAge", "expires", "cookie"]
+        results = search_files_with_treesitter(
+            root, ts_lang, parser_manager, code_extensions,
+            search_keywords=session_keywords, max_results=20
+        )
+        if results:
+            format_results("会话安全配置", results)
     
     # 6. Token 生命周期
     if args.category in ("all", "token"):
         print("\n# 6. Token 生命周期分析")
-        results = search_patterns(root, TOKEN_LIFECYCLE_PATTERNS, code_extensions, max_results=20)
+        token_keywords = ["token", "expiresIn", "exp", "TTL", "refreshToken", "revoke", "blacklist", "logout"]
+        results = search_files_with_treesitter(
+            root, ts_lang, parser_manager, code_extensions,
+            search_keywords=token_keywords, max_results=20
+        )
         if results:
             format_results("Token 配置", results)
     
@@ -502,10 +640,13 @@ def main():
     if args.category in ("all", "risk"):
         print("\n# 7. 认证安全风险检测")
         
-        for risk_type, patterns in AUTH_SECURITY_RISK_PATTERNS.items():
-            results = search_patterns(root, patterns, code_extensions, max_results=20)
-            if results:
-                format_results(f"安全风险: {risk_type}", results)
+        risk_keywords = ["secret", "key", "password", "token", "JWT_SECRET", "API_KEY", "algorithm", "none", "default", "credential"]
+        results = search_files_with_treesitter(
+            root, ts_lang, parser_manager, code_extensions,
+            search_keywords=risk_keywords, max_results=20
+        )
+        if results:
+            format_results("安全风险检测", results)
     
     print("\n" + "=" * 80)
     print("搜索完成")
