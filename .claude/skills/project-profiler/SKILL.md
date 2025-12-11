@@ -17,37 +17,10 @@ description: 项目画像技能：构建项目画像，分析技术栈与项目�
 # 分类方法
 
 **识别后端HTTP服务分类方法（快速判定）：**
-- 快速判定一：查依赖/锁文件中常见 Web 框架关键字。
-- 快速判定二：查入口/路由特征调用（如 app.use、router.get、@RestController、urlpatterns、FastAPI()、gin.Default、Route::get、MapGet）。
-- 若快速判定失败，再做深搜。
+运行 quick-scan.py 脚本进行快速扫描，并生成项目画像。
 ```bash
-# Node.js
-rg "express|koa|fastify|nest" package.json yarn.lock pnpm-lock.yaml
-rg "app\\.use\\(|router\\.get\\(" src/ server/ app/ -g'*.{js,ts}'
-
-# Python
-rg "flask|fastapi|django" requirements.txt pyproject.toml
-rg "urlpatterns|FastAPI\\(|flask\\.Flask\\(" src/ app/ -g'*.py'
-# 快速判定（入口文件）：rg "uvicorn|gunicorn|hypercorn" Procfile Dockerfile* Makefile*
-
-# Java
-rg "spring-boot|spring-web" pom.xml build.gradle* gradle.lockfile
-rg "@RestController|@RequestMapping" src/ -g'*.java'
-# 快速判定（入口类）：rg "SpringApplication\\.run" src/ -g'*.java'
-
-# Go
-rg "gin-gonic|echo|chi" go.mod
-rg "gin\\.Default\\(|echo\\.New\\(|chi\\.NewRouter\\(" . -g'*.go'
-
-# PHP
-rg "laravel|symfony/http-foundation" composer.json
-rg "Route::get\\(|Route::post\\(" routes/ app/ -g'*.php'
-# 快速判定（入口）：rg "public/index\\.php|artisan" -g'*.php'
-
-# .NET
-rg "AspNetCore" *.csproj
-rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
-# 快速判定（Program.cs）：rg "WebApplication\\.CreateBuilder" . -g'Program.cs'
+python3 ./quick-scan.py {source_dir}
+python3 ./quick-scan.py .
 ```
 
 **对于后端 HTTP 服务，后续分析需要使用的技能列表如下（禁止添加其他技能）: **
