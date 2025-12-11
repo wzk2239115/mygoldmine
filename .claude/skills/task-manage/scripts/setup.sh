@@ -8,7 +8,12 @@
 #   . .claude/scripts/setup.sh
 
 # 获取脚本所在目录的绝对路径
-SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+# 兼容 bash (使用 BASH_SOURCE) 和 zsh (使用 $0)
+if [ -n "${BASH_SOURCE[0]}" ]; then
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+else
+    SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+fi
 # tools 目录与脚本在同一目录
 TOOLS_DIR="$SCRIPT_DIR/tools"
 
