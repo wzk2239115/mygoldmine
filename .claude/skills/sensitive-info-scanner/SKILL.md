@@ -20,6 +20,40 @@ description: 专业敏感信息泄露审计工作流：以静态代码+配置+�
 - **配置对象返回**：`app.config` / `settings` 直接序列化返回
 - **敏感数据库查询**：批量查询用户表返回未脱敏的敏感字段
 
+## 工具使用
+
+### quick-scan.py 使用说明
+
+`quick-scan.py` 是一个基于 tree-sitter 的敏感信息扫描工具，用于从项目中提取硬编码敏感信息和泄露函数。
+
+#### 基本用法
+
+```bash
+# 扫描指定目录（输出到标准输出）
+python3 ./quick-scan.py /path/to/project
+```
+
+#### 扫描内容
+
+**硬编码敏感信息**：
+- 云服务凭据：AWS Access Key、GitHub Token、Google API Key
+- 数据库凭据：连接字符串（MySQL、PostgreSQL、MongoDB、Redis）
+- 私钥：RSA/SSH 私钥
+- JWT Secret、API Key
+- PII：手机号、邮箱、身份证号
+
+**泄露函数**：
+- 环境变量导出：`os.environ`、`process.env`、`System.getenv()` 等
+- 配置对象返回：`app.config`、`settings` 等直接返回
+
+#### 支持的语言和框架
+
+- **Python**: os.environ, os.getenv, app.config
+- **JavaScript/TypeScript**: process.env, app.config
+- **Go**: os.Getenv, os.Environ, os.LookupEnv, env.List, env.Get, env.Parse
+- **Java**: System.getenv, System.getProperty
+- **其他语言**: PHP, Ruby, Rust, C/C++, .NET 等
+
 ## 执行流程
 
 ```mermaid
