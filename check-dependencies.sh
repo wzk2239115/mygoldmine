@@ -251,116 +251,10 @@ get_install_command() {
                 echo "请访问 http://mama.indstate.edu/users/ice/tree/"
             fi
             ;;
-        tree_sitter)
-            echo "pip3 install tree-sitter"
-            echo "    或: pip install tree-sitter"
-            echo "    或: python3 -m pip install tree-sitter"
-            ;;
-        tree_sitter_python)
-            echo "pip3 install tree-sitter-python"
-            echo "    或: pip install tree-sitter-python"
-            echo "    或: python3 -m pip install tree-sitter-python"
-            ;;
-        tree_sitter_javascript)
-            echo "pip3 install tree-sitter-javascript"
-            echo "    或: pip install tree-sitter-javascript"
-            echo "    或: python3 -m pip install tree-sitter-javascript"
-            ;;
-        tree_sitter_go)
-            echo "pip3 install tree-sitter-go"
-            echo "    或: pip install tree-sitter-go"
-            echo "    或: python3 -m pip install tree-sitter-go"
-            ;;
-        tree_sitter_java)
-            echo "pip3 install tree-sitter-java"
-            echo "    或: pip install tree-sitter-java"
-            echo "    或: python3 -m pip install tree-sitter-java"
-            ;;
-        tree_sitter_php)
-            echo "pip3 install tree-sitter-php"
-            echo "    或: pip install tree-sitter-php"
-            echo "    或: python3 -m pip install tree-sitter-php"
-            ;;
-        tree_sitter_typescript)
-            echo "pip3 install tree-sitter-typescript"
-            echo "    或: pip install tree-sitter-typescript"
-            echo "    或: python3 -m pip install tree-sitter-typescript"
-            ;;
-        tree_sitter_ruby)
-            echo "pip3 install tree-sitter-ruby"
-            echo "    或: pip install tree-sitter-ruby"
-            echo "    或: python3 -m pip install tree-sitter-ruby"
-            ;;
-        tree_sitter_rust)
-            echo "pip3 install tree-sitter-rust"
-            echo "    或: pip install tree-sitter-rust"
-            echo "    或: python3 -m pip install tree-sitter-rust"
-            ;;
-        tree_sitter_c)
-            echo "pip3 install tree-sitter-c"
-            echo "    或: pip install tree-sitter-c"
-            echo "    或: python3 -m pip install tree-sitter-c"
-            ;;
-        tree_sitter_cpp)
-            echo "pip3 install tree-sitter-cpp"
-            echo "    或: pip install tree-sitter-cpp"
-            echo "    或: python3 -m pip install tree-sitter-cpp"
-            ;;
-        tree_sitter_c_sharp)
-            echo "pip3 install tree-sitter-c-sharp"
-            echo "    或: pip install tree-sitter-c-sharp"
-            echo "    或: python3 -m pip install tree-sitter-c-sharp"
-            ;;
-        tree_sitter_swift)
-            echo "pip3 install tree-sitter-swift"
-            echo "    或: pip install tree-sitter-swift"
-            echo "    或: python3 -m pip install tree-sitter-swift"
-            ;;
-        tree_sitter_kotlin)
-            echo "pip3 install tree-sitter-kotlin"
-            echo "    或: pip install tree-sitter-kotlin"
-            echo "    或: python3 -m pip install tree-sitter-kotlin"
-            ;;
-        tree_sitter_scala)
-            echo "pip3 install tree-sitter-scala"
-            echo "    或: pip install tree-sitter-scala"
-            echo "    或: python3 -m pip install tree-sitter-scala"
-            ;;
-        tree_sitter_lua)
-            echo "pip3 install tree-sitter-lua"
-            echo "    或: pip install tree-sitter-lua"
-            echo "    或: python3 -m pip install tree-sitter-lua"
-            ;;
-        tree_sitter_bash)
-            echo "pip3 install tree-sitter-bash"
-            echo "    或: pip install tree-sitter-bash"
-            echo "    或: python3 -m pip install tree-sitter-bash"
-            ;;
-        tree_sitter_yaml)
-            echo "pip3 install tree-sitter-yaml"
-            echo "    或: pip install tree-sitter-yaml"
-            echo "    或: python3 -m pip install tree-sitter-yaml"
-            ;;
-        tree_sitter_json)
-            echo "pip3 install tree-sitter-json"
-            echo "    或: pip install tree-sitter-json"
-            echo "    或: python3 -m pip install tree-sitter-json"
-            ;;
-        tree_sitter_html)
-            echo "pip3 install tree-sitter-html"
-            echo "    或: pip install tree-sitter-html"
-            echo "    或: python3 -m pip install tree-sitter-html"
-            ;;
-        tree_sitter_css)
-            echo "pip3 install tree-sitter-css"
-            echo "    或: pip install tree-sitter-css"
-            echo "    或: python3 -m pip install tree-sitter-css"
-            ;;
         tree_sitter_language_pack)
             echo "pip3 install tree-sitter-language-pack"
             echo "    或: pip install tree-sitter-language-pack"
             echo "    或: python3 -m pip install tree-sitter-language-pack"
-            echo "    注意: 此包包含 160+ 种语言的解析器，推荐使用此方式安装"
             ;;
         *)
             echo "请查阅相关文档"
@@ -385,65 +279,19 @@ main() {
     check_tool "rg" "required" "ripgrep - 快速文本搜索工具（grep 的高性能替代品）"
     check_tool "python3" "required" "Python 解释器（threat-modeler 可选，用于生成 Markdown）"
     check_python_module "jsonschema" "required" "JSON Schema 验证库（tasks.json 工具需要，用于 Schema 校验）"
+    check_python_module "tree_sitter" "required" "Tree-sitter 基础库（代码解析引擎，必需）"
     check_tool "tree" "optional" "目录树显示工具（workspace-scanner 需要，用于生成文件树）"
     
-    echo ""
-    echo -e "${BLUE}【可选工具 - Tree-sitter】${NC}"
-    echo "Tree-sitter 用于代码解析，提供更精确的代码搜索（web-auth-analyzer 可选功能）："
-    echo ""
-    
-    check_python_module "tree_sitter" "optional" "Tree-sitter 基础库（代码解析引擎）"
-    
     # 检查是否安装了统一的 language pack（推荐方式）
+    # 先检查是否安装，然后使用 check_python_module 显示结果
     LANGUAGE_PACK_INSTALLED=false
     if python3 -c "import tree_sitter_language_pack" 2>/dev/null; then
         LANGUAGE_PACK_INSTALLED=true
     fi
     
-    if [ "$LANGUAGE_PACK_INSTALLED" = true ]; then
-        echo ""
-        echo -e "  ${GREEN}✓${NC} tree_sitter_language_pack ${BLUE}(已安装)${NC}"
-        echo "    包含 160+ 种编程语言的解析器，支持所有常用语言"
-        TOTAL=$((TOTAL + 1))
-        PASSED=$((PASSED + 1))
-    else
-        echo ""
-        echo -e "  ${YELLOW}⚠${NC} tree_sitter_language_pack ${YELLOW}[可选]${NC}"
-        echo "    推荐安装此包，包含 160+ 种语言的解析器（一次性安装所有语言支持）"
-        echo "    安装方法: pip3 install tree-sitter-language-pack"
-        echo "    或: pip install tree-sitter-language-pack"
-        echo "    或: python3 -m pip install tree-sitter-language-pack"
-        TOTAL=$((TOTAL + 1))
-        WARNING=$((WARNING + 1))
-        echo ""
-        echo "  如果没有安装 language-pack，可以单独安装需要的语言包："
-        echo ""
-        echo "  主要后端语言："
-        check_python_module "tree_sitter_python" "optional" "Python 语言绑定"
-        check_python_module "tree_sitter_javascript" "optional" "JavaScript 语言绑定"
-        check_python_module "tree_sitter_typescript" "optional" "TypeScript 语言绑定"
-        check_python_module "tree_sitter_go" "optional" "Go 语言绑定"
-        check_python_module "tree_sitter_java" "optional" "Java 语言绑定"
-        check_python_module "tree_sitter_php" "optional" "PHP 语言绑定"
-        check_python_module "tree_sitter_ruby" "optional" "Ruby 语言绑定"
-        check_python_module "tree_sitter_rust" "optional" "Rust 语言绑定"
-        check_python_module "tree_sitter_c" "optional" "C 语言绑定"
-        check_python_module "tree_sitter_cpp" "optional" "C++ 语言绑定"
-        check_python_module "tree_sitter_c_sharp" "optional" "C# 语言绑定"
-        check_python_module "tree_sitter_swift" "optional" "Swift 语言绑定"
-        check_python_module "tree_sitter_kotlin" "optional" "Kotlin 语言绑定"
-        check_python_module "tree_sitter_scala" "optional" "Scala 语言绑定"
-        check_python_module "tree_sitter_lua" "optional" "Lua 语言绑定"
-        
-        echo ""
-        echo "  脚本和配置语言："
-        check_python_module "tree_sitter_bash" "optional" "Bash 脚本语言绑定"
-        check_python_module "tree_sitter_yaml" "optional" "YAML 配置语言绑定"
-        check_python_module "tree_sitter_json" "optional" "JSON 数据格式绑定"
-        check_python_module "tree_sitter_html" "optional" "HTML 标记语言绑定"
-        check_python_module "tree_sitter_css" "optional" "CSS 样式语言绑定"
-    fi
-    
+    # 使用 check_python_module 检测并显示 tree_sitter_language_pack
+    check_python_module "tree_sitter_language_pack" "required" "包含 160+ 种编程语言的解析器，支持所有常用语言"
+   
     echo ""
     echo "=========================================="
     echo -e "  检查结果统计"
