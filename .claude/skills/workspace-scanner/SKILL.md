@@ -17,64 +17,24 @@ description: 工作区扫描技能：判断工程是否由多个相对独立的�
 
 ### Monorepo / 多子工程的特征
 
-1. **包管理器工作区配置**：
-   - `package.json` 含 `workspaces` 字段
-   - `pnpm-workspace.yaml` 存在
-   - `lerna.json` 存在
-   - `rush.json` 存在
+运行 `quick-scan.py` 脚本进行快速扫描，并生成文件树。
+```bash
+python3 ./quick-scan.py {source_dir}
+python3 ./quick-scan.py .
+```
 
-2. **多模块项目配置**：
-   - Maven: `pom.xml` 含 `<modules>` 标签
-   - Gradle: `settings.gradle` 含 `include` 语句
-   - Go: `go.work` 存在（Go 1.18+ workspace）
-   - .NET: `*.sln` 解决方案文件引用多个 `*.csproj`
-
-3. **目录结构特征**：
-   - `packages/` 或 `apps/` 目录下有多个独立子目录，每个含独立的依赖配置文件
-   - `services/` 目录下有多个独立微服务
-   - 顶层目录下存在多个独立的 `package.json`、`pom.xml`、`go.mod` 等
-
-4. **独立子工程的判定条件**（满足任一）：
-   - 有独立的依赖配置文件（`package.json`、`pom.xml`、`build.gradle`、`go.mod`、`Cargo.toml`、`requirements.txt`、`composer.json`）
-   - 有独立的入口文件或启动脚本
-   - 有独立的 README 或文档
+**脚本覆盖范围**：
+- ✅ **文件树生成**：自动生成项目文件树结构
+- ✅ **目录结构分析**：自动识别项目目录层级和结构
+- ✅ **配置文件识别**：自动识别依赖配置文件（package.json、pom.xml、go.mod 等）
+- ❌ **工作区类型判定**：工作区类型（单一项目/Monorepo）需要结合脚本结果进行手动判定
+- ❌ **子工程识别**：子工程的识别和独立性判断需要结合项目结构进行手动分析
 
 ### 单一项目的特征
 
 - 只有一个顶层依赖配置文件
 - 没有工作区/模块配置
 - 没有明显的子项目目录结构
-
-## 扫描流程
-
-### 步骤 1: 一次性 Glob 检测（推荐）
-
-使用单次 Glob 匹配快速检测所有工作区配置文件和潜在子工程：
-
-```glob
-# 一次性匹配所有工作区配置文件
-{package.json,pnpm-workspace.yaml,lerna.json,rush.json,pom.xml,settings.gradle,settings.gradle.kts,go.work,*.sln}
-```
-
-```glob
-# 一次性匹配所有潜在子工程的依赖配置文件
-{packages,apps,services,modules,projects,libs}/*/{package.json,pom.xml,build.gradle,go.mod,Cargo.toml,requirements.txt,pyproject.toml,composer.json,*.csproj}
-```
-
-### 步骤 2: 快速判定逻辑
-
-根据 Glob 结果快速判定：
-
-1. **无 monorepo 配置** → 直接判定为单一项目，跳过后续扫描
-2. **有 monorepo 配置** → 检查子工程依赖文件数量：
-   - 子工程数量 = 0 → 单一项目
-   - 子工程数量 ≥ 1 → 多子工程
-
-### 步骤 3: 验证子工程独立性
-
-仅在检测到多子工程时执行，对 Glob 匹配到的子工程目录：
-- 确认依赖配置文件有效（非空、格式正确）
-- 排除测试目录、示例目录、文档目录等非独立工程
 
 ## 输出要求
 

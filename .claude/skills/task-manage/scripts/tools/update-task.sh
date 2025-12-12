@@ -256,3 +256,35 @@ if [ -n "$UPDATE_OPTIONAL" ]; then
 fi
 echo "✓ Schema 校验通过"
 
+# 如果任务状态更新为 completed，查找下一个 pending 任务
+if [[ "$UPDATE_STATUS" == "completed" ]]; then
+    # 获取当前任务在数组中的索引
+    CURRENT_TASK_INDEX=$(jq -r --arg id "$TASK_ID" '.tasks | to_entries | map(select(.value.id == $id)) | .[0].key' "$TASKS_JSON_PATH")
+    
+    if [ "$CURRENT_TASK_INDEX" != "null" ] && [ -n "$CURRENT_TASK_INDEX" ] && [ "$CURRENT_TASK_INDEX" != "" ]; then
+        # 查找下一个状态为 pending 的任务
+        NEXT_PENDING_TASK=$(jq --argjson index "$CURRENT_TASK_INDEX" \
+            '.tasks | to_entries | 
+             map(select(.key > $index and .value.status == "pending")) | 
+             if length > 0 then .[0].value else null end' \
+            "$TASKS_JSON_PATH")
+        
+        # 检查是否找到下一个 pending 任务（不是 null 且不是空对象）
+        if [ "$NEXT_PENDING_TASK" != "null" ] && [ -n "$NEXT_PENDING_TASK" ] && echo "$NEXT_PENDING_TASK" | jq -e '.id' > /dev/null 2>&1; then
+            NEXT_TASK_ID=$(echo "$NEXT_PENDING_TASK" | jq -r '.id')
+            NEXT_TASK_DESCRIPTION=$(echo "$NEXT_PENDING_TASK" | jq -r '.description')
+            NEXT_TASK_TYPE=$(echo "$NEXT_PENDING_TASK" | jq -r '.type // "general"')
+            NEXT_TASK_OPTIONAL=$(echo "$NEXT_PENDING_TASK" | jq -r '.optional // false')
+            
+            echo ""
+            echo "→ 下一个待处理任务:"
+            echo "  - ID: $NEXT_TASK_ID"
+            echo "  - 类型: $NEXT_TASK_TYPE"
+            echo "  - 描述: $NEXT_TASK_DESCRIPTION"
+            if [ "$NEXT_TASK_OPTIONAL" = "true" ]; then
+                echo "  - 可选: 是"
+            fi
+        fi
+    fi
+fi
+

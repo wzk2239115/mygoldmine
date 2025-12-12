@@ -48,7 +48,29 @@ description: 专业认证分析技能：分析API端点认证要求、认证机�
 
 ### 1. 认证机制分析
 
-#### 主流语言/框架认证识别方法
+#### 快速搜索方法
+
+运行 `quick-scan.py` 脚本进行快速搜索，自动识别认证机制、豁免配置、角色体系等。
+```bash
+python3 ./quick-scan.py {source_dir}
+python3 ./quick-scan.py {source_dir} --category mechanism  # 仅搜索认证机制
+python3 ./quick-scan.py {source_dir} --category bypass     # 仅搜索认证豁免
+python3 ./quick-scan.py {source_dir} --category role      # 仅搜索角色体系
+python3 ./quick-scan.py {source_dir} --category risk      # 仅搜索安全风险
+```
+
+**脚本覆盖范围**：
+- ✅ **认证机制识别**：自动识别 JWT、Session、OAuth、API Key 等认证方式
+- ✅ **认证豁免配置**：自动识别白名单、条件豁免、环境变量控制等
+- ✅ **角色体系识别**：自动识别 RBAC、ABAC、ACL 等权限模型
+- ✅ **安全风险检测**：自动识别 JWT 密钥泄露、会话固定、默认凭证等风险
+- ✅ **多语言支持**：支持 Node.js、Python、Java、Go、PHP 等主流框架
+- ❌ **深度安全分析**：认证绕过验证、权限提升路径分析需要结合脚本结果进行手动分析
+- ❌ **修复建议**：修复建议需要结合具体代码上下文进行手动分析
+
+**提示词规则覆盖**：
+- 以下章节中的认证模式速查（已标记"脚本已自动覆盖"）已由脚本自动实现，以下内容为参考说明
+- 认证绕过验证、权限提升路径分析需要结合脚本结果进行手动分析
 
 **通用思路**：
 - 路由入口：定位路由表/装饰器/注册函数（router、app、server）及默认路由目录，识别分组/前缀
@@ -56,7 +78,7 @@ description: 专业认证分析技能：分析API端点认证要求、认证机�
 - 认证方式与参数：辨识 `token/basic/oauth/apikey/cookie/session` 等及携带位置（header/query/body/cookie）
 - 重点缺口：优先记录缺少鉴权或可绕过的公开端点，明确公开 vs 需授权
 
-**主流框架认证模式速查**：
+**主流框架认证模式速查**（脚本已自动覆盖，以下为参考）：
 
 **Node.js/Express**
 ```bash
@@ -232,15 +254,14 @@ rg "Math\.random|uuid\(\)|randomBytes|SecureRandom" -g'*.{js,ts,py,java,go,php}'
 
 #### 分析步骤
 
-1. **搜索认证豁免配置**：
+1. **搜索认证豁免配置**（使用 `quick-scan.py --category bypass` 自动搜索）：
 ```bash
-# 搜索白名单/豁免配置
+# 使用脚本自动搜索
+python3 ./quick-scan.py {source_dir} --category bypass
+
+# 或手动搜索（脚本已覆盖以下模式）
 rg -i "(whitelist|exclude|skip|public|anonymous|noauth)" -g'*.{js,ts,py,java,go,php,yaml,json}'
-
-# 搜索条件认证
 rg -i "(disable.*auth|skip.*auth|no.*auth|bypass)" -g'*.{js,ts,py,java,go,php}'
-
-# 搜索环境变量控制
 rg "(DEBUG|DEV_MODE|DISABLE_AUTH|NO_AUTH)" -g'*.{js,ts,py,java,go,php,env}'
 ```
 
@@ -340,16 +361,13 @@ rg "enum.*Role|ROLE_|UserType|is_admin|is_staff"
 #### 权限模型识别搜索命令
 
 ```bash
-# RBAC 模式
+# 使用脚本自动搜索（推荐）
+python3 ./quick-scan.py {source_dir} --category permission
+
+# 或手动搜索（脚本已覆盖以下模式）
 rg "Role.*Permission|roles.*permissions|role_permissions" -g'*.{js,ts,py,java,go,php}'
-
-# ABAC 模式
 rg "policy|attributes|context.*auth|can\(|ability" -g'*.{js,ts,py,java,go,php}'
-
-# ACL 模式
 rg "acl|access.*list|owner_id|can.*access" -g'*.{js,ts,py,java,go,php}'
-
-# 策略引擎
 rg "casbin|opa|cedar|enforce|policy.*engine" -g'*.{js,ts,py,java,go,php,yaml,json}'
 ```
 
@@ -368,13 +386,12 @@ rg "casbin|opa|cedar|enforce|policy.*engine" -g'*.{js,ts,py,java,go,php,yaml,jso
 #### 权限提升检测搜索命令
 
 ```bash
-# 角色修改接口
+# 使用脚本自动搜索（推荐，包含在 permission 类别中）
+python3 ./quick-scan.py {source_dir} --category permission
+
+# 或手动搜索（脚本已覆盖以下模式）
 rg "(update|set|change|modify).*(role|permission|admin)" -g'*.{js,ts,py,java,go,php}'
-
-# 权限赋予
 rg "(grant|add|assign|give).*(permission|role)" -g'*.{js,ts,py,java,go,php}'
-
-# 默认角色配置
 rg "default.*(role|permission)|role.*=.*(admin|root)" -g'*.{js,ts,py,java,go,php,yaml,json}'
 ```
 

@@ -17,41 +17,24 @@ description: 项目画像技能：构建项目画像，分析技术栈与项目�
 # 分类方法
 
 **识别后端HTTP服务分类方法（快速判定）：**
-- 快速判定一：查依赖/锁文件中常见 Web 框架关键字。
-- 快速判定二：查入口/路由特征调用（如 app.use、router.get、@RestController、urlpatterns、FastAPI()、gin.Default、Route::get、MapGet）。
-- 若快速判定失败，再做深搜。
+
+运行 `quick-scan.py` 脚本进行快速扫描，并生成项目画像。
 ```bash
-# Node.js
-rg "express|koa|fastify|nest" package.json yarn.lock pnpm-lock.yaml
-rg "app\\.use\\(|router\\.get\\(" src/ server/ app/ -g'*.{js,ts}'
-
-# Python
-rg "flask|fastapi|django" requirements.txt pyproject.toml
-rg "urlpatterns|FastAPI\\(|flask\\.Flask\\(" src/ app/ -g'*.py'
-# 快速判定（入口文件）：rg "uvicorn|gunicorn|hypercorn" Procfile Dockerfile* Makefile*
-
-# Java
-rg "spring-boot|spring-web" pom.xml build.gradle* gradle.lockfile
-rg "@RestController|@RequestMapping" src/ -g'*.java'
-# 快速判定（入口类）：rg "SpringApplication\\.run" src/ -g'*.java'
-
-# Go
-rg "gin-gonic|echo|chi" go.mod
-rg "gin\\.Default\\(|echo\\.New\\(|chi\\.NewRouter\\(" . -g'*.go'
-
-# PHP
-rg "laravel|symfony/http-foundation" composer.json
-rg "Route::get\\(|Route::post\\(" routes/ app/ -g'*.php'
-# 快速判定（入口）：rg "public/index\\.php|artisan" -g'*.php'
-
-# .NET
-rg "AspNetCore" *.csproj
-rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
-# 快速判定（Program.cs）：rg "WebApplication\\.CreateBuilder" . -g'Program.cs'
+python3 ./quick-scan.py {source_dir}
+python3 ./quick-scan.py .
 ```
+
+**脚本覆盖范围**：
+- ✅ **项目结构分析**：自动识别项目目录结构、主要文件类型
+- ✅ **技术栈识别**：自动识别编程语言、框架、包管理器
+- ✅ **代码统计**：自动统计文件数量、代码行数
+- ✅ **入口点识别**：自动识别主入口文件、路由入口文件
+- ❌ **项目分类判定**：项目分类（后端HTTP服务/前端WEB应用/安全测试靶场）需要结合脚本结果进行手动判定
+- ❌ **分类依据说明**：分类依据需要结合项目特征进行手动分析
 
 **对于后端 HTTP 服务，后续分析需要使用的技能列表如下（禁止添加其他技能）: **
 - web-auth-analyzer 技能：分析API端点认证要求和用户角色体系。
+- sensitive-info-scanner 技能：扫描敏感信息泄露风险。
 
 **总结输出格式（JSON格式）：**
 ```json
@@ -60,6 +43,10 @@ rg "MapGet\\(|MapControllers\\(" . -g'*.cs'
         {
             "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
             "skill": "web-auth-analyzer"
+        },
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
+            "skill": "sensitive-info-scanner"
         }
     ]
 }

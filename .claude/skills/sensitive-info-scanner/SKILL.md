@@ -3,198 +3,244 @@ name: sensitive-info-scanner
 description: 专业敏感信息泄露审计工作流：以静态代码+配置+日志片段为主，优先识别未加密或未脱敏的密钥/凭据/PII 暴露、配置文件/日志泄漏，以及用户可控输入直接拼接到外部请求/存储路径导致的数据外泄；按编程语言组织的参考指南用于快速判定风险模式与修复要点。
 ---
 
-## 概述与边界
+## 分析目标
 
-- 聚焦敏感信息泄露：代码、配置、日志、文档中密钥/凭据/PII 暴露与敏感接口返回。
-- 依赖上游画像/威胁建模提供端点和上下文，本技能专注检测与判级。
-- 不做：产物格式定义、任务编排说明、性能/增量扫描策略。
+本技能识别两类敏感信息泄露风险：
 
-## 优先级策略
+### 1. 硬编码敏感信息（Hardcoded Secrets）
+在源代码、配置文件中查找硬编码的敏感凭据：
+- **云服务凭据**：AWS Access Key、GitHub Token、Google API Key
+- **数据库凭据**：连接字符串、用户名密码、Redis/MongoDB URI
+- **加密密钥**：RSA/SSH 私钥、JWT Secret、API Key
+- **个人隐私信息（PII）**：身份证号、手机号、邮箱地址
 
-- **风险=影响范围×敏感程度**；按认证状态与泄露内容分 P0/P1/P2。
-- **P0 Critical**：免认证 + 管理员/系统敏感信息（环境变量/配置导出/用户列表/私钥等）。
-- **P1 High**：普通用户认证即可获取管理员/系统敏感信息（权限提升或越权）。
-- **P2 Medium/Low**：权限匹配的敏感信息、硬编码但未对外暴露的凭证、文档/测试示例。
-- 快速判定：是否 API 端点 → 是否需认证 → 当前角色 → 泄露信息级别 → P0/P1/P2。
+### 2. 敏感信息泄露函数/代码点（Leaking Functions）
+识别会泄露敏感信息到外部的代码：
+- **环境变量导出**：`process.env` / `os.environ` 整体导出或过滤不完整
+- **配置对象返回**：`app.config` / `settings` 直接序列化返回
+- **敏感数据库查询**：批量查询用户表返回未脱敏的敏感字段
 
-## 核心流程
+## 工具使用
 
-1) 目标分析：范围（代码/配置/日志/历史）、技术栈、规则加载。  
-2) 静态扫描：按优先级扫描配置→代码→文档→日志，规则=正则+熵+上下文。  
-3) 智能过滤：占位符/示例/测试路径白名单，熵值校验，上下文关键词调权。  
-4) 严重度与优先级：基础严重度 + 认证/权限/数据敏感度 → P0/P1/P2。  
-5) 高级检测：端点筛选、环境变量过滤缺陷、认证缺失、数据流源-汇追踪。  
-6) 输出：按优先级→严重度→路径排序，生成 Finding 与修复建议。
+### quick-scan.py 使用说明
 
-## 检测范围
+`quick-scan.py` 是一个基于 tree-sitter 的敏感信息扫描工具，用于从项目中提取硬编码敏感信息和泄露函数。
 
-### 敏感信息类型
-- 云服务：AKIA…、AIza…、ghp_/gho_、UUID/Azure Key、40 位密钥（CWE-798）。
-- 数据库：mysql/postgresql/mongodb/redis 连接串与密码（CWE-798）。
-- 加密密钥：RSA/OPENSSH/PGP 私钥，JWT Secret（CWE-798）。
-- 认证令牌：Bearer/OAuth/Session/API Key（CWE-798）。
-- PII：邮箱、手机号、身份证、信用卡（CWE-359）。
-- 内部信息：内网 IP、内部域名、调试堆栈（CWE-200/CWE-209）。
+#### 快速扫描方法
 
-### 扫描位置
-- 源码：硬编码字符串、变量赋值、注释、测试夹具。
-- 配置：.env*/config.{yml,json}/application.{yml,properties}/docker-compose/k8s/tf。
-- 日志与文档：*.log, *.txt, README/CHANGELOG/docs/wiki。
-- 依赖与构建：package.json/requirements.txt/pom.xml/.npmrc/.pypirc/build.gradle/Gemfile。
-- 版本控制：.git/config、应忽略但未忽略的密钥文件、历史提交/删除文件。
+运行 `quick-scan.py` 脚本进行快速敏感信息扫描，自动识别硬编码敏感信息和泄露函数。
+```bash
+# 扫描指定目录（输出到标准输出）
+python3 ./quick-scan.py /path/to/project
 
-## 高级检测
-
-### 端点筛选与优先级
-- 高风险 category：internal-*, admin-*, debug-*, config-*。
-- P0：免认证且返回配置/环境/用户/系统信息；关键词 config/env/settings/export/users/system/info。
-- P1：需普通用户认证即可访问管理/配置功能。
-- P2：认证且权限匹配的端点。
-
-### 环境变量过滤缺陷
-```go
-// 黑名单过滤不完整（Go）
-var skipEnvs = map[string]struct{}{"APP_DEBUG": {}, "LOG_LEVEL": {}}
-func getSystemConfig() SystemConfig {
-    envs := env.List("APP_")
-    envValues := map[string]string{}
-    for _, k := range envs {
-        if _, ok := skipEnvs[k]; ok { continue }
-        envValues[k] = env.Get(k, "") // 敏感变量未过滤
-    }
-    return SystemConfig{Env: envValues}
-}
-```
-```python
-# 黑名单过滤不完整（Python）
-SKIP_ENVS = ['DEBUG', 'LOG_LEVEL']
-def get_system_config():
-    cfg = {}
-    for k, v in os.environ.items():
-        if k.startswith('APP_') and k not in SKIP_ENVS:
-            cfg[k] = v  # APP_SECRET_KEY 未过滤
-    return cfg
-```
-检测要点：识别黑名单/白名单混用，枚举敏感变量 *_PASSWORD/*_SECRET/*_KEY/*_TOKEN/*_PRIVATE_KEY，对比过滤集，结合认证状态给 P0/P1/P2。
-
-### 认证机制缺失
-- Handler 注册是否缺少 auth middleware；常见非认证包装：httpTrace/httpTraceHdrs/wrapHandler。
-- Handler 内是否有 authenticate/authorize；无则结合返回内容判定：无认证+敏感信息 → P0；有认证无授权+敏感信息 → P1。
-- 客户端发送 token 但服务端不验证 → 视同免认证。
-
-### 数据流追踪（源→汇）
-- 源：env.List/os.Environ/process.env/getConfig。
-- 过滤：filter/sanitize/redact/allowedEnvs。
-- 汇：json.Encode/Response.json/w.Write/res.json。
-- 若无过滤直达汇：按敏感类型 + 认证状态判定 P0/P1/P2，并记录 evidence chain。
-
-## 结果输出与修复建议
-
-### Finding 字段
-finding, target, location, secretType, evidence[], confidence(0-1), severity(critical/high/medium/low), priority(P0/P1/P2), authRequired(bool), requiredRole(admin/user/none), leaksAdminInfo(bool), cwe, recommendation。
-
-### 修复建议
-- P0：立即加认证或下线端点；轮换全部泄露凭证；审计访问；发布公告。
-- P1：补授权/角色校验；最小权限；审计用户访问。
-- P2：移除硬编码；使用密钥管控（Secrets Manager/Vault 等）；轮换密钥；从版本控制移除。
-
-### 排序与分组
-- 输出按优先级 P0→P1→P2，再按严重度、路径；汇总各优先级数量。
-
-## 误报与白名单
-- 常见误报：示例/占位符（YOUR_API_KEY_HERE）、测试数据（test_key_*）、公开邮箱。
-- 白名单示例（项目根 `.sensitive-info-whitelist.json`）：
-```json
-{
-  "patterns": ["test_key_*", "example_*", "*_for_testing_only"],
-  "files": ["docs/examples/*.py", "tests/fixtures/*.json"],
-  "values": ["AKIAIOSFODNN7EXAMPLE", "test@test.com"]
-}
+# 输出到文件
+python3 ./quick-scan.py /path/to/project --output sensitive-info.md
 ```
 
-## 语言适配（精简）
-- Java/Spring：application.{yml,properties} 中 spring.datasource.password/jwt.secret/cloud.aws.*；硬编码常量；@Value("${secret}") 对应配置。
-- Python/Django/Flask：settings.py/config.py 的 SECRET_KEY/DATABASE_URL/AWS_ACCESS_KEY_ID；.env 是否忽略；硬编码 password/API_KEY。
-- Node.js/Express：.env* 的 DATABASE_URL/JWT_SECRET/API_KEY；config 对象硬编码；package.json 私有仓库 token。
-- PHP/Laravel：.env 中 DB_PASSWORD/APP_KEY/AWS_ACCESS_KEY_ID；config/*.php 硬编码；数据库连接硬编码。
-- Go：const 硬编码；yaml/json/toml 配置加载；env.Get/os.Getenv 使用 vs 硬编码。
+**脚本覆盖范围**：
+- ✅ **硬编码敏感信息检测**：自动识别 AWS Key、GitHub Token、数据库凭据、私钥、JWT Secret、API Key、PII 等
+- ✅ **泄露函数检测**：自动识别环境变量导出函数（os.environ、process.env、System.getenv 等）和配置对象返回
+- ✅ **多语言支持**：支持 Python、JavaScript/TypeScript、Go、Java、PHP、Ruby 等
+- ✅ **误报过滤**：自动过滤注释、测试文件、环境变量名、十六进制哈希等误报
+- ✅ **优先级判定**：自动为不同类型的敏感信息分配优先级（P0/P1/P2）
+- ❌ **深度分析**：敏感信息的实际泄露风险需要结合上下文进行手动分析
 
-## 特殊场景
-- Git 历史：git log --all --full-history -- "*.env"；git log -p | grep 密钥模式。
-- 大文件：跳过 >10MB；超大文本采样；日志优先最近 7 天。
-- 云原生：K8s Secret 避免明文/base64；Dockerfile/compose ENV；Terraform tfstate 加密与远程存储。
+**提示词规则覆盖**：
+- 以下章节中的扫描内容已由脚本自动实现，以下内容为参考说明
+- 敏感信息的风险评估和修复建议需要结合脚本结果进行手动分析
 
-## 工具片段
+#### 扫描内容
 
-### 正则表达式库
-```python
-AWS_ACCESS_KEY = r'AKIA[0-9A-Z]{16}'
-AWS_SECRET_KEY = r'(?i)aws(.{0,20})?[\'\"][0-9a-zA-Z/+=]{40}[\'\"]'
-GITHUB_TOKEN = r'ghp_[0-9a-zA-Z]{36}'
-GITHUB_OAUTH = r'gho_[0-9a-zA-Z]{36}'
-GOOGLE_API_KEY = r'AIza[0-9A-Za-z_-]{35}'
-SLACK_TOKEN = r'xox[baprs]-[0-9]{10,12}-[0-9]{10,12}-[0-9a-zA-Z]{24,32}'
-RSA_PRIVATE_KEY = r'-----BEGIN RSA PRIVATE KEY-----'
-OPENSSH_PRIVATE_KEY = r'-----BEGIN OPENSSH PRIVATE KEY-----'
-DB_CONNECTION_STRING = r'(mysql|postgresql|mongodb|redis)://[^:]+:[^@]+@[^/]+'
-JWT_PATTERN = r'eyJ[a-zA-Z0-9_-]*\.eyJ[a-zA-Z0-9_-]*\.[a-zA-Z0-9_-]*'
+**硬编码敏感信息**：
+- 云服务凭据：AWS Access Key、GitHub Token、Google API Key
+- 数据库凭据：连接字符串（MySQL、PostgreSQL、MongoDB、Redis）
+- 私钥：RSA/SSH 私钥
+- JWT Secret、API Key
+- PII：手机号、邮箱、身份证号
+
+**泄露函数**：
+- 环境变量导出：`os.environ`、`process.env`、`System.getenv()` 等
+- 配置对象返回：`app.config`、`settings` 等直接返回
+
+#### 支持的语言和框架
+
+- **Python**: os.environ, os.getenv, app.config
+- **JavaScript/TypeScript**: process.env, app.config
+- **Go**: os.Getenv, os.Environ, os.LookupEnv, env.List, env.Get, env.Parse
+- **Java**: System.getenv, System.getProperty
+- **其他语言**: PHP, Ruby, Rust, C/C++, .NET 等
+
+## 执行流程
+
+```mermaid
+graph TD
+    A[开始扫描] --> B[扫描硬编码敏感信息]
+    A --> C[扫描泄露函数]
+    B --> D[应用过滤规则]
+    C --> D
+    D --> E[优先级判定]
+    E --> F{类型分类}
+    F -->|硬编码| G[生成 BUG 报告]
+    F -->|泄露函数| H[生成分析文件]
+    H --> I[创建深度分析任务]
+    G --> J[输出总结]
+    I --> J
 ```
 
-### 熵值分析
-```python
-def calculate_entropy(string):
-    import math
-    from collections import Counter
-    if not string: return 0.0
-    probs = [c/len(string) for c in Counter(string).values()]
-    return -sum(p * math.log2(p) for p in probs)
+### 步骤 1: 扫描阶段
+
+**1.1 硬编码敏感信息扫描**
+
+使用 Grep 和 Glob 工具搜索常见敏感信息模式：
+
+**云服务凭据扫描**：
+- AWS Access Key：使用 Grep 工具，pattern 为 `AKIA[0-9A-Z]{16}`，glob 为 `**/*.{js,ts,py,go,java,php}`，启用 `-i` 选项
+- GitHub Token：使用 Grep 工具，pattern 为 `gh[ps]_[0-9a-zA-Z]{36}`，glob 为 `**/*.{js,ts,py,go,java,php}`，启用 `-i` 选项
+- Google API Key：使用 Grep 工具，pattern 为 `AIza[0-9A-Za-z_-]{35}`，glob 为 `**/*.{js,ts,py,go,java,php}`，启用 `-i` 选项
+
+**数据库凭据扫描**：
+- 数据库连接字符串：使用 Grep 工具，pattern 为 `(mysql|postgresql|mongodb|redis)://[^:]+:[^@]+@`，glob 为 `**/*.{js,ts,py,go,java,env,yml,yaml}`，启用 `-i` 选项
+
+**私钥扫描**：
+- RSA/SSH 私钥：使用 Grep 工具，pattern 为 `-----BEGIN (RSA |OPENSSH )?PRIVATE KEY-----`，glob 为 `**/*`，启用 `-i` 选项
+
+**配置文件发现**：
+- 环境变量文件：使用 Glob 工具，pattern 为 `**/.env*`
+- 配置目录文件：使用 Glob 工具，pattern 为 `**/config/*.{yml,yaml,json,properties}`
+
+**1.2 泄露函数扫描**
+
+搜索敏感数据源与输出函数的组合：
+
+**环境变量导出检查（按语言分类）**：
+
+按编程语言识别环境变量读取方法，使用 Grep 工具搜索以下模式：
+
+- **Python**:
+  - pattern: `(os\.environ|os\.getenv\()`
+  - glob: `**/*.py`
+  - 关注点: 整体导出 `os.environ` 或未过滤的批量读取
+
+- **Node.js/JavaScript/TypeScript**:
+  - pattern: `process\.env`
+  - glob: `**/*.{js,ts,jsx,tsx}`
+  - 关注点: 直接返回 `process.env` 对象或传递给外部
+
+- **Java**:
+  - pattern: `(System\.getenv\(|System\.getProperty\()`
+  - glob: `**/*.java`
+  - 关注点: `System.getenv()` 无参数调用返回全部环境变量
+
+- **Go**:
+  - pattern: `(os\.Getenv\(|os\.LookupEnv\(|os\.Environ\(|env\.List\()`
+  - glob: `**/*.go`
+  - 关注点: `os.Environ()`/`env.List()` 会返回全部环境变量集合
+
+- **PHP**:
+  - pattern: `(\$_ENV|\$_SERVER|getenv\()`
+  - glob: `**/*.php`
+  - 关注点: 直接输出 `$_ENV` 或 `$_SERVER` 超全局变量
+
+- **Ruby**:
+  - pattern: `(ENV\[|ENV\.fetch\(|ENV\.to_h)`
+  - glob: `**/*.rb`
+  - 关注点: `ENV.to_h` 返回全部环境变量哈希表
+
+- **C#/.NET**:
+  - pattern: `Environment\.(GetEnvironmentVariable|GetEnvironmentVariables)\(`
+  - glob: `**/*.cs`
+  - 关注点: `GetEnvironmentVariables()` 无参数调用
+
+- **Rust**:
+  - pattern: `(env::var\(|env::vars\()`
+  - glob: `**/*.rs`
+  - 关注点: `env::vars()` 返回全部环境变量迭代器
+
+- **Shell/Bash**:
+  - pattern: `(printenv|export|env\s*\||set\s*\|)`
+  - glob: `**/*.{sh,bash,zsh}`
+  - 关注点: `printenv` 或 `env` 命令输出到日志/响应
+
+### 步骤 2: 过滤与判定
+
+**2.1 误报过滤规则**
+
+排除以下情况：
+- 文件路径包含：`tests/`, `__tests__/`, `spec/`, `fixtures/`, `examples/`, `docs/`
+- 值包含占位符：`YOUR_*_HERE`, `<INSERT_*>`, `REPLACE_ME`, `example`, `test`, `demo`
+- 已知公开示例：`AKIAIOSFODNN7EXAMPLE`（AWS 官方示例）
+
+**2.2 优先级判定决策树**
+
+```
+是否泄露系统级敏感信息？
+├─ 是 → 私钥/数据库密码/云服务凭据/完整环境变量 → P0 Critical
+└─ 否 → 是否泄露业务敏感信息？
+    ├─ 是 → JWT Secret/API Key/配置信息/用户隐私 → P1 High
+    └─ 否 → 低敏感信息/测试占位符/文档示例 → P2 Medium/Low
 ```
 
-### 上下文关键词调权
-```python
-EXAMPLE_KEYWORDS = ['example','test','mock','fake','sample','demo','placeholder','dummy','template','your_key_here']
-SENSITIVE_KEYWORDS = ['secret','password','passwd','pwd','token','api_key','private_key','access_key','auth','credential','apikey']
-```
+**优先级规则**：
+- **P0 Critical**: 系统级敏感信息（私钥/DB密码/云凭据/环境变量导出）
+- **P1 High**: 业务敏感信息（JWT Secret/API Key/配置/用户数据）
+- **P2 Medium**: 低敏感信息、测试示例、未对外暴露的凭证
 
-## 输出要求
+**分组规则**：
+- 相同硬编码敏感信息类型的发现为一组，例如：RSA/SSH 私钥被发现，全部归为一组。
 
-1. **扫描结果文件**：输出到 `.workspace/tasks/{TASK_ID}/sensitive-info-scanner-result.md`
+### 步骤 3: 报告生成（以分组为单位）
 
-**文件内容格式**：
+**3.1 硬编码敏感信息 → BUG 报告**
+
+对于硬编码敏感信息的发现，使用 Skill 工具调用 bug-report 技能生成漏洞报告：
+
+**调用方式**：
+- 使用 `Skill` 工具，参数 `skill` 设置为 `"bug-report"`
+- bug-report 技能会自动加载并按照其模板格式生成漏洞报告文件
+- 确保在调用前准备好完整的漏洞上下文信息（文件路径、行号、敏感信息类型、优先级等）
+
+**报告要求**：
+- 严格遵循 bug-report 技能定义的模板格式
+- 每个分组生成一个独立的漏洞报告文件
+- 文件命名格式：`.workspace/tasks/{TASK_ID}/bug-{type}-{priority}.md`
+
+**3.2 泄露函数 → 分析文件 + 下游任务**
+
+生成中间分析文件供 `sensitive-deep-analyzer` 使用：
+
 ```markdown
-# 敏感信息扫描结果
+文件路径：`.workspace/tasks/{TASK_ID}/sensitive-leak-{priority}-group{N}.md`
 
-## 扫描概要
-- 扫描范围：[代码/配置/日志/文档]
-- 发现数量：[P0: X, P1: Y, P2: Z]
+# 敏感信息扫描结果 - 泄露函数 - {Priority} 级别 (第 {N} 组)
 
-## P0 Critical 级别发现
-### [FINDING-001] {secretType}
-- **位置**：{file}:{line}
-- **类型**：{secretType}
-- **证据**：{evidence}
-- **置信度**：{confidence}
-- **CWE**：{cwe}
-- **修复建议**：{recommendation}
-
-## P1 High 级别发现
-...
-
-## P2 Medium/Low 级别发现
-...
+## [FINDING-{ID}] {leaksWhat} 泄露风险点
+- {file}:{line}
+- {file2}:{line2}
+- ...
 ```
 
-2. **不需要生成下游任务**
-
-**总结输出格式（JSON格式）**：
+**总结输出格式（JSON）**：
 ```json
 {
-    "tasks": [],
-    "summary": {
-        "p0_count": 0,
-        "p1_count": 0,
-        "p2_count": 0,
-        "total": 0
+  "tasks": [
+    {
+      "artifact": ".workspace/tasks/{TASK_ID}/sensitive-leak-P0-group1.md",
+      "skill": "sensitive-deep-analyzer",
+      "dependencies": [
+        ".workspace/tasks/{WEB_AUTH_TASK_ID}/web-auth-analyzer.md",
+        ".workspace/tasks/{UNAUTH_ROUTE_SCANNER_TASK_ID}/unauth-route-scanner.md",
+        ".workspace/tasks/{NORMAL_ROUTE_SCANNER_TASK_ID}/normal-route-scanner.md"
+      ]
+    },
+    {
+      "artifact": ".workspace/tasks/{TASK_ID}/sensitive-leak-P1-group1.md",
+      "skill": "sensitive-deep-analyzer",
+      "dependencies": [
+        ".workspace/tasks/{WEB_AUTH_TASK_ID}/web-auth-analyzer.md",
+        ".workspace/tasks/{UNAUTH_ROUTE_SCANNER_TASK_ID}/unauth-route-scanner.md",
+        ".workspace/tasks/{NORMAL_ROUTE_SCANNER_TASK_ID}/normal-route-scanner.md"
+      ]
     }
+  ]
 }
 ```

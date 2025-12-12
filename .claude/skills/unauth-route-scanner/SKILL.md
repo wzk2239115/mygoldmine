@@ -68,6 +68,35 @@ if (process.env.NODE_ENV === 'development') {
 4. 检查测试文件中引用的未公开接口
 5. 搜索 `TODO`/`FIXME`/`HACK` 注释附近的路由
 
+## 工具使用
+
+### quick-scan.py 使用说明
+
+`quick-scan.py` 是一个基于 tree-sitter 的路由扫描工具，用于从项目中提取所有路由注册信息。
+
+#### 快速扫描方法
+
+运行 `quick-scan.py` 脚本进行快速路由扫描，自动识别和提取项目中的路由注册信息。
+```bash
+# 扫描指定目录（输出到标准输出）
+python3 ./quick-scan.py /path/to/project
+
+# 输出到文件
+python3 ./quick-scan.py /path/to/project --output routes.md
+```
+
+**脚本覆盖范围**：
+- ✅ **路由识别**：自动识别主流框架的路由注册模式（Express、Flask、Spring、Gin 等）
+- ✅ **路由提取**：提取 HTTP 方法、路径、Handler 函数名、文件位置等信息
+- ✅ **多语言支持**：支持 Go、JavaScript/TypeScript、Python、Java、PHP、Ruby 等
+- ❌ **认证检查**：脚本仅提取路由信息，不进行认证分析（需结合上游产物手动分析）
+- ❌ **风险分级**：风险分级需要结合路由功能和认证状态进行手动判定
+
+**提示词规则覆盖**：
+- 以下章节中的路由识别模式（2.2-2.10）已由脚本自动实现，以下内容为参考说明
+- 三层认证验证（3.1-3.2）需要结合脚本提取的路由信息和上游产物进行手动分析
+- 未授权路由识别标准（4.1-4.6）需要结合脚本结果和上游产物进行手动判定
+
 ## 执行流程
 
 ### 1. 读取上游产物
@@ -82,6 +111,8 @@ if (process.env.NODE_ENV === 'development') {
 
 ### 2. 路由识别方法（主流语言/框架）
 
+> **脚本覆盖说明**：`quick-scan.py` 脚本已自动实现以下路由识别功能，使用 tree-sitter AST 分析准确提取路由信息。以下内容为参考说明，帮助理解脚本的工作原理。
+
 #### 2.1 通用思路
 
 - **查找路由声明位置**：路由表文件、装饰器/注解、注册函数（router、app、server）、中间件挂载点
@@ -89,7 +120,11 @@ if (process.env.NODE_ENV === 'development') {
 - **识别动态参数**：`:param`、`{param}`、`<type:param>`、正则/通配符（`*`, `**`），以及方法限定（GET/POST/...）
 - **关联中间件/过滤器**：auth/role/guard/interceptor，标记优先级与认证需求
 
+> **脚本实现**：脚本使用 tree-sitter 查询自动识别上述模式，无需手动正则匹配。
+
 #### 2.2 Node.js / TypeScript（Express/Koa/Fastify/Nest）
+
+> **脚本覆盖**：✅ 已由 `quick-scan.py` 自动实现，使用 tree-sitter 查询识别 Express、Koa、Fastify、NestJS 路由模式。
 
 **路由特征**：
 - Express：`app.METHOD(path, ...)`、`router.METHOD(path, ...)`、`router.use(prefix, ...)`；文件：`routes/*.js/ts`、`app.js`、`server.js`
@@ -124,18 +159,22 @@ include\s*\(\s*['"]
 
 #### 2.4 Java（Spring MVC / Spring Boot）
 
+> **脚本覆盖**：✅ 已由 `quick-scan.py` 自动实现，使用 tree-sitter 查询识别 Spring Boot 路由注解。
+
 **路由特征**：
 - 类级 `@RequestMapping("/api")` + 方法级 `@GetMapping("/x")` 等组合
 - 路径变量 `/{id}`、通配符 `/**`
 - 常见端点：Actuator `/actuator/**`，Swagger `/v2/api-docs`、`/swagger-ui`
 
-**匹配正则**：
+**匹配正则**（脚本已实现，以下为参考）：
 ```regex
 @(RequestMapping|RestController|Controller)\s*(\(\s*(['"]|value\s*=\s*['"]))?
 @(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping)\s*\(\s*(['"]|value\s*=\s*['"]|path\s*=\s*['"])?
 ```
 
 #### 2.5 Go（Gin/Echo/Chi/Fiber/Mux/net/http）
+
+> **脚本覆盖**：✅ 已由 `quick-scan.py` 自动实现，使用 tree-sitter 查询识别 Go 主流框架路由模式（gorilla/mux、Gin、Echo、Chi、net/http 等）。
 
 **路由特征**：
 - **Gin**：`r.GET/POST`，`r.Group("/api")`；中间件 `Use`
@@ -180,11 +219,13 @@ beego\.(Router|NSRouter|NSNamespace|Include|Get|Post|Put|Patch|Delete)
 
 #### 2.6 PHP（Laravel / Symfony）
 
+> **脚本覆盖**：✅ 已由 `quick-scan.py` 自动实现，使用 tree-sitter 查询识别 Laravel、Symfony 路由模式。
+
 **路由特征**：
 - Laravel：`routes/web.php`、`routes/api.php`；`Route::get/post/put/delete`，`Route::group`，`Route::resource/apiResource`
 - Symfony：`config/routes/*.yaml` / 注解 / 属性路由
 
-**匹配正则**：
+**匹配正则**（脚本已实现，以下为参考）：
 ```regex
 Route\s*::\s*(get|post|put|patch|delete|options|any|match|resource|apiResource|group)\s*\(\s*['"]
 Route\s*::\s*(prefix|middleware|namespace|group)\s*\(
@@ -194,10 +235,12 @@ Route\s*::\s*(prefix|middleware|namespace|group)\s*\(
 
 #### 2.7 Ruby on Rails
 
+> **脚本覆盖**：✅ 已由 `quick-scan.py` 自动实现，使用 tree-sitter 查询识别 Rails 路由模式。
+
 **路由特征**：
 - `config/routes.rb`：`resources :users`、`namespace :admin`、`scope path: "/api"`、`match`/`get/post`
 
-**匹配正则**：
+**匹配正则**（脚本已实现，以下为参考）：
 ```regex
 (get|post|put|patch|delete|match|root)\s+['"]
 (resources?|namespace|scope|constraints)\s+[:'"]
@@ -205,11 +248,13 @@ Route\s*::\s*(prefix|middleware|namespace|group)\s*\(
 
 #### 2.8 .NET（ASP.NET Core）
 
+> **脚本覆盖**：✅ 已由 `quick-scan.py` 自动实现，使用 tree-sitter 查询识别 ASP.NET Core 路由模式。
+
 **路由特征**：
 - Minimal APIs：`app.MapGet/MapPost/...`；`MapGroup("/api")`
 - MVC/Controllers：`[Route("api/[controller]")]` + `[HttpGet("x")]`
 
-**匹配正则**：
+**匹配正则**（脚本已实现，以下为参考）：
 ```regex
 \w+\s*\.\s*(MapGet|MapPost|MapPut|MapPatch|MapDelete|MapMethods|MapGroup)\s*\(\s*["']
 \[(Route|HttpGet|HttpPost|HttpPut|HttpPatch|HttpDelete)\s*\(\s*["']?
@@ -217,11 +262,13 @@ Route\s*::\s*(prefix|middleware|namespace|group)\s*\(
 
 #### 2.9 JavaScript 前后端一体框架（Next.js / Nuxt）
 
+> **脚本覆盖**：⚠️ 部分支持。脚本可通过文件路径识别 Next.js/Nuxt API Routes，但动态路由参数解析需要手动分析。
+
 **路由特征**：
 - Next.js API Routes：`pages/api/*` 或 `app/api/*/route.{js,ts}`；动态 `[id]`，catch-all `[...slug]`
 - Nuxt 3 Nitro：`server/api/**/*.ts`
 
-**匹配方式**：基于文件路径匹配
+**匹配方式**：基于文件路径匹配（脚本已实现）
 ```
 pages/api/**/*.{js,ts}
 app/api/**/route.{js,ts}
@@ -230,13 +277,15 @@ server/api/**/*.ts
 
 #### 2.10 通用匹配（兜底）
 
-当框架特定正则无法匹配时，使用宽松匹配：
+> **脚本覆盖**：⚠️ 部分支持。脚本优先使用框架特定的 tree-sitter 查询，对于未识别的框架会尝试通用模式匹配。
+
+当框架特定正则无法匹配时，使用宽松匹配（脚本已实现，以下为参考）：
 ```regex
 \b(route|router|endpoint|api|controller)\b.*\b(get|post|put|patch|delete)\b
 ['"`]\/[a-zA-Z0-9_\-\/\{\}\:\*\[\]]+['"`]
 ```
 
-> **注意**：通用匹配可能产生误报，需结合上下文确认。
+> **注意**：通用匹配可能产生误报，需结合上下文确认。脚本会自动过滤测试文件以减少误报。
 
 ### 3. 三层认证验证流程
 
@@ -347,6 +396,12 @@ L3 层检查包括：
 ---
 
 ### 4. 未授权路由识别标准
+
+> **脚本覆盖说明**：❌ 未授权路由识别和风险分级**未**由脚本实现，需要结合以下内容进行手动分析：
+> - 脚本提取的路由信息（方法、路径、Handler 等）
+> - 上游 `web-auth-analyzer.md` 产物的认证分析结果
+> - 三层认证验证结果（3.1 节）
+> - 路由功能分析（Handler 执行的操作类型）
 
 > **重要**：以下识别标准必须在执行三层认证验证（3.1）的基础上进行。
 
@@ -716,6 +771,8 @@ func configVerifyHandler(w http.ResponseWriter, r *http.Request) {
 - **JSON 输出必须有效**：确保 JSON 格式正确，便于下游程序化处理
 
 ## 附录：检查思路参考
+
+> **脚本覆盖说明**：以下检查思路为手动分析方法，脚本**未**实现这些功能。这些思路用于指导如何结合脚本提取的路由信息进行深度分析。
 
 由于不同项目的技术栈和代码结构差异较大，本附录不提供通用脚本，而是提供检查思路供参考。
 
