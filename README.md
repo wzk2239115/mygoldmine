@@ -2,6 +2,22 @@
 
 基于 Claude Code 的自动化安全审计框架，通过 AI 智能体协作完成代码安全扫描。
 
+## 核心能力概览
+
+- 基于 tree-sitter 的快速扫描脚本（quick-scan）：
+  - 路由扫描：`unauth-route-scanner`（未授权路由侧重）、`normal-route-scanner`（常规路由，软链复用同脚本）
+  - 认证分析：`web-auth-analyzer`
+  - 敏感信息扫描：`sensitive-info-scanner`
+  - 工作区扫描：`workspace-scanner`
+  - 项目画像：`project-profiler`
+- 自动化覆盖 vs 人工分析：脚本负责结构化提取与模式识别；风险分级、业务语义与复杂豁免规则需结合产物手动分析。
+
+## 依赖与环境
+
+- Python ≥ 3.9
+- `tree-sitter`、`tree-sitter-language-pack`、`jq`、`git`、`bash`
+- 一键检查：`bash ./check-dependencies.sh`（缺失项会给出安装提示）
+
 ## 安装
 
 ```bash
@@ -38,6 +54,29 @@ claude
 ```
 
 系统会自动调用 `security-orchestrator` 智能体进行全流程安全扫描。
+
+### 3. 快速脚本示例（可单独运行）
+
+```bash
+# 路由扫描（未授权/常规，二者复用同脚本）
+python3 .claude/skills/unauth-route-scanner/quick-scan.py . --output routes.md
+# 认证分析
+python3 .claude/skills/web-auth-analyzer/quick-scan.py . --output auth.md
+# 敏感信息
+python3 .claude/skills/sensitive-info-scanner/quick-scan.py . --output sensitive.md
+# 输出 JSON
+python3 .claude/skills/unauth-route-scanner/quick-scan.py . --json --output routes.json
+```
+
+> 说明：路由脚本不做认证判定；认证与风险分级需结合路由/上游产物手动分析。
+
+### 4. 工作流速览（从发现到报告）
+
+```
+workspace-scanner → project-profiler → route-scanner（unauth/normal） → web-auth-analyzer → sensitive-info-scanner → report-generator
+```
+
+各 quick-scan 产物可直接作为后续分析输入：路由清单 → 认证分析 → 敏感信息 → 报告聚合。
 
 ## Security Orchestrator
 
@@ -123,6 +162,20 @@ STEP 4: 报告生成 (report-generator)
 # 排除特定扫描器
 @.claude/agents/security-orchestrator.md 安全审计，禁用 sensitive-info-scanner
 ```
+
+## 快速脚本/技能速览表
+
+| 脚本 | 主要用途 | 输入 | 输出 | 语言/框架示例 | 不做的事 |
+|------|---------|------|------|--------------|---------|
+| unauth/normal-route-scanner | 提取路由注册（含方法、路径、Handler、定位） | 代码目录 | routes.md / routes.json | Go(gin/mux/echo/chi)、Node(Express/Nest/Koa/Fastify)、Python(Flask/FastAPI)、Java(Spring) 等 | 不做认证判定/风险分级 |
+| web-auth-analyzer | 认证与豁免配置提取 | 代码目录 | auth.md / auth.json | 主流 Web 框架 | 业务逻辑级别的授权判断需人工 |
+| sensitive-info-scanner | 硬编码敏感信息、泄露函数探测 | 代码目录 | sensitive.md / sensitive.json | Go、Node、Python、Java 等；支持 Go env/os.Getenv | 业务语义确认需人工 |
+| workspace-scanner | 目录/子工程识别 | 工作区 | 结构化清单 | 通用 | 风险判定需下游 |
+| project-profiler | 技术栈画像、推荐扫描器 | 子工程 | 画像结果 | 通用 | 风险判定需下游 |
+
+## 任务管理提示
+
+- `task-manage/scripts/tools/update-task.sh`：任务标记为 completed 时，自动提示下一个 pending 任务（索引靠后）。
 
 ## 技能推荐关系图
 
