@@ -190,12 +190,16 @@ flowchart TB
         PP[project-profiler]
     end
 
+    subgraph QuickScan["快速扫描层（quick-scan）"]
+        RS["route-scanner (unauth/normal)"]
+        WA[web-auth-analyzer]
+        SIS[sensitive-info-scanner]
+    end
+
     subgraph Analysis["分析层"]
-        RS[route-scanner]
         RFA[route-function-analyzer]
-        AA[authentication-analyzer]
-        VTR[vtr-scanner]
         CSA[code-security-analyzer]
+        VTR[vtr-scanner]
     end
 
     subgraph Scanners["漏洞扫描层"]
@@ -224,24 +228,25 @@ flowchart TB
     SO --> WS
     WS -->|"子工程"| PP
 
-    %% 项目画像分支
-    PP -->|"HTTP服务"| RS
-    PP -->|"HTTP服务"| AA
+    %% quick-scan 触发
+    PP -->|"HTTP 服务"| RS
+    PP -->|"HTTP 服务"| WA
+    PP --> SIS
     PP -->|"安全靶场"| VTR
 
-    %% 路由分析流程
+    %% 路由/函数链路
     RS --> RFA
     RFA --> CSA
 
-    %% 产物依赖关系
-    AA -.->|"认证信息"| CSA
+    %% 认证信息
+    WA -.->|"认证/豁免信息"| CSA
 
-    %% 虚拟节点：风险点识别
+    %% 风险点识别
     RISK{{"风险点识别"}}
     CSA -.->|"代码风险"| RISK
     VTR -.->|"题目类型"| RISK
 
-    %% 风险点激活漏洞扫描器
+    %% 漏洞扫描触发
     RISK -.-> SQLI
     RISK -.-> CMDI
     RISK -.-> XSS
@@ -254,6 +259,9 @@ flowchart TB
     RISK -.-> LDAPI
     RISK -.-> CODEI
     RISK -.-> UPLOAD
+
+    %% 敏感信息可直接入报告
+    SIS --> BR
 
     %% 漏洞报告输出
     SQLI --> BR
