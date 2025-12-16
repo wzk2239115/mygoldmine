@@ -10,6 +10,7 @@
   - 敏感信息扫描：`sensitive-info-scanner`
   - 工作区扫描：`workspace-scanner`
   - 项目画像：`project-profiler`
+  - **智能合约审计**：`blockchain-goldmine-analyzer`（支持 Solidity、Rust、Move、Vyper、Go）
 - 自动化覆盖 vs 人工分析：脚本负责结构化提取与模式识别；风险分级、业务语义与复杂豁免规则需结合产物手动分析。
 
 ## 依赖与环境
@@ -64,6 +65,8 @@ python3 .claude/skills/unauth-route-scanner/quick-scan.py . --output routes.md
 python3 .claude/skills/web-auth-analyzer/quick-scan.py . --output auth.md
 # 敏感信息
 python3 .claude/skills/sensitive-info-scanner/quick-scan.py . --output sensitive.md
+# 智能合约审计建议（识别编程语言、推断应用场景、生成审计清单）
+python3 .claude/skills/blockchain-goldmine-analyzer/quick-scan.py . --output contract-audit.md
 # 输出 JSON
 python3 .claude/skills/unauth-route-scanner/quick-scan.py . --json --output routes.json
 ```
@@ -72,11 +75,19 @@ python3 .claude/skills/unauth-route-scanner/quick-scan.py . --json --output rout
 
 ### 4. 工作流速览（从发现到报告）
 
+**Web 应用工作流**：
 ```
 workspace-scanner → project-profiler → route-scanner（unauth/normal） → web-auth-analyzer → sensitive-info-scanner → report-generator
 ```
 
-各 quick-scan 产物可直接作为后续分析输入：路由清单 → 认证分析 → 敏感信息 → 报告聚合。
+**智能合约工作流**：
+```
+workspace-scanner → project-profiler → blockchain-goldmine-analyzer → report-generator
+```
+
+各 quick-scan 产物可直接作为后续分析输入：
+- Web 应用：路由清单 → 认证分析 → 敏感信息 → 报告聚合
+- 智能合约：合约识别 → 审计建议 → 报告聚合
 
 ## Security Orchestrator
 
@@ -100,11 +111,13 @@ STEP 1: 工作区扫描 (workspace-scanner)
     ↓
 STEP 2: 项目画像 (project-profiler)
     ↓
-    识别技术栈，推荐扫描器
+    识别技术栈、项目类型（后端服务 / 前端应用 / 智能合约 / 安全靶场）
     ↓
-STEP 3: 漏洞扫描 (各类 analyzer)
-    ↓
-    并行执行推荐的扫描任务
+STEP 3: 条件化分析
+    ├─ 后端HTTP服务 → 路由扫描 → 认证分析 → 敏感信息扫描 → 漏洞扫描
+    ├─ 智能合约项目 → blockchain-goldmine-analyzer → 审计建议生成
+    ├─ 前端WEB应用 → 跳过（暂不分析）
+    └─ 安全测试靶场 → vtr-scanner → 靶场分析
     ↓
 STEP 4: 报告生成 (report-generator)
     ↓
@@ -172,6 +185,7 @@ STEP 4: 报告生成 (report-generator)
 | sensitive-info-scanner | 硬编码敏感信息、泄露函数探测 | 代码目录 | sensitive.md / sensitive.json | Go、Node、Python、Java 等；支持 Go env/os.Getenv | 业务语义确认需人工 |
 | workspace-scanner | 目录/子工程识别 | 工作区 | 结构化清单 | 通用 | 风险判定需下游 |
 | project-profiler | 技术栈画像、推荐扫描器 | 子工程 | 画像结果 | 通用 | 风险判定需下游 |
+| **blockchain-goldmine-analyzer** | **合约编程语言识别、应用场景推断、审计建议生成** | **合约项目** | **audit-profile.md** | **Solidity、Rust、Move、Vyper、Go** | **不做深度审计，仅提供审计方向和清单** |
 
 ## 任务管理提示
 
@@ -194,6 +208,7 @@ flowchart TB
         RS["route-scanner (unauth/normal)"]
         WA[web-auth-analyzer]
         SIS[sensitive-info-scanner]
+        BGA["blockchain-goldmine-analyzer"]
     end
 
     subgraph Analysis["分析层"]
@@ -232,6 +247,7 @@ flowchart TB
     PP -->|"HTTP 服务"| RS
     PP -->|"HTTP 服务"| WA
     PP --> SIS
+    PP -->|"智能合约"| BGA
     PP -->|"安全靶场"| VTR
 
     %% 路由/函数链路
@@ -263,6 +279,9 @@ flowchart TB
     %% 敏感信息可直接入报告
     SIS --> BR
 
+    %% 智能合约审计可直接入报告
+    BGA --> BR
+
     %% 漏洞报告输出
     SQLI --> BR
     CMDI --> BR
@@ -288,10 +307,12 @@ flowchart TB
 | workspace-scanner | project-profiler | 每个子工程 |
 | project-profiler | route-scanner | HTTP 服务类型 |
 | project-profiler | authentication-analyzer | HTTP 服务类型 |
+| project-profiler | **blockchain-goldmine-analyzer** | **智能合约类型** |
 | project-profiler | vtr-scanner | 安全靶场类型 |
 | route-scanner | route-function-analyzer | 每个路由文件 |
 | route-function-analyzer | code-security-analyzer | 每个 API 端点 |
 | code-security-analyzer | 漏洞分析器 | 根据代码风险点激活 |
+| **blockchain-goldmine-analyzer** | **bug-report** | **生成审计建议** |
 | vtr-scanner | 漏洞分析器 | 根据靶场题目类型推荐 |
 | 漏洞分析器 | bug-report | 发现漏洞时 |
 
@@ -301,19 +322,21 @@ flowchart TB
 .claude/
 ├── agents/
 │   └── security-orchestrator.md    # 编排智能体
-└── skills/
-    ├── workspace-scanner/          # 工作区扫描
-    ├── project-profiler/           # 项目画像
-    ├── route-scanner/              # 路由扫描
-    ├── route-function-analyzer/    # 路由功能分析
-    ├── code-security-analyzer/     # 代码安全分析
-    ├── bug-report/                 # 漏洞报告模板
-    ├── report-generator/           # 报告生成
-    └── TOP14/                      # 漏洞扫描器
-        ├── sql-injection-analyzer/
-        ├── xss-analyzer/
-        ├── command-injection-analyzer/
-        └── ...
+├── skills/
+│   ├── workspace-scanner/          # 工作区扫描
+│   ├── project-profiler/           # 项目画像（识别项目类型）
+│   ├── route-scanner/              # 路由扫描
+│   ├── route-function-analyzer/    # 路由功能分析
+│   ├── code-security-analyzer/     # 代码安全分析
+│   ├── blockchain-goldmine-analyzer/   # 🆕 智能合约审计建议
+│   ├── bug-report/                 # 漏洞报告模板
+│   ├── report-generator/           # 报告生成
+│   ├── blockchain_goldmine/        # 智能合约知识库（git子模块）
+│   └── TOP40+/                     # 漏洞扫描器
+│       ├── sql-injection-analyzer/
+│       ├── xss-analyzer/
+│       ├── command-injection-analyzer/
+│       └── ...
 ```
 
 ## License

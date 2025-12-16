@@ -292,6 +292,39 @@ VTR_KEYWORDS = [
     "educational",
 ]
 
+# 智能合约框架关键词
+BLOCKCHAIN_FRAMEWORKS = {
+    "JavaScript/TypeScript": ["hardhat", "truffle", "foundry", "ethers", "web3.js", "ethersjs"],
+    "Solidity": ["hardhat", "truffle", "foundry"],
+    "Rust": ["anchor", "solana", "substrate"],
+    "Go": ["cosmos-sdk", "tendermint"],
+}
+
+# 智能合约配置文件
+BLOCKCHAIN_CONFIG_FILES = [
+    "hardhat.config.js",
+    "hardhat.config.ts",
+    "truffle-config.js",
+    "truffle.js",
+    "foundry.toml",
+    "Anchor.toml",
+]
+
+# 智能合约源文件扩展名
+BLOCKCHAIN_SOURCE_EXTENSIONS = [".sol", ".rs", ".move", ".vy", ".go"]
+
+# 智能合约代码关键词特征
+BLOCKCHAIN_CODE_KEYWORDS = [
+    "pragma solidity",
+    "contract {",
+    "interface {",
+    "library {",
+    "#[program]",
+    "#[derive(Accounts)]",
+    "module {",
+    "public fun",
+]
+
 
 def read_json_safe(path: Path) -> Dict:
     """安全读取 JSON，异常返回空 dict。"""
@@ -601,6 +634,71 @@ def detect_frontend_app(root: Path) -> Tuple[bool, List[str]]:
             if fw.lower() in dep_name.lower():
                 evidence.append(f"依赖文件包含前端框架: {dep_name}")
                 return True, evidence
+
+    return False, evidence
+
+
+def detect_smart_contract(root: Path, language: Optional[str]) -> Tuple[bool, List[str]]:
+    """检测是否为智能合约项目。"""
+    evidence = []
+
+    # 方法一：检查合约配置文件
+    for config_file in BLOCKCHAIN_CONFIG_FILES:
+        if (root / config_file).exists():
+            evidence.append(f"检测到合约配置文件: {config_file}")
+            return True, evidence
+
+    # 方法二：检查依赖/锁文件中的区块链框架关键词
+    if (root / "package.json").exists():
+        pkg_json = read_json_safe(root / "package.json")
+        deps = {**pkg_json.get("dependencies", {}), **pkg_json.get("devDependencies", {})}
+        for dep_name in deps.keys():
+            if language == "JavaScript/TypeScript":
+                for fw in BLOCKCHAIN_FRAMEWORKS.get("JavaScript/TypeScript", []):
+                    if fw.lower() in dep_name.lower():
+                        evidence.append(f"依赖文件包含区块链框架: {dep_name}")
+                        return True, evidence
+
+    # 检查其他语言的合约框架
+    if language and language in BLOCKCHAIN_FRAMEWORKS:
+        if (root / "Cargo.toml").exists():  # Rust
+            content = load_text(root / "Cargo.toml").lower()
+            for fw in BLOCKCHAIN_FRAMEWORKS.get("Rust", []):
+                if fw.lower() in content:
+                    evidence.append(f"Cargo.toml 包含区块链框架: {fw}")
+                    return True, evidence
+
+        if (root / "go.mod").exists():  # Go
+            content = load_text(root / "go.mod").lower()
+            for fw in BLOCKCHAIN_FRAMEWORKS.get("Go", []):
+                if fw.lower() in content:
+                    evidence.append(f"go.mod 包含区块链框架: {fw}")
+                    return True, evidence
+
+    # 方法三：检查合约源文件
+    for ext in BLOCKCHAIN_SOURCE_EXTENSIONS:
+        # 检查根目录及主要子目录（contracts/, src/)
+        for search_dir in [root, root / "contracts", root / "src"]:
+            if search_dir.exists():
+                try:
+                    for file in search_dir.glob(f"*{ext}"):
+                        if file.is_file():
+                            evidence.append(f"检测到合约源文件: {file.relative_to(root)}")
+                            return True, evidence
+                except Exception:
+                    pass
+
+    # 方法四：检查源代码中的合约特征关键词
+    try:
+        for file in root.rglob("*"):
+            if file.is_file() and file.suffix in [".sol", ".rs", ".move", ".vy", ".go"]:
+                content = load_text(file).lower()
+                for keyword in BLOCKCHAIN_CODE_KEYWORDS:
+                    if keyword.lower() in content:
+                        evidence.append(f"源代码包含合约特征: {keyword}")
+                        return True, evidence
+    except Exception:
+        pass
 
     return False, evidence
 
@@ -928,6 +1026,7 @@ def format_output(
     package_manager: Optional[str],
     is_backend: bool,
     is_frontend: bool,
+    is_smart_contract: bool,
     is_vtr: bool,
     file_count: int,
     line_count: int,
@@ -937,6 +1036,7 @@ def format_output(
     main_dirs: List[str],
     backend_evidence: List[str],
     frontend_evidence: List[str],
+    smart_contract_evidence: List[str],
     vtr_evidence: List[str],
 ) -> str:
     """格式化输出结果。"""
@@ -962,7 +1062,12 @@ def format_output(
             if frontend_evidence:
                 for ev in frontend_evidence:
                     lines.append(f"  - {ev}")
-        if not is_backend and not is_frontend:
+        if is_smart_contract:
+            lines.append("✓ 智能合约项目")
+            if smart_contract_evidence:
+                for ev in smart_contract_evidence:
+                    lines.append(f"  - {ev}")
+        if not is_backend and not is_frontend and not is_smart_contract:
             lines.append("- 未检测到明确的分类特征")
     lines.append("")
 
@@ -1025,12 +1130,14 @@ def main() -> None:
     # 检测项目分类
     is_backend, backend_evidence = detect_backend_service(root, language)
     is_frontend, frontend_evidence = detect_frontend_app(root)
+    is_smart_contract, smart_contract_evidence = detect_smart_contract(root, language)
     is_vtr, vtr_evidence = detect_vtr(root)
 
     # 如果检测为靶场，则互斥其他分类
     if is_vtr:
         is_backend = False
         is_frontend = False
+        is_smart_contract = False
 
     # 统计代码
     file_count, line_count = count_code_files(root)
@@ -1049,6 +1156,7 @@ def main() -> None:
         package_manager,
         is_backend,
         is_frontend,
+        is_smart_contract,
         is_vtr,
         file_count,
         line_count,
@@ -1058,6 +1166,7 @@ def main() -> None:
         main_dirs,
         backend_evidence,
         frontend_evidence,
+        smart_contract_evidence,
         vtr_evidence,
     )
     print(output)

@@ -27,7 +27,7 @@ tools: Read, Write, Edit, Bash, Task
 
 1. **技能命名规则检查**：子智能体推荐的 `skill` 字段必须符合以下命名规则之一，否则对应的任务应该被跳过，并在 warnings 中记录原因：
    - 以 `-scanner` 结尾（如 `workspace-scanner`、`vtr-scanner`、`normal-route-scanner`）
-   - 以 `-analyzer` 结尾（如 `sql-injection-analyzer`、`xss-analyzer`、`web-auth-analyzer`）
+   - 以 `-analyzer` 结尾（如 `sql-injection-analyzer`、`xss-analyzer`、`web-auth-analyzer`、`blockchain-goldmine-analyzer`）
    - 内置技能例外：`project-profiler`、`report-generator`、`code-security-analyzer`、`bug-report`
    - **验证方法**：检查技能名称是否以 `-scanner` 或 `-analyzer` 结尾，或属于内置技能白名单
    - **不合规示例**：`test-skill`、`custom-checker`、`security-audit` 等不符合命名规则的技能将被拒绝
@@ -349,12 +349,13 @@ Input: .workspace/tasks/security-orchestrator-tasks.json"
 新维度分析器应在以下条件下触发:
 
 1. **项目类型为后端HTTP服务**: web-auth-analyzer完成后,触发所有维度分析
-2. **检测到特定风险模式**:
+2. **项目类型为智能合约项目**: 触发blockchain-goldmine-analyzer进行合约审计建议
+3. **检测到特定风险模式**:
    - 发现SQL/命令执行sink → 触发dataflow-analyzer
    - 发现配置文件加载 → 触发config-env-analyzer
    - 发现状态字段修改 → 触发state-machine-analyzer
    - 存在第三方依赖 → 触发dependency-analyzer
-3. **强制全面扫描模式**: 用户明确要求时,执行所有维度分析
+4. **强制全面扫描模式**: 用户明确要求时,执行所有维度分析
 
 ### 示例: 完整的多维度分析流程
 
@@ -390,6 +391,27 @@ orch-054: combo-pattern-analyzer (必须最后)
   ↓
 orch-final: report-generator
 ```
+
+### 示例: 智能合约项目分析流程
+
+```
+orch-001: workspace-scanner
+  ↓
+orch-002: project-profiler (智能合约项目)
+  ✓ 检测到：智能合约项目
+  ✓ 识别语言：Solidity
+  ↓
+orch-003: blockchain-goldmine-analyzer
+  - 推断应用场景（DeFi/NFT/等）
+  - 生成审计建议清单
+  - 推荐关键漏洞类别（Access Control、Reentrancy 等）
+  ↓
+orch-final: report-generator
+  - 汇总审计建议
+  - 生成最终报告
+```
+
+**注意**：智能合约项目流程相对简洁，blockchain-goldmine-analyzer 生成的审计建议可以直接指导用户使用 Blockchain Security Goldmine 进行深度审计，不需要额外的维度分析器。
 
 ### 新维度调用示例
 

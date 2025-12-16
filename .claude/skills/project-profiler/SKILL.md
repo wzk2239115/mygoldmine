@@ -8,10 +8,11 @@ description: 项目画像技能：构建项目画像，分析技术栈与项目�
 - 聚焦项目基础信息收集, 快速判定优先, 可选分类如下：
 1. 后端HTTP服务（主流应用类型, 通过HTTP协议提供服务）
 2. 前端WEB应用（浏览器上的运行的代码，通常由HTML、CSS、JavaScript等技术栈开发）
-3. 安全测试靶场（用于安全测试的靶场，通常包含多个不同类型的漏洞代码示例）
+3. 智能合约项目（区块链应用，包含Solidity/Rust/Move/Go/Vyper等智能合约代码）
+4. 安全测试靶场（用于安全测试的靶场，通常包含多个不同类型的漏洞代码示例）
 
 **分类约束规则**：
-- 后端HTTP服务与前端WEB应用可以同时勾选（一个项目可以同时包含前后端代码）
+- 后端HTTP服务、前端WEB应用、智能合约项目可以同时勾选（一个项目可以同时包含多种类型）
 - **安全测试靶场为互斥分类**：如果判定为靶场类型，则**不能**同时勾选其他分类，只能单独勾选靶场
 
 # 分类方法
@@ -65,7 +66,29 @@ python3 ./quick-scan.py .
 
 **对于前端WEB应用，目前不需要继续分析，直接跳过。**
 
-3. 安全测试靶场
+3. 智能合约项目
+
+**识别智能合约项目方法（快速判定优先）：**
+- 快速判定一：查依赖/锁文件中是否包含合约开发框架（hardhat、truffle、foundry、anchor 等）。
+- 快速判定二：查项目根目录或src目录是否包含合约配置文件（hardhat.config.js、truffle-config.js、foundry.toml、Anchor.toml）。
+- 快速判定三：检查源代码中是否包含 `.sol`、`.rs`、`.move`、`.vy` 等合约文件，或检查代码中的合约特征关键词（pragma solidity、contract {}、#[program]）。
+
+**对于智能合约项目，后续分析需要使用的技能列表如下（禁止添加其他技能）: **
+- blockchain-goldmine-analyzer 技能：识别合约编程语言，生成合约审计建议。
+
+**总结输出格式（JSON格式）：**
+```json
+{
+    "tasks": [
+        {
+            "artifact": ".workspace/tasks/{TASK_ID}/project-profile.md",
+            "skill": "blockchain-goldmine-analyzer"
+        }
+    ]
+}
+```
+
+4. 安全测试靶场
 
 **识别安全测试靶场方法（快速判定优先）：**
 - 快速判定一：项目说明文档通常会明确指出是项目靶场为出于教学目的而构建的安全测试靶场, 可以重点关注。
@@ -105,6 +128,7 @@ python3 ./quick-scan.py .
 <!-- 约束：安全测试靶场为互斥分类，勾选后不能同时勾选其他类型 -->
 - [ ] 后端HTTP服务
 - [ ] 前端WEB应用
+- [ ] 智能合约项目
 - [ ] 安全测试靶场（互斥）
 
 ## 技术栈
@@ -144,5 +168,6 @@ python3 ./quick-scan.py .
 
 **注意**：
 - `{TASK_ID}` 由上游 orchestrator 传入，需替换为实际值（如 `orch-001`）
-- 如果项目同时属于多个非互斥分类（后端HTTP服务 + 前端WEB应用），合并所有分类对应的任务列表
+- 如果项目同时属于多个非互斥分类（后端HTTP服务 + 前端WEB应用 + 智能合约项目），合并所有分类对应的任务列表
+  - 例如：后端 + 合约 → 返回 `web-auth-analyzer`、`sensitive-info-scanner`、`blockchain-goldmine-analyzer` 三个任务
 - **如果判定为安全测试靶场，只返回 vtr-scanner 任务，不返回其他任务**
