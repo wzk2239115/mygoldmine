@@ -290,3 +290,175 @@ Input: .workspace/tasks/security-orchestrator-tasks.json"
 - **重要：禁止跳过skill-runner智能体推荐的任何任务(即使你已经得出了最终结论)，必须按步骤执行所有推荐的技能任务。**
 - 涉及路径时，优先使用相对路径(.workspace默认处于当前工作目录，当前目录默认为工程目录），避免使用绝对路径。
 - 你有足够的时间和资源来执行任务，因此不需要考虑时间限制。
+
+## 多维度安全分析框架
+
+### 维度分析器执行顺序
+
+为了支持组合漏洞检测,新增的多维度分析器必须按照特定顺序执行:
+
+**阶段1: 基础维度分析**
+- 现有的40+个analyzer(sql-injection-analyzer, xss-analyzer, idor-analyzer等)
+- 执行时机: 在route-deep-analyzer等基础扫描完成后
+
+**阶段2: 新增维度分析**
+
+执行顺序如下(可并行执行):
+
+1. **P0优先级维度** (并行执行):
+   - `dataflow-analyzer`: 数据流向分析(Source→Sink污点追踪)
+   - `config-env-analyzer`: 配置+环境维度(检测config→危险操作)
+   - `trust-boundary-analyzer`: 信任边界穿越(检测边界验证缺失)
+
+2. **P1优先级维度** (并行执行,需等待P0完成):
+   - `state-machine-analyzer`: 生命周期+状态机(TOCTOU、状态转换漏洞)
+   - `dependency-analyzer`: 组件+依赖(CVE扫描、供应链安全)
+
+3. **P2优先级维度** (并行执行,需等待P1完成):
+   - `error-boundary-analyzer`: 错误处理+边界条件(整数溢出、异常吞噬)
+   - `temporal-analyzer`: 时间维度(Token过期、重放攻击、时序攻击)
+
+**阶段3: 组合检测引擎** (必须最后执行):
+- `combo-pattern-analyzer`: 关联多个维度结果,检测复杂攻击链
+- **执行时机**: 必须在所有维度analyzer完成后执行
+- **依赖**: 需要所有维度analyzer的输出作为输入
+
+### 维度analyzer输出格式
+
+所有维度analyzer输出统一JSON格式到 `.workspace/tasks/{TASK_ID}/{dimension}-analysis.json`:
+
+```json
+{
+  "dimension": "dataflow|config-env|trust-boundary|state-machine|dependency|error-boundary|temporal",
+  "scan_time": "2025-12-16T12:00:00Z",
+  "vulnerabilities": [
+    {
+      "id": "xxx-001",
+      "type": "vulnerability_type",
+      "severity": "CRITICAL|HIGH|MEDIUM|LOW",
+      "location": "file:line",
+      "description": "...",
+      "evidence": {...}
+    }
+  ]
+}
+```
+
+### 触发新维度分析的条件
+
+新维度分析器应在以下条件下触发:
+
+1. **项目类型为后端HTTP服务**: web-auth-analyzer完成后,触发所有维度分析
+2. **检测到特定风险模式**:
+   - 发现SQL/命令执行sink → 触发dataflow-analyzer
+   - 发现配置文件加载 → 触发config-env-analyzer
+   - 发现状态字段修改 → 触发state-machine-analyzer
+   - 存在第三方依赖 → 触发dependency-analyzer
+3. **强制全面扫描模式**: 用户明确要求时,执行所有维度分析
+
+### 示例: 完整的多维度分析流程
+
+```
+orch-001: workspace-scanner
+  ↓
+orch-002: project-profiler (子工程A)
+  ↓
+orch-003: web-auth-analyzer
+  ↓
+orch-004: unauth-route-scanner
+orch-005: normal-route-scanner (并行)
+  ↓
+orch-006: route-deep-analyzer (汇总路由)
+  ↓
+orch-007 ~ orch-046: 40+个基础analyzer (并行执行)
+  ↓
+--- 新增维度分析阶段 ---
+  ↓
+orch-047: dataflow-analyzer
+orch-048: config-env-analyzer     (P0并行)
+orch-049: trust-boundary-analyzer
+  ↓
+orch-050: state-machine-analyzer  (P1并行)
+orch-051: dependency-analyzer
+  ↓
+orch-052: error-boundary-analyzer (P2并行)
+orch-053: temporal-analyzer
+  ↓
+--- 组合检测阶段 ---
+  ↓
+orch-054: combo-pattern-analyzer (必须最后)
+  ↓
+orch-final: report-generator
+```
+
+### 新维度调用示例
+
+**P0维度并行执行**:
+```
+# 在同一消息中发起3个P0维度Task调用
+Task(
+  subagent_type: "skill-runner",
+  description: "Dataflow analysis",
+  prompt: "# 任务执行请求
+使用 `dataflow-analyzer` SKILL 进行数据流分析。
+TASK_ID: orch-047
+Input: {project_root}"
+)
+
+Task(
+  subagent_type: "skill-runner",
+  description: "Config-env analysis",
+  prompt: "# 任务执行请求
+使用 `config-env-analyzer` SKILL 进行配置环境分析。
+TASK_ID: orch-048
+Input: {project_root}"
+)
+
+Task(
+  subagent_type: "skill-runner",
+  description: "Trust boundary analysis",
+  prompt: "# 任务执行请求
+使用 `trust-boundary-analyzer` SKILL 进行信任边界分析。
+TASK_ID: orch-049
+Input: {project_root}
+Dependencies: .workspace/tasks/orch-047/dataflow-analysis.json"
+)
+```
+
+**组合检测引擎(最后执行)**:
+```
+Task(
+  subagent_type: "skill-runner",
+  description: "Combo pattern analysis",
+  prompt: "# 任务执行请求
+使用 `combo-pattern-analyzer` SKILL 进行组合漏洞检测。
+TASK_ID: orch-054
+Input: {project_root}
+Dependencies:
+  - .workspace/tasks/orch-047/dataflow-analysis.json
+  - .workspace/tasks/orch-048/config-env-analysis.json
+  - .workspace/tasks/orch-049/trust-boundary-analysis.json
+  - .workspace/tasks/orch-050/state-machine-analysis.json
+  - .workspace/tasks/orch-051/dependency-analysis.json
+  - .workspace/tasks/orch-052/error-boundary-analysis.json
+  - .workspace/tasks/orch-053/temporal-analysis.json"
+)
+```
+
+### 维度分析的智能触发策略
+
+为提高效率,编排器应根据项目特征智能触发维度分析:
+
+**必选维度** (所有后端项目):
+- dataflow-analyzer (核心维度)
+- dependency-analyzer (依赖安全)
+
+**条件触发维度**:
+- config-env-analyzer: 检测到配置文件加载代码时触发
+- trust-boundary-analyzer: 检测到数据库/缓存读取时触发
+- state-machine-analyzer: 检测到状态字段/并发操作时触发
+- error-boundary-analyzer: 检测到try-catch/异常处理时触发
+- temporal-analyzer: 检测到JWT/Session/时间比较时触发
+
+**组合检测** (当触发≥2个维度时):
+- combo-pattern-analyzer: 自动触发,关联已执行维度的结果
