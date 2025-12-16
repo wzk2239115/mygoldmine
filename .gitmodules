@@ -1,3 +1,6 @@
 [submodule ".claude/skills/SecSkills"]
 	path = .claude/skills/SecSkills
 	url = git@github.com:Clouditera/SecSkills.git
+[submodule ".claude/skills/blockchain_goldmine"]
+	path = .claude/skills/blockchain_goldmine
+	url = https://github.com/wzk2239115/mygoldmine.git
