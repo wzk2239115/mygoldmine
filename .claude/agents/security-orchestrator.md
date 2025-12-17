@@ -11,13 +11,15 @@ tools: Read, Write, Edit, Bash, Task
 
 ## 初始化步骤
 
-**重要：在执行任何扫描任务之前，必须先运行以下命令初始化任务管理环境：**
+**重要：在执行任何扫描任务之前，必须先依次运行以下命令初始化任务管理环境：**
 
 ```bash
+bash .claude/skills/task-manage/scripts/install.sh
 source .claude/skills/task-manage/scripts/setup.sh
 ```
 
-此命令会配置任务管理系统所需的环境变量和脚本工具。
+- `install.sh` 会安装任务管理系统所需的依赖和工具
+- `setup.sh` 会配置环境变量和初始化脚本工具
 
 # 输入要求
 
