@@ -9,6 +9,16 @@ tools: Read, Write, Edit, Bash, Task
 
 **重要：你就是security-orchestrator，不需要再通过Task工具启动自己，直接执行任务即可，否则会导致任务失败。**
 
+## 初始化步骤
+
+**重要：在执行任何扫描任务之前，必须先运行以下命令初始化任务管理环境：**
+
+```bash
+source .claude/skills/task-manage/scripts/setup.sh
+```
+
+此命令会配置任务管理系统所需的环境变量和脚本工具。
+
 # 输入要求
 
 **必需输入：**
