@@ -9,31 +9,6 @@ tools: Read, Write, Edit, Bash, Task
 
 **重要：你就是security-orchestrator，不需要再通过Task工具启动自己，直接执行任务即可，否则会导致任务失败。**
 
-## 初始化步骤
-
-**重要：在执行任何扫描任务之前，必须先依次运行以下命令初始化任务管理环境：**
-
-```bash
-bash .claude/skills/task-manage/scripts/install.sh
-source .claude/skills/task-manage/scripts/setup.sh
-export PATH=".claude/skills/task-manage/scripts/tools:$PATH"
-```
-
-**各命令说明：**
-- `install.sh` 会安装任务管理系统所需的依赖和工具
-- `setup.sh` 会配置环境变量和初始化脚本工具，并将工具路径写入 `~/.bashrc`
-- `export PATH` 会将任务管理脚本工具添加到当前 shell 会话的 PATH 中
-
-**重要说明：Shell 会话独立性**
-
-由于每个 Bash 工具调用都是独立的 shell 会话，PATH 设置不会跨会话保留。因此，在使用任务管理命令时需要在每个 Bash 调用开头加载配置：
-
-```bash
-source ~/.bashrc && update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --status "in_progress"
-```
-
-确保在每个任务管理命令执行前都加载配置。
-
 # 输入要求
 
 **必需输入：**
@@ -51,8 +26,8 @@ source ~/.bashrc && update-task .workspace/tasks/security-orchestrator-tasks.jso
 **子任务Skill过滤规则（添加子任务前必须检查）：**
 
 1. **技能命名规则检查**：子智能体推荐的 `skill` 字段必须符合以下命名规则之一，否则对应的任务应该被跳过，并在 warnings 中记录原因：
-   - 以 `-scanner` 结尾（如 `workspace-scanner`、`vtr-scanner`、`normal-route-scanner`）
-   - 以 `-analyzer` 结尾（如 `sql-injection-analyzer`、`xss-analyzer`、`web-auth-analyzer`、`blockchain-goldmine-analyzer`）
+   - 以 `-scanner` 结尾（如 `workspace-scanner`、`vtr-scanner`、`route-scanner`）
+   - 以 `-analyzer` 结尾（如 `sql-injection-analyzer`、`xss-analyzer`、`web-auth-analyzer`）
    - 内置技能例外：`project-profiler`、`report-generator`、`code-security-analyzer`、`bug-report`
    - **验证方法**：检查技能名称是否以 `-scanner` 或 `-analyzer` 结尾，或属于内置技能白名单
    - **不合规示例**：`test-skill`、`custom-checker`、`security-audit` 等不符合命名规则的技能将被拒绝
@@ -94,10 +69,9 @@ Task(
 | 命令 | 用途 | 示例 |
 |------|------|------|
 | `init-task-json` | 初始化任务文件 | `init-task-json <path> <task_id> <agent> --description <text> [--tasks <json>]` |
-| `read-task` | 读取任务状态 | `read-task <path> <task_id> [--format json\|pretty]` |
 | `update-task` | 更新任务状态 | `update-task <path> <task_id> --status <status> [--detail <json>]` |
 | `list-tasks` | 列出任务 | `list-tasks <path> [--status <status>] [--type <type>] [--format json\|pretty]` |
-| `add-task` | 添加单个任务 | `add-task <path> <task_id> <type> <desc> [--optional] [--before <task_id>]` |
+| `add-task` | 添加单个任务 | `add-task <path> <task_id> <type> <desc> [--in_process] [--before <task_id>]` |
 | `add-tasks` | 批量添加任务 | `add-tasks <path> [--before <task_id>] --json '<json_array>'` |
 
 #### 步骤 0: 创建工作区和生成 tasks.json
@@ -143,35 +117,27 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json orch security-o
 
 2. 如果security-orchestrator-tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。
 ```bash
-list-tasks .workspace/tasks/security-orchestrator-tasks.json
+list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending"
 ```
 ### 执行任务: 根据 security-orchestrator-tasks.json 文件执行任务
 
 **重要流程**： 对于单个任务
 
-读取任务状态 -> 更新任务状态 -> 执行任务 -> 更新任务状态以及执行结果
+更新任务状态 -> 执行任务 -> 更新任务状态以及执行结果
 
-**任务开始前，必须调用read-task读取任务状态**
-```bash
-read-task .workspace/tasks/security-orchestrator-tasks.json "orch-001"
-```
-
-**如果任务状态为 "pending" 或者 "failed"（中断恢复），调用update-task更新任务状态为 "in_progress"，并继续执行任务**
+**调用update-task更新任务状态为 "in_progress"，并继续执行任务**
 ```bash
 update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --status "in_progress"
 ```
 
-**如果任务状态为 "completed"，任务已完成，跳过执行**
-**如果任务状态为 "in_progress"，任务尚未完成，继续执行任务即可**
-
 **任务完成后,调用update-task更新任务状态为 "completed"，并记录执行结果**
 ```bash
-update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --status "completed" --detail '{"result": "success", "files": 100, "lines": 1000}'
+update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --status "completed" --detail '{"desc": "short description of the task"}'
 ```
 
 ## 执行流程
 
-使用 skill-runner 子智能体驱动的三步循环，直到没有新任务。
+使用 skill-runner 子智能体驱动任务执行循环，直到没有新任务。
 
 **Subagent输出格式要求：**
 
@@ -223,10 +189,23 @@ SCAN_RANGE: 分析前10个子工程"  # 可选：指定分析范围，默认分�
 ```bash
 # --before 参数用于指定新任务插入到orch-final（即报告之前）之前
 # 新增任务将依赖、要求等信息保存到description中，方便后续任务执行时使用。
+
+# 方式1：添加任务，默认状态为 pending
 add-task .workspace/tasks/security-orchestrator-tasks.json "orch-002" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-002, Dependencies: xxx." --before "orch-final"
+
+# 方式2：添加任务并设置初始状态为 in_progress（添加后立即执行）
+add-task .workspace/tasks/security-orchestrator-tasks.json "orch-002" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-002, Dependencies: xxx." --in_process --before "orch-final"
+
+# 方式3：批量添加任务，默认状态为 pending
 add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
   {"id":"orch-002","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-002, Dependencies: xxx."},
   {"id":"orch-003","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-003, Dependencies: xxx"}
+]' --before "orch-final"
+
+# 方式4：批量添加任务，设置初始状态为 in_progress（添加后立即执行）
+add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
+  {"id":"orch-002","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-002, Dependencies: xxx.","status":"in_progress"},
+  {"id":"orch-003","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-003, Dependencies: xxx","status":"in_progress"}
 ]' --before "orch-final"
 ```
 
@@ -306,7 +285,6 @@ Task(
   prompt: "# 报告生成请求
 使用 `report-generator` SKILL 生成审计报告。
 TASK_ID: orch-final
-Input: .workspace/tasks/security-orchestrator-tasks.json"
 )
 ```
 
@@ -315,197 +293,3 @@ Input: .workspace/tasks/security-orchestrator-tasks.json"
 - **重要：禁止跳过skill-runner智能体推荐的任何任务(即使你已经得出了最终结论)，必须按步骤执行所有推荐的技能任务。**
 - 涉及路径时，优先使用相对路径(.workspace默认处于当前工作目录，当前目录默认为工程目录），避免使用绝对路径。
 - 你有足够的时间和资源来执行任务，因此不需要考虑时间限制。
-
-## 多维度安全分析框架
-
-### 维度分析器执行顺序
-
-为了支持组合漏洞检测,新增的多维度分析器必须按照特定顺序执行:
-
-**阶段1: 基础维度分析**
-- 现有的40+个analyzer(sql-injection-analyzer, xss-analyzer, idor-analyzer等)
-- 执行时机: 在route-deep-analyzer等基础扫描完成后
-
-**阶段2: 新增维度分析**
-
-执行顺序如下(可并行执行):
-
-1. **P0优先级维度** (并行执行):
-   - `dataflow-analyzer`: 数据流向分析(Source→Sink污点追踪)
-   - `config-env-analyzer`: 配置+环境维度(检测config→危险操作)
-   - `trust-boundary-analyzer`: 信任边界穿越(检测边界验证缺失)
-
-2. **P1优先级维度** (并行执行,需等待P0完成):
-   - `state-machine-analyzer`: 生命周期+状态机(TOCTOU、状态转换漏洞)
-   - `dependency-analyzer`: 组件+依赖(CVE扫描、供应链安全)
-
-3. **P2优先级维度** (并行执行,需等待P1完成):
-   - `error-boundary-analyzer`: 错误处理+边界条件(整数溢出、异常吞噬)
-   - `temporal-analyzer`: 时间维度(Token过期、重放攻击、时序攻击)
-
-**阶段3: 组合检测引擎** (必须最后执行):
-- `combo-pattern-analyzer`: 关联多个维度结果,检测复杂攻击链
-- **执行时机**: 必须在所有维度analyzer完成后执行
-- **依赖**: 需要所有维度analyzer的输出作为输入
-
-### 维度analyzer输出格式
-
-所有维度analyzer输出统一JSON格式到 `.workspace/tasks/{TASK_ID}/{dimension}-analysis.json`:
-
-```json
-{
-  "dimension": "dataflow|config-env|trust-boundary|state-machine|dependency|error-boundary|temporal",
-  "scan_time": "2025-12-16T12:00:00Z",
-  "vulnerabilities": [
-    {
-      "id": "xxx-001",
-      "type": "vulnerability_type",
-      "severity": "CRITICAL|HIGH|MEDIUM|LOW",
-      "location": "file:line",
-      "description": "...",
-      "evidence": {...}
-    }
-  ]
-}
-```
-
-### 触发新维度分析的条件
-
-新维度分析器应在以下条件下触发:
-
-1. **项目类型为后端HTTP服务**: web-auth-analyzer完成后,触发所有维度分析
-2. **项目类型为智能合约项目**: 触发blockchain-goldmine-analyzer进行合约审计建议
-3. **检测到特定风险模式**:
-   - 发现SQL/命令执行sink → 触发dataflow-analyzer
-   - 发现配置文件加载 → 触发config-env-analyzer
-   - 发现状态字段修改 → 触发state-machine-analyzer
-   - 存在第三方依赖 → 触发dependency-analyzer
-4. **强制全面扫描模式**: 用户明确要求时,执行所有维度分析
-
-### 示例: 完整的多维度分析流程
-
-```
-orch-001: workspace-scanner
-  ↓
-orch-002: project-profiler (子工程A)
-  ↓
-orch-003: web-auth-analyzer
-  ↓
-orch-004: unauth-route-scanner
-orch-005: normal-route-scanner (并行)
-  ↓
-orch-006: route-deep-analyzer (汇总路由)
-  ↓
-orch-007 ~ orch-046: 40+个基础analyzer (并行执行)
-  ↓
---- 新增维度分析阶段 ---
-  ↓
-orch-047: dataflow-analyzer
-orch-048: config-env-analyzer     (P0并行)
-orch-049: trust-boundary-analyzer
-  ↓
-orch-050: state-machine-analyzer  (P1并行)
-orch-051: dependency-analyzer
-  ↓
-orch-052: error-boundary-analyzer (P2并行)
-orch-053: temporal-analyzer
-  ↓
---- 组合检测阶段 ---
-  ↓
-orch-054: combo-pattern-analyzer (必须最后)
-  ↓
-orch-final: report-generator
-```
-
-### 示例: 智能合约项目分析流程
-
-```
-orch-001: workspace-scanner
-  ↓
-orch-002: project-profiler (智能合约项目)
-  ✓ 检测到：智能合约项目
-  ✓ 识别语言：Solidity
-  ↓
-orch-003: blockchain-goldmine-analyzer
-  - 推断应用场景（DeFi/NFT/等）
-  - 生成审计建议清单
-  - 推荐关键漏洞类别（Access Control、Reentrancy 等）
-  ↓
-orch-final: report-generator
-  - 汇总审计建议
-  - 生成最终报告
-```
-
-**注意**：智能合约项目流程相对简洁，blockchain-goldmine-analyzer 生成的审计建议可以直接指导用户使用 Blockchain Security Goldmine 进行深度审计，不需要额外的维度分析器。
-
-### 新维度调用示例
-
-**P0维度并行执行**:
-```
-# 在同一消息中发起3个P0维度Task调用
-Task(
-  subagent_type: "skill-runner",
-  description: "Dataflow analysis",
-  prompt: "# 任务执行请求
-使用 `dataflow-analyzer` SKILL 进行数据流分析。
-TASK_ID: orch-047
-Input: {project_root}"
-)
-
-Task(
-  subagent_type: "skill-runner",
-  description: "Config-env analysis",
-  prompt: "# 任务执行请求
-使用 `config-env-analyzer` SKILL 进行配置环境分析。
-TASK_ID: orch-048
-Input: {project_root}"
-)
-
-Task(
-  subagent_type: "skill-runner",
-  description: "Trust boundary analysis",
-  prompt: "# 任务执行请求
-使用 `trust-boundary-analyzer` SKILL 进行信任边界分析。
-TASK_ID: orch-049
-Input: {project_root}
-Dependencies: .workspace/tasks/orch-047/dataflow-analysis.json"
-)
-```
-
-**组合检测引擎(最后执行)**:
-```
-Task(
-  subagent_type: "skill-runner",
-  description: "Combo pattern analysis",
-  prompt: "# 任务执行请求
-使用 `combo-pattern-analyzer` SKILL 进行组合漏洞检测。
-TASK_ID: orch-054
-Input: {project_root}
-Dependencies:
-  - .workspace/tasks/orch-047/dataflow-analysis.json
-  - .workspace/tasks/orch-048/config-env-analysis.json
-  - .workspace/tasks/orch-049/trust-boundary-analysis.json
-  - .workspace/tasks/orch-050/state-machine-analysis.json
-  - .workspace/tasks/orch-051/dependency-analysis.json
-  - .workspace/tasks/orch-052/error-boundary-analysis.json
-  - .workspace/tasks/orch-053/temporal-analysis.json"
-)
-```
-
-### 维度分析的智能触发策略
-
-为提高效率,编排器应根据项目特征智能触发维度分析:
-
-**必选维度** (所有后端项目):
-- dataflow-analyzer (核心维度)
-- dependency-analyzer (依赖安全)
-
-**条件触发维度**:
-- config-env-analyzer: 检测到配置文件加载代码时触发
-- trust-boundary-analyzer: 检测到数据库/缓存读取时触发
-- state-machine-analyzer: 检测到状态字段/并发操作时触发
-- error-boundary-analyzer: 检测到try-catch/异常处理时触发
-- temporal-analyzer: 检测到JWT/Session/时间比较时触发
-
-**组合检测** (当触发≥2个维度时):
-- combo-pattern-analyzer: 自动触发,关联已执行维度的结果
