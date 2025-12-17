@@ -19,9 +19,20 @@ source .claude/skills/task-manage/scripts/setup.sh
 export PATH=".claude/skills/task-manage/scripts/tools:$PATH"
 ```
 
+**各命令说明：**
 - `install.sh` 会安装任务管理系统所需的依赖和工具
-- `setup.sh` 会配置环境变量和初始化脚本工具
-- `export PATH` 会将任务管理脚本工具添加到系统可执行路径中
+- `setup.sh` 会配置环境变量和初始化脚本工具，并将工具路径写入 `~/.bashrc`
+- `export PATH` 会将任务管理脚本工具添加到当前 shell 会话的 PATH 中
+
+**重要说明：Shell 会话独立性**
+
+由于每个 Bash 工具调用都是独立的 shell 会话，PATH 设置不会跨会话保留。因此，在使用任务管理命令时需要在每个 Bash 调用开头加载配置：
+
+```bash
+source ~/.bashrc && update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --status "in_progress"
+```
+
+确保在每个任务管理命令执行前都加载配置。
 
 # 输入要求
 
