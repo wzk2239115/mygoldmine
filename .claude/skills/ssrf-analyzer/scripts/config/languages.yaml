@@ -1,0 +1,71 @@
+languages:
+  php:
+    extensions:
+      - .php
+    tree_sitter_module: tree_sitter_php
+    priority: 1
+    sink_query_file: languages/php/queries/sinks.scm
+
+  python:
+    extensions:
+      - .py
+    tree_sitter_module: tree_sitter_python
+    priority: 2
+    sink_query_file: languages/python/queries/sinks.scm
+
+  java:
+    extensions:
+      - .java
+    tree_sitter_module: tree_sitter_java
+    priority: 3
+    sink_query_file: languages/java/queries/sinks.scm
+
+  javascript:
+    extensions:
+      - .js
+      - .jsx
+      - .mjs
+    tree_sitter_module: tree_sitter_javascript
+    priority: 4
+    sink_query_file: languages/javascript/queries/sinks.scm
+
+  typescript:
+    extensions:
+      - .ts
+      - .tsx
+    tree_sitter_module: tree_sitter_typescript
+    priority: 5
+    sink_query_file: languages/typescript/queries/sinks.scm
+
+  c:
+    extensions:
+      - .c
+      - .h
+    tree_sitter_module: tree_sitter_c
+    priority: 6
+    sink_query_file: languages/c/queries/sinks.scm
+
+  cpp:
+    extensions:
+      - .cc
+      - .cpp
+      - .cxx
+      - .hpp
+      - .h
+    tree_sitter_module: tree_sitter_cpp
+    priority: 7
+    sink_query_file: languages/cpp/queries/sinks.scm
+
+  go:
+    extensions:
+      - .go
+    tree_sitter_module: tree_sitter_go
+    priority: 8
+    sink_query_file: languages/go/queries/sinks.scm
+
+  rust:
+    extensions:
+      - .rs
+    tree_sitter_module: tree_sitter_rust
+    priority: 9
+    sink_query_file: languages/rust/queries/sinks.scm

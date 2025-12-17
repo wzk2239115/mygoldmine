@@ -1,0 +1,35 @@
+languages:
+  php:
+    extensions:
+      - .php
+      - .phtml
+      - .php3
+      - .php4
+      - .php5
+    tree_sitter_module: tree_sitter_php
+    priority: 1
+    query_file: languages/php/queries/sinks.scm
+
+  python:
+    extensions:
+      - .py
+    tree_sitter_module: tree_sitter_python
+    priority: 2
+    query_file: languages/python/queries/sinks.scm
+
+  javascript:
+    extensions:
+      - .js
+      - .jsx
+      - .ts
+      - .tsx
+    tree_sitter_module: tree_sitter_javascript
+    priority: 3
+    query_file: languages/javascript/queries/sinks.scm
+
+  java:
+    extensions:
+      - .java
+    tree_sitter_module: tree_sitter_java
+    priority: 4
+    query_file: languages/java/queries/sinks.scm

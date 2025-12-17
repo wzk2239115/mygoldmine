@@ -1,0 +1,204 @@
+languages:
+  php:
+    enabled: true
+    file_patterns:
+      - "*.php"
+    sinks:
+      # Direct execution functions
+      - name: "system"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "exec"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "shell_exec"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "passthru"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "proc_open"
+        category: "process_control"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "popen"
+        category: "process_control"
+        type: "function_call"
+        vulnerable_params: [0]
+      # Backtick operator
+      - name: "backtick"
+        category: "shell_operator"
+        type: "operator"
+        vulnerable_params: [0]
+
+  python:
+    enabled: true
+    file_patterns:
+      - "*.py"
+    sinks:
+      # os module
+      - name: "os.system"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "os.popen"
+        category: "process_control"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "os.execvp"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [1]
+      - name: "os.execv"
+        category: "direct_execution"
+        type: "function_call"
+        vulnerable_params: [1]
+      # subprocess module
+      - name: "subprocess.run"
+        category: "subprocess"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "subprocess.call"
+        category: "subprocess"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "subprocess.Popen"
+        category: "subprocess"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "subprocess.check_call"
+        category: "subprocess"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "subprocess.check_output"
+        category: "subprocess"
+        type: "function_call"
+        vulnerable_params: [0]
+      # commands module (deprecated)
+      - name: "commands.getstatusoutput"
+        category: "deprecated"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "commands.getoutput"
+        category: "deprecated"
+        type: "function_call"
+        vulnerable_params: [0]
+
+  java:
+    enabled: true
+    file_patterns:
+      - "*.java"
+    sinks:
+      # Runtime.exec
+      - name: "exec"
+        category: "runtime_exec"
+        type: "method_call"
+        class_names: ["Runtime"]
+        vulnerable_params: [0]
+      # ProcessBuilder
+      - name: "start"
+        category: "process_builder"
+        type: "method_call"
+        class_names: ["ProcessBuilder"]
+        vulnerable_params: [0]
+      # ProcessBuilder command
+      - name: "command"
+        category: "process_builder"
+        type: "method_call"
+        class_names: ["ProcessBuilder"]
+        vulnerable_params: [0]
+
+  javascript:
+    enabled: true
+    file_patterns:
+      - "*.js"
+      - "*.ts"
+    sinks:
+      # child_process module
+      - name: "exec"
+        category: "child_process"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "execFile"
+        category: "child_process"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "spawn"
+        category: "child_process"
+        type: "function_call"
+        vulnerable_params: [1]
+      - name: "execSync"
+        category: "child_process_sync"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "spawnSync"
+        category: "child_process_sync"
+        type: "function_call"
+        vulnerable_params: [1]
+      - name: "execFileSync"
+        category: "child_process_sync"
+        type: "function_call"
+        vulnerable_params: [0]
+
+  go:
+    enabled: true
+    file_patterns:
+      - "*.go"
+    sinks:
+      # os/exec package
+      - name: "Command"
+        category: "os_exec"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "Run"
+        category: "os_exec"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "Output"
+        category: "os_exec"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "CombinedOutput"
+        category: "os_exec"
+        type: "method_call"
+        vulnerable_params: [0]
+
+  rust:
+    enabled: true
+    file_patterns:
+      - "*.rs"
+    sinks:
+      # Command struct
+      - name: "Command::new"
+        category: "command"
+        type: "function_call"
+        vulnerable_params: [0]
+      - name: "arg"
+        category: "command"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "args"
+        category: "command"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "output"
+        category: "command"
+        type: "method_call"
+        vulnerable_params: [0]
+      - name: "status"
+        category: "command"
+        type: "method_call"
+        vulnerable_params: [0]
+
+reporting:
+  output_formats:
+    - "json"
+    - "csv"
+    - "html"
+  json_pretty_print: true
+  include_context: true
+  context_lines: 3

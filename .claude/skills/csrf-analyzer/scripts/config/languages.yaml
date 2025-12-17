@@ -1,0 +1,45 @@
+languages:
+  php:
+    enabled: true
+    file_patterns:
+      - '*.php'
+    tree_sitter_lib: 'php'
+    priority: 1
+    sinks:
+      - type: 'route'
+        name: 'POST Routes'
+        description: 'POST endpoints that may require CSRF protection'
+
+  python:
+    enabled: true
+    file_patterns:
+      - '*.py'
+    tree_sitter_lib: 'python'
+    priority: 1
+    sinks:
+      - type: 'route'
+        name: 'POST Routes'
+        description: 'Flask/Django routes handling POST requests'
+
+  java:
+    enabled: true
+    file_patterns:
+      - '*.java'
+    tree_sitter_lib: 'java'
+    priority: 1
+    sinks:
+      - type: 'route'
+        name: 'POST Endpoints'
+        description: 'Spring POST endpoints that may require CSRF protection'
+
+  javascript:
+    enabled: true
+    file_patterns:
+      - '*.js'
+      - '*.ts'
+    tree_sitter_lib: 'javascript'
+    priority: 1
+    sinks:
+      - type: 'route'
+        name: 'POST Routes'
+        description: 'Express/Koa routes handling POST requests'

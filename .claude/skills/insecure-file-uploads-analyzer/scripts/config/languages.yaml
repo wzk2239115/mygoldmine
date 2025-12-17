@@ -1,0 +1,17 @@
+languages:
+  php:
+    extensions: [.php, .php5]
+    tree_sitter_module: php
+    priority: high
+  python:
+    extensions: [.py]
+    tree_sitter_module: python
+    priority: high
+  java:
+    extensions: [.java]
+    tree_sitter_module: java
+    priority: high
+  javascript:
+    extensions: [.js, .jsx, .ts, .tsx]
+    tree_sitter_module: javascript
+    priority: high

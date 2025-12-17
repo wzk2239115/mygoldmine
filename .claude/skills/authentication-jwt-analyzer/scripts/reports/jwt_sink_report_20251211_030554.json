@@ -1,0 +1,36 @@
+{
+  "tool": "authentication_jwt_detector",
+  "version": "1.0.0",
+  "timestamp": "2025-12-11T03:05:56.944134",
+  "summary": {
+    "total_findings": 2,
+    "by_language": {
+      "python": 2
+    },
+    "by_severity": {
+      "HIGH": 2
+    }
+  },
+  "findings": [
+    {
+      "file": "/home/wangzekai/security-vulnerability-benchmark/dataset/lab/bwapp/.claude/skills/authentication_jwt/scripts/tests/fixtures/python/jwt_fixtures.py",
+      "line": 11,
+      "column": 18,
+      "function_name": "jwt.decode",
+      "code_snippet": "# Test 1: Direct jwt.decode() call\ndef verify_user_token(token):\n    try:\n        payload = jwt.decode(token, 'secret-key', algorithms=['HS256'])\n        return payload",
+      "severity": "HIGH",
+      "language": "python",
+      "message": "JWT authentication operation detected: call"
+    },
+    {
+      "file": "/home/wangzekai/security-vulnerability-benchmark/dataset/lab/bwapp/.claude/skills/authentication_jwt/scripts/tests/fixtures/python/jwt_fixtures.py",
+      "line": 29,
+      "column": 13,
+      "function_name": "jwt.verify",
+      "code_snippet": "# Test 3: jwt.verify() variant\ndef check_signature(token, key):\n    # Another variant\n    result = jwt.verify(token, key)\n    return result",
+      "severity": "HIGH",
+      "language": "python",
+      "message": "JWT authentication operation detected: call"
+    }
+  ]
+}

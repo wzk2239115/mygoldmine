@@ -1,0 +1,295 @@
+{
+  "timestamp": "2025-12-01T02:05:39.732706",
+  "version": "1.0",
+  "tool": "CSRF Sink Detector",
+  "summary": {
+    "total_sinks": 34,
+    "by_type": {
+      "POST_ROUTE": 20,
+      "CSRF_EXEMPT": 6,
+      "POST_ENDPOINT": 8
+    },
+    "by_file": {
+      "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/php/post_routes.php": 6,
+      "/home/wangzekai/TOP14/csrf/scripts/core/scanner.py": 2,
+      "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/python/flask_csrf.py": 9,
+      "/home/wangzekai/TOP14/csrf/scripts/tests/test_scanner.py": 4,
+      "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/java/SpringController.java": 8,
+      "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/javascript/express_routes.js": 5
+    }
+  },
+  "sinks": [
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/php/post_routes.php",
+      "line": 3,
+      "column": 7,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "Route::post('/user/update', function() {"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/php/post_routes.php",
+      "line": 5,
+      "column": -1,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "$user->name = $_POST['name'];"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/php/post_routes.php",
+      "line": 10,
+      "column": 15,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "app('router')->post('/admin/delete', 'AdminController@delete');"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/php/post_routes.php",
+      "line": 15,
+      "column": -1,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "$action = $_POST['action'];"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/php/post_routes.php",
+      "line": 20,
+      "column": -1,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "if (!empty($_POST['token'])) {"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/php/post_routes.php",
+      "line": 22,
+      "column": -1,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "processUpdate($_POST);"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/core/scanner.py",
+      "line": 76,
+      "column": -1,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "r\"methods\\s*=\\s*\\[\\s*['\\\"]POST['\\\"]\",  # methods=['POST']"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/core/scanner.py",
+      "line": 77,
+      "column": -1,
+      "type": "CSRF_EXEMPT",
+      "sink": "POST endpoint",
+      "code": "r\"@csrf_exempt\",  # CSRF exempt decorator"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/python/flask_csrf.py",
+      "line": 8,
+      "column": 5,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "@app.route('/user/update', methods=['POST'])"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/python/flask_csrf.py",
+      "line": 8,
+      "column": 5,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "@app.route('/user/update', methods=['POST'])"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/python/flask_csrf.py",
+      "line": 15,
+      "column": 5,
+      "type": "CSRF_EXEMPT",
+      "sink": "POST endpoint",
+      "code": "@app.route('/admin/delete')"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/python/flask_csrf.py",
+      "line": 21,
+      "column": -1,
+      "type": "CSRF_EXEMPT",
+      "sink": "POST endpoint",
+      "code": "@csrf_exempt"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/python/flask_csrf.py",
+      "line": 22,
+      "column": -1,
+      "type": "CSRF_EXEMPT",
+      "sink": "POST endpoint",
+      "code": "def sensitive_action(request):"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/python/flask_csrf.py",
+      "line": 29,
+      "column": 5,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "@app.route('/api/settings', methods=['POST'])"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/python/flask_csrf.py",
+      "line": 29,
+      "column": 5,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "@app.route('/api/settings', methods=['POST'])"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/python/flask_csrf.py",
+      "line": 37,
+      "column": 5,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "@app.route('/change-password', methods=['POST'])"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/python/flask_csrf.py",
+      "line": 37,
+      "column": 5,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "@app.route('/change-password', methods=['POST'])"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/test_scanner.py",
+      "line": 59,
+      "column": 13,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "@app.route('/user/update', methods=['POST'])"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/test_scanner.py",
+      "line": 59,
+      "column": 13,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "@app.route('/user/update', methods=['POST'])"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/test_scanner.py",
+      "line": 71,
+      "column": -1,
+      "type": "CSRF_EXEMPT",
+      "sink": "POST endpoint",
+      "code": "@csrf_exempt"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/test_scanner.py",
+      "line": 72,
+      "column": -1,
+      "type": "CSRF_EXEMPT",
+      "sink": "POST endpoint",
+      "code": "def sensitive_action(request):"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/java/SpringController.java",
+      "line": 10,
+      "column": 14,
+      "type": "POST_ENDPOINT",
+      "sink": "State-changing endpoint",
+      "code": "// Spring @PostMapping - state-changing operation"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/java/SpringController.java",
+      "line": 11,
+      "column": 4,
+      "type": "POST_ENDPOINT",
+      "sink": "State-changing endpoint",
+      "code": "@PostMapping(\"/user/update\")"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/java/SpringController.java",
+      "line": 18,
+      "column": 14,
+      "type": "POST_ENDPOINT",
+      "sink": "State-changing endpoint",
+      "code": "// Spring @PutMapping - state-changing operation"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/java/SpringController.java",
+      "line": 19,
+      "column": 4,
+      "type": "POST_ENDPOINT",
+      "sink": "State-changing endpoint",
+      "code": "@PutMapping(\"/settings/{id}\")"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/java/SpringController.java",
+      "line": 26,
+      "column": 14,
+      "type": "POST_ENDPOINT",
+      "sink": "State-changing endpoint",
+      "code": "// Spring @DeleteMapping - state-changing operation"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/java/SpringController.java",
+      "line": 27,
+      "column": 4,
+      "type": "POST_ENDPOINT",
+      "sink": "State-changing endpoint",
+      "code": "@DeleteMapping(\"/user/{id}\")"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/java/SpringController.java",
+      "line": 34,
+      "column": 4,
+      "type": "POST_ENDPOINT",
+      "sink": "State-changing endpoint",
+      "code": "@RequestMapping(value = \"/admin/action\", method = RequestMethod.POST)"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/java/SpringController.java",
+      "line": 50,
+      "column": 0,
+      "type": "POST_ENDPOINT",
+      "sink": "State-changing endpoint",
+      "code": ".csrf().disable();  // DANGEROUS: CSRF protection disabled"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/javascript/express_routes.js",
+      "line": 5,
+      "column": 4,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "app.post('/user/update', (req, res) => {"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/javascript/express_routes.js",
+      "line": 13,
+      "column": 4,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "app.put('/api/settings', (req, res) => {"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/javascript/express_routes.js",
+      "line": 20,
+      "column": 4,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "app.delete('/api/user/:id', (req, res) => {"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/javascript/express_routes.js",
+      "line": 28,
+      "column": 7,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "router.post('/payment', (req, res) => {"
+    },
+    {
+      "file": "/home/wangzekai/TOP14/csrf/scripts/tests/fixtures/javascript/express_routes.js",
+      "line": 35,
+      "column": 4,
+      "type": "POST_ROUTE",
+      "sink": "POST endpoint",
+      "code": "app.post('/change-password', (req, res) => {"
+    }
+  ]
+}

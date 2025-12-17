@@ -1,0 +1,77 @@
+{
+  "tool": "authentication_jwt_detector",
+  "version": "1.0.0",
+  "timestamp": "2025-12-11T03:08:02.333669",
+  "summary": {
+    "total_findings": 6,
+    "by_language": {
+      "python": 2,
+      "php": 4
+    },
+    "by_severity": {
+      "HIGH": 6
+    }
+  },
+  "findings": [
+    {
+      "file": "/home/wangzekai/security-vulnerability-benchmark/dataset/lab/bwapp/.claude/skills/authentication_jwt/scripts/tests/fixtures/python/jwt_fixtures.py",
+      "line": 11,
+      "column": 18,
+      "function_name": "jwt.decode",
+      "code_snippet": "# Test 1: Direct jwt.decode() call\ndef verify_user_token(token):\n    try:\n        payload = jwt.decode(token, 'secret-key', algorithms=['HS256'])\n        return payload",
+      "severity": "HIGH",
+      "language": "python",
+      "message": "JWT authentication operation detected: call"
+    },
+    {
+      "file": "/home/wangzekai/security-vulnerability-benchmark/dataset/lab/bwapp/.claude/skills/authentication_jwt/scripts/tests/fixtures/python/jwt_fixtures.py",
+      "line": 29,
+      "column": 13,
+      "function_name": "jwt.verify",
+      "code_snippet": "# Test 3: jwt.verify() variant\ndef check_signature(token, key):\n    # Another variant\n    result = jwt.verify(token, key)\n    return result",
+      "severity": "HIGH",
+      "language": "python",
+      "message": "JWT authentication operation detected: call"
+    },
+    {
+      "file": "/home/wangzekai/security-vulnerability-benchmark/dataset/lab/bwapp/.claude/skills/authentication_jwt/scripts/tests/fixtures/php/jwt_calls.php",
+      "line": 11,
+      "column": 23,
+      "function_name": "JWT::decode",
+      "code_snippet": "public function verifyToken($token) {\n        try {\n            // This should be detected as a JWT sink\n            $decoded = JWT::decode($token, new Key('secret', 'HS256'));\n            return $decoded;",
+      "severity": "HIGH",
+      "language": "php",
+      "message": "JWT authentication operation detected: scoped_call_expression"
+    },
+    {
+      "file": "/home/wangzekai/security-vulnerability-benchmark/dataset/lab/bwapp/.claude/skills/authentication_jwt/scripts/tests/fixtures/php/jwt_calls.php",
+      "line": 26,
+      "column": 19,
+      "function_name": "decode_token",
+      "code_snippet": "public function processToken($input) {\n        // Direct decode function call\n        $payload = decode_token($input);\n        return $payload;",
+      "severity": "HIGH",
+      "language": "php",
+      "message": "JWT authentication operation detected: function_call_expression"
+    },
+    {
+      "file": "/home/wangzekai/security-vulnerability-benchmark/dataset/lab/bwapp/soap/nusoapmime.php",
+      "line": 237,
+      "column": 16,
+      "function_name": "Mail_mimeDecode::decode",
+      "code_snippet": "$params['decode_bodies'] = true;\n\t\t\t$params['decode_headers'] = true;\n\t\t\t\n\t\t\t$structure = Mail_mimeDecode::decode($params);",
+      "severity": "HIGH",
+      "language": "php",
+      "message": "JWT authentication operation detected: scoped_call_expression"
+    },
+    {
+      "file": "/home/wangzekai/security-vulnerability-benchmark/dataset/lab/bwapp/soap/nusoapmime.php",
+      "line": 467,
+      "column": 16,
+      "function_name": "Mail_mimeDecode::decode",
+      "code_snippet": "$params['decode_bodies'] = true;\n\t\t\t$params['decode_headers'] = true;\n\t\t\t\n\t\t\t$structure = Mail_mimeDecode::decode($params);",
+      "severity": "HIGH",
+      "language": "php",
+      "message": "JWT authentication operation detected: scoped_call_expression"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+languages:
+  python:
+    extensions:
+      - .py
+    tree_sitter_module: "tree_sitter_python"
+    query_file: "jwt_sinks.scm"
+    priority: 1
+
+  php:
+    extensions:
+      - .php
+    tree_sitter_module: "tree_sitter_php"
+    query_file: "jwt_sinks.scm"
+    priority: 2
+
+  javascript:
+    extensions:
+      - .js
+      - .ts
+      - .jsx
+      - .tsx
+    tree_sitter_module: "tree_sitter_javascript"
+    query_file: "jwt_verify.scm"
+    priority: 3
+
+  java:
+    extensions:
+      - .java
+    tree_sitter_module: "tree_sitter_java"
+    query_file: "jwt_verify.scm"
+    priority: 4
+
+# JWT sensitive patterns across languages
+jwt_patterns:
+  decode_functions:
+    - jwt.decode
+    - decode
+    - verify
+    - parseClaimsJws
+    - parse
+
+  library_classes:
+    - JWT
+    - PyJWT
+    - JsonWebToken
+    - jjwt
+    - jsonwebtoken
+
+# Configuration for scanner behavior
+scanner:
+  max_file_size_mb: 10
+  enable_caching: true
+  parallel_processing: true
+  timeout_seconds: 30

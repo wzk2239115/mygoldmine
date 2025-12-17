@@ -1,0 +1,57 @@
+languages:
+  php:
+    extensions:
+      - .php
+    tree_sitter_module: tree_sitter_php
+    language_symbol: language_php
+    priority: 1
+    description: "PHP - Laravel, Yii, Symfony"
+
+  python:
+    extensions:
+      - .py
+    tree_sitter_module: tree_sitter_python
+    priority: 1
+    description: "Python - Django, SQLAlchemy"
+
+  java:
+    extensions:
+      - .java
+    tree_sitter_module: tree_sitter_java
+    priority: 2
+    description: "Java - Spring Data JPA, Hibernate"
+
+  javascript:
+    extensions:
+      - .js
+      - .ts
+      - .jsx
+      - .tsx
+    tree_sitter_module: tree_sitter_javascript
+    priority: 1
+    description: "JavaScript/TypeScript - Sequelize, Mongoose, Typeorm"
+
+  c:
+    extensions:
+      - .c
+      - .h
+    tree_sitter_module: tree_sitter_c
+    language_symbol: language
+    priority: 2
+    description: "C - memcpy, strcpy, sprintf buffer operations"
+
+  go:
+    extensions:
+      - .go
+    tree_sitter_module: tree_sitter_go
+    language_symbol: language
+    priority: 2
+    description: "Go - GORM, json.Unmarshal, reflect operations"
+
+  rust:
+    extensions:
+      - .rs
+    tree_sitter_module: tree_sitter_rust
+    language_symbol: language
+    priority: 2
+    description: "Rust - serde, diesel, unsafe memory operations"

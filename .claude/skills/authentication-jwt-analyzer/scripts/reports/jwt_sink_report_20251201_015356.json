@@ -1,0 +1,1316 @@
+{
+  "tool": "authentication_jwt_detector",
+  "version": "1.0.0",
+  "timestamp": "2025-12-01T01:54:02.189560",
+  "summary": {
+    "total_findings": 130,
+    "by_language": {
+      "java": 130
+    },
+    "by_severity": {
+      "HIGH": 130
+    }
+  },
+  "findings": [
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 77,
+      "column": 18,
+      "function_name": "Jwts.parser",
+      "code_snippet": "private String getSecretToken(String token) {\n    for (String key : JWTSecretKeyEndpoint.SECRETS) {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(TextCodec.BASE64.encode(key)).parse(token);\n      } catch (JwtException e) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 77,
+      "column": 18,
+      "function_name": "Jwts.parser",
+      "code_snippet": "private String getSecretToken(String token) {\n    for (String key : JWTSecretKeyEndpoint.SECRETS) {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(TextCodec.BASE64.encode(key)).parse(token);\n      } catch (JwtException e) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 77,
+      "column": 46,
+      "function_name": "TextCodec.BASE64.encode",
+      "code_snippet": "private String getSecretToken(String token) {\n    for (String key : JWTSecretKeyEndpoint.SECRETS) {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(TextCodec.BASE64.encode(key)).parse(token);\n      } catch (JwtException e) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 81,
+      "column": 13,
+      "function_name": "TextCodec.BASE64.encode",
+      "code_snippet": "} catch (JwtException e) {\n        continue;\n      }\n      return TextCodec.BASE64.encode(key);\n    }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 142,
+      "column": 24,
+      "function_name": "Base64.getUrlDecoder",
+      "code_snippet": ".cookie(\"access_token\");\n\n    String header = accessToken.substring(0, accessToken.indexOf(\".\"));\n    header = new String(Base64.getUrlDecoder().decode(header.getBytes(Charset.defaultCharset())));",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 145,
+      "column": 22,
+      "function_name": "Base64.getUrlDecoder",
+      "code_snippet": "header = new String(Base64.getUrlDecoder().decode(header.getBytes(Charset.defaultCharset())));\n\n    String body = accessToken.substring(1 + accessToken.indexOf(\".\"), accessToken.lastIndexOf(\".\"));\n    body = new String(Base64.getUrlDecoder().decode(body.getBytes(Charset.defaultCharset())));",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 155,
+      "column": 19,
+      "function_name": "Base64.getUrlEncoder",
+      "code_snippet": "bodyObject = ((ObjectNode) bodyObject).put(\"admin\", \"true\");\n\n    String replacedToken =\n        new String(Base64.getUrlEncoder().encode(headerNode.toString().getBytes()))\n            .concat(\".\")",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 158,
+      "column": 27,
+      "function_name": "Base64.getUrlEncoder",
+      "code_snippet": "new String(Base64.getUrlEncoder().encode(headerNode.toString().getBytes()))\n            .concat(\".\")\n            .concat(\n                new String(Base64.getUrlEncoder().encode(bodyObject.toString().getBytes()))\n                    .toString())",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 181,
+      "column": 12,
+      "function_name": "Base64.getUrlDecoder",
+      "code_snippet": "String header =\n        new String(\n            Base64.getUrlDecoder()\n                .decode(\"eyJhbGciOiJIUzUxMiJ9\".getBytes(Charset.defaultCharset())));",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 186,
+      "column": 12,
+      "function_name": "Base64.getUrlDecoder",
+      "code_snippet": "String body =\n        new String(\n            Base64.getUrlDecoder()\n                .decode(",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 198,
+      "column": 19,
+      "function_name": "Base64.getUrlEncoder",
+      "code_snippet": "headerNode = ((ObjectNode) headerNode).put(\"alg\", \"NONE\");\n\n    String replacedToken =\n        new String(Base64.getUrlEncoder().encode(headerNode.toString().getBytes()))\n            .concat(\".\")",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/JWTLessonIntegrationTest.java",
+      "line": 200,
+      "column": 31,
+      "function_name": "Base64.getUrlEncoder",
+      "code_snippet": "String replacedToken =\n        new String(Base64.getUrlEncoder().encode(headerNode.toString().getBytes()))\n            .concat(\".\")\n            .concat(new String(Base64.getUrlEncoder().encode(body.getBytes())).toString())\n            .concat(\".\")",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/CryptoIntegrationTest.java",
+      "line": 64,
+      "column": 38,
+      "function_name": "Base64.getDecoder",
+      "code_snippet": ".extract()\n            .asString();\n    basicEncoding = basicEncoding.substring(\"Authorization: Basic \".length());\n    String decodedString = new String(Base64.getDecoder().decode(basicEncoding.getBytes()));\n    String answer_user = decodedString.split(\":\")[0];",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/CryptoIntegrationTest.java",
+      "line": 65,
+      "column": 25,
+      "function_name": "decodedString.split",
+      "code_snippet": ".asString();\n    basicEncoding = basicEncoding.substring(\"Authorization: Basic \".length());\n    String decodedString = new String(Base64.getDecoder().decode(basicEncoding.getBytes()));\n    String answer_user = decodedString.split(\":\")[0];\n    String answer_pwd = decodedString.split(\":\")[1];",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/CryptoIntegrationTest.java",
+      "line": 66,
+      "column": 24,
+      "function_name": "decodedString.split",
+      "code_snippet": "basicEncoding = basicEncoding.substring(\"Authorization: Basic \".length());\n    String decodedString = new String(Base64.getDecoder().decode(basicEncoding.getBytes()));\n    String answer_user = decodedString.split(\":\")[0];\n    String answer_pwd = decodedString.split(\":\")[1];\n    Map<String, Object> params = new HashMap<>();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/it/java/org/owasp/webgoat/integration/CryptoIntegrationTest.java",
+      "line": 149,
+      "column": 12,
+      "function_name": "Base64.getDecoder",
+      "code_snippet": "String text =\n        new String(\n            Base64.getDecoder()\n                .decode(",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/webwolf/jwt/JWTTokenTest.java",
+      "line": 26,
+      "column": 16,
+      "function_name": "JWTToken.encode",
+      "code_snippet": "void encodeCorrectTokenWithoutSignature() {\n    var headers = Map.of(\"alg\", \"HS256\", \"typ\", \"JWT\");\n    var payload = Map.of(\"test\", \"test\");\n    var token = JWTToken.encode(toString(headers), toString(payload), \"\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/webwolf/jwt/JWTTokenTest.java",
+      "line": 36,
+      "column": 16,
+      "function_name": "JWTToken.encode",
+      "code_snippet": "void encodeCorrectTokenWithSignature() {\n    var headers = Map.of(\"alg\", \"HS256\", \"typ\", \"JWT\");\n    var payload = Map.of(\"test\", \"test\");\n    var token = JWTToken.encode(toString(headers), toString(payload), \"webgoat\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/webwolf/jwt/JWTTokenTest.java",
+      "line": 45,
+      "column": 16,
+      "function_name": "JWTToken.encode",
+      "code_snippet": "@Test\n  void encodeTokenWithNonJsonInput() {\n    var token = JWTToken.encode(\"aaa\", \"bbb\", \"test\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/webwolf/jwt/JWTTokenTest.java",
+      "line": 53,
+      "column": 8,
+      "function_name": "JWTToken.decode",
+      "code_snippet": "@Test\n  void decodeValidSignedToken() {\n    var token =\n        JWTToken.decode(\n            \"eyJhbGciOiJIUzI1NiJ9.eyJ0ZXN0IjoidGVzdCJ9.KOobRHDYyaesV_doOk11XXGKSONwzllraAaqqM4VFE4\",",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/webwolf/jwt/JWTTokenTest.java",
+      "line": 64,
+      "column": 8,
+      "function_name": "JWTToken.decode",
+      "code_snippet": "@Test\n  void decodeInvalidSignedToken() {\n    var token =\n        JWTToken.decode(\n            \"eyJhbGciOiJIUzI1NiJ9.eyJ0ZXsdfdfsaasfddfasN0IjoidGVzdCJ9.KOobRHDYyaesV_doOk11XXGKSONwzllraAaqqM4VFE4\",",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/webwolf/jwt/JWTTokenTest.java",
+      "line": 74,
+      "column": 16,
+      "function_name": "JWTToken.encode",
+      "code_snippet": "@Test\n  void onlyEncodeWhenHeaderOrPayloadIsPresent() {\n    var token = JWTToken.encode(\"\", \"\", \"\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/webwolf/jwt/JWTTokenTest.java",
+      "line": 83,
+      "column": 16,
+      "function_name": "JWTToken.encode",
+      "code_snippet": "void encodeAlgNone() {\n    var headers = Map.of(\"alg\", \"none\");\n    var payload = Map.of(\"test\", \"test\");\n    var token = JWTToken.encode(toString(headers), toString(payload), \"test\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/webwolf/jwt/JWTTokenTest.java",
+      "line": 103,
+      "column": 16,
+      "function_name": "JWTToken.decode",
+      "code_snippet": "String jwksJson = new JsonWebKeySet(jwk).toJson(OutputControlLevel.PUBLIC_ONLY);\n\n    var token = JWTToken.decode(compact, null, jwksJson);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/webwolf/jwt/JWTTokenTest.java",
+      "line": 125,
+      "column": 16,
+      "function_name": "JWTToken.decode",
+      "code_snippet": "otherKey.setKeyId(\"other-key\");\n    String wrongJwks = new JsonWebKeySet(otherKey).toJson(OutputControlLevel.PUBLIC_ONLY);\n\n    var token = JWTToken.decode(compact, null, wrongJwks);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/webwolf/user/UserServiceTest.java",
+      "line": 58,
+      "column": 4,
+      "function_name": "verify",
+      "code_snippet": "sut.addUser(username, password);\n\n    verify(mockUserRepository, times(1)).save(any(WebWolfUser.class));\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/lessons/jwt/TokenTest.java",
+      "line": 37,
+      "column": 14,
+      "function_name": "Jwts.parser",
+      "code_snippet": ".signWith(io.jsonwebtoken.SignatureAlgorithm.HS512, key)\n            .compact();\n    log.debug(token);\n    Jwt jwt = Jwts.parser().setSigningKey(\"qwertyqwerty1234\").parse(token);\n    jwt =",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/lessons/jwt/TokenTest.java",
+      "line": 37,
+      "column": 14,
+      "function_name": "Jwts.parser",
+      "code_snippet": ".signWith(io.jsonwebtoken.SignatureAlgorithm.HS512, key)\n            .compact();\n    log.debug(token);\n    Jwt jwt = Jwts.parser().setSigningKey(\"qwertyqwerty1234\").parse(token);\n    jwt =",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/lessons/jwt/TokenTest.java",
+      "line": 39,
+      "column": 8,
+      "function_name": "Jwts.parser",
+      "code_snippet": "log.debug(token);\n    Jwt jwt = Jwts.parser().setSigningKey(\"qwertyqwerty1234\").parse(token);\n    jwt =\n        Jwts.parser()\n            .setSigningKeyResolver(",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/lessons/jwt/TokenTest.java",
+      "line": 39,
+      "column": 8,
+      "function_name": "Jwts.parser",
+      "code_snippet": "log.debug(token);\n    Jwt jwt = Jwts.parser().setSigningKey(\"qwertyqwerty1234\").parse(token);\n    jwt =\n        Jwts.parser()\n            .setSigningKeyResolver(",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/lessons/jwt/TokenTest.java",
+      "line": 44,
+      "column": 27,
+      "function_name": "TextCodec.BASE64.decode",
+      "code_snippet": "new SigningKeyResolverAdapter() {\n                  @Override\n                  public byte[] resolveSigningKeyBytes(JwsHeader header, Claims claims) {\n                    return TextCodec.BASE64.decode(key);\n                  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/lessons/cryptography/CryptoUtilTest.java",
+      "line": 30,
+      "column": 17,
+      "function_name": "CryptoUtil.verifyAssignment",
+      "code_snippet": "String modulus = DatatypeConverter.printHexBinary(rsaPubKey.getModulus().toByteArray());\n      String signature = CryptoUtil.signMessage(modulus, privateKey);\n      log.debug(\"public exponent {}\", rsaPubKey.getPublicExponent());\n      assertThat(CryptoUtil.verifyAssignment(modulus, signature, keyPair.getPublic())).isTrue();\n    } catch (Exception e) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/lessons/spoofcookie/encoders/EncDecTest.java",
+      "line": 24,
+      "column": 20,
+      "function_name": "EncDec.encode",
+      "code_snippet": "@DisplayName(\"Encode test\")\n  @MethodSource(\"providedForEncValues\")\n  void testEncode(String decoded, String encoded) {\n    String result = EncDec.encode(decoded);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/lessons/spoofcookie/encoders/EncDecTest.java",
+      "line": 33,
+      "column": 20,
+      "function_name": "EncDec.decode",
+      "code_snippet": "@DisplayName(\"Decode test\")\n  @MethodSource(\"providedForDecValues\")\n  void testDecode(String decoded, String encoded) {\n    String result = EncDec.decode(encoded);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/lessons/spoofcookie/encoders/EncDecTest.java",
+      "line": 41,
+      "column": 15,
+      "function_name": "EncDec.encode",
+      "code_snippet": "@Test\n  @DisplayName(\"null encode test\")\n  void testNullEncode() {\n    assertThat(EncDec.encode(null)).isNull();\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/test/java/org/owasp/webgoat/lessons/spoofcookie/encoders/EncDecTest.java",
+      "line": 47,
+      "column": 15,
+      "function_name": "EncDec.decode",
+      "code_snippet": "@Test\n  @DisplayName(\"null decode test\")\n  void testNullDecode() {\n    assertThat(EncDec.decode(null)).isNull();\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 51,
+      "column": 11,
+      "function_name": "decode",
+      "code_snippet": "private boolean signatureValid = true;\n\n  public static JWTToken decode(String jwt, String secretKey) {\n    return decode(jwt, secretKey, null);\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 55,
+      "column": 23,
+      "function_name": "jwt.trim",
+      "code_snippet": "}\n\n  public static JWTToken decode(String jwt, String secretKey, String jwksJson) {\n    var cleanedToken = jwt.trim().replace(System.getProperty(\"line.separator\"), \"\");\n    var token = parseToken(cleanedToken);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 56,
+      "column": 16,
+      "function_name": "parseToken",
+      "code_snippet": "public static JWTToken decode(String jwt, String secretKey, String jwksJson) {\n    var cleanedToken = jwt.trim().replace(System.getProperty(\"line.separator\"), \"\");\n    var token = parseToken(cleanedToken);\n    return token",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 85,
+      "column": 18,
+      "function_name": "parse",
+      "code_snippet": "}\n\n  public static JWTToken encode(String header, String payloadAsString, String secretKey) {\n    var headers = parse(header);\n    var payload = parse(payloadAsString);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 86,
+      "column": 18,
+      "function_name": "parse",
+      "code_snippet": "public static JWTToken encode(String header, String payloadAsString, String secretKey) {\n    var headers = parse(header);\n    var payload = parse(payloadAsString);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 100,
+      "column": 6,
+      "function_name": "builder.encoded",
+      "code_snippet": "jws.setPayload(payloadAsString);\n    headers.forEach((k, v) -> jws.setHeader(k, v));\n    if (!headers.isEmpty()) { // otherwise e30 meaning {} will be shown as header\n      builder.encoded(\n          CompactSerializer.serialize(",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 110,
+      "column": 8,
+      "function_name": "builder.encoded",
+      "code_snippet": "jws.setDoKeyValidation(false);\n      jws.setKey(new HmacKey(secretKey.getBytes(UTF_8)));\n      try {\n        builder.encoded(jws.getCompactSerialization());\n        builder.signatureValid(true);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 120,
+      "column": 16,
+      "function_name": "jwt.split",
+      "code_snippet": "}\n\n  private static JWTToken parseToken(String jwt) {\n    var token = jwt.split(\"\\\\.\");\n    var builder = JWTToken.builder().encoded(jwt);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 121,
+      "column": 18,
+      "function_name": "JWTToken.builder",
+      "code_snippet": "private static JWTToken parseToken(String jwt) {\n    var token = jwt.split(\"\\\\.\");\n    var builder = JWTToken.builder().encoded(jwt);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 124,
+      "column": 30,
+      "function_name": "Base64.getUrlDecoder",
+      "code_snippet": "var builder = JWTToken.builder().encoded(jwt);\n\n    if (token.length >= 2) {\n      var header = new String(Base64.getUrlDecoder().decode(token[0]), UTF_8);\n      var payloadAsString = new String(Base64.getUrlDecoder().decode(token[1]), UTF_8);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 125,
+      "column": 39,
+      "function_name": "Base64.getUrlDecoder",
+      "code_snippet": "if (token.length >= 2) {\n      var header = new String(Base64.getUrlDecoder().decode(token[0]), UTF_8);\n      var payloadAsString = new String(Base64.getUrlDecoder().decode(token[1]), UTF_8);\n      var headers = parse(header);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 126,
+      "column": 20,
+      "function_name": "parse",
+      "code_snippet": "if (token.length >= 2) {\n      var header = new String(Base64.getUrlDecoder().decode(token[0]), UTF_8);\n      var payloadAsString = new String(Base64.getUrlDecoder().decode(token[1]), UTF_8);\n      var headers = parse(header);\n      var payload = parse(payloadAsString);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 127,
+      "column": 20,
+      "function_name": "parse",
+      "code_snippet": "var header = new String(Base64.getUrlDecoder().decode(token[0]), UTF_8);\n      var payloadAsString = new String(Base64.getUrlDecoder().decode(token[1]), UTF_8);\n      var headers = parse(header);\n      var payload = parse(payloadAsString);\n      builder.header(write(header, headers));",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 157,
+      "column": 6,
+      "function_name": "jwtConsumer.processToClaims",
+      "code_snippet": ".setRelaxVerificationKeyValidation()\n            .build();\n    try {\n      jwtConsumer.processToClaims(jwt);\n      return true;",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTToken.java",
+      "line": 189,
+      "column": 6,
+      "function_name": "jwtConsumer.processToClaims",
+      "code_snippet": ".setVerificationKeyResolver(resolver)\n              .setRelaxVerificationKeyValidation()\n              .build();\n      jwtConsumer.processToClaims(jwt);\n      return true;",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTController.java",
+      "line": 33,
+      "column": 11,
+      "function_name": "JWTToken.decode",
+      "code_snippet": "var jwt = formData.getFirst(\"token\");\n    var secretKey = formData.getFirst(\"secretKey\");\n    var jwks = formData.getFirst(\"jwks\");\n    return JWTToken.decode(jwt, secretKey, jwks);\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/webwolf/jwt/JWTController.java",
+      "line": 44,
+      "column": 11,
+      "function_name": "JWTToken.encode",
+      "code_snippet": "var header = formData.getFirst(\"header\");\n    var payload = formData.getFirst(\"payload\");\n    var secretKey = formData.getFirst(\"secretKey\");\n    return JWTToken.encode(header, payload, secretKey);\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTVotesEndpoint.java",
+      "line": 55,
+      "column": 44,
+      "function_name": "TextCodec.BASE64.encode",
+      "code_snippet": "})\npublic class JWTVotesEndpoint implements AssignmentEndpoint {\n\n  public static final String JWT_PASSWORD = TextCodec.BASE64.encode(\"victory\");\n  private static String validUsers = \"TomJerrySylvester\";",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTVotesEndpoint.java",
+      "line": 139,
+      "column": 18,
+      "function_name": "Jwts.parser",
+      "code_snippet": "value.setSerializationView(Views.GuestView.class);\n    } else {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);\n        Claims claims = (Claims) jwt.getBody();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTVotesEndpoint.java",
+      "line": 139,
+      "column": 18,
+      "function_name": "Jwts.parser",
+      "code_snippet": "value.setSerializationView(Views.GuestView.class);\n    } else {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);\n        Claims claims = (Claims) jwt.getBody();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTVotesEndpoint.java",
+      "line": 140,
+      "column": 33,
+      "function_name": "jwt.getBody",
+      "code_snippet": "} else {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);\n        Claims claims = (Claims) jwt.getBody();\n        String user = (String) claims.get(\"user\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTVotesEndpoint.java",
+      "line": 164,
+      "column": 18,
+      "function_name": "Jwts.parser",
+      "code_snippet": "return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();\n    } else {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);\n        Claims claims = (Claims) jwt.getBody();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTVotesEndpoint.java",
+      "line": 164,
+      "column": 18,
+      "function_name": "Jwts.parser",
+      "code_snippet": "return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();\n    } else {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);\n        Claims claims = (Claims) jwt.getBody();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTVotesEndpoint.java",
+      "line": 165,
+      "column": 33,
+      "function_name": "jwt.getBody",
+      "code_snippet": "} else {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);\n        Claims claims = (Claims) jwt.getBody();\n        String user = (String) claims.get(\"user\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTVotesEndpoint.java",
+      "line": 187,
+      "column": 18,
+      "function_name": "Jwts.parser",
+      "code_snippet": "return failed(this).feedback(\"jwt-invalid-token\").build();\n    } else {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);\n        Claims claims = (Claims) jwt.getBody();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTVotesEndpoint.java",
+      "line": 187,
+      "column": 18,
+      "function_name": "Jwts.parser",
+      "code_snippet": "return failed(this).feedback(\"jwt-invalid-token\").build();\n    } else {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);\n        Claims claims = (Claims) jwt.getBody();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTVotesEndpoint.java",
+      "line": 188,
+      "column": 33,
+      "function_name": "jwt.getBody",
+      "code_snippet": "} else {\n      try {\n        Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(accessToken);\n        Claims claims = (Claims) jwt.getBody();\n        boolean isAdmin = Boolean.valueOf(String.valueOf(claims.get(\"admin\")));",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTRefreshEndpoint.java",
+      "line": 91,
+      "column": 16,
+      "function_name": "Jwts.parser",
+      "code_snippet": "return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();\n    }\n    try {\n      Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(token.replace(\"Bearer \", \"\"));\n      Claims claims = (Claims) jwt.getBody();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTRefreshEndpoint.java",
+      "line": 91,
+      "column": 16,
+      "function_name": "Jwts.parser",
+      "code_snippet": "return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();\n    }\n    try {\n      Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(token.replace(\"Bearer \", \"\"));\n      Claims claims = (Claims) jwt.getBody();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTRefreshEndpoint.java",
+      "line": 92,
+      "column": 31,
+      "function_name": "jwt.getBody",
+      "code_snippet": "}\n    try {\n      Jwt jwt = Jwts.parser().setSigningKey(JWT_PASSWORD).parse(token.replace(\"Bearer \", \"\"));\n      Claims claims = (Claims) jwt.getBody();\n      String user = (String) claims.get(\"user\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTRefreshEndpoint.java",
+      "line": 95,
+      "column": 26,
+      "function_name": "jwt.getHeader",
+      "code_snippet": "Claims claims = (Claims) jwt.getBody();\n      String user = (String) claims.get(\"user\");\n      if (\"Tom\".equals(user)) {\n        if (\"none\".equals(jwt.getHeader().get(\"alg\"))) {\n          return ok(success(this).feedback(\"jwt-refresh-alg-none\").build());",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTRefreshEndpoint.java",
+      "line": 121,
+      "column": 10,
+      "function_name": "Jwts.parser",
+      "code_snippet": "String refreshToken;\n    try {\n      Jwt<Header, Claims> jwt =\n          Jwts.parser().setSigningKey(JWT_PASSWORD).parse(token.replace(\"Bearer \", \"\"));\n      user = (String) jwt.getBody().get(\"user\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTRefreshEndpoint.java",
+      "line": 121,
+      "column": 10,
+      "function_name": "Jwts.parser",
+      "code_snippet": "String refreshToken;\n    try {\n      Jwt<Header, Claims> jwt =\n          Jwts.parser().setSigningKey(JWT_PASSWORD).parse(token.replace(\"Bearer \", \"\"));\n      user = (String) jwt.getBody().get(\"user\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTRefreshEndpoint.java",
+      "line": 122,
+      "column": 22,
+      "function_name": "jwt.getBody",
+      "code_snippet": "try {\n      Jwt<Header, Claims> jwt =\n          Jwts.parser().setSigningKey(JWT_PASSWORD).parse(token.replace(\"Bearer \", \"\"));\n      user = (String) jwt.getBody().get(\"user\");\n      refreshToken = (String) json.get(\"refresh_token\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTSecretKeyEndpoint.java",
+      "line": 38,
+      "column": 6,
+      "function_name": "TextCodec.BASE64.encode",
+      "code_snippet": "\"victory\", \"business\", \"available\", \"shipping\", \"washington\"\n  };\n  public static final String JWT_SECRET =\n      TextCodec.BASE64.encode(SECRETS[new Random().nextInt(SECRETS.length)]);\n  private static final String WEBGOAT_USER = \"WebGoat\";",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTSecretKeyEndpoint.java",
+      "line": 63,
+      "column": 16,
+      "function_name": "Jwts.parser",
+      "code_snippet": "@ResponseBody\n  public AttackResult login(@RequestParam String token) {\n    try {\n      Jwt jwt = Jwts.parser().setSigningKey(JWT_SECRET).parseClaimsJws(token);\n      Claims claims = (Claims) jwt.getBody();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTSecretKeyEndpoint.java",
+      "line": 63,
+      "column": 16,
+      "function_name": "Jwts.parser",
+      "code_snippet": "@ResponseBody\n  public AttackResult login(@RequestParam String token) {\n    try {\n      Jwt jwt = Jwts.parser().setSigningKey(JWT_SECRET).parseClaimsJws(token);\n      Claims claims = (Claims) jwt.getBody();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/JWTSecretKeyEndpoint.java",
+      "line": 64,
+      "column": 31,
+      "function_name": "jwt.getBody",
+      "code_snippet": "public AttackResult login(@RequestParam String token) {\n    try {\n      Jwt jwt = Jwts.parser().setSigningKey(JWT_SECRET).parseClaimsJws(token);\n      Claims claims = (Claims) jwt.getBody();\n      if (!claims.keySet().containsAll(expectedClaims)) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/claimmisuse/JWTHeaderKIDEndpoint.java",
+      "line": 65,
+      "column": 12,
+      "function_name": "Jwts.parser",
+      "code_snippet": "try {\n        final String[] errorMessage = {null};\n        Jwt jwt =\n            Jwts.parser()\n                .setSigningKeyResolver(",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/claimmisuse/JWTHeaderKIDEndpoint.java",
+      "line": 65,
+      "column": 12,
+      "function_name": "Jwts.parser",
+      "code_snippet": "try {\n        final String[] errorMessage = {null};\n        Jwt jwt =\n            Jwts.parser()\n                .setSigningKeyResolver(",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/claimmisuse/JWTHeaderKIDEndpoint.java",
+      "line": 78,
+      "column": 35,
+      "function_name": "TextCodec.BASE64.decode",
+      "code_snippet": ".executeQuery(\n                                      \"SELECT key FROM jwt_keys WHERE id = '\" + kid + \"'\");\n                          while (rs.next()) {\n                            return TextCodec.BASE64.decode(rs.getString(1));\n                          }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/claimmisuse/JWTHeaderKIDEndpoint.java",
+      "line": 90,
+      "column": 33,
+      "function_name": "jwt.getBody",
+      "code_snippet": "if (errorMessage[0] != null) {\n          return failed(this).output(errorMessage[0]).build();\n        }\n        Claims claims = (Claims) jwt.getBody();\n        String username = (String) claims.get(\"username\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/claimmisuse/JWTHeaderJKUEndpoint.java",
+      "line": 55,
+      "column": 25,
+      "function_name": "JWT.decode",
+      "code_snippet": "return failed(this).feedback(\"jwt-invalid-token\").build();\n    } else {\n      try {\n        var decodedJWT = JWT.decode(token);\n        var jku = decodedJWT.getHeaderClaim(\"jku\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/claimmisuse/JWTHeaderJKUEndpoint.java",
+      "line": 56,
+      "column": 18,
+      "function_name": "decodedJWT.getHeaderClaim",
+      "code_snippet": "} else {\n      try {\n        var decodedJWT = JWT.decode(token);\n        var jku = decodedJWT.getHeaderClaim(\"jku\");\n        var jwkProvider = new JwkProviderBuilder(new URL(jku.asString())).build();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/claimmisuse/JWTHeaderJKUEndpoint.java",
+      "line": 58,
+      "column": 34,
+      "function_name": "decodedJWT.getKeyId",
+      "code_snippet": "var decodedJWT = JWT.decode(token);\n        var jku = decodedJWT.getHeaderClaim(\"jku\");\n        var jwkProvider = new JwkProviderBuilder(new URL(jku.asString())).build();\n        var jwk = jwkProvider.get(decodedJWT.getKeyId());\n        var algorithm = Algorithm.RSA256((RSAPublicKey) jwk.getPublicKey());",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/claimmisuse/JWTHeaderJKUEndpoint.java",
+      "line": 60,
+      "column": 8,
+      "function_name": "JWT.require",
+      "code_snippet": "var jwkProvider = new JwkProviderBuilder(new URL(jku.asString())).build();\n        var jwk = jwkProvider.get(decodedJWT.getKeyId());\n        var algorithm = Algorithm.RSA256((RSAPublicKey) jwk.getPublicKey());\n        JWT.require(algorithm).build().verify(decodedJWT);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/jwt/claimmisuse/JWTHeaderJKUEndpoint.java",
+      "line": 62,
+      "column": 23,
+      "function_name": "decodedJWT.getClaims",
+      "code_snippet": "var algorithm = Algorithm.RSA256((RSAPublicKey) jwk.getPublicKey());\n        JWT.require(algorithm).build().verify(decodedJWT);\n\n        var username = decodedJWT.getClaims().get(\"username\").asString();\n        if (\"Jerry\".equals(username)) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/deserialization/SerializationHelper.java",
+      "line": 21,
+      "column": 18,
+      "function_name": "Base64.getDecoder",
+      "code_snippet": "private static final char[] hexArray = \"0123456789ABCDEF\".toCharArray();\n\n  public static Object fromString(String s) throws IOException, ClassNotFoundException {\n    byte[] data = Base64.getDecoder().decode(s);\n    ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(data));",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/deserialization/SerializationHelper.java",
+      "line": 34,
+      "column": 11,
+      "function_name": "Base64.getEncoder",
+      "code_snippet": "ObjectOutputStream oos = new ObjectOutputStream(baos);\n    oos.writeObject(o);\n    oos.close();\n    return Base64.getEncoder().encodeToString(baos.toByteArray());\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/deserialization/InsecureDeserializationTask.java",
+      "line": 43,
+      "column": 55,
+      "function_name": "Base64.getDecoder",
+      "code_snippet": "b64token = token.replace('-', '+').replace('_', '/');\n\n    try (ObjectInputStream ois =\n        new ObjectInputStream(new ByteArrayInputStream(Base64.getDecoder().decode(b64token)))) {\n      before = System.currentTimeMillis();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/cryptography/CryptoUtil.java",
+      "line": 53,
+      "column": 16,
+      "function_name": "Base64.getEncoder",
+      "code_snippet": "encodedString =\n        encodedString\n            + new String(\n                Base64.getEncoder().encode(keyPair.getPrivate().getEncoded()),\n                Charset.forName(\"UTF-8\"))",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/cryptography/CryptoUtil.java",
+      "line": 72,
+      "column": 29,
+      "function_name": "Base64.getEncoder",
+      "code_snippet": "instance.update(message.getBytes(\"UTF-8\"));\n\n      // actual verification against signature\n      signature = new String(Base64.getEncoder().encode(instance.sign()), Charset.forName(\"UTF-8\"));",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/cryptography/CryptoUtil.java",
+      "line": 93,
+      "column": 32,
+      "function_name": "Base64.getDecoder",
+      "code_snippet": "base64EncSignature = base64EncSignature.replace(\"\\r\", \"\").replace(\"\\n\", \"\").replace(\" \", \"\");\n      // get raw signature from base64 encrypted string in header\n      byte[] decodedSignature = Base64.getDecoder().decode(base64EncSignature);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/cryptography/CryptoUtil.java",
+      "line": 101,
+      "column": 15,
+      "function_name": "instance.verify",
+      "code_snippet": "instance.update(message.getBytes(\"UTF-8\"));\n\n      // actual verification against signature\n      result = instance.verify(decodedSignature);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/cryptography/CryptoUtil.java",
+      "line": 118,
+      "column": 15,
+      "function_name": "verifyMessage",
+      "code_snippet": "boolean result = false;\n\n    if (modulus != null && signature != null) {\n      result = verifyMessage(modulus, signature, publicKey);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/cryptography/CryptoUtil.java",
+      "line": 141,
+      "column": 21,
+      "function_name": "Base64.getDecoder",
+      "code_snippet": "privateKeyPem = privateKeyPem.replace(\"-----END PRIVATE KEY-----\", \"\");\n    privateKeyPem = privateKeyPem.replace(\"\\n\", \"\").replace(\"\\r\", \"\");\n\n    byte[] decoded = Base64.getDecoder().decode(privateKeyPem);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/cryptography/SigningAssignment.java",
+      "line": 70,
+      "column": 8,
+      "function_name": "CryptoUtil.verifyMessage",
+      "code_snippet": "return failed(this).feedback(\"crypto-signing.modulusnotok\").build();\n    }\n    /* orginal modulus must be used otherwise the signature would be invalid */\n    if (CryptoUtil.verifyMessage(modulus, signature, keyPair.getPublic())) {\n      return success(this).feedback(\"crypto-signing.success\").build();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/cryptography/EncodingAssignment.java",
+      "line": 26,
+      "column": 11,
+      "function_name": "Base64.getEncoder",
+      "code_snippet": "public class EncodingAssignment implements AssignmentEndpoint {\n\n  public static String getBasicAuth(String username, String password) {\n    return Base64.getEncoder().encodeToString(username.concat(\":\").concat(password).getBytes());\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/xxe/SimpleXXE.java",
+      "line": 54,
+      "column": 20,
+      "function_name": "comments.parseXml",
+      "code_snippet": "@RequestBody String commentStr, @CurrentUser WebGoatUser user) {\n    String error = \"\";\n    try {\n      var comment = comments.parseXml(commentStr, false);\n      comments.addComment(comment, user, false);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/xxe/ContentTypeAssignment.java",
+      "line": 54,
+      "column": 6,
+      "function_name": "parseJson",
+      "code_snippet": "AttackResult attackResult = failed(this).build();\n\n    if (APPLICATION_JSON_VALUE.equals(contentType)) {\n      parseJson(commentStr).ifPresent(c -> comments.addComment(c, user, true));\n      attackResult = failed(this).feedback(\"xxe.content.type.feedback.json\").build();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/xxe/ContentTypeAssignment.java",
+      "line": 60,
+      "column": 26,
+      "function_name": "comments.parseXml",
+      "code_snippet": "if (null != contentType && contentType.contains(MediaType.APPLICATION_XML_VALUE)) {\n      try {\n        Comment comment = comments.parseXml(commentStr, false);\n        comments.addComment(comment, user, false);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/xxe/BlindSendFileAssignment.java",
+      "line": 79,
+      "column": 24,
+      "function_name": "comments.parseXml",
+      "code_snippet": "}\n\n    try {\n      Comment comment = comments.parseXml(commentStr, false);\n      if (fileContentsForUser.contains(comment.getText())) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/pathtraversal/ProfileUploadBase.java",
+      "line": 98,
+      "column": 21,
+      "function_name": "MediaType.parseMediaType",
+      "code_snippet": "public ResponseEntity<?> getProfilePicture(@CurrentUsername String username) {\n    return ResponseEntity.ok()\n        .contentType(MediaType.parseMediaType(MediaType.IMAGE_JPEG_VALUE))\n        .body(getProfilePictureAsBase64(username));",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/pathtraversal/ProfileUploadBase.java",
+      "line": 113,
+      "column": 25,
+      "function_name": "Base64.getEncoder",
+      "code_snippet": ".map(\n              file -> {\n                try (var inputStream = new FileInputStream(profileDirectoryFiles[0])) {\n                  return Base64.getEncoder().encode(FileCopyUtils.copyToByteArray(inputStream));\n                } catch (IOException e) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/pathtraversal/ProfileUploadBase.java",
+      "line": 127,
+      "column": 11,
+      "function_name": "Base64.getEncoder",
+      "code_snippet": "@SneakyThrows\n  protected byte[] defaultImage() {\n    var inputStream = getClass().getResourceAsStream(\"/images/account.png\");\n    return Base64.getEncoder().encode(FileCopyUtils.copyToByteArray(inputStream));\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/pathtraversal/ProfileUploadRetrieval.java",
+      "line": 105,
+      "column": 25,
+      "function_name": "MediaType.parseMediaType",
+      "code_snippet": "if (catPicture.getName().toLowerCase().contains(\"path-traversal-secret.jpg\")) {\n        return ResponseEntity.ok()\n            .contentType(MediaType.parseMediaType(MediaType.IMAGE_JPEG_VALUE))\n            .body(FileCopyUtils.copyToByteArray(catPicture));",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/pathtraversal/ProfileUploadRetrieval.java",
+      "line": 110,
+      "column": 25,
+      "function_name": "MediaType.parseMediaType",
+      "code_snippet": "}\n      if (catPicture.exists()) {\n        return ResponseEntity.ok()\n            .contentType(MediaType.parseMediaType(MediaType.IMAGE_JPEG_VALUE))\n            .location(new URI(\"/PathTraversal/random-picture?id=\" + catPicture.getName()))",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/pathtraversal/ProfileUploadRetrieval.java",
+      "line": 112,
+      "column": 18,
+      "function_name": "Base64.getEncoder",
+      "code_snippet": "return ResponseEntity.ok()\n            .contentType(MediaType.parseMediaType(MediaType.IMAGE_JPEG_VALUE))\n            .location(new URI(\"/PathTraversal/random-picture?id=\" + catPicture.getName()))\n            .body(Base64.getEncoder().encode(FileCopyUtils.copyToByteArray(catPicture)));\n      }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/openredirect/OpenRedirectTask4.java",
+      "line": 49,
+      "column": 26,
+      "function_name": "URLDecoder.decode",
+      "code_snippet": "}\n\n    // First decode (application does this)\n    String firstDecoded = URLDecoder.decode(target, StandardCharsets.UTF_8);\n    String lower = firstDecoded.toLowerCase();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/openredirect/OpenRedirectTask4.java",
+      "line": 64,
+      "column": 27,
+      "function_name": "URLDecoder.decode",
+      "code_snippet": "String firstHost = firstUri.getHost();\n\n    // Second decode (what some downstream component might accidentally do)\n    String secondDecoded = URLDecoder.decode(firstDecoded, StandardCharsets.UTF_8);\n    URI secondUri;",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/openredirect/OpenRedirectTask3.java",
+      "line": 41,
+      "column": 21,
+      "function_name": "URLDecoder.decode",
+      "code_snippet": "if (target == null || target.isBlank()) {\n      return failed(this).feedback(\"openredirect.failure3\").output(\"Empty value\").build();\n    }\n    String decoded = URLDecoder.decode(target, StandardCharsets.UTF_8);\n    String lower = decoded.toLowerCase();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/openredirect/OpenRedirectTask3.java",
+      "line": 42,
+      "column": 19,
+      "function_name": "decoded.toLowerCase",
+      "code_snippet": "return failed(this).feedback(\"openredirect.failure3\").output(\"Empty value\").build();\n    }\n    String decoded = URLDecoder.decode(target, StandardCharsets.UTF_8);\n    String lower = decoded.toLowerCase();\n    // Vulnerable heuristic: treat anything starting with protocol + webgoat.local as internal",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/spoofcookie/SpoofCookieAssignment.java",
+      "line": 73,
+      "column": 30,
+      "function_name": "EncDec.encode",
+      "code_snippet": "String authPassword = users.getOrDefault(lowerCasedUsername, \"\");\n    if (!authPassword.isBlank() && authPassword.equals(password)) {\n      String newCookieValue = EncDec.encode(lowerCasedUsername);\n      Cookie newCookie = new Cookie(COOKIE_NAME, newCookieValue);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/spoofcookie/SpoofCookieAssignment.java",
+      "line": 90,
+      "column": 23,
+      "function_name": "EncDec.decode",
+      "code_snippet": "private AttackResult cookieLoginFlow(String cookieValue) {\n    String cookieUsername;\n    try {\n      cookieUsername = EncDec.decode(cookieValue).toLowerCase();\n    } catch (Exception e) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/spoofcookie/encoders/EncDec.java",
+      "line": 39,
+      "column": 11,
+      "function_name": "decoded.substring",
+      "code_snippet": "String decoded = base64Decode(encodedValue);\n    decoded = hexDecode(decoded);\n    decoded = revert(decoded);\n    return decoded.substring(0, decoded.length() - SALT.length());\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/spoofcookie/encoders/EncDec.java",
+      "line": 39,
+      "column": 32,
+      "function_name": "decoded.length",
+      "code_snippet": "String decoded = base64Decode(encodedValue);\n    decoded = hexDecode(decoded);\n    decoded = revert(decoded);\n    return decoded.substring(0, decoded.length() - SALT.length());\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/spoofcookie/encoders/EncDec.java",
+      "line": 47,
+      "column": 21,
+      "function_name": "Hex.encode",
+      "code_snippet": "}\n\n  private static String hexEncode(final String value) {\n    char[] encoded = Hex.encode(value.getBytes(StandardCharsets.UTF_8));\n    return new String(encoded);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/spoofcookie/encoders/EncDec.java",
+      "line": 52,
+      "column": 21,
+      "function_name": "Hex.decode",
+      "code_snippet": "}\n\n  private static String hexDecode(final String value) {\n    byte[] decoded = Hex.decode(value);\n    return new String(decoded);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/spoofcookie/encoders/EncDec.java",
+      "line": 57,
+      "column": 11,
+      "function_name": "Base64.getEncoder",
+      "code_snippet": "}\n\n  private static String base64Encode(final String value) {\n    return Base64.getEncoder().encodeToString(value.getBytes());\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/spoofcookie/encoders/EncDec.java",
+      "line": 61,
+      "column": 21,
+      "function_name": "Base64.getDecoder",
+      "code_snippet": "}\n\n  private static String base64Decode(final String value) {\n    byte[] decoded = Base64.getDecoder().decode(value.getBytes());\n    return new String(decoded);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/htmltampering/HtmlTamperingTask.java",
+      "line": 25,
+      "column": 8,
+      "function_name": "Float.parseFloat",
+      "code_snippet": "@PostMapping(\"/HtmlTampering/task\")\n  @ResponseBody\n  public AttackResult completed(@RequestParam String QTY, @RequestParam String Total) {\n    if (Float.parseFloat(QTY) * 2999.99 > Float.parseFloat(Total) + 1) {\n      return success(this).feedback(\"html-tampering.tamper.success\").build();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/htmltampering/HtmlTamperingTask.java",
+      "line": 25,
+      "column": 42,
+      "function_name": "Float.parseFloat",
+      "code_snippet": "@PostMapping(\"/HtmlTampering/task\")\n  @ResponseBody\n  public AttackResult completed(@RequestParam String QTY, @RequestParam String Total) {\n    if (Float.parseFloat(QTY) * 2999.99 > Float.parseFloat(Total) + 1) {\n      return success(this).feedback(\"html-tampering.tamper.success\").build();",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/authbypass/VerifyAccount.java",
+      "line": 49,
+      "column": 43,
+      "function_name": "parseSecQuestions",
+      "code_snippet": "@RequestParam String userId, @RequestParam String verifyMethod, HttpServletRequest req)\n      throws ServletException, IOException {\n    AccountVerificationHelper verificationHelper = new AccountVerificationHelper();\n    Map<String, String> submittedAnswers = parseSecQuestions(req);\n    if (verificationHelper.didUserLikelylCheat((HashMap) submittedAnswers)) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/authbypass/VerifyAccount.java",
+      "line": 58,
+      "column": 8,
+      "function_name": "verificationHelper.verifyAccount",
+      "code_snippet": "}\n\n    // else\n    if (verificationHelper.verifyAccount(Integer.valueOf(userId), (HashMap) submittedAnswers)) {\n      userSessionData.setValue(\"account-verified-id\", userId);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/missingac/DisplayUser.java",
+      "line": 38,
+      "column": 11,
+      "function_name": "Base64.getEncoder",
+      "code_snippet": "String salted = password + passwordSalt + username;\n    // md.update(salted.getBytes(\"UTF-8\")); // Change this to \"UTF-16\" if needed\n    byte[] hash = md.digest(salted.getBytes(StandardCharsets.UTF_8));\n    return Base64.getEncoder().encodeToString(hash);\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/xss/stored/StoredXssComments.java",
+      "line": 77,
+      "column": 22,
+      "function_name": "parseJson",
+      "code_snippet": "@ResponseBody\n  public AttackResult createNewComment(\n      @RequestBody String commentStr, @CurrentUsername String username) {\n    Comment comment = parseJson(commentStr);",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/xss/mitigation/CrossSiteScriptingLesson3.java",
+      "line": 36,
+      "column": 21,
+      "function_name": "Jsoup.parse",
+      "code_snippet": "String unescapedString = org.jsoup.parser.Parser.unescapeEntities(editor, true);\n    try {\n      if (editor.isEmpty()) return failed(this).feedback(\"xss-mitigation-3-no-code\").build();\n      Document doc = Jsoup.parse(unescapedString);\n      String[] lines = unescapedString.split(\"<html>\");",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/challenges/challenge7/MD5.java",
+      "line": 78,
+      "column": 25,
+      "function_name": "encode",
+      "code_snippet": "// add the padding\n      update(finalState, padding, 0, padlen);\n      // add the length (computed before padding was added)\n      update(finalState, encode(bitCount), 0, 8);\n      finalState.valid = true;",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/challenges/challenge7/MD5.java",
+      "line": 82,
+      "column": 11,
+      "function_name": "encode",
+      "code_snippet": "finalState.valid = true;\n    }\n    // make a copy of the hash before returning it.\n    return encode(finalState.state, 16);\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/challenges/challenge7/MD5.java",
+      "line": 304,
+      "column": 23,
+      "function_name": "decode",
+      "code_snippet": "int i = 0;\n    if (length >= partlen) {\n      System.arraycopy(buffer, offset, state.buffer, index, partlen);\n      transform(state, decode(state.buffer, 64, 0));\n      for (i = partlen; (i + 63) < length; i += 64) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/challenges/challenge7/MD5.java",
+      "line": 306,
+      "column": 25,
+      "function_name": "decode",
+      "code_snippet": "System.arraycopy(buffer, offset, state.buffer, index, partlen);\n      transform(state, decode(state.buffer, 64, 0));\n      for (i = partlen; (i + 63) < length; i += 64) {\n        transform(state, decode(buffer, 64, i));\n      }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/sqlinjection/introduction/SqlInjectionLesson5b.java",
+      "line": 53,
+      "column": 16,
+      "function_name": "Integer.parseInt",
+      "code_snippet": "int count = 0;\n      try {\n        count = Integer.parseInt(login_count);\n      } catch (Exception e) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/sqlinjection/advanced/SqlInjectionLesson6a.java",
+      "line": 88,
+      "column": 13,
+      "function_name": "verifySqlInjection",
+      "code_snippet": "output.append(SqlInjectionLesson5a.writeTable(results, resultsMetaData));\n      results.last();\n\n      return verifySqlInjection(output, appendingWhenSucceded, query);\n    } catch (SQLException sqle) {",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    },
+    {
+      "file": "/home/wangzekai/WebGoat/src/main/java/org/owasp/webgoat/lessons/logging/LogBleedingTask.java",
+      "line": 33,
+      "column": 8,
+      "function_name": "Base64.getEncoder",
+      "code_snippet": "this.password = UUID.randomUUID().toString();\n    log.info(\n        \"Password for admin: {}\",\n        Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8)));\n  }",
+      "severity": "HIGH",
+      "language": "java",
+      "message": "JWT authentication operation detected: method_invocation"
+    }
+  ]
+}

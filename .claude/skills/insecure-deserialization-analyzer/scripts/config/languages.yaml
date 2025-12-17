@@ -1,0 +1,70 @@
+languages:
+  php:
+    extensions:
+      - .php
+    tree_sitter_module: tree_sitter_php
+    priority: 1
+    description: PHP deserialization vulnerabilities
+
+  python:
+    extensions:
+      - .py
+    tree_sitter_module: tree_sitter_python
+    priority: 2
+    description: Python pickle and yaml deserialization
+
+  java:
+    extensions:
+      - .java
+    tree_sitter_module: tree_sitter_java
+    priority: 3
+    description: Java ObjectInputStream and library deserialization
+
+  javascript:
+    extensions:
+      - .js
+      - .ts
+      - .tsx
+    tree_sitter_module: tree_sitter_javascript
+    priority: 4
+    description: JavaScript eval and vm deserialization
+
+  typescript:
+    extensions:
+      - .ts
+      - .tsx
+    tree_sitter_module: tree_sitter_typescript
+    priority: 5
+    description: TypeScript eval and vm deserialization
+
+  c:
+    extensions:
+      - .c
+    tree_sitter_module: tree_sitter_c
+    priority: 6
+    description: C deserialization and unsafe operations
+
+  cpp:
+    extensions:
+      - .cpp
+      - .cc
+      - .cxx
+      - .h
+      - .hpp
+    tree_sitter_module: tree_sitter_cpp
+    priority: 7
+    description: C++ deserialization and unsafe operations
+
+  go:
+    extensions:
+      - .go
+    tree_sitter_module: tree_sitter_go
+    priority: 8
+    description: Go gob and unsafe deserialization
+
+  rust:
+    extensions:
+      - .rs
+    tree_sitter_module: tree_sitter_rust
+    priority: 9
+    description: Rust unsafe deserialization patterns
