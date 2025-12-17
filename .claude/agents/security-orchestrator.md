@@ -16,10 +16,12 @@ tools: Read, Write, Edit, Bash, Task
 ```bash
 bash .claude/skills/task-manage/scripts/install.sh
 source .claude/skills/task-manage/scripts/setup.sh
+export PATH=".claude/skills/task-manage/scripts/tools:$PATH"
 ```
 
 - `install.sh` 会安装任务管理系统所需的依赖和工具
 - `setup.sh` 会配置环境变量和初始化脚本工具
+- `export PATH` 会将任务管理脚本工具添加到系统可执行路径中
 
 # 输入要求
 
