@@ -3,8 +3,35 @@ name: access-control-analyzer
 description: 专业的审计工作流程，通过静态代码分析识别和验证访问控制（Access Control）漏洞；重点关注权限敏感操作的访问控制机制，包括权限检查缺失、校验逻辑绕过、权限模型设计缺陷等；涵盖治理模块、管理员功能、升级逻辑、金库操作等业务场景；利用按编程语言组织的参考资料目录中的参考指南。
 ---
 
-**Attention**  
+**Attention**
 当项目中存在权限敏感操作（如资金提取、参数修改、关键状态变更等）但未通过严格的角色或所有权校验机制进行保护时，需重点审计访问控制逻辑。此类漏洞通常源于权限检查缺失、校验逻辑绕过或权限模型设计缺陷，常见于治理模块、管理员功能、升级逻辑、金库操作等业务场景。
+
+**设计模式上下文**
+在检测访问控制漏洞前，先运行 [design-pattern-recognizer](../design-pattern-recognizer/SKILL.md) 识别项目的治理模式，以避免误报：
+
+- **Governance Minimized 模式**（治理最小化）：
+  - 特征: 合约不可升级、无管理员权限、参数在构造函数中固化（immutable）
+  - 证据: 无 `onlyOwner` 修饰符、无 upgradeable 代理、README 明确说明 "governance-minimized"
+  - 影响: 将检测阈值降低至 30%（原 100%）
+  - 调整: "Owner 权限过大" 发现 → Low 或 Info（无 Owner）
+  - 调整: "缺少紧急暂停" 发现 → Info（有意设计）
+  - 详见: [design-pattern-recognizer/Solidity_GovernanceMinimized.md](../design-pattern-recognizer/Solidity_GovernanceMinimized.md)
+
+- **Timelocked Governance 模式**（时间锁治理）：
+  - 特征: 管理员操作需延迟执行、有 Timelock 合约
+  - 影响: 将检测阈值降低至 50%
+  - 调整: Owner 权限风险降级为 Medium（有延迟保护）
+
+- **DAO Governed 模式**（DAO 治理）：
+  - 特征: 治理由代币持有者投票决定、有 Governor 合约
+  - 影响: 区分治理权限与管理员后门
+  - 调整: 合法治理权限 → Low，隐藏后门 → High
+
+**仍需报告为高危的情况**（即使是 Governance Minimized）：
+- 声称 governance-minimized 但保留隐藏后门（如 `_secretAdmin`）
+- 使用 immutable 但初始值可被构造函数恶意设置且无验证
+- 通过 delegatecall 绕过 immutable 限制
+- 文档声称 "no admin" 但代码有 onlyOwner 函数（误导）
 
 **Early exit**  
 如果项目代码中完全不存在特权操作（例如所有函数均为公开且无状态修改权限差异）、未定义任何角色或权限标识（如 owner、admin、governor 等），且业务逻辑不涉及任何条件性访问限制（如仅读取、无状态变更），则可快速退出对该漏洞类型的审计。

@@ -6,6 +6,31 @@ description: 专业的审计工作流程，通过静态代码分析识别和验�
 **Attention**
 当项目涉及外部合约调用（如调用用户提供的地址或接口）并在调用后才更新内部状态（如余额、权限、计数等）时，需重点审计是否可能被恶意合约利用递归调用反复进入函数，从而绕过状态检查、重复提取资产或执行逻辑。此类漏洞常见于资金提取、授权转移、跨合约交互等业务模块。
 
+**设计模式上下文**
+在检测重入漏洞前，先运行 [design-pattern-recognizer](../design-pattern-recognizer/SKILL.md) 识别项目是否使用原子性保护或其他安全模式，以避免误报：
+
+- **Atomic Protection 模式**（Solidity 0.8+ 依赖交易回滚）：
+  - 特征: 外部调用后有余额检查 (`require(balanceAfter >= balanceBefore)`) 或状态修改
+  - 影响: 将重入发现严重性降低 2 级（Medium → Info）
+  - 标记: "依赖原子性保护，非传统锁机制"
+  - 详见: [design-pattern-recognizer/Solidity_AtomicProtection.md](../design-pattern-recognizer/Solidity_AtomicProtection.md)
+
+- **Checks-Effects-Interactions (CEI) 模式**：
+  - 特征: 状态更新在外部调用前
+  - 影响: 完整遵循 CEI 则降级为 Low，否则根据具体情况判断
+  - 详见: [design-pattern-recognizer/Solidity_ChecksEffectsInteractions.md](../design-pattern-recognizer/Solidity_ChecksEffectsInteractions.md)
+
+- **Pull Over Push 模式**：
+  - 特征: 用户主动 claim 而非协议主动推送
+  - 影响: 重入风险已通过设计规避
+  - 详见: [design-pattern-recognizer/Solidity_PullOverPush.md](../design-pattern-recognizer/Solidity_PullOverPush.md)
+
+**仍需报告为高危的情况**（即使使用上述模式）：
+- 跨函数重入（函数 A 调用外部，函数 B 可被重入修改状态）
+- 只读重入（视图函数读取重入时的不一致状态）
+- delegatecall 破坏状态一致性
+- Solidity 版本 < 0.8.0 且无 ReentrancyGuard
+
 **Early exit**
 若项目代码中完全不包含对外部地址的调用（如 call、delegatecall、transfer 等低层或高层调用），且所有状态变更均在外部交互前完成，则可快速排除重入漏洞风险，结束对该类型漏洞的审计。
 

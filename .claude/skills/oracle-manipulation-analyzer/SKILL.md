@@ -4,8 +4,39 @@ description: 专业的审计工作流程，通过静态代码分析识别和验�
 ---
 **Oracle Manipulation**
 
-**Attention**  
+**Attention**
 当项目依赖外部或链下数据源（如价格、汇率、事件结果等）作为链上决策依据，且未对数据来源的可信性、更新机制或抗操纵性进行充分验证时，应重点审计 Oracle 相关模块。此类漏洞通常出现在 DeFi 协议（如借贷、衍生品、稳定币）、预言机集成、自动化清算、跨链桥等业务逻辑中，尤其集中在数据获取、验证、更新和使用环节。
+
+**设计模式上下文**
+在检测预言机操纵漏洞前，先运行 [design-pattern-recognizer](../design-pattern-recognizer/SKILL.md) 和 [protocol-doc-analyzer](../protocol-doc-analyzer/SKILL.md) 识别项目的设计理念和职责边界，以避免误报：
+
+- **Permissionless Design 模式**（无许可设计）：
+  - 特征: 用户可自由创建市场并选择 oracle，协议仅验证参数有效性而非质量
+  - 证据:
+    - createMarket() 函数接受 oracle 地址参数（用户提供）
+    - 无 oracle 白名单验证
+    - README 明确说明 "permissionless market creation" 或 "oracle agnostic"
+    - README 有风险披露: "Users must evaluate oracle reliability"
+  - 职责边界:
+    - 协议职责: 验证 oracle 接口兼容性、参数范围有效性
+    - 用户责任: 评估 oracle 可靠性、价格准确性
+    - 安全边界: 协议不对用户选择的 oracle 质量负责
+  - 影响: 用户可选 oracle 场景 → Info（用户责任），而非 High（协议漏洞）
+  - 详见: [design-pattern-recognizer/Solidity_PermissionlessDesign.md](../design-pattern-recognizer/Solidity_PermissionlessDesign.md)
+
+**调整建议（Permissionless 场景）**:
+| 发现类型 | 原严重性 | 新严重性 | 条件 |
+|---------|---------|---------|------|
+| 单一预言机风险 | High | Info | 用户可选 + 有文档披露 |
+| 未验证 oracle 可靠性 | High | Info | Permissionless 设计 |
+| 缺少 oracle 白名单 | Medium | Info | Permissionless 理念 |
+
+**仍需报告为高危的情况**（即使是 Permissionless）：
+- 协议自身依赖用户选择的 oracle（职责混乱）
+  - 示例: 用户创建市场时选择 oracle，但协议在全局清算逻辑中使用该 oracle
+- 声称 permissionless 但有隐藏白名单或黑名单
+- 用户可选 oracle 但无风险披露文档（用户不知情）
+- Oracle 接口验证缺失（协议职责范围内）
 
 **Early exit**  
 若项目完全不依赖任何外部数据源（即所有状态变量均为链上原生生成、无任何价格或事件输入依赖），且未集成任何预言机服务（包括自建或第三方如 Chainlink、Pyth、Witnet 等），则可快速退出对该漏洞类型的审计。
