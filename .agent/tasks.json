@@ -73,7 +73,7 @@
       "id": "T07",
       "title": "实现 docker/Dockerfile 与 entrypoint（非 root、可 dry-run）",
       "priority": 7,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T07",
       "acceptance": [
         "docker build 成功",

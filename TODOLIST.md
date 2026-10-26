@@ -97,6 +97,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T07 Docker 镜像与入口
 
+- [x] 已完成（2026-10-27）：产出 `docker/Dockerfile`、`.dockerignore`、`scripts/mine/entrypoint.sh`。镜像基于 `python:3.12-slim`，非 root（miner UID/GID 可构建期覆盖），预装 git/jq/rg/python/tree-sitter/Claude Code 2.1.138，未安装 Docker CLI。`docker build` 成功；`docker run --rm --network none ... --dry-run` 退出 0 并打印配置、提示词与审计命令；挂载 `/var/run/docker.sock` 时真实运行退出 7（可用 `ALLOW_DOCKER_SOCKET=1` 覆盖）；缺少 T08 脚本时真实运行退出 5 且不创建 RUN_DIR。
 - 目标：实现 `docker/Dockerfile` 与 `scripts/mine/entrypoint.sh`。
 - 要求：非 root 用户、固定工作目录、预装 python3/jq/git/tree-sitter 依赖、支持 `TARGET_DIR`、`RUN_DIR`、`TIMEOUT`、`MODEL`、`AGENT` 环境变量；默认不挂载 docker socket。
 - 验收：`docker build` 成功；`docker run --rm ... --dry-run` 能打印将执行的审计命令与配置。

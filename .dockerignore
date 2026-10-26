@@ -1,0 +1,15 @@
+.git
+.gitignore
+.agent
+.cursor
+targets
+runs
+logs
+smartbugs-curated
+research
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.venv
+**/node_modules
