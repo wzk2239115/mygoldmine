@@ -157,7 +157,7 @@
       "id": "T14",
       "title": "实现 verify.sh 校验产物完整性与密钥泄漏",
       "priority": 14,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T14",
       "acceptance": [
         "对 T10 冒烟产物退出 0",

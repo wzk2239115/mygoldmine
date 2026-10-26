@@ -155,6 +155,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T14 验证脚本
 
+- [x] 已完成（2026-10-27）：产出 `scripts/mine/verify.sh`。支持 `--runs-root`/`--run-dir`/`--allow-failed`/`--allow-empty`/`--quiet`；校验 5 类必需产物非空、报告与 `run-meta.json` 可解析且自洽（`exit_code=0`、`reports_complete=true`、未超时/中断）、`raw.jsonl` 逐行 JSON、密钥模式（`sk-`/Bearer/API key 赋值/云厂商 key/私钥头）。T10 冒烟产物 `runs/smoke/20261026T174149Z` 退出 0；缺 `audit-report.json`、假 `api_key=`、坏 JSON、`exit_code=1` 样本均退出 1；`--allow-failed` 可保留失败产物。
 - 目标：实现 `scripts/mine/verify.sh`：检查目录结构、报告完整性、日志非空、JSON 可解析、无密钥模式（如 `sk-`、`api_key`）。
 - 验收：对 T10 冒烟产物通过；对故意缺文件/含假 key 的样本能报错。
 
