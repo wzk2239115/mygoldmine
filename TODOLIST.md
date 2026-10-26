@@ -129,6 +129,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T11 目标克隆
 
+- [x] 已完成（2026-10-27）：产出 `scripts/mine/clone_targets.sh`，支持 `--dry-run`、`--update`、`--only`、`--depth/--full`、`--timeout`、`--targets-dir/--manifest`；单项目失败继续处理其他项目并返回 1；`targets/manifest.json` 记录 5 个项目的 url/commit/clone_time/action/status。用 `/tmp/mygoldmine-clone-test` 验证真实浅克隆成功（sglang `911693e3`，`is-shallow-repository=true`）及 `--update`；用假目标验证失败项目不阻塞成功项目。
 - 目标：实现 `scripts/mine/clone_targets.sh`，克隆/更新：
   - `openai/codex`（或实际可访问的 codex 源码仓）
   - DeepSeek 官方推理 harness 仓库（以 T01 确认的 URL 为准）

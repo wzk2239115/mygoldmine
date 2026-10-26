@@ -121,7 +121,7 @@
       "id": "T11",
       "title": "实现 clone_targets.sh 克隆 5 个目标并写 manifest",
       "priority": 11,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T11",
       "acceptance": [
         "--dry-run 打印计划",

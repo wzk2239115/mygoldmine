@@ -4,3 +4,11 @@ __pycache__/
 *.pyo
 *.pyd
 .workspace/
+
+.agent/history/
+.agent/.ralph.lock
+
+targets/*
+!targets/manifest.json
+runs/
+logs/

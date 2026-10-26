@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-10-26T17:46:18Z",
+  "targets_dir": "/home/wzk/mygoldmine/targets",
+  "shallow": true,
+  "depth": 1,
+  "projects": {
+    "codex": {
+      "url": "git@github.com:openai/codex.git",
+      "path": "/home/wzk/mygoldmine/targets/codex",
+      "commit": "970111f6cb62cc02fe36a82ea7d71b37a2889c97",
+      "clone_time": "2026-10-26T17:46:18Z",
+      "action": "existing",
+      "status": "ok"
+    },
+    "deepseek-harness": {
+      "url": "git@github.com:deepseek-ai/deepseek-harness.git",
+      "path": "/home/wzk/mygoldmine/targets/deepseek-harness",
+      "commit": "22ddee3792402c3e70ec5f86a63c3e3e895a2f60",
+      "clone_time": "2026-10-26T17:46:18Z",
+      "action": "existing",
+      "status": "ok"
+    },
+    "sglang": {
+      "url": "git@github.com:sgl-project/sglang.git",
+      "path": "/home/wzk/mygoldmine/targets/sglang",
+      "commit": "3a62cdfb3d0bc70f4eb980c7ded1d80545cea6c1",
+      "clone_time": "2026-10-26T17:46:18Z",
+      "action": "existing",
+      "status": "ok"
+    },
+    "verl": {
+      "url": "git@github.com:volcengine/verl.git",
+      "path": "/home/wzk/mygoldmine/targets/verl",
+      "commit": "174888fcf4b65dea032566a02fd16c5f76fb5b5b",
+      "clone_time": "2026-10-26T17:46:18Z",
+      "action": "existing",
+      "status": "ok"
+    },
+    "vllm": {
+      "url": "git@github.com:vllm-project/vllm.git",
+      "path": "/home/wzk/mygoldmine/targets/vllm",
+      "commit": "20bf65ad333834440b82390c43b30de93137b9ee",
+      "clone_time": "2026-10-26T17:46:18Z",
+      "action": "existing",
+      "status": "ok"
+    }
+  }
+}
