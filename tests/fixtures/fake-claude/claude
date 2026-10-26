@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""T10 冒烟用 fake Claude CLI。
+
+只模拟 `claude --output-format=stream-json` 的事件流并写出两份报告，
+不调用网络、不读取任何密钥。用于在无 API key 的环境中验证
+entrypoint -> mine_one -> renderer 的完整链路。
+"""
+
+import json
+import os
+import sys
+
+RUN_DIR = os.environ.get("RUN_DIR", "").strip()
+MODEL = os.environ.get("ANTHROPIC_MODEL", "fake-model")
+AGENT = os.environ.get("AGENT", "security-orchestrator")
+
+if not RUN_DIR:
+    print("[fake-claude] RUN_DIR is empty", file=sys.stderr)
+    sys.exit(3)
+
+os.makedirs(RUN_DIR, exist_ok=True)
+
+REPORT_MD = """# 冒烟审计报告（fake-claude）
+
+- 目标：`/workspace/repo`（tests/fixtures/smoke-target 的只读副本）
+- 模式：容器冒烟，模型输出为固定桩数据，不代表真实审计结论
+- 目标提交：不可用（fixture 非 git 仓库）
+
+## 发现
+
+### SMOKE-001 命令拼接（演示）
+
+- 位置：`app.py:8`
+- 证据：`subprocess.run(command, shell=True, check=False)`，其中 `command` 由
+  `"convert " + filename` 拼接而来。
+- 状态：`unverified`（冒烟桩数据，仅用于验证报告链路）
+- 修复建议：改用参数列表并关闭 `shell=True`，例如
+  `subprocess.run(["convert", filename, "/tmp/out.png"], check=False)`。
+
+## 说明
+
+该报告由 `tests/fixtures/fake-claude/claude` 生成，仅验证 Docker 内产物路径、
+日志渲染与 `run-meta.json` 退出码一致性。
+"""
+
+REPORT_JSON = {
+    "schema_version": 1,
+    "project": os.environ.get("PROJECT", "smoke-target"),
+    "mode": "container-smoke",
+    "findings": [
+        {
+            "id": "SMOKE-001",
+            "title": "命令拼接（冒烟桩数据）",
+            "severity": "low",
+            "file": "app.py",
+            "line": 8,
+            "evidence": "subprocess.run(command, shell=True, check=False)",
+            "status": "unverified",
+            "recommendation": "使用参数列表并关闭 shell=True",
+        }
+    ],
+    "summary": {
+        "total": 1,
+        "verified": 0,
+        "unverified": 1,
+        "note": "fake-claude stub for T10 pipeline smoke test",
+    },
+}
+
+
+def emit(event):
+    sys.stdout.write(json.dumps(event, ensure_ascii=False) + "\n")
+    sys.stdout.flush()
+
+
+def main():
+    emit({"type": "system", "subtype": "init", "model": MODEL, "cwd": os.getcwd(), "agent": AGENT})
+    emit({"type": "rate_limit_event", "rate_limit_info": {"status": "allowed"}})
+    emit(
+        {
+            "type": "assistant",
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {"type": "thinking", "thinking": "冒烟模式：只验证产物与日志链路。"},
+                    {"type": "text", "text": "开始对 smoke-target 做冒烟审计。"},
+                    {
+                        "type": "tool_use",
+                        "name": "Read",
+                        "input": {"file_path": "app.py", "description": "查看目标源码"},
+                    },
+                ],
+            },
+        }
+    )
+    emit(
+        {
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "is_error": False,
+                        "content": "8: subprocess.run(command, shell=True, check=False)",
+                    }
+                ],
+            },
+        }
+    )
+
+    with open(os.path.join(RUN_DIR, "audit-report.md"), "w", encoding="utf-8") as handle:
+        handle.write(REPORT_MD)
+    with open(os.path.join(RUN_DIR, "audit-report.json"), "w", encoding="utf-8") as handle:
+        json.dump(REPORT_JSON, handle, ensure_ascii=False, indent=2)
+        handle.write("\n")
+
+    emit(
+        {
+            "type": "assistant",
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "name": "Write",
+                        "input": {
+                            "file_path": os.path.join(RUN_DIR, "audit-report.md"),
+                            "description": "写入人读报告",
+                        },
+                    }
+                ],
+            },
+        }
+    )
+    emit(
+        {
+            "type": "user",
+            "message": {
+                "role": "user",
+                "content": [
+                    {"type": "tool_result", "is_error": False, "content": "report written"}
+                ],
+            },
+        }
+    )
+    emit(
+        {
+            "type": "assistant",
+            "message": {
+                "role": "assistant",
+                "content": [{"type": "text", "text": "报告已生成：audit-report.md / audit-report.json。"}],
+            },
+        }
+    )
+    emit(
+        {
+            "type": "result",
+            "is_error": False,
+            "subtype": "success",
+            "duration_ms": 42,
+            "num_turns": 2,
+            "total_cost_usd": 0.0,
+            "result": "smoke test complete",
+        }
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

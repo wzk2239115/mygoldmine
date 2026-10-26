@@ -109,7 +109,7 @@
       "id": "T10",
       "title": "Docker 容器冒烟并写 docs/docker-smoke-test.md",
       "priority": 10,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T10",
       "acceptance": [
         "rendered log 非空可读",

@@ -118,6 +118,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T10 容器冒烟
 
+- [x] 已完成（2026-10-27）：产出 `docs/docker-smoke-test.md`、`tests/fixtures/smoke-target/`、`tests/fixtures/fake-claude/claude`。重建 `mygoldmine:dev`（`sha256:5afad73b...`）后，以 `--network none --read-only` + tmpfs 运行 fake CLI：容器退出 0、耗时约 1s，产物 `audit-report.md/json`、`raw.jsonl`（8 行）、`claude.rendered.log`（922 bytes，含 init/tool/result/summary）、`run-meta.json`（`exit_code=0`、`renderer_exit_code=0`、`reports_complete=true`）齐全；容器退出码与 meta 一致，密钥模式扫描无命中。
 - 目标：选一个**小仓库**（可用 mygoldmine 自身或 tests/fixtures）跑通 T07-T09。
 - 产物 `docs/docker-smoke-test.md`：命令、耗时、产物截图/摘录、已知限制。
 - 验收：`claude.rendered.log` 非空且可读；退出码与 `run-meta.json` 一致；无密钥泄漏。
