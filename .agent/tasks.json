@@ -27,7 +27,7 @@
       "id": "T03",
       "title": "生成能力差距分析与优先级",
       "priority": 3,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T03",
       "acceptance": [
         "research/gap-analysis.md 每个缺口对应 T01 具体条目",

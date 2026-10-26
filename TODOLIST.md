@@ -62,6 +62,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T03 差距分析
 
+- [x] 已完成（2026-10-27）：产出 `research/gap-analysis.md`，归并 15 个缺口、覆盖 26/38 条 T01 条目（P0 5 个 / P1 7 个 / P2 3 个），并给出编排差距 O01-O04、误报排除规则与 T04 落地顺序。
 - 目标：对比 T01 与 T02，输出 `research/gap-analysis.md`。
 - 内容：缺失类型、弱覆盖类型、误报风险、优先级（P0/P1/P2）、建议实现方式（新 skill / 扩展现有 skill / tree-sitter 规则 / agent 编排）。
 - 验收：每个缺口都对应到 T01 的具体条目；给出可执行的下一步，而不是泛泛而谈。
