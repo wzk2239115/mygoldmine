@@ -69,6 +69,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T04 新增高优先级 skill（至少 2 个）
 
+- [x] 已完成（2026-10-27）：新增 `model-loading-analyzer`、`agent-config-analyzer`，各含 `SKILL.md`、`quick-scan.py`、`patterns/*.json`；真实位置引用 vLLM `20bf65ad`、SGLang `3a62cdfb`、verl `174888fc`、codex `970111f6`、deepseek-harness `22ddee37`。
 - 目标：按 T03 的 P0/P1，新增至少 2 个 skill，优先考虑：
   - 推理框架：权重加载/反序列化（pickle、torch.load、safetensors）、路径遍历、SSRF（模型下载）、HTTP/gRPC 解析、调度器并发/竞态、资源耗尽。
   - Agent/训练框架：工具调用权限、提示注入、沙箱逃逸、分布式通信（Ray/NCCL/ZeroMQ）、配置注入。

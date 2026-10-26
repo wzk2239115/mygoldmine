@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "skill": "agent-config-analyzer",
+  "rules": [
+    {
+      "id": "AC-APPROVAL-PREFIX",
+      "severity": "medium",
+      "confidence": "medium",
+      "regex": "\\b(allow_prefix|PrefixRule|prefix_rule|allowPrefix|prefixRules)\\b",
+      "message": "命令审批使用前缀/规则匹配，需检查危险参数与别名是否可绕过",
+      "fix": "按完整 argv 与参数语义匹配，拒绝未知参数"
+    },
+    {
+      "id": "AC-APPROVAL-NEVER",
+      "severity": "medium",
+      "confidence": "high",
+      "regex": "approval_policy\\s*[:=]\\s*[\"']?never",
+      "message": "approval_policy=never 会关闭交互确认",
+      "fix": "仅对受信/只读操作使用；危险工具仍需显式审批"
+    },
+    {
+      "id": "AC-SKIP-PERMISSIONS",
+      "severity": "medium",
+      "confidence": "medium",
+      "regex": "dangerously[-_]?skip[-_]?permissions|bypassPermissions|\\bautoApprove\\b|\\bauto_approve\\b",
+      "message": "发现自动批准/跳过权限检查的配置或代码路径，需确认是否可由项目配置开启",
+      "fix": "移除自动批准，恢复逐次确认或细粒度策略"
+    },
+    {
+      "id": "AC-GIT-HOOKS",
+      "severity": "high",
+      "confidence": "high",
+      "regex": "(?i)(hooksPath|core\\.fsmonitor|attr\\.tree|filter\\..*\\.(clean|process)|sshCommand)",
+      "message": "Git 配置可让不可信仓库在打开/操作时执行命令",
+      "fix": "打开仓库前清除本地 Git 配置，禁止 hooksPath/fsmonitor/filter 指向仓库内文件"
+    },
+    {
+      "id": "AC-ENV-LOADER",
+      "severity": "medium",
+      "confidence": "high",
+      "regex": "^\\s*(LD_PRELOAD|LD_LIBRARY_PATH|NODE_OPTIONS|PYTHONPATH|BASH_ENV|GIT_CONFIG|GIT_CONFIG_GLOBAL|GIT_CONFIG_SYSTEM)\\s*=",
+      "message": "项目环境变量覆盖可执行文件搜索或动态加载器",
+      "fix": "项目 .env 不参与 Agent 运行时；只允许显式白名单变量"
+    },
+    {
+      "id": "AC-AGENT-INSTRUCTION",
+      "severity": "medium",
+      "confidence": "medium",
+      "regex": "(?i)(never ask (for )?approval|do not ask (for )?approval|auto[- ]approve|ignore (all )?previous instructions|skip (the )?(confirmation|approval))",
+      "message": "仓库内 Agent 指令要求关闭确认或忽略既有指令",
+      "fix": "仓库内容不得覆盖用户/组织的审批策略；把 AGENTS.md 视为不可信输入"
+    }
+  ]
+}

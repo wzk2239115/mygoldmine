@@ -38,7 +38,7 @@
       "id": "T04",
       "title": "新增至少 2 个高优先级 skill 并给出真实代码位置示例",
       "priority": 4,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T04",
       "acceptance": [
         "新增 skill 目录含结构完整的 SKILL.md",

@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "skill": "model-loading-analyzer",
+  "rules": [
+    {
+      "id": "ML-REMOTE-CODE",
+      "severity": "medium",
+      "confidence": "medium",
+      "regex": "trust_remote_code\\s*=\\s*True|[\"']trust_remote_code[\"']\\s*:\\s*true",
+      "message": "trust_remote_code=True；若模型 ID 可由请求/CLI 指定则为可执行远程代码",
+      "fix": "默认关闭 trust_remote_code，只对白名单仓库显式开启并固定 revision"
+    },
+    {
+      "id": "ML-DYNAMIC-MODULE",
+      "severity": "medium",
+      "confidence": "medium",
+      "regex": "get_class_from_dynamic_module|transformers\\.dynamic_module_utils",
+      "message": "从模型仓库动态加载模块/类；需确认模型来源是否可信",
+      "fix": "禁止从不可信仓库动态导入；使用受信类注册表"
+    },
+    {
+      "id": "ML-AUTO-MAP",
+      "severity": "medium",
+      "confidence": "medium",
+      "regex": "[\"']auto_map[\"']",
+      "message": "config.json 的 auto_map 可把模型仓库内容映射为可执行模块",
+      "fix": "校验 auto_map 指向的受信实现，或忽略该字段"
+    },
+    {
+      "id": "ML-TORCH-LOAD-UNSAFE",
+      "severity": "high",
+      "confidence": "high",
+      "regex": "weights_only\\s*=\\s*False",
+      "message": "torch.load(weights_only=False) 会反序列化任意 pickle",
+      "fix": "改用 safetensors，或强制 weights_only=True"
+    },
+    {
+      "id": "ML-IMPORTLIB",
+      "severity": "low",
+      "confidence": "low",
+      "regex": "importlib\\.import_module\\s*\\(",
+      "message": "动态 import 可能加载模型仓库中的模块，需要回溯模块名来源",
+      "fix": "模块名使用固定允许列表，不接受请求输入"
+    }
+  ]
+}
