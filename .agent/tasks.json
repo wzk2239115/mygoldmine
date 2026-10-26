@@ -85,7 +85,7 @@
       "id": "T08",
       "title": "实现 scripts/mine/mine_one.sh 产出报告/raw/rendered/meta",
       "priority": 8,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T08",
       "acceptance": [
         "dry-run 可运行",

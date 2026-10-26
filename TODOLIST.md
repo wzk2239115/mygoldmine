@@ -104,6 +104,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T08 单项目挖掘脚本
 
+- [x] 已完成（2026-10-27）：产出 `scripts/mine/mine_one.sh`。支持 `--dry-run`、`--run-dir/--target/--prompt/--timeout/--model/--agent/--project/--target-url`；运行前链接 `.claude`，以 stream-json 调用 Claude 并写 `raw.jsonl`，优先调用 T09 渲染器、缺失时用 jq fallback 生成 `claude.rendered.log`，写出 `audit-report.md/json` 与不含密钥的 `run-meta.json`。用 stub CLI 验证：正常样本退出 0 且 5 类文件齐全；`TIMEOUT=2` 的阻塞样本退出 124、`timed_out=true` 且保留日志；TERM 中止退出 143、`interrupted=true` 且无残留子进程；无报告时退出 2；RUN_DIR 非空时退出 6；URL userinfo 已剥离。
 - 目标：实现 `scripts/mine/mine_one.sh`，在容器内运行 Claude Code + mygoldmine。
 - 行为：在目标目录链接 `.claude`，执行 security-orchestrator 审计，写出 `audit-report.md/json`，原始 stream 写 `raw.jsonl`，渲染后写 `claude.rendered.log`，元信息写 `run-meta.json`（不含密钥）。
 - 验收：`--dry-run` 可运行；真实小样本能产出上述 4 类文件；超时后能优雅退出并保留日志。
