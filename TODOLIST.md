@@ -111,6 +111,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T09 日志渲染器
 
+- [x] 已完成（2026-10-27）：产出 `scripts/mine/render_claude_log.py`。支持 `--input/--output/--self-test/--no-redact/--max-text/--max-result/--max-raw/--quiet`；渲染 `system/init`、`rate_limit_event`、`thinking/text/tool_use`（含命令、文件路径、输入摘要）、`tool_result/tool_error`、`result`（耗时/轮次/成本），非 JSON 行原样透传；坏行、缺字段、未知事件、非法内容类型均降级并继续，默认脱敏 `sk-`/`Bearer`/`api_key` 等模式；末尾输出 `[summary]` 统计。`--self-test` 覆盖 20 行样本（含 2 条坏行、缺字段、密钥样例）通过；接入 `mine_one.sh` 的 stub CLI 冒烟后 `renderer_exit_code=0`、渲染日志非空可读。
 - 目标：实现 `scripts/mine/render_claude_log.py`，把 stream-json 渲染成人读 `claude.rendered.log`（工具调用、文件改动、命令、耗时、错误）。
 - 验收：用 T08 的 `raw.jsonl` 生成日志；字段缺失/乱码时降级不崩溃；附单元测试或 `--self-test`。
 - 参考：exploitgym `scripts/analyze_logs.py`、`tests/evaluation/test_claude_stream_renderer.py`。

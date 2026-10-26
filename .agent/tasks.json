@@ -97,7 +97,7 @@
       "id": "T09",
       "title": "实现 claude stream-json 渲染器",
       "priority": 9,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T09",
       "acceptance": [
         "scripts/mine/render_claude_log.py 存在",
