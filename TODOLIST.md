@@ -148,6 +148,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T13 整夜启动/恢复
 
+- [x] 已完成（2026-10-27）：产出 `scripts/mine/overnight.sh`、`docs/overnight-run.md`。`start` 默认 `MODEL=360-proxy/deepseek/deepseek-v4.1-flash`、`MAX_PARALLEL=5`、`TIMEOUT=21600`，通过 `setsid+nohup` detach 启动 `parallel_mine.sh`；`status` 汇总 `running/completed/failed/stopped/pending`；`stop` 转发到编排器并保留日志；`resume` 从状态与 `run-meta.json` 计算未完成项目，只传 `--projects` 补跑。用假执行器验证：5 项目并发完成、running 状态可读、stop 后 `stopped=2`、首轮 vllm 失败后 resume 仅新增 vllm run 目录且再次 resume 为 no-op；全程未调用真实模型。
 - 目标：实现 `scripts/mine/overnight.sh`：`start|stop|status|resume`，默认 `MODEL=360-proxy/deepseek/deepseek-v4.1-flash`、`MAX_PARALLEL=5`、`TIMEOUT=21600`。
 - 产物 `docs/overnight-run.md`：一条启动命令、如何看进度、如何止损、次日如何收报告。
 - 验收：`overnight.sh status` 能读出运行中/完成/失败；`resume` 只补未完成项目。

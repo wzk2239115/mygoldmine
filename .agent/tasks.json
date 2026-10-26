@@ -145,7 +145,7 @@
       "id": "T13",
       "title": "实现 overnight.sh start/stop/status/resume 与文档",
       "priority": 13,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T13",
       "acceptance": [
         "默认 360-proxy/deepseek/deepseek-v4.1-flash、5 并发、21600s",
