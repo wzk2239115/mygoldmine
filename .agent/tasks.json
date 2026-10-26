@@ -16,7 +16,7 @@
       "id": "T02",
       "title": "盘点现有 skills/agents/tree-sitter 覆盖能力",
       "priority": 2,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T02",
       "acceptance": [
         "research/capability-matrix.md 覆盖 T01 出现的全部漏洞类型",

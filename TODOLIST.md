@@ -55,6 +55,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T02 现有能力盘点
 
+- [x] 已完成（2026-10-27）：产出 `research/capability-matrix.md`，覆盖 T01 全部 29 个 type；记录 82 个含 `SKILL.md` 的 skill、3 个可执行 agent、7 个 quick-scan（4 个 tree-sitter）及本机依赖缺失情况。
 - 目标：盘点 mygoldmine 现有 84 个 skill、4 个 agent、tree-sitter quick-scan 的实际检测范围。
 - 产出 `research/capability-matrix.md`：漏洞类型 × skill/scanner × 检测方式（tree-sitter/规则/LLM）× 覆盖度（强/弱/无）× 证据路径。
 - 验收：至少覆盖 T01 中出现的全部漏洞类型；每个「强/弱」结论都有具体文件路径或代码行佐证。
