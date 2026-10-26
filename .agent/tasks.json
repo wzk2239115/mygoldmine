@@ -1,0 +1,180 @@
+{
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "汇总 codex / deepseek harness / vLLM / SGLang / verl 公开漏洞",
+      "priority": 1,
+      "status": "done",
+      "spec": "TODOLIST.md#T01",
+      "acceptance": [
+        "research/disclosed-vulns.md 与 research/disclosed-vulns.json 存在",
+        "5 个项目每个至少 3 条可核实条目",
+        "每条含 source_url，未核实标 unverified，不编造编号"
+      ]
+    },
+    {
+      "id": "T02",
+      "title": "盘点现有 skills/agents/tree-sitter 覆盖能力",
+      "priority": 2,
+      "status": "todo",
+      "spec": "TODOLIST.md#T02",
+      "acceptance": [
+        "research/capability-matrix.md 覆盖 T01 出现的全部漏洞类型",
+        "强/弱结论有文件路径或代码行佐证"
+      ]
+    },
+    {
+      "id": "T03",
+      "title": "生成能力差距分析与优先级",
+      "priority": 3,
+      "status": "todo",
+      "spec": "TODOLIST.md#T03",
+      "acceptance": [
+        "research/gap-analysis.md 每个缺口对应 T01 具体条目",
+        "给出 P0/P1/P2 与实现方式"
+      ]
+    },
+    {
+      "id": "T04",
+      "title": "新增至少 2 个高优先级 skill 并给出真实代码位置示例",
+      "priority": 4,
+      "status": "todo",
+      "spec": "TODOLIST.md#T04",
+      "acceptance": [
+        "新增 skill 目录含结构完整的 SKILL.md",
+        "每个 skill 至少 2 个目标仓库真实代码位置示例",
+        "不修改无关 skill"
+      ]
+    },
+    {
+      "id": "T05",
+      "title": "新 skill 接入 orchestrator/README 并写 Phase1 总结",
+      "priority": 5,
+      "status": "todo",
+      "spec": "TODOLIST.md#T05",
+      "acceptance": [
+        "security-orchestrator.md 与 skills/README.md 已更新",
+        "命名过滤规则仍成立",
+        "research/phase1-summary.md 存在"
+      ]
+    },
+    {
+      "id": "T06",
+      "title": "提炼 exploitgym 设计并写 Docker+Claude 设计文档",
+      "priority": 6,
+      "status": "todo",
+      "spec": "TODOLIST.md#T06",
+      "acceptance": [
+        "docs/docker-claude-mining.md 含挂载/用户/网络/超时/日志协议",
+        "明确与 exploitgym 的差异"
+      ]
+    },
+    {
+      "id": "T07",
+      "title": "实现 docker/Dockerfile 与 entrypoint（非 root、可 dry-run）",
+      "priority": 7,
+      "status": "todo",
+      "spec": "TODOLIST.md#T07",
+      "acceptance": [
+        "docker build 成功",
+        "dry-run 打印审计命令与配置",
+        "默认不挂载 docker socket"
+      ]
+    },
+    {
+      "id": "T08",
+      "title": "实现 scripts/mine/mine_one.sh 产出报告/raw/rendered/meta",
+      "priority": 8,
+      "status": "todo",
+      "spec": "TODOLIST.md#T08",
+      "acceptance": [
+        "dry-run 可运行",
+        "小样本产出 audit-report.md/json、raw.jsonl、claude.rendered.log、run-meta.json",
+        "超时优雅退出并保留日志"
+      ]
+    },
+    {
+      "id": "T09",
+      "title": "实现 claude stream-json 渲染器",
+      "priority": 9,
+      "status": "todo",
+      "spec": "TODOLIST.md#T09",
+      "acceptance": [
+        "scripts/mine/render_claude_log.py 存在",
+        "对 raw.jsonl 生成可读 claude.rendered.log",
+        "坏行/缺字段不崩溃，含 --self-test"
+      ]
+    },
+    {
+      "id": "T10",
+      "title": "Docker 容器冒烟并写 docs/docker-smoke-test.md",
+      "priority": 10,
+      "status": "todo",
+      "spec": "TODOLIST.md#T10",
+      "acceptance": [
+        "rendered log 非空可读",
+        "退出码与 run-meta.json 一致",
+        "无密钥泄漏"
+      ]
+    },
+    {
+      "id": "T11",
+      "title": "实现 clone_targets.sh 克隆 5 个目标并写 manifest",
+      "priority": 11,
+      "status": "todo",
+      "spec": "TODOLIST.md#T11",
+      "acceptance": [
+        "--dry-run 打印计划",
+        "至少 1 个真实浅克隆成功",
+        "targets/manifest.json 记录 url/commit/time"
+      ]
+    },
+    {
+      "id": "T12",
+      "title": "实现 parallel_mine.sh（5 并发/6h/重试/续跑/锁/status/stop）",
+      "priority": 12,
+      "status": "todo",
+      "spec": "TODOLIST.md#T12",
+      "acceptance": [
+        "--dry-run 与 --status 可用",
+        "假目标验证超时与并发上限",
+        "磁盘余量检查与单实例锁生效"
+      ]
+    },
+    {
+      "id": "T13",
+      "title": "实现 overnight.sh start/stop/status/resume 与文档",
+      "priority": 13,
+      "status": "todo",
+      "spec": "TODOLIST.md#T13",
+      "acceptance": [
+        "默认 360-proxy/deepseek/deepseek-v4.1-flash、5 并发、21600s",
+        "status 可读运行/完成/失败",
+        "resume 只补未完成项目"
+      ]
+    },
+    {
+      "id": "T14",
+      "title": "实现 verify.sh 校验产物完整性与密钥泄漏",
+      "priority": 14,
+      "status": "todo",
+      "spec": "TODOLIST.md#T14",
+      "acceptance": [
+        "对 T10 冒烟产物退出 0",
+        "对缺文件/含假 key 样本能报错"
+      ]
+    },
+    {
+      "id": "T15",
+      "title": "总验收：更新状态/README 与 gitignore，跑 verify",
+      "priority": 15,
+      "status": "todo",
+      "spec": "TODOLIST.md#T15",
+      "acceptance": [
+        "scripts/mine/verify.sh 退出 0",
+        "README 给出今晚启动与明早查看方式",
+        ".gitignore 覆盖 targets/ runs/ logs/ .agent/history/"
+      ]
+    }
+  ]
+}

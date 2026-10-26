@@ -1,0 +1,769 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-27",
+  "scope": "Publicly disclosed vulnerabilities affecting codex, deepseek-harness, vLLM, SGLang and verl. Local source copies only; no exploits executed.",
+  "methodology": "Primary sources: GitHub Advisory Database pages (fetched and parsed), CERT/CC VU#281278, NVD/CVE records and upstream issue/PR references. Entries without a CVE or CVSS are marked Unverified/Unverified (non-CVE issue).",
+  "projects": [
+    "vLLM",
+    "SGLang",
+    "verl",
+    "codex",
+    "deepseek-harness"
+  ],
+  "entry_count": 38,
+  "entries": [
+    {
+      "project": "vLLM",
+      "id": "CVE-2026-48746",
+      "aliases": [
+        "GHSA-94f4-hr76-p5j6"
+      ],
+      "type": "authentication-bypass",
+      "component": "vllm/entrypoints/openai/api_server.py AuthenticationMiddleware",
+      "affected": ">= 0.3.0, < 0.22.0",
+      "severity": "Critical",
+      "cvss": "9.1",
+      "cwe": [
+        "CWE-444",
+        "CWE-501"
+      ],
+      "summary": "Starlette/ASGI 重建 URL 时信任 Host 头，攻击者用特殊字符构造 Host 使 url_path 与路由不一致，从而绕过配置的 API Key 认证。",
+      "source_url": "https://github.com/advisories/GHSA-94f4-hr76-p5j6",
+      "fix_ref": "https://github.com/vllm-project/vllm/pull/43426",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "vLLM",
+      "id": "CVE-2025-47277",
+      "aliases": [
+        "GHSA-hjq4-87xh-g4fv"
+      ],
+      "type": "rce-deserialization",
+      "component": "PyNcclPipe CPU 控制通道 send_obj/recv_obj",
+      "affected": ">= 0.6.5, < 0.8.5",
+      "severity": "Critical",
+      "cvss": "9.8",
+      "cwe": [
+        "CWE-502"
+      ],
+      "summary": "PyNcclPipe 服务对收到的序列化数据直接反序列化，未认证攻击者可发送恶意对象在 vLLM 节点执行代码（仅 V0 引擎 + PyNcclPipe KV cache 传输受影响）。",
+      "source_url": "https://github.com/advisories/GHSA-hjq4-87xh-g4fv",
+      "fix_ref": "https://github.com/vllm-project/vllm/pull/15988",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "vLLM",
+      "id": "CVE-2025-62164",
+      "aliases": [
+        "GHSA-mrw7-hf4f-83pf"
+      ],
+      "type": "memory-corruption-deserialization",
+      "component": "Completions API prompt_embeds / torch.load + to_dense",
+      "affected": ">= 0.10.2, < 0.11.1",
+      "severity": "High",
+      "cvss": "8.8",
+      "cwe": [
+        "CWE-123",
+        "CWE-20",
+        "CWE-502",
+        "CWE-787"
+      ],
+      "summary": "Completions 接口用 torch.load 加载用户提供的 prompt embeddings；PyTorch 2.8 默认关闭稀疏张量完整性检查，构造张量可越界写并导致 DoS/潜在 RCE。",
+      "source_url": "https://github.com/advisories/GHSA-mrw7-hf4f-83pf",
+      "fix_ref": "https://github.com/vllm-project/vllm/pull/27204",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "vLLM",
+      "id": "CVE-2025-6242",
+      "aliases": [
+        "GHSA-3f6c-7fw2-ppm4"
+      ],
+      "type": "ssrf",
+      "component": "MediaConnector.load_from_url / load_from_url_async",
+      "affected": ">= 0.5.0, < 0.11.0",
+      "severity": "High",
+      "cvss": "7.1",
+      "cwe": [
+        "CWE-601",
+        "CWE-918"
+      ],
+      "summary": "多模态 MediaConnector 对用户提供的 URL 缺少目标主机限制，可迫使 vLLM 请求内网资源、扫描集群或读取云元数据。",
+      "source_url": "https://github.com/advisories/GHSA-3f6c-7fw2-ppm4",
+      "fix_ref": "vLLM >= 0.11.0 (patched version in advisory)",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "vLLM",
+      "id": "CVE-2026-25960",
+      "aliases": [
+        "GHSA-v359-jj2v-j536"
+      ],
+      "type": "ssrf-bypass",
+      "component": "vllm/connections.py load_from_url_async",
+      "affected": ">= 0.15.1, < 0.17.0",
+      "severity": "Moderate",
+      "cvss": "5.4",
+      "cwe": [
+        "CWE-918"
+      ],
+      "summary": "SSRF 修复使用 urllib3 解析 URL，而实际请求用 aiohttp/yarl；两者对反斜杠处理不一致导致校验绕过。",
+      "source_url": "https://github.com/advisories/GHSA-v359-jj2v-j536",
+      "fix_ref": "https://github.com/vllm-project/vllm/pull/34743",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "vLLM",
+      "id": "CVE-2026-27893",
+      "aliases": [
+        "GHSA-7972-pg2x-xr59"
+      ],
+      "type": "rce-trust-remote-code",
+      "component": "vllm/model_executor/models/nemotron_vl.py, kimi_k25.py",
+      "affected": ">= 0.10.1, < 0.18.0",
+      "severity": "High",
+      "cvss": "8.8",
+      "cwe": [
+        "CWE-693"
+      ],
+      "summary": "两个模型实现硬编码 trust_remote_code=True，绕过用户显式 --trust-remote-code=False，恶意模型仓库可执行代码。",
+      "source_url": "https://github.com/advisories/GHSA-7972-pg2x-xr59",
+      "fix_ref": "https://github.com/vllm-project/vllm/pull/36192",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "vLLM",
+      "id": "CVE-2025-66448",
+      "aliases": [
+        "GHSA-8fr4-5q9j-m8gm"
+      ],
+      "type": "rce-config-auto-map",
+      "component": "vllm.transformers_utils.config.get_config / Nemotron_Nano_VL_Config",
+      "affected": "< 0.11.1",
+      "severity": "High",
+      "cvss": "7.1",
+      "cwe": [
+        "CWE-94"
+      ],
+      "summary": "加载含 auto_map 的 model config 时通过 get_class_from_dynamic_module 拉取并实例化远程类，即使调用方设置 trust_remote_code=False 仍执行。",
+      "source_url": "https://github.com/advisories/GHSA-8fr4-5q9j-m8gm",
+      "fix_ref": "https://github.com/vllm-project/vllm/pull/28126",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-3059",
+      "aliases": [
+        "GHSA-rgq9-fqf5-fv58"
+      ],
+      "type": "rce-deserialization",
+      "component": "multimodal_gen ZMQ broker scheduler_client.py",
+      "affected": "<= 0.5.9",
+      "severity": "Critical",
+      "cvss": "9.8",
+      "cwe": [
+        "CWE-502"
+      ],
+      "summary": "多模态生成 ZMQ broker 对未认证消息直接 pickle.loads，暴露端口即可 RCE。",
+      "source_url": "https://github.com/advisories/GHSA-rgq9-fqf5-fv58",
+      "fix_ref": "https://github.com/sgl-project/sglang/releases/tag/v0.5.10",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-3060",
+      "aliases": [
+        "GHSA-jx93-g359-86wm"
+      ],
+      "type": "rce-deserialization",
+      "component": "srt/disaggregation/encode_receiver.py",
+      "affected": "<= 0.5.9",
+      "severity": "Critical",
+      "cvss": "9.8",
+      "cwe": [
+        "CWE-502"
+      ],
+      "summary": "encoder parallel disaggregation 模块对未认证数据直接 pickle.loads，导致未认证 RCE。",
+      "source_url": "https://github.com/advisories/GHSA-jx93-g359-86wm",
+      "fix_ref": "https://github.com/sgl-project/sglang/releases/tag/v0.5.10",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-7301",
+      "aliases": [
+        "GHSA-gwv6-pq6m-p3rq"
+      ],
+      "type": "rce-deserialization",
+      "component": "multimodal_gen scheduler ROUTER socket",
+      "affected": ">= 0.5.5, <= 0.5.12",
+      "severity": "Critical",
+      "cvss": "9.8",
+      "cwe": [
+        "CWE-502"
+      ],
+      "summary": "多模态 scheduler 的 ROUTER socket 默认绑定 0.0.0.0，收到的消息直接 pickle.loads，暴露公网即可 RCE。",
+      "source_url": "https://github.com/advisories/GHSA-gwv6-pq6m-p3rq",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-7302",
+      "aliases": [
+        "GHSA-qwrp-wghp-94q2"
+      ],
+      "type": "path-traversal-file-write",
+      "component": "multimodal generation upload filename",
+      "affected": ">= 0.5.5, <= 0.5.12",
+      "severity": "Critical",
+      "cvss": "9.1",
+      "cwe": [
+        "CWE-35"
+      ],
+      "summary": "多模态生成运行时的上传接口未清理文件名中的 ../，可向服务进程有写权限的任意位置写文件。",
+      "source_url": "https://github.com/advisories/GHSA-qwrp-wghp-94q2",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-7304",
+      "aliases": [
+        "GHSA-36m8-w8qf-g76p"
+      ],
+      "type": "rce-dill-deserialization",
+      "component": "--enable-custom-logit-processor / dill.loads",
+      "affected": ">= 0.4.1.post7, <= 0.5.12",
+      "severity": "Critical",
+      "cvss": "9.8",
+      "cwe": [
+        "CWE-502"
+      ],
+      "summary": "启用 --enable-custom-logit-processor 后对加载对象调用 dill.loads 且无校验，形成未认证 RCE。",
+      "source_url": "https://github.com/advisories/GHSA-36m8-w8qf-g76p",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-3989",
+      "aliases": [
+        "GHSA-hvwj-8w5g-28rg"
+      ],
+      "type": "insecure-deserialization-script",
+      "component": "scripts/playground/replay_request_dump.py pickle.load",
+      "affected": "<= 0.5.9",
+      "severity": "High",
+      "cvss": "7.8",
+      "cwe": [
+        "CWE-502"
+      ],
+      "summary": "replay_request_dump.py 对本地 .pkl 文件直接 pickle.load，打开恶意 dump 即执行攻击者代码。",
+      "source_url": "https://github.com/advisories/GHSA-hvwj-8w5g-28rg",
+      "fix_ref": "https://github.com/sgl-project/sglang/releases/tag/v0.5.10",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2025-10164",
+      "aliases": [
+        "GHSA-9w53-xr52-mwgj"
+      ],
+      "type": "rce-deserialization",
+      "component": "/update_weights_from_tensor serialized_named_tensors",
+      "affected": "<= 0.5.3",
+      "severity": "Moderate",
+      "cvss": "5.5",
+      "cwe": [
+        "CWE-20",
+        "CWE-502"
+      ],
+      "summary": "/update_weights_from_tensor 对 serialized_named_tensors 反序列化未校验，远程攻击者可利用。",
+      "source_url": "https://github.com/advisories/GHSA-9w53-xr52-mwgj",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-7669",
+      "aliases": [
+        "GHSA-6m5f-673f-5vh7"
+      ],
+      "type": "insecure-deserialization",
+      "component": "python/sglang/srt/utils/hf_transformers_utils.py get_tokenizer",
+      "affected": "<= 0.5.9",
+      "severity": "Moderate",
+      "cvss": "6.3",
+      "cwe": [
+        "CWE-20",
+        "CWE-74"
+      ],
+      "summary": "HuggingFace tokenizer 加载路径存在反序列化问题，可远程触发（高复杂度）。",
+      "source_url": "https://github.com/advisories/GHSA-6m5f-673f-5vh7",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-10300",
+      "aliases": [
+        "GHSA-m2jr-x4gq-5rmj"
+      ],
+      "type": "reachable-assertion-dos",
+      "component": "python/sglang/srt/lora/lora_manager.py lora_path",
+      "affected": "<= 0.5.10.post1",
+      "severity": "Low",
+      "cvss": "2.9",
+      "cwe": [
+        "CWE-617"
+      ],
+      "summary": "LoRAManager 对 lora_path 处理可触发可达断言，远程请求使推理服务崩溃。",
+      "source_url": "https://github.com/advisories/GHSA-m2jr-x4gq-5rmj",
+      "fix_ref": "https://github.com/sgl-project/sglang/pull/25078",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-10775",
+      "aliases": [
+        "GHSA-jrcc-j37m-v8fg"
+      ],
+      "type": "dos",
+      "component": "Cache Handler data_hash",
+      "affected": "<= 0.5.11",
+      "severity": "Low",
+      "cvss": "1.1",
+      "cwe": [
+        "CWE-404"
+      ],
+      "summary": "data_hash 处理存在拒绝服务问题，本地高复杂度触发。",
+      "source_url": "https://github.com/advisories/GHSA-jrcc-j37m-v8fg",
+      "fix_ref": "https://github.com/sgl-project/sglang/pull/25462",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-15969",
+      "aliases": [
+        "https://github.com/sgl-project/sglang/security/advisories/GHSA-2wvm-gjg7-5jfm"
+      ],
+      "type": "rce-deserialization",
+      "component": "/load_lora_adapter_from_tensors SafeUnpickler denylist bypass",
+      "affected": "CERT/CC VU#281278: no vendor patch at publication (2026-07-30)",
+      "severity": "Unverified (no CVSS in CERT note)",
+      "cvss": null,
+      "cwe": [],
+      "summary": "SafeUnpickler 不完整 denylist 可被绕过，构造 base64 pickle 载荷实现未认证 RCE。",
+      "source_url": "https://www.kb.cert.org/vuls/id/281278",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "CERT/CC VU#281278 note fetched 2026-10-27; CVE IDs and affected endpoints listed in the note"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-15971",
+      "aliases": [
+        "https://github.com/sgl-project/sglang/security/advisories/GHSA-h6rf-77vv-9mvj"
+      ],
+      "type": "rce-dumper-sandbox-escape",
+      "component": "可选 dumper 子系统 / DUMPER_SERVER_PORT",
+      "affected": "CERT/CC VU#281278: no vendor patch at publication (2026-07-30)",
+      "severity": "Unverified (no CVSS in CERT note)",
+      "cvss": null,
+      "cwe": [],
+      "summary": "启用 dumper 且设置 DUMPER_SERVER_PORT 时可沙箱逃逸并在推理请求中执行代码。",
+      "source_url": "https://www.kb.cert.org/vuls/id/281278",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "CERT/CC VU#281278 note fetched 2026-10-27; CVE IDs and affected endpoints listed in the note"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-15974",
+      "aliases": [
+        "https://github.com/sgl-project/sglang/security/advisories/GHSA-wf98-gv64-5wrf"
+      ],
+      "type": "ssrf-local-file-read",
+      "component": "/v1/chat/completions image_url",
+      "affected": "CERT/CC VU#281278: no vendor patch at publication (2026-07-30)",
+      "severity": "Unverified (no CVSS in CERT note)",
+      "cvss": null,
+      "cwe": [],
+      "summary": "image_url 未净化，可访问内部元数据、密钥和服务，并读取本地文件。",
+      "source_url": "https://www.kb.cert.org/vuls/id/281278",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "CERT/CC VU#281278 note fetched 2026-10-27; CVE IDs and affected endpoints listed in the note"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-15976",
+      "aliases": [
+        "https://github.com/sgl-project/sglang/security/advisories/GHSA-x7w5-h7rp-gfp9"
+      ],
+      "type": "rce-deserialization",
+      "component": "/update_weights_from_disk HuggingFace 权重加载",
+      "affected": "CERT/CC VU#281278: no vendor patch at publication (2026-07-30)",
+      "severity": "Unverified (no CVSS in CERT note)",
+      "cvss": null,
+      "cwe": [],
+      "summary": "torch.load(..., weights_only=False) 回退导致 .bin 文件 pickle 反序列化 RCE。",
+      "source_url": "https://www.kb.cert.org/vuls/id/281278",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "CERT/CC VU#281278 note fetched 2026-10-27; CVE IDs and affected endpoints listed in the note"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-15977",
+      "aliases": [
+        "https://github.com/sgl-project/sglang/security/advisories/GHSA-jx7q-p32r-7wx8"
+      ],
+      "type": "credential-disclosure",
+      "component": "/server_info",
+      "affected": "CERT/CC VU#281278: no vendor patch at publication (2026-07-30)",
+      "severity": "Unverified (no CVSS in CERT note)",
+      "cvss": null,
+      "cwe": [],
+      "summary": "仅配置 --admin-api-key 时 /server_info 返回 API key 与 SSL keyfile 信息。",
+      "source_url": "https://www.kb.cert.org/vuls/id/281278",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "CERT/CC VU#281278 note fetched 2026-10-27; CVE IDs and affected endpoints listed in the note"
+    },
+    {
+      "project": "SGLang",
+      "id": "CVE-2026-15978",
+      "aliases": [
+        "https://github.com/sgl-project/sglang/security/advisories/GHSA-cpqq-22v3-2wfm"
+      ],
+      "type": "model-weight-exfiltration",
+      "component": "未配置 API key 时的分布式权重广播端点 (NCCL)",
+      "affected": "CERT/CC VU#281278: no vendor patch at publication (2026-07-30)",
+      "severity": "Unverified (no CVSS in CERT note)",
+      "cvss": null,
+      "cwe": [],
+      "summary": "攻击者可触发 distributed weight broadcasting 并外传全部模型权重。",
+      "source_url": "https://www.kb.cert.org/vuls/id/281278",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "CERT/CC VU#281278 note fetched 2026-10-27; CVE IDs and affected endpoints listed in the note"
+    },
+    {
+      "project": "verl",
+      "id": "CVE-2026-6878",
+      "aliases": [
+        "GHSA-h57c-v2v3-5v3v"
+      ],
+      "type": "rce-unsafe-eval",
+      "component": "verl/utils/reward_score/prime_math/grader.py math_equal",
+      "affected": "<= 0.7.1",
+      "severity": "Low",
+      "cvss": "2.9",
+      "cwe": [
+        "CWE-95"
+      ],
+      "summary": "math_equal 对模型输出使用 eval()，恶意/不可信内容可逃逸沙箱并执行任意代码（复杂度较高）。",
+      "source_url": "https://github.com/advisories/GHSA-h57c-v2v3-5v3v",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "verl",
+      "id": "CVE-2025-50461",
+      "aliases": [
+        "GHSA-xhf5-3r9v-mm67"
+      ],
+      "type": "rce-deserialization",
+      "component": "scripts/model_merger.py (fsdp backend) torch.load(weights_only=False)",
+      "affected": "3.0.0",
+      "severity": "Moderate",
+      "cvss": "6.5",
+      "cwe": [
+        "CWE-77"
+      ],
+      "summary": "model_merger.py 使用 fsdp 后端时对用户提供的 .pt 文件调用 torch.load(weights_only=False)，加载恶意模型即 RCE。",
+      "source_url": "https://github.com/advisories/GHSA-xhf5-3r9v-mm67",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "verl",
+      "id": "verl-issue-5331",
+      "aliases": [
+        "GHSA-h57c-v2v3-5v3v",
+        "GHSA-xhf5-3r9v-mm67"
+      ],
+      "type": "security-issue-unsafe-eval-deserialization",
+      "component": "prime_math/grader.py, scripts/model_merger.py, shell eval",
+      "affected": "verl <= 0.7.1 / 3.0.0 (issue opened 2026-02-15, closed 2026-08-21)",
+      "severity": "Unverified (non-CVE issue)",
+      "cvss": null,
+      "cwe": [
+        "CWE-95",
+        "CWE-502"
+      ],
+      "summary": "上游公开安全 issue，汇总 math_equal 的 eval、pickle.load/torch.load(weights_only=False) 及 shell eval 三类不安全用法；issue 已关闭完成，但未分配独立 CVE。",
+      "source_url": "https://github.com/verl-project/verl/issues/5331",
+      "fix_ref": "https://github.com/verl-project/verl/issues/5331",
+      "verified": true,
+      "verification": "GitHub issue #5331 fetched 2026-10-27; body and maintainer reply explicitly discuss eval/pickle.load/torch.load/shell eval"
+    },
+    {
+      "project": "codex",
+      "id": "CVE-2025-61260",
+      "aliases": [
+        "GHSA-xrxf-jgv3-qmrm"
+      ],
+      "type": "rce-mcp-config",
+      "component": "codex CLI project-local .env / .codex/config.toml",
+      "affected": "<= 0.23.0",
+      "severity": "Critical",
+      "cvss": "9.8",
+      "cwe": [
+        "CWE-94"
+      ],
+      "summary": "在恶意仓库运行 codex 时自动加载项目级 .env 与 .codex/config.toml（无需确认），可植入命令立即执行。",
+      "source_url": "https://github.com/advisories/GHSA-xrxf-jgv3-qmrm",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "codex",
+      "id": "CVE-2025-59532",
+      "aliases": [
+        "GHSA-w5fx-fh39-j5rw"
+      ],
+      "type": "sandbox-bypass",
+      "component": "sandbox configuration / model-generated cwd",
+      "affected": ">= 0.2.0, <= 0.38.0",
+      "severity": "High",
+      "cvss": "8.6",
+      "cwe": [
+        "CWE-20"
+      ],
+      "summary": "沙箱配置逻辑缺陷把模型生成的 cwd 当作可写根，可越过用户初始工作区边界写文件并执行命令。",
+      "source_url": "https://github.com/advisories/GHSA-w5fx-fh39-j5rw",
+      "fix_ref": "https://github.com/openai/codex/releases/tag/rust-v0.39.0",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "codex",
+      "id": "CVE-2025-54558",
+      "aliases": [
+        "GHSA-q6hp-29g8-7j6j"
+      ],
+      "type": "command-approval-bypass",
+      "component": "ripgrep (rg) auto-approval",
+      "affected": "< 0.9.0",
+      "severity": "Moderate",
+      "cvss": "4.1",
+      "cwe": [
+        "CWE-829"
+      ],
+      "summary": "Codex CLI 0.9.0 之前即使用 --pre/--hostname-bin/--search-zip/-z 也自动批准 rg 执行。",
+      "source_url": "https://github.com/advisories/GHSA-q6hp-29g8-7j6j",
+      "fix_ref": "https://github.com/openai/codex/pull/1644",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "codex",
+      "id": "CVE-2026-19590",
+      "aliases": [
+        "GHSA-433v-pqvh-w4gj"
+      ],
+      "type": "git-hook-rce",
+      "component": "Git core.hooksPath",
+      "affected": "Unknown",
+      "severity": "High",
+      "cvss": "7.3",
+      "cwe": [
+        "CWE-427"
+      ],
+      "summary": "Codex Desktop 自动 Git 操作信任仓库本地 core.hooksPath，打开攻击者准备的仓库即执行沙箱外恶意 hook。",
+      "source_url": "https://github.com/advisories/GHSA-433v-pqvh-w4gj",
+      "fix_ref": "https://github.com/openai/codex/pull/22843",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "codex",
+      "id": "CVE-2026-19593",
+      "aliases": [
+        "GHSA-hcf6-9q9g-xx3c"
+      ],
+      "type": "git-filter-rce",
+      "component": "Git attr.tree + clean/process filter",
+      "affected": "Codex Desktop (Windows/macOS), patched per advisory",
+      "severity": "Critical",
+      "cvss": "9.8",
+      "cwe": [
+        "CWE-15"
+      ],
+      "summary": "自动读取 Git 元数据时信任仓库 .git/config 的 attr.tree 与 clean/process filter，打开仓库即执行攻击者程序。",
+      "source_url": "https://github.com/advisories/GHSA-hcf6-9q9g-xx3c",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "codex",
+      "id": "CVE-2026-19592",
+      "aliases": [
+        "GHSA-26wp-42v3-96xp"
+      ],
+      "type": "git-fsmonitor-rce",
+      "component": "Git core.fsmonitor",
+      "affected": "Unknown",
+      "severity": "High",
+      "cvss": "7.3",
+      "cwe": [
+        "CWE-15"
+      ],
+      "summary": "自动收集 Git 元数据时未禁用 core.fsmonitor，恶意仓库配置可让 Git 执行攻击者 helper，绕过命令沙箱与审批。",
+      "source_url": "https://github.com/advisories/GHSA-26wp-42v3-96xp",
+      "fix_ref": "https://github.com/openai/codex/pull/22652",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "deepseek-harness",
+      "id": "CVE-2026-82533",
+      "aliases": [
+        "GHSA-8m2g-8cgm-3vcp"
+      ],
+      "type": "authentication-bypass",
+      "component": "local HTTP control-plane API Host header",
+      "affected": "< 0.1.2-alpha.1",
+      "severity": "Critical",
+      "cvss": "9.4",
+      "cwe": [
+        "CWE-807"
+      ],
+      "summary": "本地 HTTP 控制面只校验客户端 Host 头而不校验 TCP 来源，伪造 Host 可完全控制 agent、以 danger-full-access 执行命令并读取全部会话。",
+      "source_url": "https://github.com/advisories/GHSA-8m2g-8cgm-3vcp",
+      "fix_ref": "https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.1.2-alpha.1",
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "deepseek-harness",
+      "id": "CVE-2026-95182",
+      "aliases": [
+        "GHSA-g5wx-c65h-w9px"
+      ],
+      "type": "untrusted-search-path-rce",
+      "component": "dsh commit c291e796 executable lookup",
+      "affected": "commit c291e796",
+      "severity": "Critical",
+      "cvss": "10.0",
+      "cwe": [
+        "CWE-426"
+      ],
+      "summary": "不受信任的搜索路径可被替换为恶意可执行文件，打开恶意内容即执行任意代码。",
+      "source_url": "https://github.com/advisories/GHSA-g5wx-c65h-w9px",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "deepseek-harness",
+      "id": "CVE-2026-95183",
+      "aliases": [
+        "GHSA-8rmg-g7v9-j8x6"
+      ],
+      "type": "prompt-injection",
+      "component": "context-compaction feature",
+      "affected": "commit c291e796",
+      "severity": "High",
+      "cvss": "8.8",
+      "cwe": [
+        "CWE-94"
+      ],
+      "summary": "context-compaction 处理外部内容时可被提示注入，攻击者通过构造内容影响 agent 行为。",
+      "source_url": "https://github.com/advisories/GHSA-8rmg-g7v9-j8x6",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "deepseek-harness",
+      "id": "CVE-2026-101102",
+      "aliases": [
+        "GHSA-m9ww-cpfc-8cf2"
+      ],
+      "type": "sandbox-escape",
+      "component": "Code Mode Sandbox run_code",
+      "affected": "<= 0.1.0-rc.7",
+      "severity": "Moderate",
+      "cvss": "5.3",
+      "cwe": [],
+      "summary": "run_code 沙箱隔离不足；项目 SAFETY.md 明确 worker 仅为 containment 而非安全边界。",
+      "source_url": "https://github.com/advisories/GHSA-m9ww-cpfc-8cf2",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "deepseek-harness",
+      "id": "CVE-2026-101078",
+      "aliases": [
+        "GHSA-23q9-h232-4q79"
+      ],
+      "type": "sandbox-isolation",
+      "component": "packages/sandbox/sandbox-local/src/profiles.ts Landlock backend",
+      "affected": "<= 0.1.7-rc.2",
+      "severity": "Low",
+      "cvss": "1.9",
+      "cwe": [
+        "CWE-653"
+      ],
+      "summary": "Landlock 后端配置不当导致隔离/分区不充分，本地攻击者可利用。",
+      "source_url": "https://github.com/advisories/GHSA-23q9-h232-4q79",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    },
+    {
+      "project": "deepseek-harness",
+      "id": "CVE-2026-108788",
+      "aliases": [
+        "GHSA-5mvr-2xwh-9v9q"
+      ],
+      "type": "sandbox-escape",
+      "component": "Sandbox spawn / Profile argument",
+      "affected": "<= 0.1.1-rc.2",
+      "severity": "Low",
+      "cvss": "1.9",
+      "cwe": [],
+      "summary": "Sandbox 组件的 spawn 对 Profile 参数处理不当导致沙箱问题，本地可利用。",
+      "source_url": "https://github.com/advisories/GHSA-5mvr-2xwh-9v9q",
+      "fix_ref": null,
+      "verified": true,
+      "verification": "GitHub Advisory Database page fetched; CVE/GHSA and version range confirmed"
+    }
+  ]
+}
