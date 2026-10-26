@@ -28,6 +28,30 @@ Agent Skills 将专业知识打包成可发现的功能。每个 Skill 包含一
   有关 Agent Skills 的架构和实际应用的深入探讨，请阅读我们的工程博客：[使用 Agent Skills 为真实世界装备代理](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills)。
 </Note>
 
+## 本仓库 Skill 约定
+
+本仓库的 skill 目录名必须以下列后缀之一结尾，`security-orchestrator` 依此过滤子任务：
+
+- `-scanner`：结构化扫描/枚举，如 `workspace-scanner`、`vtr-scanner`
+- `-analyzer`：语义分析与漏洞验证，如 `sql-injection-analyzer`、`model-loading-analyzer`
+- 内置例外：`project-profiler`、`report-generator`、`code-security-analyzer`、`bug-report`
+
+新增 skill 必须包含 `SKILL.md`（适用场景、检测步骤、Source/Sink、误报排除、输出格式）；可选 `patterns/`、`quick-scan.py`、`references/`。
+
+### AI 基础设施审计 skill（Phase 1 新增）
+
+| Skill | 适用项目特征 | 检测能力 | 接入方式 |
+|-------|--------------|----------|----------|
+| `model-loading-analyzer` | 使用 transformers / vLLM / SGLang / verl / peft / accelerate；出现 `from_pretrained`、`trust_remote_code`、`auto_map`、`torch.load`；提供模型下载/热更新/LoRA 加载端点 | 模型 ID → 远程代码（`trust_remote_code`、`auto_map`、`get_class_from_dynamic_module`）与权重反序列化（`torch.load(weights_only=False)`） | `project-profiler` 条件推荐 + orchestrator 条件任务；也可显式指定 |
+| `agent-config-analyzer` | 编码 Agent / CLI Agent / MCP 客户端；仓库含 `.mcp.json`、`.codex/config.toml`、`.env`、`AGENTS.md`；有 `approval_policy`、`allow_prefix`、`PrefixRule` | 项目级配置无确认生效、MCP `command`/`args` 任意执行、审批前缀绕过、`core.hooksPath`/`fsmonitor`/clean-process filter 信任链 | 同上 |
+
+两个 skill 的 `quick-scan.py` 只依赖 Python 标准库，不依赖 tree-sitter，可直接在宿主机或容器内运行：
+
+```bash
+python3 .claude/skills/model-loading-analyzer/quick-scan.py <repo> [<repo> ...]
+python3 .claude/skills/agent-config-analyzer/quick-scan.py <repo> [<repo> ...]
+```
+
 ## 创建 Skill
 
 Skills 存储为包含 `SKILL.md` 文件的目录。

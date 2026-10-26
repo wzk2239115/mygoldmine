@@ -50,7 +50,7 @@
       "id": "T05",
       "title": "新 skill 接入 orchestrator/README 并写 Phase1 总结",
       "priority": 5,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T05",
       "acceptance": [
         "security-orchestrator.md 与 skills/README.md 已更新",

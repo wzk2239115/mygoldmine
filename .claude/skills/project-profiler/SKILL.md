@@ -33,9 +33,14 @@ python3 ./quick-scan.py .
 - ❌ **项目分类判定**：项目分类（后端HTTP服务/前端WEB应用/安全测试靶场）需要结合脚本结果进行手动判定
 - ❌ **分类依据说明**：分类依据需要结合项目特征进行手动分析
 
-**对于后端 HTTP 服务，后续分析需要使用的技能列表如下（禁止添加其他技能）: **
+**对于后端 HTTP 服务，后续分析需要使用的基础技能列表如下（不要添加与此无关的技能）: **
 - web-auth-analyzer 技能：分析API端点认证要求和用户角色体系。
 - sensitive-info-scanner 技能：扫描敏感信息泄露风险。
+
+**AI 基础设施条件任务（在基础列表之外按特征追加，满足任一即可）: **
+- 依赖或代码含 `transformers`、`torch`、`vllm`、`sglang`、`verl`、`peft`、`accelerate`，或出现 `from_pretrained`、`trust_remote_code`、`auto_map`、`get_class_from_dynamic_module`、`torch.load` → 追加 `model-loading-analyzer`。
+- 存在 `.mcp.json`、`.codex/config.toml`、`.claude/settings.json`、`AGENTS.md`、`CLAUDE.md`，或出现 `mcpServers`、`approval_policy`、`allow_prefix`、`PrefixRule`、`core.hooksPath`、`fsmonitor` → 追加 `agent-config-analyzer`。
+- 条件任务只追加，不替换基础任务；判定依据写入项目画像的「分类依据」或附加章节，并保持 `-scanner`/`-analyzer` 命名规则。
 
 **总结输出格式（JSON格式）：**
 ```json
@@ -56,6 +61,7 @@ python3 ./quick-scan.py .
 **说明**：
 - `{TASK_ID}` 为当前任务 ID
 - web-auth-analyzer 会根据分析结果自动触发下游任务（unauth-route-scanner / normal-route-scanner）
+- 命中 AI 基础设施特征时，在上述 JSON 的 `tasks` 数组中继续追加 `model-loading-analyzer` / `agent-config-analyzer` 任务，artifact 相同
 
 2. 前端 WEB 应用
 

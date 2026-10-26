@@ -39,6 +39,21 @@ tools: Read, Write, Edit, Bash, Task
 
 3. **跳过任务的处理**：被跳过的任务不添加到 tasks.json，但需要在当前执行日志中记录跳过原因。
 
+**AI 基础设施条件任务（在 STEP 1 项目画像之后追加）：**
+
+当目标仓库属于 AI 推理框架、训练框架或编码 Agent 时，除常规的 `web-auth-analyzer` / `sensitive-info-scanner` 外，按下表追加任务。这些任务同样必须通过上面的命名过滤（以 `-scanner` / `-analyzer` 结尾），并参与重复任务检测：
+
+| 触发特征（满足任一即可） | 追加 skill | 检测重点 |
+|--------------------------|-----------|----------|
+| 依赖或代码含 `transformers`、`torch`、`vllm`、`sglang`、`verl`、`peft`、`accelerate`；出现 `from_pretrained`、`trust_remote_code`、`auto_map`、`get_class_from_dynamic_module`、`torch.load` | `model-loading-analyzer` | 不可信模型 ID / 模型目录 → 远程代码或权重反序列化 |
+| 存在 `.mcp.json`、`.codex/config.toml`、`.claude/settings.json`、`AGENTS.md`、`CLAUDE.md`；出现 `mcpServers`、`approval_policy`、`allow_prefix`、`PrefixRule`、`core.hooksPath`、`fsmonitor` | `agent-config-analyzer` | 项目级配置无确认生效、MCP `command`/`args` 执行任意程序、审批前缀绕过、Git 信任链 |
+| 含 `sandbox`、`seccomp`、`landlock`、`run_code`、`Profile` 等沙箱实现（P1，尚未落地 skill） | 暂不自动追加 | 在报告中记录为已知缺口，待 `agent-sandbox-analyzer` 落地后接入 |
+
+约束：
+- 条件任务只追加、不替换常规任务；同一子工程可同时触发两个新 skill。
+- 若项目完全不加载外部模型、且不读取项目目录配置，则对应 skill 按其 `SKILL.md` 的 Early exit 跳过。
+- 用户通过扫描器白名单/黑名单显式指定时，以用户配置为准。
+
 ## Subagent启动机制
 
 **重要**: 所有子智能体都通过 **Task工具** 启动。Task工具接受以下参数：

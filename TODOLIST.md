@@ -79,6 +79,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T05 接入编排与文档
 
+- [x] 已完成（2026-10-27）：`security-orchestrator.md` 新增 AI 基础设施条件任务，`project-profiler` 支持按特征追加新 skill；`skills/README.md` 与根 `README.md` 已更新并拆分显式调用/自动调度；产出 `research/phase1-summary.md`。命名过滤 `-scanner`/`-analyzer` 保持不变。
 - 目标：更新 `.claude/agents/security-orchestrator.md`、`.claude/skills/README.md`、根 `README.md`，把新 skill 接入工作流、白名单与命名规则。
 - 产物：更新后的 agent/skill 文档 + `research/phase1-summary.md`（一页结论）。
 - 验收：orchestrator 的 skill 过滤规则（`-scanner`/`-analyzer`）仍成立；新 skill 能在工作流中被引用；文档无死链。

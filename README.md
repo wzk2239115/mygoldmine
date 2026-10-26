@@ -11,6 +11,7 @@
   - 工作区扫描：`workspace-scanner`
   - 项目画像：`project-profiler`
   - **智能合约审计**：`blockchain-goldmine-analyzer`（支持 Solidity、Rust、Move、Vyper、Go）
+  - **AI 基础设施审计**：`model-loading-analyzer`（模型加载/权重反序列化）、`agent-config-analyzer`（Agent 项目级配置与审批绕过）
 - 自动化覆盖 vs 人工分析：脚本负责结构化提取与模式识别；风险分级、业务语义与复杂豁免规则需结合产物手动分析。
 
 ## 依赖与环境
@@ -67,6 +68,10 @@ python3 .claude/skills/web-auth-analyzer/quick-scan.py . --output auth.md
 python3 .claude/skills/sensitive-info-scanner/quick-scan.py . --output sensitive.md
 # 智能合约审计建议（识别编程语言、推断应用场景、生成审计清单）
 python3 .claude/skills/blockchain-goldmine-analyzer/quick-scan.py . --output contract-audit.md
+# 模型加载信任边界（trust_remote_code / auto_map / torch.load）
+python3 .claude/skills/model-loading-analyzer/quick-scan.py <repo> [<repo> ...]
+# Agent 项目级配置与审批绕过（.mcp.json / .codex / Git 信任链）
+python3 .claude/skills/agent-config-analyzer/quick-scan.py <repo> [<repo> ...]
 # 输出 JSON
 python3 .claude/skills/unauth-route-scanner/quick-scan.py . --json --output routes.json
 ```
@@ -85,9 +90,18 @@ workspace-scanner → project-profiler → route-scanner（unauth/normal） → 
 workspace-scanner → project-profiler → blockchain-goldmine-analyzer → report-generator
 ```
 
+**AI 基础设施工作流**（按项目特征条件触发）：
+```
+workspace-scanner → project-profiler
+    ├─ 含 transformers/torch/vllm/sglang/verl → model-loading-analyzer
+    ├─ 含 .mcp.json/.codex/AGENTS.md/审批逻辑 → agent-config-analyzer
+    └─ → report-generator
+```
+
 各 quick-scan 产物可直接作为后续分析输入：
 - Web 应用：路由清单 → 认证分析 → 敏感信息 → 报告聚合
 - 智能合约：合约识别 → 审计建议 → 报告聚合
+- AI 基础设施：项目画像 → 模型加载 / Agent 配置分析 → 报告聚合
 
 ## Security Orchestrator
 
@@ -124,7 +138,9 @@ STEP 4: 报告生成 (report-generator)
     输出 audit-report.md / audit-report.json
 ```
 
-### 支持的扫描器
+### 可被显式调用的扫描器
+
+下表中的 skill 可在 prompt 中显式指定，或由 `code-security-analyzer` 的风险点映射触发；**不代表全部会被自动调度**。
 
 | 扫描器 | 检测能力 |
 |--------|----------|
@@ -146,6 +162,20 @@ STEP 4: 报告生成 (report-generator)
 | `insecure-file-uploads-analyzer` | 不安全文件上传 |
 | `sensitive-info-scanner` | 敏感信息泄露 |
 | `authentication-analyzer` | 认证机制缺陷 |
+| `model-loading-analyzer` | 模型加载远程代码 / 权重反序列化 |
+| `agent-config-analyzer` | Agent 项目级配置信任 / 审批绕过 / Git 信任链 |
+
+### 自动调度路径
+
+| 项目类型 | 自动追加的 skill | 触发位置 |
+|----------|------------------|----------|
+| 后端 HTTP 服务 | `web-auth-analyzer`、`sensitive-info-scanner` | `project-profiler` |
+| 智能合约 | `blockchain-goldmine-analyzer` | `project-profiler` |
+| 安全靶场 | `vtr-scanner` | `project-profiler` |
+| 含 transformers/torch/vllm/sglang/verl 特征 | `model-loading-analyzer` | `project-profiler` 条件推荐 + orchestrator 条件任务 |
+| 含 `.mcp.json` / `.codex` / `AGENTS.md` / 审批逻辑 | `agent-config-analyzer` | 同上 |
+
+> `project-profiler` 的「禁止添加其他技能」仅约束对应分类的基础列表；AI 基础设施条件任务由 orchestrator 在画像之后按特征追加，见 `.claude/agents/security-orchestrator.md`。
 
 ### 输出产物
 
@@ -329,6 +359,8 @@ flowchart TB
 │   ├── route-function-analyzer/    # 路由功能分析
 │   ├── code-security-analyzer/     # 代码安全分析
 │   ├── blockchain-goldmine-analyzer/   # 🆕 智能合约审计建议
+│   ├── model-loading-analyzer/         # 🆕 模型加载/权重反序列化
+│   ├── agent-config-analyzer/          # 🆕 Agent 配置信任/审批绕过
 │   ├── bug-report/                 # 漏洞报告模板
 │   ├── report-generator/           # 报告生成
 │   ├── blockchain_goldmine/        # 智能合约知识库（git子模块）
