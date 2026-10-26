@@ -133,7 +133,7 @@
       "id": "T12",
       "title": "实现 parallel_mine.sh（5 并发/6h/重试/续跑/锁/status/stop）",
       "priority": 12,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T12",
       "acceptance": [
         "--dry-run 与 --status 可用",

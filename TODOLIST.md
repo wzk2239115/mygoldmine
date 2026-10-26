@@ -141,6 +141,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T12 并行编排器
 
+- [x] 已完成（2026-10-27）：产出 `scripts/mine/parallel_mine.sh`，支持 `--dry-run`、`--status`、`--stop`、`--detach`（setsid+nohup）、`--force`、`--projects`；默认 5 并发、单项目 21600s、失败重试 1 次（超时不重试）、已有 `reports_complete=true` 项目跳过；`flock` 单实例锁、磁盘余量检查、每项目独立日志与状态文件。用 `tests/fixtures/fake-mine-executor/fake_mine.sh` 验证：5 项目在 `--max-parallel 2` 时并发峰值为 2；`sleep` 假目标 `--timeout 1` 全部 timeout 且 attempt=1；首次失败后 attempt=2 成功；重复运行跳过 5 个已完成项目；`--min-free-gb 999999` 退出 8；第二实例退出 7；`--detach` 后 `--stop` 将项目置 stopped 且编排器退出。
 - 目标：实现 `scripts/mine/parallel_mine.sh`：最多 5 个并发、每项目 `TIMEOUT=6h`、失败重试 1 次、断点续跑（已完成项目跳过）、独立日志、单实例锁、`--stop`、`--status`。
 - 要求：用 `setsid/nohup` 脱离终端；记录 PID；磁盘余量 < 20G 时拒绝启动；`--dry-run` 展示计划。
 - 验收：`--dry-run`、`--status` 可用；用假目标（`sleep`）验证超时与并发上限。
