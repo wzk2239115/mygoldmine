@@ -90,6 +90,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T06 设计文档
 
+- [x] 已完成（2026-10-27）：产出 `docs/docker-claude-mining.md`，覆盖镜像/挂载/用户/网络/超时/stream-json/日志字段/重试，并给出 12 项与 exploitgym 的差异及 dry-run、真实运行、渲染命令示例。
 - 目标：阅读 `/home/wzk/projects/exploitgym` 的 `src/cybergym/evaluation/agents/claude_code.py`、`scripts/collect_rendered_logs.sh`、`scripts/setup/pull_images.py`，提炼可复用设计。
 - 产物 `docs/docker-claude-mining.md`：镜像基础、挂载、用户、网络策略、超时/预算、stream-json 协议、日志字段、失败重试。
 - 验收：明确列出与 exploitgym 的差异（mygoldmine 的 `.claude` 链接方式、报告路径）；给出命令示例。

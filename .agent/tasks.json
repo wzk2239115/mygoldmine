@@ -62,7 +62,7 @@
       "id": "T06",
       "title": "提炼 exploitgym 设计并写 Docker+Claude 设计文档",
       "priority": 6,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T06",
       "acceptance": [
         "docs/docker-claude-mining.md 含挂载/用户/网络/超时/日志协议",
