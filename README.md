@@ -103,6 +103,52 @@ workspace-scanner → project-profiler
 - 智能合约：合约识别 → 审计建议 → 报告聚合
 - AI 基础设施：项目画像 → 模型加载 / Agent 配置分析 → 报告聚合
 
+## 整夜并行挖掘（Phase 3）
+
+在 Docker 外由宿主机脚本编排：克隆目标源码 → 5 项目并行 → 每项目 ≤ 6h → 产出可读过程日志与报告。
+默认模型 `360-proxy/deepseek/deepseek-v4.1-flash`，默认并发 5，超时 21600 秒。
+
+### 今晚怎么跑
+
+```bash
+# 0) 依赖与产物校验自检（不启动任何挖掘）
+bash ./check-dependencies.sh
+bash scripts/mine/verify.sh --allow-empty
+
+# 1) 克隆 5 个目标（codex / deepseek-harness / vllm / sglang / verl）
+bash scripts/mine/clone_targets.sh            # 先加 --dry-run 看计划
+cat targets/manifest.json                     # 记录 url / commit / clone_time
+
+# 2) 预览整夜计划（不创建目录、不调用模型）
+bash scripts/mine/overnight.sh start --dry-run
+
+# 3) 启动（setsid + nohup 后台运行，立即返回 PID 与日志路径）
+bash scripts/mine/overnight.sh start
+```
+
+API key 只从环境变量读取，不写入仓库、日志或 `run-meta.json`；启动前会自动检查磁盘余量（默认 ≥20G）与单实例锁。
+
+### 明早看哪里
+
+```bash
+bash scripts/mine/overnight.sh status                 # running / completed / failed / pending
+tail -f runs/.orchestrator/logs/orchestrator.log     # 编排器日志
+tail -f runs/.orchestrator/logs/<project>.log        # 单项目实时日志
+
+# 每个项目的报告与过程日志
+runs/<project>/<timestamp>/audit-report.md
+runs/<project>/<timestamp>/audit-report.json
+runs/<project>/<timestamp>/claude.rendered.log
+runs/<project>/<timestamp>/raw.jsonl
+runs/<project>/<timestamp>/run-meta.json
+
+# 产物完整性与密钥泄漏校验
+bash scripts/mine/verify.sh
+```
+
+失败或超时后只补未完成项目：`bash scripts/mine/overnight.sh resume`；人工止损：`bash scripts/mine/overnight.sh stop`。
+完整说明见 `docs/overnight-run.md`、`docs/docker-claude-mining.md`、`docs/docker-smoke-test.md`。
+
 ## Security Orchestrator
 
 核心编排智能体，负责统筹项目分类并协调子智能体执行安全扫描任务。

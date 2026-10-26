@@ -72,3 +72,12 @@ done
 ## 5. 下一步（Phase 2）
 
 按 `.agent/tasks.json` 优先级进入 T06：阅读 exploitgym 的 Claude Code 运行器与日志收集实现，产出 `docs/docker-claude-mining.md`，为容器化挖掘与 `claude.rendered.log` 协议定稿。
+
+## 6. T15 总验收补充（2026-10-27）
+
+Phase 2（T06-T10）与 Phase 3（T11-T14）已落地，本轮执行总验收：
+
+- `scripts/mine/verify.sh` 默认扫描 `runs/`，对 T10 冒烟产物 `runs/smoke/20261026T174149Z` 退出 0：`通过=1 失败=0 错误项=0`。
+- 根 `README.md` 新增「整夜并行挖掘（Phase 3）」，说明今晚 `clone_targets.sh` → `overnight.sh start`，明早 `overnight.sh status` → `runs/<project>/<timestamp>/` → `verify.sh` 的完整路径。
+- `.gitignore` 覆盖 `targets/`（保留 `targets/manifest.json`）、`runs/`、`logs/`、`.agent/history/`。
+- 本节为 Phase 1 总结的收尾记录；P1/P2 缺口仍未落地，不因总验收而视为已修复。

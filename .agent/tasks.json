@@ -168,7 +168,7 @@
       "id": "T15",
       "title": "总验收：更新状态/README 与 gitignore，跑 verify",
       "priority": 15,
-      "status": "todo",
+      "status": "done",
       "spec": "TODOLIST.md#T15",
       "acceptance": [
         "scripts/mine/verify.sh 退出 0",

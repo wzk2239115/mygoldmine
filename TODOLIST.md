@@ -161,6 +161,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ### T15 总验收与收尾
 
+- [x] 已完成（2026-10-27）：`scripts/mine/verify.sh` 对 `runs/smoke/20261026T174149Z` 退出 0（通过=1 失败=0 错误项=0）；根 `README.md` 新增「整夜并行挖掘（Phase 3）」，给出今晚启动命令、明早 `status`/日志/报告/`verify.sh` 查看方式；`research/phase1-summary.md` 追加 T15 总验收记录；`.gitignore` 已覆盖 `targets/`（保留 `manifest.json`）、`runs/`、`logs/`、`.agent/history/`。
 - 目标：跑完整 `verify.sh`，更新 `TODOLIST.md` 勾选状态、`README.md` 快速开始、`research/phase1-summary.md`。
 - 验收：`scripts/mine/verify.sh` 退出 0；文档给出「今晚怎么跑、明早看哪里」；`.gitignore` 覆盖 `targets/`、`runs/`、`logs/`、`.agent/history/`。
 
