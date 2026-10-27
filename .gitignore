@@ -33,3 +33,12 @@ ui/node_modules/
 ui/dist/
 ui/data/state.json
 ui/data/.state.*.tmp
+
+# Catalog batch artifacts
+catalog/manifest.json
+catalog/first-batch.txt
+catalog/*-projects.txt
+catalog/*.log
+catalog/*.jsonl
+catalog/*.pid
+catalog/queue-batch1b.sh

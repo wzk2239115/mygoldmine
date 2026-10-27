@@ -200,15 +200,64 @@ if [ -n "$(ls -A "$RUN_DIR" 2>/dev/null || true)" ]; then
     die "RUN_DIR 非空，拒绝覆盖: $RUN_DIR" 6
 fi
 
+RENDERER="$REPO_ROOT/scripts/mine/render_claude_log.py"
+META="$RUN_DIR.meta"
+RENDER_PID=""
+mkdir -p "$META"
+
+if [ "${LIVE_RENDER:-0}" = "1" ] && [ ! -f "$RENDERER" ]; then
+    LIVE_RENDER=0
+    export LIVE_RENDER
+fi
+
+start_renderer() {
+    [ "${LIVE_RENDER:-0}" = "1" ] || return 0
+    (
+        for _ in $(seq 1 240); do
+            [ -s "$RUN_DIR/raw.jsonl" ] && break
+            sleep 0.5
+        done
+        [ -f "$RUN_DIR/raw.jsonl" ] || exit 0
+        exec python3 "$RENDERER" --follow \
+            --input "$RUN_DIR/raw.jsonl" \
+            --output "$RUN_DIR/claude.rendered.log" \
+            --stop-file "$META/render.stop" --quiet \
+            > "$META/renderer.log" 2>&1
+    ) &
+    RENDER_PID=$!
+    echo "$RENDER_PID" > "$META/renderer.pid"
+}
+
+stop_renderer() {
+    [ -n "${RENDER_PID:-}" ] || return 0
+    touch "$META/render.stop" 2>/dev/null || true
+    for _ in $(seq 1 120); do
+        kill -0 "$RENDER_PID" 2>/dev/null || break
+        sleep 0.5
+    done
+    kill "$RENDER_PID" 2>/dev/null || true
+    wait "$RENDER_PID" 2>/dev/null || true
+    RENDER_PID=""
+    if [ -s "$RUN_DIR/raw.jsonl" ]; then
+        python3 "$RENDERER" --input "$RUN_DIR/raw.jsonl" \
+            --output "$RUN_DIR/claude.rendered.log" --quiet \
+            >> "$META/renderer.log" 2>&1 || true
+    fi
+}
+
 cleanup() {
     docker stop --time 20 "$CONTAINER_NAME" >/dev/null 2>&1 || true
+    stop_renderer
 }
 trap cleanup INT TERM
+
+start_renderer
 
 log "启动容器: project=$PROJECT image=$IMAGE timeout=${TIMEOUT}s model=$CLAUDE_MODEL"
 mapfile -d '' -t _cmd < <(docker_cmd)
 "${_cmd[@]}"
 rc=$?
+stop_renderer
 trap - INT TERM
 log "容器退出 rc=$rc run_dir=$RUN_DIR"
 exit "$rc"
