@@ -1,0 +1,202 @@
+{
+  "vllm:F-02": {
+    "status": "cve",
+    "verdict": "tp",
+    "cveTier": 1,
+    "cveStatus": "tracking",
+    "knownCve": "",
+    "note": "默认 --api-key 下 /invocations 可无认证推理；与 CVE-2026-48746 的 Host header 根因不同，优先人工审计并映射 release。"
+  },
+  "deepseek-harness:VULN-005": {
+    "status": "cve",
+    "verdict": "tp",
+    "cveTier": 1,
+    "cveStatus": "tracking",
+    "knownCve": "",
+    "note": "打开恶意仓库时 .env 注入 Git 配置，turn/start 自动 git add 触发；需 benign marker 复现并确认厂商威胁模型。"
+  },
+  "sglang:VULN-008": {
+    "status": "cve",
+    "verdict": "tp",
+    "cveTier": 1,
+    "cveStatus": "tracking",
+    "knownCve": "",
+    "note": "无 api_key 时 /workers 匿名注册 + SSRF/流量劫持；默认 host 127.0.0.1，需确认常见 --host 0.0.0.0 部署。"
+  },
+  "vllm:F-05": {
+    "status": "reproduce",
+    "verdict": "tp",
+    "cveTier": 2,
+    "cveStatus": "tracking",
+    "knownCve": "",
+    "note": "默认允许媒体重定向且只校验首跳；先与 CVE-2026-25960 比对根因，确认是否为新绕过。"
+  },
+  "vllm:F-09": {
+    "status": "reproduce",
+    "verdict": "tp",
+    "cveTier": 2,
+    "cveStatus": "tracking",
+    "knownCve": "",
+    "note": "LoRA lora_path 无目录白名单；需 VLLM_ALLOW_RUNTIME_LORA_UPDATING=1，CVE 价值中等。"
+  },
+  "codex:F-32": {
+    "status": "reproduce",
+    "verdict": "tp",
+    "cveTier": 2,
+    "cveStatus": "tracking",
+    "knownCve": "",
+    "note": "includeToken 返回 OAuth token；先确认是否属于客户端设计能力，再判断是否跨信任边界。"
+  },
+  "codex:F-06": {
+    "status": "reproduce",
+    "verdict": "tp",
+    "cveTier": 2,
+    "cveStatus": "tracking",
+    "knownCve": "",
+    "note": "Python SDK 默认审批 accept；需确认 SDK 使用场景、文档承诺和高层 API 是否完全覆盖。"
+  },
+  "deepseek-harness:VULN-003": {
+    "status": "reproduce",
+    "verdict": "tp",
+    "cveTier": 2,
+    "cveStatus": "tracking",
+    "knownCve": "",
+    "note": "/api/file 缺 workspace confine；默认回环 + owner Cookie，需找到跨用户/CSRF 升级路径。"
+  },
+  "codex:F-33": {
+    "status": "closed",
+    "verdict": "tp",
+    "cveTier": null,
+    "cveStatus": "known",
+    "knownCve": "CVE-2025-61260 family",
+    "note": "MCP http_headers 经 sh -c 执行属实，但与 CVE-2025-61260 家族重叠；除非能证明是未覆盖的新配置路径。"
+  },
+  "vllm:F-01": {
+    "status": "closed",
+    "verdict": "tp",
+    "cveTier": null,
+    "cveStatus": "blocked",
+    "knownCve": "",
+    "note": "dev/RL + 不安全序列化 + IPC 多重前置，默认不可达；邻近 CVE-2025-47277/62164，不建议单独申请。"
+  },
+  "verl:FIND-001": {
+    "status": "triage",
+    "verdict": "tp",
+    "cveTier": null,
+    "cveStatus": "blocked",
+    "knownCve": "",
+    "note": "prime_code 对模型输出 exec；仅 code reward + sandbox_fusion.url=null 触发，厂商可能视为训练设计。"
+  },
+  "sglang:VULN-025": {
+    "status": "inbox",
+    "verdict": "unclear",
+    "cveTier": null,
+    "cveStatus": "none",
+    "knownCve": "",
+    "note": "标题/描述不一致，evidence 空且 line 0；需重写后再判定。"
+  },
+  "codex:F-01": {
+    "status": "closed",
+    "verdict": "duplicate",
+    "cveTier": null,
+    "cveStatus": "none",
+    "knownCve": "",
+    "note": "与 F-36 同根因；默认回环，仅显式 --listen 0.0.0.0 且无 auth 时成立。"
+  },
+  "codex:F-02": {
+    "status": "closed",
+    "verdict": "duplicate",
+    "cveTier": null,
+    "cveStatus": "none",
+    "knownCve": "",
+    "note": "与 F-25 同根因；本地/已认证 WS 信任模型，不是未授权远程。"
+  },
+  "deepseek-harness:VULN-004": {
+    "status": "closed",
+    "verdict": "fp",
+    "cveTier": null,
+    "cveStatus": "none",
+    "knownCve": "",
+    "note": "日志发往同一模型提供方，属既定功能/隐私设计，无攻击者通道。"
+  },
+  "deepseek-harness:VULN-006": {
+    "status": "closed",
+    "verdict": "fp",
+    "cveTier": null,
+    "cveStatus": "none",
+    "knownCve": "",
+    "note": "无硬 turn budget 是设计限制，可取消/扩展，重试有限，不构成漏洞。"
+  },
+  "deepseek-harness:VULN-001": {
+    "status": "closed",
+    "verdict": "duplicate",
+    "cveTier": null,
+    "cveStatus": "none",
+    "knownCve": "",
+    "note": "与 VULN-002 同 locateFile 根因。"
+  },
+  "sglang:VULN-002": {
+    "status": "closed",
+    "verdict": "tp",
+    "cveTier": null,
+    "cveStatus": "known",
+    "knownCve": "CVE-2026-15977",
+    "note": "/server_info 泄露 api_key/admin_api_key 已被公开 CVE 覆盖，不要重复申请。"
+  },
+  "sglang:VULN-004": {
+    "status": "closed",
+    "verdict": "tp",
+    "cveTier": null,
+    "cveStatus": "known",
+    "knownCve": "CVE-2026-15976",
+    "note": "update_weights_from_disk + torch.load(weights_only=False) 已被公开 CVE 覆盖。"
+  },
+  "sglang:VULN-006": {
+    "status": "closed",
+    "verdict": "tp",
+    "cveTier": null,
+    "cveStatus": "known",
+    "knownCve": "CVE-2026-15977/15978 family",
+    "note": "默认无密钥 fail-open 已被 15977/15978 家族覆盖；除非找到未覆盖端点。"
+  },
+  "verl:AC-001": {
+    "status": "closed",
+    "verdict": "duplicate",
+    "cveTier": null,
+    "cveStatus": "none",
+    "knownCve": "",
+    "note": "与 ROUTE-01/WEB-01 同根因，合并为一条。"
+  },
+  "verl:AC-002": {
+    "status": "closed",
+    "verdict": "duplicate",
+    "cveTier": null,
+    "cveStatus": "none",
+    "knownCve": "",
+    "note": "与 ROUTE-02/WEB-03 同根因，合并为一条。"
+  },
+  "verl:CI-01": {
+    "status": "closed",
+    "verdict": "fp",
+    "cveTier": null,
+    "cveStatus": "none",
+    "knownCve": "",
+    "note": "opt-in、操作者 Hydra 配置，默认 null，无跨信任边界。"
+  },
+  "verl:CI-02": {
+    "status": "closed",
+    "verdict": "fp",
+    "cveTier": null,
+    "cveStatus": "none",
+    "knownCve": "",
+    "note": "受信配置插件机制，默认关闭。"
+  },
+  "vllm:F-04": {
+    "status": "closed",
+    "verdict": "tp",
+    "cveTier": null,
+    "cveStatus": "known",
+    "knownCve": "CVE-2025-6242",
+    "note": "默认空 allowlist + 无私网/元数据过滤，已被 CVE-2025-6242 覆盖。"
+  }
+}

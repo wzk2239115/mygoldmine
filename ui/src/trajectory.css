@@ -1,0 +1,472 @@
+/*
+ * Long-trajectory view styles.
+ * Kept separate from styles.css so global typography work can proceed.
+ * Every value has a fallback because the shared theme tokens may change.
+ */
+
+.traj-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 9px;
+  color: var(--ink, #1c1b16);
+  font-family: var(--font-ui, "Inter", "Segoe UI", "Helvetica Neue", Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif);
+  overflow-x: hidden;
+}
+
+.traj-panel-fill {
+  min-height: 0;
+  flex: 1;
+}
+
+.traj-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px;
+  background: var(--paper-2, #fbf7ed);
+  border: 1px solid var(--line, rgba(28, 27, 22, 0.13));
+  border-radius: var(--radius, 2px);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.04);
+}
+
+.traj-stats {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--muted, #746c5b);
+  font-family: var(--font-mono, "JetBrains Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.traj-stats strong {
+  color: var(--ink, #1c1b16);
+  font-size: 14px;
+}
+
+.traj-live-dot {
+  color: var(--amber, #a66a18);
+}
+
+.traj-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted, #746c5b);
+  font-size: 14px;
+}
+
+.traj-control > span {
+  font-size: 14px;
+}
+
+.traj-control select,
+.traj-control input {
+  height: 40px;
+  min-width: 0;
+  padding: 0 8px;
+  color: var(--ink, #1c1b16);
+  background: var(--paper, #eee8da);
+  border: 1px solid var(--line-strong, rgba(28, 27, 22, 0.28));
+  border-radius: var(--radius, 2px);
+  font-family: var(--font-ui, "Inter", sans-serif);
+  font-size: 15px;
+}
+
+.traj-control select:focus,
+.traj-control input:focus,
+.traj-search:focus-within {
+  border-color: var(--ink-2, #403c32);
+  outline: 2px solid color-mix(in srgb, var(--blue, #3e596f) 30%, transparent);
+  outline-offset: 1px;
+}
+
+.traj-search {
+  flex: 0 1 250px;
+  min-width: 180px;
+  color: var(--muted, #746c5b);
+}
+
+.traj-search input {
+  width: 100%;
+}
+
+.traj-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.traj-button,
+.traj-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px;
+  color: var(--ink, #1c1b16);
+  background: var(--paper, #eee8da);
+  border: 1px solid var(--line-strong, rgba(28, 27, 22, 0.28));
+  border-radius: var(--radius, 2px);
+  font-family: var(--font-ui, "Inter", sans-serif);
+  font-size: 15px;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.traj-button:hover,
+.traj-link:hover {
+  background: var(--paper-2, #fbf7ed);
+  border-color: var(--ink-2, #403c32);
+}
+
+.traj-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.traj-button.is-primary {
+  color: #fff8ec;
+  background: var(--red-deep, #8e2b20);
+  border-color: var(--red-deep, #8e2b20);
+}
+
+.traj-button.is-primary:hover {
+  background: var(--red, #b23a2b);
+}
+
+.traj-button.is-small {
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 14px;
+}
+
+.traj-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--muted, #746c5b);
+  font-family: var(--font-mono, "JetBrains Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.traj-meta code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--ink-2, #403c32);
+  font-family: var(--font-mono, "JetBrains Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 14px;
+}
+
+.traj-error {
+  padding: 9px 10px;
+  color: var(--red-deep, #8e2b20);
+  background: color-mix(in srgb, var(--red, #b23a2b) 8%, var(--paper-2, #fbf7ed));
+  border: 1px solid var(--red, #b23a2b);
+  border-left-width: 3px;
+  border-radius: var(--radius, 2px);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.traj-list {
+  display: flex;
+  min-height: 220px;
+  max-height: 60vh;
+  flex-direction: column;
+  gap: 7px;
+  padding: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.traj-panel-fill .traj-list {
+  min-height: 0;
+  max-height: none;
+  flex: 1;
+}
+
+.traj-event {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  background: var(--paper-2, #fbf7ed);
+  border: 1px solid var(--line, rgba(28, 27, 22, 0.13));
+  border-left: 3px solid var(--line-strong, rgba(28, 27, 22, 0.28));
+  border-radius: var(--radius, 2px);
+}
+
+.traj-event:hover {
+  border-color: var(--line-strong, rgba(28, 27, 22, 0.28));
+}
+
+.traj-event.is-error {
+  background: var(--paper-2, #fbf7ed);
+  background: color-mix(in srgb, var(--red, #b23a2b) 7%, var(--paper-2, #fbf7ed));
+  border-left-color: var(--red, #b23a2b);
+}
+
+.traj-kind-meta { border-left-color: var(--muted, #746c5b); }
+.traj-kind-tool { border-left-color: var(--blue, #3e596f); }
+.traj-kind-tool_result { border-left-color: var(--green, #4b654d); }
+.traj-kind-thinking { border-left-color: var(--violet, #6b4d6d); }
+.traj-kind-assistant { border-left-color: var(--ink-2, #403c32); }
+.traj-kind-result { border-left-color: var(--green, #4b654d); }
+.traj-kind-error { border-left-color: var(--red, #b23a2b); }
+
+.traj-event-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  color: inherit;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.traj-event-head:hover {
+  background: rgba(127, 127, 127, 0.07);
+}
+
+.traj-event-head:focus-visible {
+  outline: 2px solid var(--blue, #3e596f);
+  outline-offset: -2px;
+}
+
+.traj-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--muted, #746c5b);
+}
+
+.traj-kind-tool .traj-icon { color: var(--blue, #3e596f); }
+.traj-kind-tool_result .traj-icon { color: var(--green, #4b654d); }
+.traj-kind-thinking .traj-icon { color: var(--violet, #6b4d6d); }
+.traj-kind-result .traj-icon { color: var(--green, #4b654d); }
+.traj-kind-error .traj-icon { color: var(--red, #b23a2b); }
+
+.traj-badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  color: var(--muted, #746c5b);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-family: var(--font-mono, "JetBrains Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.traj-kind-tool .traj-badge { color: var(--blue, #3e596f); }
+.traj-kind-tool_result .traj-badge { color: var(--green, #4b654d); }
+.traj-kind-thinking .traj-badge { color: var(--violet, #6b4d6d); }
+.traj-kind-result .traj-badge { color: var(--green, #4b654d); }
+.traj-kind-error .traj-badge { color: var(--red, #b23a2b); }
+
+.traj-label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink, #1c1b16);
+  font-size: 15px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.traj-error-mark {
+  flex: 0 0 auto;
+  color: var(--red, #b23a2b);
+  font-family: var(--font-mono, "JetBrains Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.traj-lines {
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: var(--muted, #746c5b);
+  font-family: var(--font-mono, "JetBrains Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 14px;
+}
+
+.traj-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--muted, #746c5b);
+}
+
+.traj-preview {
+  margin: 0;
+  padding: 0 10px 9px 40px;
+  color: var(--ink-2, #403c32);
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.traj-event.is-error .traj-preview {
+  color: var(--red-deep, #8e2b20);
+}
+
+.traj-text {
+  max-height: 52vh;
+  margin: 0;
+  padding: 0 10px 10px 40px;
+  overflow: auto;
+  color: var(--ink-2, #403c32);
+  font-family: var(--font-mono, "JetBrains Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.traj-more {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 10px;
+}
+
+.traj-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
+  padding: 20px 12px;
+  color: var(--muted, #746c5b);
+  font-size: 14px;
+  text-align: center;
+}
+
+.traj-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--muted, #746c5b);
+  font-family: var(--font-mono, "JetBrains Mono", "SFMono-Regular", Consolas, monospace);
+  font-size: 14px;
+}
+
+.traj-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.traj-switch button {
+  min-height: 40px;
+  padding: 0 12px;
+  color: var(--ink, #1c1b16);
+  background: var(--paper-2, #fbf7ed);
+  border: 1px solid var(--line-strong, rgba(28, 27, 22, 0.28));
+  border-radius: var(--radius, 2px);
+  font-family: var(--font-ui, "Inter", sans-serif);
+  font-size: 15px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.traj-switch button.is-active {
+  color: #fff8ec;
+  background: var(--ink-2, #403c32);
+  border-color: var(--ink-2, #403c32);
+}
+
+.traj-spin {
+  animation: traj-spin 0.9s linear infinite;
+}
+
+@keyframes traj-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .traj-toolbar {
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .traj-stats {
+    flex: 1 1 100%;
+  }
+
+  .traj-search {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .traj-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .traj-button,
+  .traj-link {
+    flex: 1 1 auto;
+  }
+
+  .traj-event-head {
+    flex-wrap: wrap;
+  }
+
+  .traj-label {
+    flex: 1 1 120px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .traj-lines {
+    margin-left: 0;
+  }
+
+  .traj-preview,
+  .traj-text {
+    padding-left: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .traj-toolbar {
+    padding: 9px;
+  }
+
+  .traj-events,
+  .traj-list {
+    min-height: 180px;
+  }
+
+  .traj-button,
+  .traj-link {
+    flex: 1 1 100%;
+  }
+
+  .traj-badge {
+    font-size: 14px;
+  }
+}

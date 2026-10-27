@@ -1,0 +1,23 @@
+{
+  "name": "vul-ai-board",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server/index.mjs",
+    "start": "node server/index.mjs",
+    "smoke": "node scripts/api-smoke.mjs"
+  },
+  "dependencies": {
+    "lucide-react": "^0.515.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.6.0",
+    "vite": "^7.0.4"
+  }
+}
