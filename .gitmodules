@@ -1,0 +1,7 @@
+[submodule "third_party/claudecodeui"]
+	path = third_party/claudecodeui
+	url = https://github.com/siteboon/claudecodeui.git
+
+[submodule "smartbugs-curated"]
+	path = smartbugs-curated
+	url = https://github.com/smartbugs/smartbugs-curated.git

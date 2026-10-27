@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { Database, LayoutGrid, List, Moon, PanelLeft, RefreshCw, Search, Sun, Terminal, X } from 'lucide-react';
+import { Database, ExternalLink, LayoutGrid, List, Moon, PanelLeft, RefreshCw, Search, Sun, Terminal, X } from 'lucide-react';
 import { SCOPE_OPTIONS } from '../constants.js';
 import { cx, formatDate } from '../utils.js';
+
+const CCUI_URL = import.meta.env.VITE_CCUI_URL || 'http://127.0.0.1:3001';
 
 export default function TopBar({
   board,
@@ -133,6 +135,18 @@ export default function TopBar({
           <Terminal size={15} aria-hidden="true" />
           <span>CC 轨迹</span>
         </button>
+
+        <a
+          className="button is-small topbar-runs"
+          href={CCUI_URL}
+          target="_blank"
+          rel="noreferrer"
+          title="打开 CloudCLI / claudecodeui 查看 CC 会话"
+          aria-label="打开 CloudCLI / claudecodeui"
+        >
+          <ExternalLink size={15} aria-hidden="true" />
+          <span>CC WebUI</span>
+        </a>
 
         <button
           type="button"

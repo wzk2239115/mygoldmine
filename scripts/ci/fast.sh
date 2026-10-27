@@ -12,6 +12,7 @@ python3 -m compileall -q \
     audit_rsi \
     rsi_version \
     integrations \
+    scripts/ccui \
     .claude/skills/jev-triage
 
 if command -v ruff >/dev/null 2>&1; then
@@ -20,6 +21,7 @@ if command -v ruff >/dev/null 2>&1; then
         audit_rsi \
         rsi_version \
         integrations \
+        scripts/ccui \
         tests/test_rsi_version.py \
         tests/test_skillopt_env_build.py \
         tests/test_audit_rsi.py \
@@ -33,12 +35,14 @@ python3 -m pytest -q \
     tests/test_rsi_version.py \
     tests/test_skillopt_env_build.py \
     tests/test_audit_rsi.py \
-    tests/test_jev_triage.py
+    tests/test_jev_triage.py \
+    tests/test_ccui_import.py
 
 echo "== shell syntax =="
 for file in \
     scripts/rsi.sh \
     scripts/skillopt_env_build.sh \
+    scripts/ccui/start.sh \
     scripts/env/build_env_agent.sh \
     scripts/mine/mine_one.sh \
     scripts/mine/entrypoint.sh \
