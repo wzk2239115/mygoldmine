@@ -175,6 +175,155 @@
         "README 给出今晚启动与明早查看方式",
         ".gitignore 覆盖 targets/ runs/ logs/ .agent/history/"
       ]
+    },
+    {
+      "id": "T16",
+      "title": "新增 environment-builder agent 与 build_env.sh",
+      "priority": 16,
+      "status": "done",
+      "spec": "TODOLIST.md#T16",
+      "acceptance": [
+        "agent 与脚本存在",
+        "支持 dry-run/no-build/no-generate/mode/network/timeout",
+        "失败标记 blocked"
+      ]
+    },
+    {
+      "id": "T17",
+      "title": "对 5 个 target 执行环境检测并汇总 status",
+      "priority": 17,
+      "status": "done",
+      "spec": "TODOLIST.md#T17",
+      "acceptance": [
+        "5 个项目都有 env-manifest.json(planned)",
+        "docs/env-status.md 汇总语言/命令/限制"
+      ]
+    },
+    {
+      "id": "T18",
+      "title": "smoke-target 环境构建冒烟",
+      "priority": 18,
+      "status": "done",
+      "spec": "TODOLIST.md#T18",
+      "acceptance": [
+        "镜像构建成功",
+        "env_status=ready",
+        "/opt/target 有源码"
+      ]
+    },
+    {
+      "id": "T19",
+      "title": "新增 verify-agent（单条 finding 四态验证）",
+      "priority": 19,
+      "status": "done",
+      "spec": "TODOLIST.md#T19",
+      "acceptance": [
+        "agent 定义存在",
+        "harness 契约清晰",
+        "禁止武器化 payload"
+      ]
+    },
+    {
+      "id": "T20",
+      "title": "新增 run_verify.sh 隔离 runner",
+      "priority": 20,
+      "status": "done",
+      "spec": "TODOLIST.md#T20",
+      "acceptance": [
+        "默认 network none/非 root/cap-drop/资源限制",
+        "输出 verify-report.md|json",
+        "四态退出码正确"
+      ]
+    },
+    {
+      "id": "T21",
+      "title": "smoke-target 验证闭环",
+      "priority": 21,
+      "status": "done",
+      "spec": "TODOLIST.md#T21",
+      "acceptance": [
+        "示例 finding confirmed",
+        "证据文件存在"
+      ]
+    },
+    {
+      "id": "T22",
+      "title": "批量验证 5 个仓库 Critical/High 并更新文档",
+      "priority": 22,
+      "status": "todo",
+      "spec": "TODOLIST.md#T22",
+      "acceptance": [
+        "每条 finding 有 confirmed/rejected/inconclusive/blocked",
+        "最终报告区分静态与已验证",
+        "未验证条目明确标记"
+      ]
+    },
+    {
+      "id": "T23",
+      "title": "run.sh 全流程集成（env -> mine -> verify）",
+      "priority": 23,
+      "status": "done",
+      "spec": "TODOLIST.md#T23",
+      "acceptance": [
+        "run.sh 支持完整流水线",
+        "支持 skip-env/skip-verify/mine-only/verify-only",
+        "smoke-target 跑通"
+      ]
+    },
+    {
+      "id": "T24",
+      "title": "旧报告并行预审",
+      "priority": 24,
+      "status": "done",
+      "spec": "TODOLIST.md#T24",
+      "acceptance": [
+        "5 份报告都有预审结论",
+        "docs/report-review.md 落盘"
+      ]
+    },
+    {
+      "id": "T25",
+      "title": "知识库骨架与四类项目威胁模型",
+      "priority": 25,
+      "status": "done",
+      "spec": "TODOLIST.md#T25",
+      "acceptance": [
+        "knowledge/ 目录完整",
+        "四类 type pack 存在"
+      ]
+    },
+    {
+      "id": "T26",
+      "title": "五个项目知识卡",
+      "priority": 26,
+      "status": "done",
+      "spec": "TODOLIST.md#T26",
+      "acceptance": [
+        "5 个项目知识卡存在",
+        "含入口/边界/已知模式/误报/验证"
+      ]
+    },
+    {
+      "id": "T27",
+      "title": "infra-analyst / hypothesis-critic / knowledge-scribe 三个 agent",
+      "priority": 27,
+      "status": "done",
+      "spec": "TODOLIST.md#T27",
+      "acceptance": [
+        "三个 agent 定义存在",
+        "输出 schema 与职责清晰"
+      ]
+    },
+    {
+      "id": "T28",
+      "title": "编排器接入 Agentic Infra Track",
+      "priority": 28,
+      "status": "done",
+      "spec": "TODOLIST.md#T28",
+      "acceptance": [
+        "orchestrator 有 infra track",
+        "规则扫描器降级为可选索引"
+      ]
     }
   ]
 }
