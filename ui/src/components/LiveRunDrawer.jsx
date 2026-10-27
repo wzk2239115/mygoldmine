@@ -20,7 +20,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
   const [error, setError] = useState('');
   const [follow, setFollow] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [view, setView] = useState('stream');
+  const [view, setView] = useState(run?.finished ? 'trajectory' : 'stream');
   const preRef = useRef(null);
   const closeRef = useRef(null);
 
@@ -105,7 +105,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
               </button>
             </div>
           </div>
-          <h2>实时挖掘日志</h2>
+          <h2>{run.finished ? 'CC 运行轨迹' : '实时挖掘日志'}</h2>
           <div className="live-drawer-meta">
             <span>
               <Clock3 size={12} aria-hidden="true" />
@@ -231,7 +231,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
         <footer className="drawer-footer">
           <span className="footer-signal">
             <Radio size={13} aria-hidden="true" />
-            {run.finished ? 'stream finished' : 'streaming · 2s refresh'}
+            {run.finished ? 'complete trajectory · CC session' : 'streaming · 2s refresh'}
           </span>
           <div className="footer-actions">
             <button type="button" className="button is-small" onClick={() => copy(run.runDir, '已复制 run 目录')}>

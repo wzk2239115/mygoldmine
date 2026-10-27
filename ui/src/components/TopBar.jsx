@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Database, LayoutGrid, List, Moon, PanelLeft, RefreshCw, Search, Sun, X } from 'lucide-react';
+import { Database, LayoutGrid, List, Moon, PanelLeft, RefreshCw, Search, Sun, Terminal, X } from 'lucide-react';
 import { SCOPE_OPTIONS } from '../constants.js';
 import { cx, formatDate } from '../utils.js';
 
@@ -10,6 +10,7 @@ export default function TopBar({
   view,
   setView,
   onRefresh,
+  onOpenRuns,
   refreshing,
   theme,
   onToggleTheme,
@@ -121,6 +122,17 @@ export default function TopBar({
             <List size={16} />
           </button>
         </div>
+
+        <button
+          type="button"
+          className="button is-small topbar-runs"
+          title="打开 CC 运行轨迹"
+          aria-label="打开 CC 运行轨迹"
+          onClick={onOpenRuns}
+        >
+          <Terminal size={15} aria-hidden="true" />
+          <span>CC 轨迹</span>
+        </button>
 
         <button
           type="button"

@@ -5,6 +5,7 @@ import { countBy, cx } from './utils.js';
 import Board from './components/Board.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
 import LiveRunDrawer from './components/LiveRunDrawer.jsx';
+import RunsDrawer from './components/RunsDrawer.jsx';
 import LiveRunsStrip from './components/LiveRunsStrip.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import StatsStrip from './components/StatsStrip.jsx';
@@ -53,6 +54,18 @@ function deriveStats(findings) {
   };
 }
 
+function toRunView(run) {
+  return {
+    ...run,
+    projectName: run.projectName || run.project,
+    finished: !run.isLive,
+    elapsedSeconds: Number(run.durationSeconds) || 0,
+    logMtime: run.updatedAt || run.startedAt || null,
+    timeoutSeconds: 0,
+    container: ''
+  };
+}
+
 function LoadingBoard() {
   return (
     <div className="loading-state">
@@ -76,6 +89,10 @@ export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('vul-ai-theme') || 'light');
   const [selectedKey, setSelectedKey] = useState(null);
   const [liveRun, setLiveRun] = useState(null);
+  const [runsOpen, setRunsOpen] = useState(false);
+  const [runs, setRuns] = useState([]);
+  const [runsLoading, setRunsLoading] = useState(false);
+  const [runsError, setRunsError] = useState('');
   const [toast, setToast] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const liveSignatureRef = useRef('');
@@ -94,6 +111,22 @@ export default function App() {
   }, []);
 
   const showToast = useCallback((message) => setToast(message), []);
+
+  const openRuns = useCallback(async () => {
+    setSelectedKey(null);
+    setLiveRun(null);
+    setRunsOpen(true);
+    setRunsLoading(true);
+    setRunsError('');
+    try {
+      const payload = await api.runs();
+      setRuns(payload.runs || []);
+    } catch (error) {
+      setRunsError(error.message);
+    } finally {
+      setRunsLoading(false);
+    }
+  }, []);
 
   const loadBoard = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
@@ -371,6 +404,7 @@ export default function App() {
           onRefresh={() => loadBoard()}
           refreshing={refreshing}
           theme={theme}
+          onOpenRuns={openRuns}
           onToggleTheme={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
           onToggleSidebar={() => setSidebarOpen((value) => !value)}
         />
@@ -459,6 +493,20 @@ export default function App() {
       ) : null}
 
       {liveRun ? <LiveRunDrawer run={liveRun} onClose={() => setLiveRun(null)} onToast={showToast} /> : null}
+
+      {runsOpen ? (
+        <RunsDrawer
+          runs={runs}
+          loading={runsLoading}
+          error={runsError}
+          onClose={() => setRunsOpen(false)}
+          onOpen={(run) => {
+            setRunsOpen(false);
+            setSelectedKey(null);
+            setLiveRun(toRunView(run));
+          }}
+        />
+      ) : null}
 
       <Toast message={toast} onClose={() => setToast('')} />
     </div>

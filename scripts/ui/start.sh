@@ -11,7 +11,15 @@ if [ ! -d node_modules ]; then
   npm install --no-audit --no-fund
 fi
 
+needs_build=0
 if [ ! -f dist/index.html ]; then
+  needs_build=1
+elif [ -n "$(find src index.html vite.config.js package.json -newer dist/index.html -print -quit 2>/dev/null)" ]; then
+  needs_build=1
+fi
+
+if [ "${SKIP_BUILD:-0}" != "1" ] && [ "$needs_build" = "1" ]; then
+  echo "[vul-ai-board] rebuilding UI..."
   npm run build
 fi
 
