@@ -343,6 +343,28 @@ def load_text(path: Path) -> str:
         return ""
 
 
+EXT_LANGUAGE = {
+    ".py": "Python", ".rs": "Rust", ".go": "Go",
+    ".js": "JavaScript/TypeScript", ".jsx": "JavaScript/TypeScript",
+    ".ts": "JavaScript/TypeScript", ".tsx": "JavaScript/TypeScript",
+    ".java": "Java", ".kt": "Kotlin", ".php": "PHP", ".rb": "Ruby",
+    ".cs": ".NET", ".scala": "Scala", ".sol": "Solidity",
+    ".move": "Move", ".vy": "Vyper", ".c": "C/C++", ".cc": "C/C++",
+    ".cpp": "C/C++", ".cxx": "C/C++", ".cu": "CUDA",
+}
+
+
+def detect_language_fallback(root: Path) -> Optional[str]:
+    counts: Dict[str, int] = {}
+    for p in _iter_scan_files(root, max_files=6000):
+        lang = EXT_LANGUAGE.get(p.suffix.lower())
+        if lang:
+            counts[lang] = counts.get(lang, 0) + 1
+    if not counts:
+        return None
+    return max(counts.items(), key=lambda kv: kv[1])[0]
+
+
 def detect_language(root: Path) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     """检测主要语言、框架和包管理器。"""
     language = None
@@ -481,6 +503,8 @@ def detect_language(root: Path) -> Tuple[Optional[str], Optional[str], Optional[
                         if framework:
                             break
 
+    if not language:
+        language = detect_language_fallback(root)
     return language, framework, package_manager
 
 
@@ -688,14 +712,37 @@ def detect_smart_contract(root: Path, language: Optional[str]) -> Tuple[bool, Li
                 except Exception:
                     pass
 
-    # 方法四：检查源代码中的合约特征关键词
+    # 方法四：只在真正的合约扩展名中查关键词；Rust/Go 需要框架依赖才判定
     try:
         for file in root.rglob("*"):
-            if file.is_file() and file.suffix in [".sol", ".rs", ".move", ".vy", ".go"]:
-                content = load_text(file).lower()
-                for keyword in BLOCKCHAIN_CODE_KEYWORDS:
-                    if keyword.lower() in content:
-                        evidence.append(f"源代码包含合约特征: {keyword}")
+            if not file.is_file() or any(part in SKIP_DIRS for part in file.parts):
+                continue
+            suffix = file.suffix.lower()
+            content = load_text(file).lower()
+            if suffix == ".sol":
+                for keyword in ("pragma solidity", "contract {", "interface {", "library {"):
+                    if keyword in content:
+                        evidence.append(f"Solidity 合约特征: {file.relative_to(root)}")
+                        return True, evidence
+            elif suffix == ".move":
+                if "module {" in content or "public fun" in content:
+                    evidence.append(f"Move 合约特征: {file.relative_to(root)}")
+                    return True, evidence
+            elif suffix == ".vy":
+                if "@external" in content or "def " in content:
+                    evidence.append(f"Vyper 合约特征: {file.relative_to(root)}")
+                    return True, evidence
+            elif suffix == ".rs":
+                if "#[program]" in content or "#[derive(accounts)]" in content:
+                    cargo = root / "Cargo.toml"
+                    if cargo.exists() and any(k in load_text(cargo).lower() for k in ("anchor", "solana", "cosmwasm")):
+                        evidence.append(f"Rust 合约特征: {file.relative_to(root)}")
+                        return True, evidence
+            elif suffix == ".go":
+                gomod = root / "go.mod"
+                if gomod.exists() and any(k in load_text(gomod).lower() for k in ("cosmos-sdk", "tendermint")):
+                    if "keeper" in content or "msgserver" in content:
+                        evidence.append(f"Go 合约特征: {file.relative_to(root)}")
                         return True, evidence
     except Exception:
         pass
@@ -703,41 +750,118 @@ def detect_smart_contract(root: Path, language: Optional[str]) -> Tuple[bool, Li
     return False, evidence
 
 
+STRONG_VTR_PHRASES = (
+    "capture the flag", "security lab", "security testing lab", "vulnerable application",
+    "penetration testing lab", "pentest lab", "ctf", "靶场", "靶机", "教学靶场", "漏洞练习",
+)
+WEAK_VTR_KEYWORDS = ("lab", "benchmark", "challenge", "vulnerability", "vulnerable", "educational")
+
+
+def _readme_text(root: Path) -> str:
+    for name in ("README.md", "README", "README.txt", "readme.md"):
+        p = root / name
+        if p.exists():
+            try:
+                return p.read_text(encoding="utf-8", errors="replace").lower()
+            except OSError:
+                pass
+    return ""
+
+
 def detect_vtr(root: Path) -> Tuple[bool, List[str]]:
-    """检测是否为安全测试靶场。"""
-    evidence = []
+    """检测是否为安全测试靶场。
 
-    # 方法一：检查 README 文件
-    readme_files = ["README.md", "README", "README.txt"]
-    for readme_file in readme_files:
-        readme_path = root / readme_file
-        if readme_path.exists():
-            content = load_text(readme_path).lower()
-            for keyword in VTR_KEYWORDS:
-                if keyword.lower() in content:
-                    evidence.append(f"{readme_file} 包含关键词: {keyword}")
-                    return True, evidence
+    单凭 README 里的 lab/benchmark 不再判定为靶场；需要多个独立信号。
+    """
+    evidence: List[str] = []
+    score = 0
+    strong = False
 
-    # 方法二：检查目录结构（包含多个漏洞示例目录）
-    # 这里简化处理，检查是否有明显的漏洞相关目录
-    suspicious_dirs = ["vulnerable", "vulnerability", "exploit", "challenge", "lab", "benchmark"]
+    content = _readme_text(root)
+    if content:
+        for phrase in STRONG_VTR_PHRASES:
+            if phrase in content:
+                score += 2
+                strong = True
+                evidence.append(f"README 强信号: {phrase}")
+                break
+        for kw in WEAK_VTR_KEYWORDS:
+            if re.search(r"(?<![a-z0-9])" + re.escape(kw) + r"(?![a-z0-9])", content):
+                score += 1
+                evidence.append(f"README 弱信号: {kw}")
+                break
+
+    suspicious = ("vulnerable", "vulnerability", "exploit", "challenge", "ctf", "lab")
     found_dirs = []
-    for child in root.iterdir():
-        if child.is_dir() and not child.name.startswith("."):
-            for sus_dir in suspicious_dirs:
-                if sus_dir.lower() in child.name.lower():
+    try:
+        for child in root.iterdir():
+            if child.is_dir() and not child.name.startswith("."):
+                if any(s in child.name.lower() for s in suspicious):
                     found_dirs.append(child.name)
+    except OSError:
+        pass
     if len(found_dirs) >= 2:
-        evidence.append(f"目录结构包含多个可疑目录: {', '.join(found_dirs[:5])}")
-        return True, evidence
+        score += 2
+        strong = True
+        evidence.append(f"多个靶场目录: {', '.join(found_dirs[:5])}")
+    elif found_dirs:
+        score += 1
+        evidence.append(f"疑似靶场目录: {found_dirs[0]}")
 
+    flag_files = []
+    try:
+        for p in root.rglob("*"):
+            if ".git" in p.parts or "node_modules" in p.parts:
+                continue
+            if p.is_file() and p.name.lower() in ("flag.txt", "flag", "submit.py", "submit.sh", "score.py"):
+                flag_files.append(str(p.relative_to(root)))
+    except OSError:
+        pass
+    if flag_files:
+        score += 1
+        strong = True
+        evidence.append(f"发现 flag/submit 文件: {', '.join(flag_files[:3])}")
+
+    if score >= 3 and strong:
+        return True, evidence
+    if evidence:
+        evidence.append(f"评分={score}，未达到靶场阈值（需≥3且含强信号），不判定为靶场")
     return False, evidence
 
 
-def count_code_files(root: Path) -> Tuple[int, int]:
-    """使用 cloc 命令统计代码文件数量和代码行数。"""
+CODE_EXTENSIONS = {
+    ".py", ".rs", ".go", ".c", ".cc", ".cpp", ".cxx", ".h", ".hpp", ".cu", ".cuh",
+    ".js", ".jsx", ".ts", ".tsx", ".java", ".kt", ".php", ".rb", ".scala", ".cs",
+    ".sol", ".move", ".vy", ".sh", ".bash", ".zsh",
+}
+SKIP_DIRS = {".git", "node_modules", "vendor", "__pycache__", ".venv", "venv", "dist", "build", ".idea", ".vscode", "third_party", "3rdparty"}
+SCAN_SKIP_DIRS = SKIP_DIRS | {"tests", "test", "examples", "example", "docs", "benchmarks", "benchmark", "e2e_test"}
+
+
+def _count_fallback(root: Path) -> Tuple[int, int]:
+    files = 0
+    lines = 0
     try:
-        # 使用 cloc 的 JSON 输出格式
+        for p in root.rglob("*"):
+            if any(part in SKIP_DIRS for part in p.parts):
+                continue
+            if not p.is_file() or p.suffix.lower() not in CODE_EXTENSIONS:
+                continue
+            files += 1
+            try:
+                with p.open("r", encoding="utf-8", errors="replace") as fh:
+                    for _ in fh:
+                        lines += 1
+            except OSError:
+                pass
+    except OSError:
+        pass
+    return files, lines
+
+
+def count_code_files(root: Path) -> Tuple[int, int]:
+    """统计代码文件/行数；cloc 缺失或返回 0 时用纯 Python 兜底。"""
+    try:
         result = subprocess.run(
             ["cloc", "--json", "--quiet", str(root)],
             capture_output=True,
@@ -746,22 +870,248 @@ def count_code_files(root: Path) -> Tuple[int, int]:
         )
         if result.returncode == 0:
             cloc_data = json.loads(result.stdout)
-            # cloc JSON 格式包含 SUM 字段
             if "SUM" in cloc_data:
                 file_count = cloc_data["SUM"].get("nFiles", 0)
                 line_count = cloc_data["SUM"].get("code", 0)
-                return file_count, line_count
-    except FileNotFoundError:
-        # cloc 命令不存在，返回 0
-        return 0, 0
-    except (subprocess.TimeoutExpired, json.JSONDecodeError, KeyError, ValueError):
-        # cloc 执行失败或输出格式异常，返回 0
-        return 0, 0
+                if file_count or line_count:
+                    return file_count, line_count
+    except (FileNotFoundError, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError, ValueError):
+        pass
     except Exception:
-        # 其他异常，返回 0
-        return 0, 0
+        pass
+    return _count_fallback(root)
 
-    return 0, 0
+
+INFRA_SIGNALS = {
+    "agent-harness": {
+        "strong": ("codex-rs", "deepseek-harness", ".mcp.json", "mcp-server", "agent-harness"),
+        "keywords": ("mcpservers", "approval_policy", "allow_prefix", "prefixrule", "core.hookspath",
+                     "fsmonitor", "sandbox", "harness", "agent config"),
+        "files": (".mcp.json", ".codex/config.toml", "AGENTS.md", "CLAUDE.md"),
+    },
+    "inference-engine": {
+        "strong": ("vllm", "sglang", "tensorrt-llm", "llama.cpp", "text-generation-inference"),
+        "keywords": ("kv cache", "kv_cache", "pagedattention", "transformers", "cuda", "triton",
+                     "openai", "serving", "torch"),
+        "files": ("requirements.txt", "pyproject.toml", "CMakeLists.txt"),
+    },
+    "training-framework": {
+        "strong": ("verl", "deepspeed", "megatron", "fsdp", "grpo"),
+        "keywords": ("ray", "ppo", "trainer", "checkpoint", "reward", "rollout", "actor", "critic"),
+        "files": ("pyproject.toml", "requirements.txt", "Dockerfile"),
+    },
+    "model-serving": {
+        "strong": ("triton", "model-server", "model_serving"),
+        "keywords": ("uvicorn", "fastapi", "grpc", "openai", "serving", "inference"),
+        "files": ("pyproject.toml", "requirements.txt", "Dockerfile"),
+    },
+}
+
+NAME_HINTS = {
+    "agent-harness": ("harness", "codex", "agent", "dsh", "mcp"),
+    "training-framework": ("verl", "train", "training", "grpo", "ppo", "deepspeed", "megatron", "rl"),
+    "inference-engine": ("vllm", "sglang", "inference", "tensorrt", "llama", "serving"),
+    "model-serving": ("triton", "model-server", "model_serving"),
+}
+
+INFRA_SKILLS = {
+    "agent-harness": ("agent-config-analyzer", "sandbox-boundary-analyzer",
+                      "command-injection-analyzer", "path-traversal-analyzer",
+                      "rpc-surface-scanner", "config-trust-scanner",
+                      "ipc-serialization-analyzer"),
+    "inference-engine": ("rpc-surface-scanner", "model-loading-analyzer",
+                         "ipc-serialization-analyzer", "ssrf-analyzer",
+                         "path-traversal-analyzer", "race-conditions-analyzer",
+                         "insecure-deserialization-analyzer", "config-trust-scanner"),
+    "training-framework": ("code-injection-analyzer", "insecure-deserialization-analyzer",
+                           "ipc-serialization-analyzer", "dependency-analyzer",
+                           "race-conditions-analyzer", "config-trust-scanner",
+                           "rpc-surface-scanner", "model-loading-analyzer"),
+    "model-serving": ("rpc-surface-scanner", "config-trust-scanner", "model-loading-analyzer",
+                      "ipc-serialization-analyzer", "ssrf-analyzer"),
+}
+
+TRUST_BOUNDARIES = {
+    "agent-harness": ("process-exec", "config", "mcp", "sandbox", "filesystem"),
+    "inference-engine": ("http", "grpc", "model-file", "ipc", "network", "native"),
+    "training-framework": ("config", "checkpoint", "dataset", "distributed", "process-exec"),
+    "model-serving": ("http", "model-file", "auth", "network"),
+}
+
+ENTRY_PATTERNS = {
+    "http": ("uvicorn.run", "fastapi(", "@app.get", "@app.post", "http.listenandserve",
+             "axum::serve", "tonic::transport", "actix_web", "flask("),
+    "grpc": ("grpc.server", "grpc.newserver", "tonic::transport", "add_service("),
+    "ipc": ("zmq", "nng", "ray.init", "nccl", "multiprocessing.queue", "shared_memory", "msgpack"),
+    "cli": ("argparse", "click.command", "typer", "command::new", "clap", "cobra"),
+    "exec": ("subprocess", "os.system", "exec(", "eval(", "command::new", "shell=true"),
+    "model": ("torch.load", "pickle.load", "safetensors", "from_pretrained", "trust_remote_code", "load_format"),
+    "sandbox": ("seccomp", "landlock", "chroot", "bubblewrap", "sandbox", "namespace"),
+}
+
+
+def _iter_scan_files(root: Path, max_files: int = 4000):
+    seen = 0
+    for p in root.rglob("*"):
+        if seen >= max_files:
+            break
+        if any(part in SCAN_SKIP_DIRS for part in p.parts):
+            continue
+        if not p.is_file():
+            continue
+        if p.suffix.lower() not in CODE_EXTENSIONS and p.name not in (
+            "README.md", "AGENTS.md", "CLAUDE.md", "Dockerfile", "docker-compose.yml",
+            "docker-compose.yaml", ".mcp.json", "pyproject.toml", "requirements.txt",
+            "package.json", "Cargo.toml", "go.mod", "CMakeLists.txt",
+        ):
+            continue
+        seen += 1
+        yield p
+
+
+def detect_infra(root: Path) -> Dict[str, object]:
+    """检测 AI 基础设施/agent harness 类型、入口与信任边界。"""
+    evidence: Dict[str, List[str]] = {k: [] for k in INFRA_SIGNALS}
+    scores: Dict[str, int] = {k: 0 for k in INFRA_SIGNALS}
+    strong_flag: Dict[str, bool] = {k: False for k in INFRA_SIGNALS}
+    entrypoints: List[Dict[str, object]] = []
+    rel_paths: List[str] = []
+
+    key_names = {"README.md", "AGENTS.md", "CLAUDE.md", "Dockerfile", "docker-compose.yml",
+                 "docker-compose.yaml", ".mcp.json", "pyproject.toml", "requirements.txt",
+                 "package.json", "Cargo.toml", "go.mod", "CMakeLists.txt"}
+    key_names_lower = {n.lower() for n in key_names}
+
+    for p in _iter_scan_files(root):
+        try:
+            rel = str(p.relative_to(root))
+        except ValueError:
+            continue
+        rel_lower = rel.lower()
+        pname = p.name.lower()
+        rel_paths.append(rel_lower)
+
+        # 类型信号：路径/文件名 + 关键文件内容
+        text = ""
+        if pname in {n.lower() for n in key_names} or p.suffix.lower() in {".toml", ".json", ".yaml", ".yml"}:
+            try:
+                if p.stat().st_size <= 2_000_000:
+                    text = p.read_text(encoding="utf-8", errors="replace").lower()
+            except OSError:
+                text = ""
+        for ptype, cfg in INFRA_SIGNALS.items():
+            if len(evidence[ptype]) < 5:
+                if any(tok in rel_lower for tok in cfg["strong"]):
+                    evidence[ptype].append(f"路径/文件名: {rel}")
+                    scores[ptype] += 3
+                    strong_flag[ptype] = True
+                if pname in {f.lower() for f in cfg["files"]}:
+                    evidence[ptype].append(f"配置文件: {rel}")
+                    scores[ptype] += 1
+                if text:
+                    for tok in cfg["strong"]:
+                        if tok in text:
+                            evidence[ptype].append(f"{rel} 含强信号 `{tok}`")
+                            scores[ptype] += 3
+                            strong_flag[ptype] = True
+                            break
+                    for kw in cfg["keywords"]:
+                        if kw in text:
+                            evidence[ptype].append(f"{rel} 含 `{kw}`")
+                            scores[ptype] += 1
+                            break
+
+        # 入口/汇点扫描
+        if not text and p.suffix.lower() in CODE_EXTENSIONS and p.stat().st_size <= 1_500_000:
+            try:
+                text = p.read_text(encoding="utf-8", errors="replace").lower()
+            except OSError:
+                text = ""
+        if text:
+            for kind, patterns in ENTRY_PATTERNS.items():
+                if len([e for e in entrypoints if e["kind"] == kind]) >= 8:
+                    continue
+                for pat in patterns:
+                    pos = text.find(pat)
+                    if pos >= 0:
+                        line = text.count("\n", 0, pos) + 1
+                        entrypoints.append({"kind": kind, "file": rel, "line": line, "evidence": pat})
+                        break
+
+    # 项目名/顶层目录是强先验：verl -> training，vllm -> inference，codex -> agent
+    top_names = [root.name.lower()]
+    try:
+        top_names += [c.name.lower() for c in root.iterdir() if c.is_dir() and not c.name.startswith(".")]
+    except OSError:
+        pass
+    hinted = None
+    hint_token = None
+    for ptype, hints in NAME_HINTS.items():
+        for hint in hints:
+            if any(hint in name for name in top_names):
+                hinted, hint_token = ptype, hint
+                break
+        if hinted:
+            break
+
+    project_types: List[str] = []
+    if hinted:
+        project_types = [hinted]
+        scores[hinted] += 20
+        strong_flag[hinted] = True
+        evidence[hinted].append(f"项目名/顶层目录匹配 `{hint_token}`")
+    else:
+        ranked = sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))
+        for ptype, score in ranked:
+            if len(project_types) >= 2:
+                break
+            if strong_flag[ptype] and score >= 3:
+                project_types.append(ptype)
+    for ptype in evidence:
+        evidence[ptype] = list(dict.fromkeys(evidence[ptype]))[:5]
+
+    trust: List[str] = []
+    skills: List[str] = []
+    for ptype in project_types:
+        trust.extend(TRUST_BOUNDARIES.get(ptype, ()))
+        skills.extend(INFRA_SKILLS.get(ptype, ()))
+    if any(e["kind"] == "http" for e in entrypoints):
+        trust.append("http")
+    if any(e["kind"] == "grpc" for e in entrypoints):
+        trust.append("grpc")
+    if any(e["kind"] == "exec" for e in entrypoints):
+        trust.append("process-exec")
+
+    return {
+        "project_types": project_types,
+        "types_evidence": {k: v for k, v in evidence.items() if v},
+        "entrypoints": entrypoints,
+        "trust_boundaries": sorted(set(trust)),
+        "recommended_skills": sorted(set(skills)),
+        "type_scores": scores,
+    }
+
+
+def format_infra(infra: Dict[str, object]) -> str:
+    lines = ["", "【基础设施画像】"]
+    types = infra.get("project_types") or []
+    lines.append(f"项目类型: {', '.join(types) if types else '未识别'}")
+    ev = infra.get("types_evidence") or {}
+    if ev:
+        lines.append("判定依据:")
+        for ptype, items in ev.items():
+            lines.append(f"  - {ptype}: {', '.join(items[:3])}")
+    ents = infra.get("entrypoints") or []
+    lines.append("入口/危险点:")
+    if ents:
+        for e in ents[:15]:
+            lines.append(f"  - [{e['kind']}] {e['file']}:{e['line']} ({e['evidence']})")
+    else:
+        lines.append("  - 未发现")
+    lines.append(f"信任边界: {', '.join(infra.get('trust_boundaries') or []) or '未识别'}")
+    lines.append(f"推荐技能: {', '.join(infra.get('recommended_skills') or []) or '无'}")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def detect_framework_type(language: Optional[str], framework: Optional[str]) -> Optional[str]:
@@ -1110,66 +1460,104 @@ def format_output(
     return "\n".join(lines)
 
 
+def build_json_profile(root, language, framework, package_manager,
+                      is_backend, is_frontend, is_smart_contract, is_vtr,
+                      file_count, line_count, entry_files, router_files,
+                      infra) -> Dict[str, object]:
+    project_types: List[str] = []
+    skills: List[str] = []
+    if is_vtr:
+        project_types = ["security-lab"]
+        skills = ["vtr-scanner"]
+    else:
+        if is_backend:
+            project_types.append("backend-http")
+            skills.extend(("web-auth-analyzer", "sensitive-info-scanner"))
+        if is_frontend:
+            project_types.append("frontend-web")
+        if is_smart_contract:
+            project_types.append("smart-contract")
+            skills.append("blockchain-goldmine-analyzer")
+        project_types.extend(infra.get("project_types") or [])
+        skills.extend(infra.get("recommended_skills") or [])
+    return {
+        "project_name": root.name,
+        "project_path": str(root),
+        "languages": [language] if language else [],
+        "framework": framework,
+        "package_manager": package_manager,
+        "files": {"count": file_count, "lines": line_count},
+        "classification": {
+            "backend_http": is_backend,
+            "frontend_web": is_frontend,
+            "smart_contract": is_smart_contract,
+            "security_lab": is_vtr,
+        },
+        "project_types": list(dict.fromkeys(project_types)),
+        "entrypoints": {
+            "main_files": entry_files,
+            "route_files": router_files,
+            "infra": infra.get("entrypoints") or [],
+        },
+        "trust_boundaries": infra.get("trust_boundaries") or [],
+        "recommended_skills": list(dict.fromkeys(skills)),
+        "infra_evidence": infra.get("types_evidence") or {},
+        "type_scores": infra.get("type_scores") or {},
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="项目基本信息快速收集")
-    parser.add_argument(
-        "path",
-        nargs="?",
-        default=".",
-        help="要检测的项目路径，默认当前目录",
-    )
+    parser.add_argument("path", nargs="?", default=".", help="要检测的项目路径，默认当前目录")
+    parser.add_argument("--json", action="store_true", help="输出机器可读 JSON（含基础设施画像）")
+    parser.add_argument("--output", "-o", default="", help="写入文件（默认 stdout）")
     args = parser.parse_args()
     root = Path(args.path).resolve()
     if not root.exists():
         print(f"路径不存在: {root}")
         return
 
-    # 检测技术栈
     language, framework, package_manager = detect_language(root)
 
-    # 检测项目分类
     is_backend, backend_evidence = detect_backend_service(root, language)
     is_frontend, frontend_evidence = detect_frontend_app(root)
     is_smart_contract, smart_contract_evidence = detect_smart_contract(root, language)
     is_vtr, vtr_evidence = detect_vtr(root)
 
-    # 如果检测为靶场，则互斥其他分类
     if is_vtr:
         is_backend = False
         is_frontend = False
         is_smart_contract = False
 
-    # 统计代码
     file_count, line_count = count_code_files(root)
-
-    # 查找入口点（传递语言和框架信息用于路由检测）
     entry_files, router_files, router_snippets = find_entry_points(root, language, framework)
-
-    # 获取主要目录
     main_dirs = get_main_dirs(root)
+    infra = detect_infra(root)
 
-    # 格式化输出
-    output = format_output(
-        root,
-        language,
-        framework,
-        package_manager,
-        is_backend,
-        is_frontend,
-        is_smart_contract,
-        is_vtr,
-        file_count,
-        line_count,
-        entry_files,
-        router_files,
-        router_snippets,
-        main_dirs,
-        backend_evidence,
-        frontend_evidence,
-        smart_contract_evidence,
-        vtr_evidence,
-    )
-    print(output)
+    if args.json:
+        payload = build_json_profile(
+            root, language, framework, package_manager,
+            is_backend, is_frontend, is_smart_contract, is_vtr,
+            file_count, line_count, entry_files, router_files, infra,
+        )
+        text = json.dumps(payload, ensure_ascii=False, indent=2)
+    else:
+        text = format_output(
+            root, language, framework, package_manager,
+            is_backend, is_frontend, is_smart_contract, is_vtr,
+            file_count, line_count, entry_files, router_files,
+            router_snippets, main_dirs,
+            backend_evidence, frontend_evidence,
+            smart_contract_evidence, vtr_evidence,
+        )
+        text += format_infra(infra)
+
+    if args.output:
+        out = Path(args.output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text + "\n", encoding="utf-8")
+    else:
+        print(text)
 
 
 if __name__ == "__main__":

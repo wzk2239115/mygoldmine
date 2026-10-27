@@ -4,7 +4,7 @@
 
 | 参数 | 默认值 |
 |------|--------|
-| `MODEL` | `360-proxy/deepseek/deepseek-v4.1-flash` |
+| `MODEL` | `360-proxy/deepseek/deepseek-v4.1-flash`（容器内自动转成 `deepseek/deepseek-v4.1-flash`） |
 | `MAX_PARALLEL` | `5` |
 | `TIMEOUT` | `21600` 秒（6 小时/项目） |
 | `RETRIES` | `1` 次（超时不重试） |
@@ -14,9 +14,20 @@
 
 ## 今晚：一条启动命令
 
+先确认 360 鉴权可用（三选一，推荐写进 `~/.config/opencode/opencode.json` 让它自动读取）：
+
+```bash
+export ANTHROPIC_BASE_URL=https://api.360.cn
+export ANTHROPIC_AUTH_TOKEN='你的360 key'
+```
+
 ```bash
 bash scripts/mine/overnight.sh start
 ```
+
+执行链：`overnight.sh` → `parallel_mine.sh` → `mine_one_docker.sh` → `docker run mygoldmine:dev`
+→ 容器内 `entrypoint.sh` → `mine_one.sh` → Claude Code（`deepseek/deepseek-v4.1-flash`）。
+目标源码只读挂载，容器内复制到 `/workspace/repo` 后再审计。
 
 启动前会检查：目标目录/清单、执行器可执行、磁盘余量（默认 ≥20G）、是否已有实例（`flock` + PID）。
 确认无误后以 `setsid + nohup` 后台运行，命令立即返回并打印 PID 与日志路径。

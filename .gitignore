@@ -1,5 +1,7 @@
 # Python cache files
 __pycache__/
+.pytest_cache/
+.ruff_cache/
 *.pyc
 *.pyo
 *.pyd
@@ -12,3 +14,22 @@ targets/*
 !targets/manifest.json
 runs/
 logs/
+
+rsi/artifacts/
+rsi/learning/
+rsi/policy/
+rsi/worlds/
+rsi/trace_pool.json
+rsi/plan.json
+rsi/plan.md
+integrations/skillopt_env_build/configs/env_build.generated.yaml
+
+# Phase 0 env build logs
+env/*/build.log
+env/*/*.tmp.*
+
+# Findings board UI
+ui/node_modules/
+ui/dist/
+ui/data/state.json
+ui/data/.state.*.tmp

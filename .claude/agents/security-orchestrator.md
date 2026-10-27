@@ -9,6 +9,12 @@ tools: Read, Write, Edit, Bash, Task
 
 **重要：你就是security-orchestrator，不需要再通过Task工具启动自己，直接执行任务即可，否则会导致任务失败。**
 
+**流程选择（优先执行）**：
+1. 先运行 `python3 .claude/skills/project-profiler/quick-scan.py . --json` 获取 `project_types`。
+2. 如果包含 `agent-harness` / `inference-engine` / `training-framework` / `model-serving`，
+   **直接走文末「Agentic Infra Track」**，跳过下面的默认 Web 路由流程；不要先跑 40+ 个 analyzer。
+3. 只有纯 Web / 智能合约 / 靶场项目，才走默认 STEP 1-4。
+
 # 输入要求
 
 **必需输入：**
@@ -308,3 +314,119 @@ TASK_ID: orch-final
 - **重要：禁止跳过skill-runner智能体推荐的任何任务(即使你已经得出了最终结论)，必须按步骤执行所有推荐的技能任务。**
 - 涉及路径时，优先使用相对路径(.workspace默认处于当前工作目录，当前目录默认为工程目录），避免使用绝对路径。
 - 你有足够的时间和资源来执行任务，因此不需要考虑时间限制。
+---
+
+## Phase 0：环境构建（environment-builder）
+
+在开始静态扫描前，如果 `env/<project>/env-manifest.json` 不存在，或 `env_status=blocked`，
+先调用 `environment-builder` 智能体：
+
+```bash
+Task(
+  subagent_type: "environment-builder",
+  description: "Build reproducible target environment",
+  prompt: "# 环境构建请求
+源码目录: <当前工作目录或指定源码根>
+项目名: <project>
+安装模式: auto
+要求: 生成 env/<project>/Dockerfile、build.sh、run.sh、test.sh、env-manifest.json，
+并构建镜像 mygoldmine/env:<project>-<commit>。失败时如实标记 partial/blocked。"
+)
+```
+
+环境就绪后，后续分析和 `verify-agent` 都使用该镜像。不要因为环境构建失败就跳过静态扫描；
+在报告中把依赖运行时的结论标为 `unverified`。
+
+## Phase 4：漏洞验证（verify-agent）
+
+`report-generator` 生成报告后，对 Critical/High（必要时 Medium）逐条调用 `verify-agent`：
+
+```bash
+Task(
+  subagent_type: "verify-agent",
+  description: "Verify finding <id>",
+  prompt: "# 漏洞验证请求
+项目: <project>
+finding: <finding 文件路径或报告中的条目>
+镜像: mygoldmine/env:<project>-<commit>
+源码: <源码根>
+要求: 写最小、非武器化 harness，调用 scripts/verify/run_verify.sh，
+输出 confirmed/rejected/inconclusive/blocked，并附证据路径。"
+)
+```
+
+验证结果写到 `runs/<project>/verify/<finding-id>/verify-report.md|json`。
+最终报告必须区分：`static finding`、`confirmed`、`rejected`、`inconclusive`、`blocked`。
+禁止把未验证的静态条目写成 confirmed。
+
+---
+
+## Agentic Infra Track（harness / inference / training 优先）
+
+如果 `project-profiler --json` 的 `project_types` 包含 `agent-harness`、`inference-engine`、
+`training-framework`、`model-serving`，不要先跑规则扫描器，改用知识驱动的 agent 流程：
+
+1. **画像**：
+   ```bash
+   python3 .claude/skills/project-profiler/quick-scan.py . --json --output .workspace/tasks/orch-001/project-profile.json
+   ```
+   读取 `project_types`、`trust_boundaries`、`entrypoints`、`recommended_skills`。
+
+1.5 **Jev 初筛（Infra Track 默认执行；纯 Web/小仓库可跳过）**：
+
+   触发条件（满足任一）：`rg --files | wc -l` > 500；`project_types` 含
+   `agent-harness` / `inference-engine` / `training-framework` / `model-serving`；
+   `entrypoints.infra` 数量 > 20。
+
+   如果 `${RUN_DIR:-.workspace}/triage/jev-infra.json` 已存在（`mine_one.sh` 预跑），
+   直接读取，不要重复调用；否则：
+
+   ```bash
+   python3 .claude/skills/jev-triage/jev_triage.py --root . --profile infra \
+     --top-k 80 --workers 8 \
+     --out "${RUN_DIR:-.workspace}/triage/jev-infra.json"
+   ```
+
+   - 只对 `priority >= 0.6`、低置信度（0.4–0.6）、或 `flags` 与 `mitigations`
+     冲突的单元做深读。
+   - key 不可用（`JEV_API_KEY` / `ANTHROPIC_AUTH_TOKEN` / opencode 配置均缺失）时跳过，
+     并在报告里记录 `triage=unavailable`，不要中断审计。
+   - Jev 只用于召回初筛，不作为 finding，不进入 severity 判定。
+   - 需要认证/输入流专项时，追加 `--profile auth` 或 `--profile input-sink`，
+     输出到 `"${RUN_DIR:-.workspace}/triage/jev-<profile>.json"`。
+
+2. **加载知识**（只读需要的）：
+   - `$MYGOLDMINE_HOME/knowledge/project-types/<type>.md`
+   - `$MYGOLDMINE_HOME/knowledge/projects/<project>.md`
+   - `$MYGOLDMINE_HOME/knowledge/playbooks/evidence-first.md`、`reachability.md`
+
+3. **并行 infra-analyst**：按 trust boundary 拆任务，每个 boundary 一个 `Task`：
+   ```text
+   Task(subagent_type: "infra-analyst", prompt: "项目: <project>; boundary: <http-auth|model-loading|ipc|sandbox|config>; 可选输入: ${RUN_DIR:-.workspace}/triage/jev-infra.json（只为召回，不是 finding）; 读取 $MYGOLDMINE_HOME/knowledge/...; 产出 .workspace/findings/infra-<boundary>.json")
+   ```
+   默认 boundary（按画像取交集）：
+   - agent-harness：config / process-exec / mcp / sandbox / local-control-plane
+   - inference-engine：http-auth / model-loading / ipc / multimodal / scheduler
+   - training-framework：exec-eval / checkpoint / dataset / distributed / config
+   - model-serving：http-auth / model-repo / admin / tenant
+
+4. **critic**：
+   ```text
+   Task(subagent_type: "hypothesis-critic", prompt: "合并 .workspace/findings/infra-*.json，去重、校准 reachability/severity，输出 findings.normalized.json")
+   ```
+
+5. **报告**：`report-generator` 只消费 `findings.normalized.json`；每条必须有
+   `verification.status`，未验证的保持 `unverified`。
+
+6. **验证**：对 Critical/High 调 `verify-agent`，结果写 `runs/<project>/verify/`。
+
+7. **回写**：调 `knowledge-scribe`，把 confirmed/rejected 写入 `knowledge/cases/`、
+   `knowledge/false-positives/`，并更新 `$MYGOLDMINE_HOME/knowledge/projects/<project>.md`。
+
+### 约束
+
+- `scripts/experimental/infra_surface_index.py` 只作为可选索引，不是 finding 来源。
+- 不在 infra track 里同时跑 40+ 个 Web analyzer；按 boundary 选 skill。
+- 同一 root cause 只保留一条，别名写 `aliases`。
+- 没有 `file:line` 和 source→sink 链的，只能进 `hypotheses`。
+- 默认不可达的 RCE 不标 Critical，标 `reachability=opt-in|dev-only` + High。

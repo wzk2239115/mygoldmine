@@ -1,0 +1,181 @@
+{
+  "schema": "mygoldmine-rsi-dataset/v1",
+  "name": "mygoldmine_env_build",
+  "holdout_key": "project",
+  "splits": {
+    "train": [
+      {
+        "id": "verl@174888fc",
+        "project": "verl",
+        "repo": "targets/verl",
+        "commit": "174888fcf4b65dea032566a02fd16c5f76fb5b5b",
+        "mode": "auto",
+        "task_type": "env_build",
+        "expected": {
+          "env_status": "ready",
+          "require_image": true,
+          "require_build_exit_code": 0
+        },
+        "observed": {
+          "env_status": "partial",
+          "build_exit_code": 0,
+          "has_image_id": true,
+          "partial_reasons": [
+            "Python 只做 editable --no-deps，运行时依赖未完整安装"
+          ],
+          "limitations": [
+            "默认不启用 GPU；GPU/CUDA 路径无法验证（需要 --gpus all 的专用环境）",
+            "未提供外部依赖服务（数据库、Ray 集群、对象存储等）",
+            "auto 模式为静态/导入级环境，不代表可完整启动服务"
+          ],
+          "manifest": "env/verl/env-manifest.json"
+        },
+        "provenance": {
+          "source": "targets/manifest.json + env/<project>/env-manifest.json",
+          "label": "goal: reproducible ready image"
+        }
+      },
+      {
+        "id": "deepseek-harness@22ddee37",
+        "project": "deepseek-harness",
+        "repo": "targets/deepseek-harness",
+        "commit": "22ddee3792402c3e70ec5f86a63c3e3e895a2f60",
+        "mode": "auto",
+        "task_type": "env_build",
+        "expected": {
+          "env_status": "ready",
+          "require_image": true,
+          "require_build_exit_code": 0
+        },
+        "observed": {
+          "env_status": "planned",
+          "build_exit_code": 0,
+          "has_image_id": false,
+          "partial_reasons": [
+            "Node 安装跳过 lifecycle scripts（--ignore-scripts）"
+          ],
+          "limitations": [
+            "默认不启用 GPU；GPU/CUDA 路径无法验证（需要 --gpus all 的专用环境）",
+            "未提供外部依赖服务（数据库、Ray 集群、对象存储等）",
+            "auto 模式为静态/导入级环境，不代表可完整启动服务"
+          ],
+          "manifest": "env/deepseek-harness/env-manifest.json"
+        },
+        "provenance": {
+          "source": "targets/manifest.json + env/<project>/env-manifest.json",
+          "label": "goal: reproducible ready image"
+        }
+      },
+      {
+        "id": "sglang@3a62cdfb",
+        "project": "sglang",
+        "repo": "targets/sglang",
+        "commit": "3a62cdfb3d0bc70f4eb980c7ded1d80545cea6c1",
+        "mode": "auto",
+        "task_type": "env_build",
+        "expected": {
+          "env_status": "ready",
+          "require_image": true,
+          "require_build_exit_code": 0
+        },
+        "observed": {
+          "env_status": "planned",
+          "build_exit_code": 0,
+          "has_image_id": false,
+          "partial_reasons": [
+            "Python 只做 editable --no-deps，运行时依赖未完整安装",
+            "Rust 只 fetch 依赖，未完整编译"
+          ],
+          "limitations": [
+            "默认不启用 GPU；GPU/CUDA 路径无法验证（需要 --gpus all 的专用环境）",
+            "未提供外部依赖服务（数据库、Ray 集群、对象存储等）",
+            "auto 模式为静态/导入级环境，不代表可完整启动服务"
+          ],
+          "manifest": "env/sglang/env-manifest.json"
+        },
+        "provenance": {
+          "source": "targets/manifest.json + env/<project>/env-manifest.json",
+          "label": "goal: reproducible ready image"
+        }
+      }
+    ],
+    "val": [
+      {
+        "id": "vllm@20bf65ad",
+        "project": "vllm",
+        "repo": "targets/vllm",
+        "commit": "20bf65ad333834440b82390c43b30de93137b9ee",
+        "mode": "auto",
+        "task_type": "env_build",
+        "expected": {
+          "env_status": "ready",
+          "require_image": true,
+          "require_build_exit_code": 0
+        },
+        "observed": {
+          "env_status": "planned",
+          "build_exit_code": 0,
+          "has_image_id": false,
+          "partial_reasons": [
+            "Python 只做 editable --no-deps，运行时依赖未完整安装",
+            "Rust 只 fetch 依赖，未完整编译",
+            "native 项目只准备工具链，未编译"
+          ],
+          "limitations": [
+            "默认不启用 GPU；GPU/CUDA 路径无法验证（需要 --gpus all 的专用环境）",
+            "未提供外部依赖服务（数据库、Ray 集群、对象存储等）",
+            "auto 模式为静态/导入级环境，不代表可完整启动服务"
+          ],
+          "manifest": "env/vllm/env-manifest.json"
+        },
+        "provenance": {
+          "source": "targets/manifest.json + env/<project>/env-manifest.json",
+          "label": "goal: reproducible ready image"
+        }
+      }
+    ],
+    "test": [
+      {
+        "id": "codex@970111f6",
+        "project": "codex",
+        "repo": "targets/codex",
+        "commit": "970111f6cb62cc02fe36a82ea7d71b37a2889c97",
+        "mode": "auto",
+        "task_type": "env_build",
+        "expected": {
+          "env_status": "ready",
+          "require_image": true,
+          "require_build_exit_code": 0
+        },
+        "observed": {
+          "env_status": "planned",
+          "build_exit_code": 0,
+          "has_image_id": false,
+          "partial_reasons": [
+            "Node 安装跳过 lifecycle scripts（--ignore-scripts）",
+            "Rust 只 fetch 依赖，未完整编译"
+          ],
+          "limitations": [
+            "默认不启用 GPU；GPU/CUDA 路径无法验证（需要 --gpus all 的专用环境）",
+            "未提供外部依赖服务（数据库、Ray 集群、对象存储等）",
+            "auto 模式为静态/导入级环境，不代表可完整启动服务"
+          ],
+          "manifest": "env/codex/env-manifest.json"
+        },
+        "provenance": {
+          "source": "targets/manifest.json + env/<project>/env-manifest.json",
+          "label": "goal: reproducible ready image"
+        }
+      }
+    ]
+  },
+  "counts": {
+    "train": 3,
+    "val": 1,
+    "test": 1
+  },
+  "source": "targets/manifest.json",
+  "split_seed": 42,
+  "created_at": "2026-10-27T09:25:33.357249+00:00",
+  "notes": "Tasks are goal-labeled: expected env_status=ready. The observed block records the current env manifest for debugging, not the label."
+}

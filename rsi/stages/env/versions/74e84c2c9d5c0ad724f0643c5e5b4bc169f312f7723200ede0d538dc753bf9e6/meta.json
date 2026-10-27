@@ -1,0 +1,29 @@
+{
+  "base_git_commit": "7b1666bdd5a653447302c27b5e933d1151360023",
+  "base_git_dirty": true,
+  "cost": {},
+  "created_at": "2026-10-27T09:28:05.413308+00:00",
+  "dataset_manifest_sha256": "38e78f917f321f04377ffad1424e027e9098c3a18aa56deb6ec5f18f80259972",
+  "eval_sha256": "f20b0ce2560ee402e848535a67cfd88e00a63ae3e2fa8283d649b558a1872859",
+  "gate": {
+    "accepted": true,
+    "baseline": null,
+    "candidate": null,
+    "metric": "seed",
+    "no_regression": true,
+    "notes": "initial seed skill",
+    "schema": "mygoldmine-rsi-gate/v1",
+    "status": "seed"
+  },
+  "operator": "wzk",
+  "optimizer_model": "",
+  "parent_version": null,
+  "prompt_sha256": "6865b5401cf08d3c4a88910df93039d618a47c9ed9b883f5b401471aaae25b2c",
+  "provenance_sha256": "8f399cee71a0e008defdc170d9ba78fa8706730cd608fbffb7c661e2a2ad3b21",
+  "schema": "mygoldmine-rsi-version/v1",
+  "skill_sha256": "6865b5401cf08d3c4a88910df93039d618a47c9ed9b883f5b401471aaae25b2c",
+  "stage": "env",
+  "tag": "rsi/env/v000",
+  "target_model": "",
+  "version_id": "74e84c2c9d5c0ad724f0643c5e5b4bc169f312f7723200ede0d538dc753bf9e6"
+}

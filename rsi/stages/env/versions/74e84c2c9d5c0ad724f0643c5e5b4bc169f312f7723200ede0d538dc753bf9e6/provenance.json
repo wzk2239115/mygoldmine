@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-27T09:28:05.412230+00:00",
+  "git_commit": "7b1666bdd5a653447302c27b5e933d1151360023",
+  "git_dirty": true,
+  "models": {
+    "optimizer": "",
+    "target": ""
+  },
+  "notes": "",
+  "operator": "wzk",
+  "platform": "Linux-6.11.0-1014-nvidia-aarch64-with-glibc2.39",
+  "python": "3.13.13",
+  "run_ids": [],
+  "schema": "mygoldmine-rsi-provenance/v1"
+}

@@ -19,6 +19,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 from collections import Counter
 from datetime import datetime, timezone
 from typing import Any, Iterable
@@ -400,6 +401,131 @@ def run_render(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_follow(args: argparse.Namespace) -> int:
+    """--follow: 增量读取 raw.jsonl，实时写人读日志。
+
+    容器运行期间由 run.sh 启动；检测到 --stop-file 后做完最后一次 drain 再退出。
+    坏行/半行不会中断，保证 tail -f 期间日志可读。
+    """
+    if args.input == "-":
+        print("render_claude_log: --follow 需要 --input 文件", file=sys.stderr)
+        return 2
+
+    redact_on = not args.no_redact
+    max_text = args.max_text
+    max_result = args.max_result
+    max_raw = args.max_raw
+    include_unknown = args.include_unknown
+    stats = {
+        "lines_total": 0,
+        "json_ok": 0,
+        "invalid": 0,
+        "blank": 0,
+        "events": Counter(),
+        "tool_calls": Counter(),
+        "tool_errors": 0,
+        "render_errors": 0,
+        "result_seen": False,
+        "result_errors": 0,
+    }
+
+    close_out = False
+    if args.output == "-":
+        out = sys.stdout
+    else:
+        parent = os.path.dirname(os.path.abspath(args.output))
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        out = open(args.output, "w", encoding="utf-8", errors="replace")
+        close_out = True
+
+    def emit(text: str) -> None:
+        out.write((redact(text) if redact_on else text) + "\n")
+        out.flush()
+
+    emit("# Claude stream-json rendered log")
+    emit(f"# source: {args.input}")
+    emit(f"# rendered_at: {utc_now()}")
+    emit(f"# renderer: render_claude_log.py schema={SCHEMA_VERSION} (follow)")
+    emit("")
+
+    def process_line(raw_line: str) -> None:
+        stats["lines_total"] += 1
+        line = raw_line.rstrip("\n").rstrip("\r")
+        if not line.strip():
+            stats["blank"] += 1
+            return
+        try:
+            event = json.loads(line)
+        except (json.JSONDecodeError, ValueError):
+            stats["invalid"] += 1
+            emit(clip(line, max_raw))
+            return
+        stats["json_ok"] += 1
+        if not isinstance(event, dict):
+            emit(clip(line, max_raw))
+            return
+        try:
+            rendered = render_event(
+                event, stats, redact_on, max_text, max_result, include_unknown
+            )
+            for block in iter_content_blocks(event):
+                if block.get("type") == "tool_use":
+                    stats["tool_calls"][as_text(block.get("name")) or "?"] += 1
+                elif block.get("type") == "tool_result" and block.get("is_error"):
+                    stats["tool_errors"] += 1
+            for item in rendered:
+                if item:
+                    emit(item)
+        except Exception as exc:  # noqa: BLE001 - renderer must never abort a run
+            stats["render_errors"] += 1
+            emit(f"[render-error] {type(exc).__name__}: {exc}")
+
+    pending = ""
+    try:
+        with open(args.input, "r", encoding="utf-8", errors="replace") as handle:
+            while True:
+                chunk = handle.read()
+                if chunk:
+                    pending += chunk
+                    while "\n" in pending:
+                        line, pending = pending.split("\n", 1)
+                        process_line(line)
+                    continue
+                if args.stop_file and os.path.exists(args.stop_file):
+                    chunk = handle.read()
+                    if chunk:
+                        pending += chunk
+                        continue
+                    if pending:
+                        process_line(pending)
+                        pending = ""
+                    break
+                time.sleep(0.5)
+    except KeyboardInterrupt:
+        pass
+    except OSError as exc:
+        print(f"render_claude_log: 无法读取 {args.input}: {exc}", file=sys.stderr)
+
+    tool_total = sum(stats["tool_calls"].values())
+    tool_detail = " ".join(f"{k}={v}" for k, v in sorted(stats["tool_calls"].items()))
+    summary = (
+        f"[summary] lines={stats['lines_total']} json_ok={stats['json_ok']} "
+        f"invalid={stats['invalid']} blank={stats['blank']} "
+        f"tool_calls={tool_total} tool_errors={stats['tool_errors']} "
+        f"render_errors={stats['render_errors']} "
+        f"result_seen={str(stats['result_seen']).lower()} "
+        f"result_errors={stats['result_errors']}"
+    )
+    if tool_detail:
+        summary += f" tools({tool_detail})"
+    emit("")
+    emit(summary)
+    if close_out:
+        out.close()
+    return 0
+
+
 SAMPLE_EVENTS = [
     {"type": "system", "subtype": "init", "model": "test-model", "cwd": "/workspace/repo", "tools": ["Bash", "Edit"]},
     {"type": "rate_limit_event", "rate_limit_info": {"status": "allowed"}},
@@ -569,6 +695,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--include-unknown", action="store_true", help="输出未知事件类型（默认跳过）")
     parser.add_argument("--quiet", "-q", action="store_true", help="不打印统计到 stderr")
     parser.add_argument("--self-test", action="store_true", help="运行内置自测并退出")
+    parser.add_argument("--follow", action="store_true", help="增量跟随 --input 文件，实时写日志")
+    parser.add_argument("--stop-file", default="", help="--follow 模式下检测到该文件即退出")
     parser.add_argument("--version", action="version", version=f"render_claude_log {SCHEMA_VERSION}")
     return parser
 
@@ -580,6 +708,8 @@ def main(argv: list[str] | None = None) -> int:
         return self_test()
     if args.max_text < 0 or args.max_result < 0 or args.max_raw < 0:
         parser.error("--max-* 必须是非负整数")
+    if args.follow:
+        return run_follow(args)
     return run_render(args)
 
 

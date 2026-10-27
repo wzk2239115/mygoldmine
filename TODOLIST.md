@@ -40,6 +40,31 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ---
 
+## Phase 0 — 环境构建（新增，T16-T18）
+
+### T16 环境构建智能体与脚本
+
+- 目标：新增 `environment-builder` agent 和 `scripts/env/build_env.sh`。
+- 产物：`.claude/agents/environment-builder.md`、`scripts/env/build_env.sh`；生成
+  `env/<project>/{Dockerfile,build.sh,run.sh,test.sh,env-manifest.json}`。
+- 验收：支持 `--dry-run/--no-build/--no-generate/--mode/--network/--timeout`；
+  镜像 `FROM mygoldmine:dev`；源码烘焙到 `/opt/target`；失败标记 blocked。
+- 状态：[x]
+
+### T17 五个目标的环境检测
+
+- 目标：对 targets 下 5 个项目执行 `build_env.sh --dry-run`，记录语言、安装命令、限制。
+- 产物：`env/<project>/env-manifest.json`（planned）+ `docs/env-status.md` 汇总。
+- 验收：5 个项目都有检测结果；无法构建的写清原因和下一步。
+- 状态：[x]
+
+### T18 环境构建冒烟
+
+- 目标：用 `tests/fixtures/smoke-target` 真正构建一次环境镜像。
+- 产物：`mygoldmine/env:smoke-target-test` + `env/smoke-target/env-manifest.json`（ready）。
+- 验收：镜像内 `/opt/target` 有源码；`env_status=ready`；构建日志完整。
+- 状态：[x]
+
 ## Phase 1 — 公开漏洞汇总与能力差距
 
 ### T01 公开漏洞汇总
@@ -167,6 +192,89 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ---
 
+## Phase 4 — 漏洞验证（新增，T19-T22）
+
+### T19 验证智能体
+
+- 目标：新增 `verify-agent`，只做单条 finding 的验证，不做扫描。
+- 产物：`.claude/agents/verify-agent.md`；明确 harness 契约与四态结论。
+- 验收：agent 能读 finding/env-manifest，写最小良性 harness，调用 runner；
+  禁止武器化 payload；blocked 不得伪装成 rejected。
+- 状态：[x]
+
+### T20 隔离验证 runner
+
+- 目标：新增 `scripts/verify/run_verify.sh`。
+- 要求：默认 `--network none`、非 root、cap-drop、no-new-privileges、pids/memory/cpu/timeout
+  限制、无 docker socket；证据写 `evidence/`；输出 `verify-report.md|json`。
+- 验收：四态退出码 0/10/20/30；缺 verdict 时按退出码降级；env blocked 直接返回 blocked。
+- 状态：[x]
+
+### T21 验证闭环冒烟
+
+- 目标：用 smoke-target 的环境镜像验证一条示例 finding。
+- 产物：`runs/smoke-target/verify/SMOKE-001/verify-report.md|json`。
+- 验收：harness 能读 `/opt/target`，结论 confirmed，证据文件存在。
+- 状态：[x]
+
+### T22 批量验证与文档
+
+- 目标：对 5 个仓库报告中的 Critical/High 逐条生成 harness 并验证；更新
+  `docs/env-status.md`、`README.md`、`security-orchestrator.md`。
+- 验收：每条有 confirmed/rejected/inconclusive/blocked 之一；最终报告区分静态与已验证；
+  未验证条目明确标记。
+- 状态：[ ]
+
+### T23 run.sh 全流程集成
+
+- 目标：`run.sh` 串起 Phase 0 环境构建 → 挖掘 → Phase 4 自动验证；支持 `--skip-env/--skip-verify/--mine-only/--verify-only`。
+- 产物：`run.sh`、`scripts/verify/auto_verify.sh`、`runs/<project>/<ts>/verify/auto/summary.md`。
+- 验收：smoke-target 全流程跑通；`--verify-only` 可对旧报告补验证。
+- 状态：[x]
+
+### T24 旧报告并行预审
+
+- 目标：5 个并行 review agent 对已有 5 份报告做质量预审。
+- 产物：`docs/report-review.md`。
+- 验收：每个项目有优先验证清单、重复/薄弱项、质量评分。
+- 状态：[x]
+
+## Phase 5 — Agentic 知识库（新增，T25-T28）
+
+### T25 知识库骨架与类型卡
+
+- 产物：`knowledge/README.md`、`knowledge/index.md`、`knowledge/project-types/*.md`、
+  `knowledge/playbooks/*.md`、`knowledge/cves/README.md`、`knowledge/false-positives/README.md`。
+- 验收：四类项目（agent-harness/inference-engine/training-framework/model-serving）有独立威胁模型。
+- 状态：[x]
+
+### T26 五个项目知识卡
+
+- 产物：`knowledge/projects/{vllm,sglang,verl,codex,deepseek-harness}.md`。
+- 内容：入口、信任边界、已知高价值模式、默认开关、误报、验证配方、下一步优先项。
+- 状态：[x]
+
+### T27 三个 agentic agent
+
+- 产物：`infra-analyst`、`hypothesis-critic`、`knowledge-scribe`。
+- 验收：analyst 产出 canonical findings + hypotheses；critic 去重/降级；scribe 回写 cases/FP。
+- 状态：[x]
+
+### T28 编排器接入 agentic track
+
+- 产物：`security-orchestrator.md` 增加 Agentic Infra Track；`scripts/experimental/` 明确为可选索引。
+- 验收：infra 项目默认走 profiler → analyst → critic → report → verify → scribe；
+  规则扫描器不再作为 finding 来源。
+- 状态：[x]
+
+### T29 漏洞挖掘 Kanban UI
+
+- 目标：读取 `runs/*/*/audit-report.json`，把二次审计结论做成可操作的五列看板。
+- 产物：`ui/`（React + Vite + Node API）、`scripts/ui/start.sh`、`ui/README.md`。
+- 验收：精选 25 条可筛选/拖拽；详情含 Brief/Evidence/Agent stream；运行中 run 有 LIVE 条和 2s 实时日志抽屉；
+  状态写入 `ui/data/state.json`；默认只监听回环；前端构建与 Playwright 冒烟通过。
+- 状态：[x]
+
 ## 初判差距假设（待 T01-T03 用证据确认，不得直接当结论）
 
 现有 84 个 skill 偏 Web 漏洞与智能合约，对 AI 基础设施可能弱覆盖：
@@ -181,6 +289,8 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 ## 完成定义（DoD）
 
+- Phase 0：至少 1 个真实目标能构建出 `ready/partial` 环境镜像；失败目标有 `blocked` 原因；`env-manifest.json` 可被 verify 读取。
+- Phase 4：至少 1 条 finding 走通 `harness -> run_verify.sh -> confirmed/rejected` 闭环；结论有证据文件。
 - Phase 1：有可核实的漏洞清单、能力矩阵、差距报告，且至少 2 个新 skill 落地并接入。
 - Phase 2：Docker 内可跑通 mygoldmine，产出 `claude.rendered.log` 和报告。
 - Phase 3：一条命令并行 5 个项目、每项 6h 上限、可断点续跑、可查状态、次日可收报告。

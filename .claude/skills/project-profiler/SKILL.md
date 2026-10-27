@@ -11,8 +11,35 @@ description: 项目画像技能：构建项目画像，分析技术栈与项目�
 3. 智能合约项目（区块链应用，包含Solidity/Rust/Move/Go/Vyper等智能合约代码）
 4. 安全测试靶场（用于安全测试的靶场，通常包含多个不同类型的漏洞代码示例）
 
+## 基础设施画像（v2，优先使用）
+
+除了上面的 Web/合约分类，还要识别 AI 基础设施类型：
+
+```bash
+python3 ./quick-scan.py {source_dir} --json --output .workspace/tasks/{TASK_ID}/project-profile.json
+```
+
+`--json` 输出包含：
+
+- `project_types`：`agent-harness` / `inference-engine` / `training-framework` / `model-serving`（可叠加 Web 类型）
+- `entrypoints.infra`：HTTP/gRPC/CLI/IPC/model/exec 入口（file:line）
+- `trust_boundaries`：http / grpc / model-file / ipc / sandbox / distributed / config ...
+- `recommended_skills`：按类型给出的 track 技能，不再默认只给 web-auth/sensitive-info
+- `infra_evidence`：类型判定依据
+
+**路由规则**：
+
+- 如果 `project_types` 含上述基础设施类型，走 **Agentic Infra Track**：
+  `infra-analyst`（按 boundary 并行）→ `hypothesis-critic` → `report-generator` →
+  `verify-agent` → `knowledge-scribe`。
+- 不要默认先跑 40+ 个 Web analyzer；只按 boundary 选技能。
+- `security-lab` 仍是互斥分类，但只有多信号（README 强信号 + 目录 + flag/submit 文件）
+  才判定，单凭 `lab`/`benchmark` 不算。
+- `scripts/experimental/infra_surface_index.py` 只能当索引，不能当 finding。
+
 **分类约束规则**：
 - 后端HTTP服务、前端WEB应用、智能合约项目可以同时勾选（一个项目可以同时包含多种类型）
+- `agent-harness` / `inference-engine` / `training-framework` / `model-serving` 也可叠加
 - **安全测试靶场为互斥分类**：如果判定为靶场类型，则**不能**同时勾选其他分类，只能单独勾选靶场
 
 # 分类方法

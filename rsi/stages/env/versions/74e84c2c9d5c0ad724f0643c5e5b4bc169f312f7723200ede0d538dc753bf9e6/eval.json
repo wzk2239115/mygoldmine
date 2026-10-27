@@ -1,0 +1,9 @@
+{
+  "cost": {},
+  "hard": null,
+  "n_tasks": 0,
+  "notes": "seed version; no evaluation yet",
+  "per_task": [],
+  "schema": "mygoldmine-rsi-eval/v1",
+  "soft": null
+}

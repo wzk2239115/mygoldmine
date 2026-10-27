@@ -86,9 +86,13 @@ TARGETS_DIR="${TARGETS_DIR:-$REPO_ROOT/targets}"
 MANIFEST="${MANIFEST:-}"
 RUNS_ROOT="${RUNS_ROOT:-$REPO_ROOT/runs}"
 STATE_DIR="${STATE_DIR:-}"
-EXECUTOR="${EXECUTOR:-$SCRIPT_DIR/mine_one.sh}"
+EXECUTOR="${EXECUTOR:-$SCRIPT_DIR/mine_one_docker.sh}"
 MODEL="${MODEL:-360-proxy/deepseek/deepseek-v4.1-flash}"
 AGENT="${AGENT:-security-orchestrator}"
+if [ ! -f "$REPO_ROOT/.claude/agents/${AGENT}.md" ] && [ "$AGENT" != "security-orchestrator" ]; then
+    echo "[parallel_mine] WARN: 未找到 agent '${AGENT}'，回退到 security-orchestrator" >&2
+    AGENT="security-orchestrator"
+fi
 ORIG_ARGS=("$@")
 
 while [ "$#" -gt 0 ]; do

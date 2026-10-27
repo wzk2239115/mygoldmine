@@ -36,11 +36,16 @@ usage() {
   --target-url URL       目标仓库 URL（默认从 git remote origin 读取）
   --help                 显示本帮助
 
-环境变量:
+  环境变量:
   RUN_DIR TARGET_DIR WORK_DIR TIMEOUT MODEL AGENT PROJECT PROMPT_FILE
   MAX_ATTEMPTS           模型/代理瞬时错误重试次数（默认 2）
   RETRY_DELAY            重试前等待秒数（默认 60，测试可设 0）
   MYGOLDMINE_HOME        mygoldmine 骨架目录（默认仓库根目录）
+  JEV_TRIAGE             审计前跑 Jev 初筛（默认 1；0 关闭）
+  JEV_PROFILE            Jev profile（默认 infra）
+  JEV_MAX_FILES          Jev 最大 unit 数（默认 1500）
+  JEV_WORKERS            Jev 并发请求数（默认 8）
+  JEV_TIMEOUT            Jev 预跑超时秒数（默认 600）
 
 产物:
   raw.jsonl              原始 stream-json（每行一个事件）
@@ -67,6 +72,11 @@ TARGET_URL="${TARGET_URL:-}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-2}"
 RETRY_DELAY="${RETRY_DELAY:-60}"
 MYGOLDMINE_HOME="${MYGOLDMINE_HOME:-$REPO_ROOT}"
+JEV_TRIAGE="${JEV_TRIAGE:-1}"
+JEV_PROFILE="${JEV_PROFILE:-infra}"
+JEV_MAX_FILES="${JEV_MAX_FILES:-1500}"
+JEV_WORKERS="${JEV_WORKERS:-8}"
+JEV_TIMEOUT="${JEV_TIMEOUT:-600}"
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -140,15 +150,24 @@ build_prompt() {
 1. 使用 ${AGENT} 智能体执行完整审计流程（项目画像、路由/认证分析、按语言与框架的漏洞分析、报告生成）。
 2. 只分析本地源码，不访问公网，不读取目标目录之外的宿主路径。
 3. 只做漏洞定位、根因分析、最小复现思路与修复建议；不要编写可直接武器化的 exploit。
-4. 必须把面向人的报告写到 ${REPORT_MD}。
-5. 必须把机器可读报告写到 ${REPORT_JSON}。
+4. 开始分析后尽快创建 ${REPORT_MD} 骨架，每完成一个子任务就增量更新；
+   不要等所有子任务结束才写。接近超时时先落盘当前结论再退出。
+5. 必须把机器可读报告写到 ${REPORT_JSON}，至少包含阶段性 findings。
 6. 引用证据时给出具体文件路径与行号；无法核实的 CVE 编号标记为 unverified，不得编造。
 7. 发现密钥时只报告位置与类型，不得把密钥原文写入任何报告或日志。
+8. 若存在 ${RUN_DIR}/triage/jev-infra.json，先读取其中 priority>=0.6、低置信度、
+   或 flags 与 mitigations 冲突的单元；Jev 只做召回，不作为 finding。
 
 ## 交付
 - ${REPORT_MD}
 - ${REPORT_JSON}
 EOF
+    local plan="${RSI_PLAN_FILE:-$MYGOLDMINE_HOME/rsi/plan.md}"
+    if [ -f "$plan" ]; then
+        printf '\n## 优先审计计划（audit-rsi replay policy）\n'
+        cat "$plan"
+        printf '\n'
+    fi
 }
 
 print_dry_run() {
@@ -173,9 +192,13 @@ print_dry_run() {
     echo "COMMIT=${COMMIT:-unknown}"
     echo "TIMEOUT=$TIMEOUT"
     echo "MODEL=$MODEL"
+    echo "CLAUDE_MODEL=$CLAUDE_MODEL"
+    echo "ANTHROPIC_BASE_URL=$ANTHROPIC_BASE_URL"
+    echo "AUTH=${ANTHROPIC_AUTH_TOKEN:+set}${ANTHROPIC_API_KEY:+set}"
     echo "AGENT=$AGENT"
     echo "MAX_ATTEMPTS=$MAX_ATTEMPTS"
     echo "RETRY_DELAY=$RETRY_DELAY"
+    echo "JEV_TRIAGE=$JEV_TRIAGE JEV_PROFILE=$JEV_PROFILE JEV_MAX_FILES=$JEV_MAX_FILES JEV_WORKERS=$JEV_WORKERS JEV_TIMEOUT=$JEV_TIMEOUT"
     echo "PROMPT_FILE=${PROMPT_FILE:-<auto>} (exists=$prompt_exists)"
     echo "CLAUDE_BIN=$CLAUDE_BIN (exists=$claude_exists)"
     echo "RENDERER=$RENDERER (exists=$renderer_exists)"
@@ -247,13 +270,24 @@ else
     log "目标是 mygoldmine 仓库自身，跳过 .claude 链接"
 fi
 
-# 第三方代理：同步全部模型别名，避免子任务回落到默认模型
-export ANTHROPIC_MODEL="$MODEL"
-export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODEL"
-export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODEL"
-export ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODEL"
-export ANTHROPIC_SMALL_FAST_MODEL="$MODEL"
-export CLAUDE_CODE_SUBAGENT_MODEL="$MODEL"
+# task-manage 的内置命令（init-task-json 等）需要在 PATH 中
+TOOLS_DIR="$CLAUDE_SOURCE/skills/task-manage/scripts/tools"
+[ -d "$TOOLS_DIR" ] && export PATH="$TOOLS_DIR:$PATH"
+
+# 第三方代理：同步全部模型别名，避免子任务回落到默认模型。# opencode 的 provider 前缀（如 360-proxy/）不是合法 Anthropic 模型名，需剥离。
+CLAUDE_MODEL="$MODEL"
+case "$CLAUDE_MODEL" in
+    360-proxy/*) CLAUDE_MODEL="${CLAUDE_MODEL#360-proxy/}" ;;
+    opencode/*)  CLAUDE_MODEL="${CLAUDE_MODEL#opencode/}" ;;
+esac
+export ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-${GLM_ANTHROPIC_BASE:-https://api.360.cn}}"
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+export ANTHROPIC_MODEL="$CLAUDE_MODEL"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="$CLAUDE_MODEL"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="$CLAUDE_MODEL"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="$CLAUDE_MODEL"
+export ANTHROPIC_SMALL_FAST_MODEL="$CLAUDE_MODEL"
+export CLAUDE_CODE_SUBAGENT_MODEL="$CLAUDE_MODEL"
 export RUN_DIR PROJECT TARGET_DIR TIMEOUT MODEL AGENT MAX_ATTEMPTS
 
 START_EPOCH="$(date +%s)"
@@ -288,6 +322,10 @@ is_transient_error() {
 }
 
 render_log() {
+    if [ "${LIVE_RENDER:-0}" = "1" ]; then
+        log "LIVE_RENDER=1，跳过容器内最终渲染（由宿主 run.sh 实时渲染并收尾）"
+        return 0
+    fi
     local renderer_rc=0
     if [ -f "$RENDERER" ]; then
         log "渲染 stream-json -> $RENDERED"
@@ -342,6 +380,27 @@ render_fallback() {
             fi
         done < "$raw"
     } > "$out"
+}
+
+maybe_jev_triage() {
+    [ "$JEV_TRIAGE" = "1" ] || { log "JEV_TRIAGE=0，跳过 Jev 初筛"; return 0; }
+    local script="$CLAUDE_SOURCE/skills/jev-triage/jev_triage.py"
+    if [ ! -f "$script" ]; then
+        log "WARN: 未找到 $script，跳过 Jev 初筛"
+        return 0
+    fi
+    mkdir -p "$RUN_DIR/triage" || return 0
+    local out="$RUN_DIR/triage/jev-${JEV_PROFILE}.json"
+    log "Jev 初筛: profile=$JEV_PROFILE max_files=$JEV_MAX_FILES workers=$JEV_WORKERS -> $out"
+    if timeout --signal=TERM --kill-after=30 "$JEV_TIMEOUT" python3 "$script" \
+        --root "$TARGET_REAL" --profile "$JEV_PROFILE" \
+        --max-files "$JEV_MAX_FILES" --workers "$JEV_WORKERS" \
+        --cache-dir "$RUN_DIR/triage/jev-cache" --out "$out" \
+        >> "$RUN_DIR/triage/jev.log" 2>&1; then
+        log "Jev 初筛完成: $out"
+    else
+        log "WARN: Jev 初筛失败/超时，继续审计（详见 $RUN_DIR/triage/jev.log）"
+    fi
 }
 
 write_meta() {
@@ -433,6 +492,8 @@ finalize() {
     return 0
 }
 trap 'finalize; [ -n "${FINAL_CODE:-}" ] && exit "$FINAL_CODE" || exit 1' EXIT
+
+maybe_jev_triage
 
 # 单次尝试；只有瞬时错误才重试，超时不原地重试
 while :; do

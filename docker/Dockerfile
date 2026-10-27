@@ -59,6 +59,7 @@ WORKDIR /opt/mygoldmine
 # 审计骨架：skills/agents/hooks 与脚本。目标源码不进入镜像。
 COPY .claude /opt/mygoldmine/.claude
 COPY scripts /opt/mygoldmine/scripts
+COPY knowledge /opt/mygoldmine/knowledge
 COPY docs /opt/mygoldmine/docs
 COPY README.md TODOLIST.md /opt/mygoldmine/
 
@@ -71,7 +72,9 @@ ENV HOME=/home/miner \
     TARGET_DIR=/target \
     WORK_DIR=/workspace/repo \
     TIMEOUT=21600 \
-    MODEL=360-proxy/deepseek/deepseek-v4.1-flash \
+    MODEL=deepseek/deepseek-v4.1-flash \
+    ANTHROPIC_BASE_URL=https://api.360.cn \
+    CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
     AGENT=security-orchestrator
 
 USER miner

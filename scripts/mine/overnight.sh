@@ -37,7 +37,7 @@ usage() {
   TIMEOUT=21600 秒（6 小时/项目）
   RUNS_ROOT=<repo>/runs
   STATE_DIR=<runs-root>/.orchestrator
-  EXECUTOR=<repo>/scripts/mine/mine_one.sh
+  EXECUTOR=<repo>/scripts/mine/mine_one_docker.sh
 
 选项:
   --model MODEL          模型 ID（默认 $MODEL 或 360-proxy/deepseek/deepseek-v4.1-flash）
@@ -81,6 +81,10 @@ FORCE=0
 PROJECTS_FILTER=""
 MODEL="${MODEL:-360-proxy/deepseek/deepseek-v4.1-flash}"
 AGENT="${AGENT:-security-orchestrator}"
+if [ ! -f "$REPO_ROOT/.claude/agents/${AGENT}.md" ] && [ "$AGENT" != "security-orchestrator" ]; then
+    log "WARN: 未找到 agent '${AGENT}'（可能被外部环境变量污染），回退到 security-orchestrator"
+    AGENT="security-orchestrator"
+fi
 MAX_PARALLEL="${MAX_PARALLEL:-5}"
 PROJECT_TIMEOUT="${TIMEOUT:-21600}"
 MAX_RETRIES="${MAX_RETRIES:-1}"
@@ -90,7 +94,7 @@ TARGETS_DIR="${TARGETS_DIR:-$REPO_ROOT/targets}"
 MANIFEST="${MANIFEST:-}"
 RUNS_ROOT="${RUNS_ROOT:-$REPO_ROOT/runs}"
 STATE_DIR="${STATE_DIR:-}"
-EXECUTOR="${EXECUTOR:-$SCRIPT_DIR/mine_one.sh}"
+EXECUTOR="${EXECUTOR:-$SCRIPT_DIR/mine_one_docker.sh}"
 
 while [ "$#" -gt 0 ]; do
     case "$1" in

@@ -1,0 +1,10 @@
+{
+  "accepted": true,
+  "baseline": null,
+  "candidate": null,
+  "metric": "seed",
+  "no_regression": true,
+  "notes": "initial seed skill",
+  "schema": "mygoldmine-rsi-gate/v1",
+  "status": "seed"
+}

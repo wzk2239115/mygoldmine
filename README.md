@@ -103,6 +103,25 @@ workspace-scanner → project-profiler
 - 智能合约：合约识别 → 审计建议 → 报告聚合
 - AI 基础设施：项目画像 → 模型加载 / Agent 配置分析 → 报告聚合
 
+## 漏洞挖掘 Kanban UI
+
+`ui/` 提供一个读取 `runs/*/*/audit-report.json` 的本地看板，交互参考 `claudecodeui` 的 workspace 组织方式，视觉按 `oil-ui` 的证据档案方向实现。
+
+```bash
+bash scripts/ui/start.sh
+# http://127.0.0.1:8787
+```
+
+- 五列：收件箱 / 分诊 / 复现 / CVE 跟踪 / 已关闭。
+- 运行中的 run 会在看板顶部出现 LIVE 条：显示状态、耗时、最后一行日志；点开可实时 tail `claude.rendered.log`（2 秒刷新）。`run.sh` 与 overnight/mine_one 都支持。
+- 卡片：严重度、TP/FP/DUP、CVE Tier、证据数；原生拖拽改状态。
+- 详情：Brief / Evidence / Agent stream；可看原始报告、证据路径、`claude.rendered.log` 尾部。
+- 筛选：目标、严重度、判定、CVE-only、搜索；精选 25 / CVE 候选 / 全部。
+- 状态写入 `ui/data/state.json`，不改原始报告；精选种子在 `ui/data/curated.json`。
+- 默认只监听 `127.0.0.1`，避免把未修复漏洞细节暴露到网络。
+
+详见 `ui/README.md`、`docs/cve-candidates.md`、`docs/cve-handoff.json`。
+
 ## 整夜并行挖掘（Phase 3）
 
 在 Docker 外由宿主机脚本编排：克隆目标源码 → 5 项目并行 → 每项目 ≤ 6h → 产出可读过程日志与报告。
@@ -391,6 +410,111 @@ flowchart TB
 | **blockchain-goldmine-analyzer** | **bug-report** | **生成审计建议** |
 | vtr-scanner | 漏洞分析器 | 根据靶场题目类型推荐 |
 | 漏洞分析器 | bug-report | 发现漏洞时 |
+
+## Agentic 知识驱动审计（harness / inference / training）
+
+goldmine 不再把规则扫描器当结论，而是“薄索引 + 厚知识 + agent 推理 + 验证回写”：
+
+```text
+project-profiler --json（轻量画像）
+  → knowledge/project-types/<type>.md + knowledge/projects/<project>.md
+  → infra-analyst（按 trust boundary 并行读代码）
+  → hypothesis-critic（去重、证据挑战、reachability/severity 校准）
+  → report-generator（canonical findings）
+  → verify-agent（Top Critical/High）
+  → knowledge-scribe（confirmed/rejected 回写 knowledge/）
+```
+
+新增 agent：
+
+- `.claude/agents/infra-analyst.md`
+- `.claude/agents/hypothesis-critic.md`
+- `.claude/agents/knowledge-scribe.md`
+
+知识库：
+
+```text
+knowledge/
+  project-types/   agent-harness / inference-engine / training-framework / model-serving
+  projects/        vllm / sglang / verl / codex / deepseek-harness
+  playbooks/       evidence-first / reachability
+  cves/            CVE 卡片格式
+  false-positives/ 误报模式
+  cases/           每次审计的 confirmed/rejected
+```
+
+原则：代码只做“索引/统计/环境/验证”，判断交给 agent；每次审计后由 `knowledge-scribe`
+把新入口、配置开关、验证配方、误报写回知识库。`scripts/experimental/infra_surface_index.py`
+是可选索引，不产出正式 finding。
+
+## 完整流水线：run.sh
+
+`run.sh` 现在串起 Phase 0 环境构建 → 挖掘 → Phase 4 自动验证：
+
+```bash
+bash run.sh /path/to/source
+```
+
+阶段与产物：
+
+| 阶段 | 动作 | 日志/产物 |
+|---|---|---|
+| Phase 0 | `build_env.sh` 构建环境镜像 | `env/<project>/env-manifest.json`、`<run>.meta/env-build.log` |
+| Mine | 容器内 Claude Code 审计 | `<run>/claude.rendered.log`、`audit-report.md/json` |
+| Phase 4 | `auto_verify.sh` 对 Top-N findings 生成源码级 harness 并验证 | `<run>/verify/auto/summary.md`、`<run>.meta/verify.log` |
+
+常用开关：
+
+```bash
+bash run.sh <source> --skip-env --skip-verify   # 只挖矿（旧行为）
+bash run.sh <source> --mine-only                # 等价于上面
+bash run.sh <source> --env-mode full --timeout 21600
+bash run.sh <source> --verify-max 20 --verify-severity critical,high --verify-parallel 2
+bash run.sh --status <run_dir>                  # 同时显示 env_status / verify_counts
+bash run.sh --stop   <run_dir>                  # 停止 mining + verify 容器
+```
+
+注意：`auto_verify.sh` 是**启发式预筛**（引用文件 + sink 模式），不是 `verify-agent` 的专用
+harness；`confirmed` 只代表源码级命中，最终结论仍建议交给 verify-agent。
+
+## Phase 0：环境构建（environment-builder）
+
+挖矿前先为目标源码构建可复现环境镜像（自带 Claude Code + 已部署项目）：
+
+```bash
+# 先检测（不构建）
+bash scripts/env/build_env.sh targets/vllm --dry-run
+
+# 正式构建（auto = 静态/导入级；full = 完整安装，慎用）
+bash scripts/env/build_env.sh targets/vllm --mode auto
+
+# 构建失败时读 env/vllm/build.log，修改 env/vllm/Dockerfile 后复用
+bash scripts/env/build_env.sh targets/vllm --no-generate
+```
+
+产物：`env/<project>/{Dockerfile,build.sh,run.sh,test.sh,env-manifest.json,build.log}`，
+镜像：`mygoldmine/env:<project>-<commit>`。
+`env_status` 为 `ready / partial / blocked`，失败不会被伪装成 ready。
+
+## Phase 4：漏洞验证（verify-agent）
+
+对报告中的 Critical/High 逐条验证。先写一个最小、非武器的 harness，再交给隔离 runner：
+
+```bash
+bash scripts/verify/run_verify.sh \
+  --project vllm \
+  --image mygoldmine/env:vllm-20bf65a \
+  --finding runs/vllm/20261027T023629Z/audit-report.json \
+  --harness runs/vllm/verify/F-01/harness.sh \
+  --source targets/vllm \
+  --run-dir runs/vllm/verify/F-01
+```
+
+输出四态：`confirmed / rejected / inconclusive / blocked`，证据在
+`runs/<project>/verify/<finding-id>/`。默认 `--network none`、非 root、cap-drop、
+内存/CPU/超时限制，不挂载 docker socket。
+
+两个智能体定义在 `.claude/agents/environment-builder.md` 和 `.claude/agents/verify-agent.md`。
 
 ## 目录结构
 

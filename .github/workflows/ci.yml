@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fast:
+    name: Fast checks (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install deterministic tools
+        run: python -m pip install --upgrade pip pytest ruff
+
+      - name: Run fast checks
+        run: bash scripts/ci/fast.sh
+
+  skillopt-adapter:
+    name: SkillOpt adapter (no model calls)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SKILLOPT_REF: e2edfa9721ce41c98e50fa129da87cf1f53c2f7f
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deterministic tools
+        run: python -m pip install --upgrade pip pytest pyyaml
+
+      - name: Fetch pinned SkillOpt
+        run: |
+          git init "$RUNNER_TEMP/SkillOpt"
+          git -C "$RUNNER_TEMP/SkillOpt" remote add origin https://github.com/microsoft/SkillOpt.git
+          git -C "$RUNNER_TEMP/SkillOpt" fetch --depth 1 origin "$SKILLOPT_REF"
+          git -C "$RUNNER_TEMP/SkillOpt" checkout FETCH_HEAD
+
+      - name: Run adapter tests
+        env:
+          PYTHONPATH: ${{ runner.temp }}/SkillOpt:${{ github.workspace }}
+        run: python -m pytest -q tests/test_skillopt_env_build.py
