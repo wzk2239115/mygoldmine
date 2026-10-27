@@ -1,0 +1,51 @@
+{
+  "schema_version": "1",
+  "project": "vllm",
+  "source": "/home/wzk/mygoldmine/targets/vllm",
+  "commit": "20bf65a",
+  "image": "mygoldmine/env:vllm-20bf65a",
+  "base_image": "mygoldmine:dev",
+  "mode": "auto",
+  "env_status": "planned",
+  "built_at": "2026-10-27T05:23:24Z",
+  "image_id": "",
+  "build_exit_code": 0,
+  "build_log": "/home/wzk/mygoldmine/env/vllm/build.log",
+  "detected": {
+    "languages": [
+      "python",
+      "rust",
+      "native"
+    ],
+    "system_packages": [
+      "curl",
+      "ca-certificates",
+      "build-essential",
+      "pkg-config",
+      "cmake"
+    ]
+  },
+  "install_commands": [
+    {
+      "lang": "python",
+      "cmd": "python3 -m pip install --no-cache-dir -e . --no-deps"
+    },
+    {
+      "lang": "rust",
+      "cmd": "cd '/opt/target/rust' && . \"$HOME/.cargo/env\" && (cargo fetch --locked || cargo fetch)"
+    }
+  ],
+  "limitations": [
+    "默认不启用 GPU；GPU/CUDA 路径无法验证（需要 --gpus all 的专用环境）",
+    "未提供外部依赖服务（数据库、Ray 集群、对象存储等）",
+    "auto 模式为静态/导入级环境，不代表可完整启动服务"
+  ],
+  "partial_reasons": [
+    "Python 只做 editable --no-deps，运行时依赖未完整安装",
+    "Rust 只 fetch 依赖，未完整编译",
+    "native 项目只准备工具链，未编译"
+  ],
+  "workdir": "/opt/target",
+  "run_script": "/home/wzk/mygoldmine/env/vllm/run.sh",
+  "test_script": "/home/wzk/mygoldmine/env/vllm/test.sh"
+}

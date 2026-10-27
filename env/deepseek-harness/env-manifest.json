@@ -1,0 +1,37 @@
+{
+  "schema_version": "1",
+  "project": "deepseek-harness",
+  "source": "/home/wzk/mygoldmine/targets/deepseek-harness",
+  "commit": "22ddee37",
+  "image": "mygoldmine/env:deepseek-harness-22ddee37",
+  "base_image": "mygoldmine:dev",
+  "mode": "auto",
+  "env_status": "planned",
+  "built_at": "2026-10-27T05:23:24Z",
+  "image_id": "",
+  "build_exit_code": 0,
+  "build_log": "/home/wzk/mygoldmine/env/deepseek-harness/build.log",
+  "detected": {
+    "languages": [
+      "node"
+    ],
+    "system_packages": []
+  },
+  "install_commands": [
+    {
+      "lang": "node",
+      "cmd": "npm install -g pnpm && pnpm install --frozen-lockfile --ignore-scripts"
+    }
+  ],
+  "limitations": [
+    "默认不启用 GPU；GPU/CUDA 路径无法验证（需要 --gpus all 的专用环境）",
+    "未提供外部依赖服务（数据库、Ray 集群、对象存储等）",
+    "auto 模式为静态/导入级环境，不代表可完整启动服务"
+  ],
+  "partial_reasons": [
+    "Node 安装跳过 lifecycle scripts（--ignore-scripts）"
+  ],
+  "workdir": "/opt/target",
+  "run_script": "/home/wzk/mygoldmine/env/deepseek-harness/run.sh",
+  "test_script": "/home/wzk/mygoldmine/env/deepseek-harness/test.sh"
+}

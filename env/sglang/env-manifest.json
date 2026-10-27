@@ -1,0 +1,48 @@
+{
+  "schema_version": "1",
+  "project": "sglang",
+  "source": "/home/wzk/mygoldmine/targets/sglang",
+  "commit": "3a62cdf",
+  "image": "mygoldmine/env:sglang-3a62cdf",
+  "base_image": "mygoldmine:dev",
+  "mode": "auto",
+  "env_status": "planned",
+  "built_at": "2026-10-27T05:23:24Z",
+  "image_id": "",
+  "build_exit_code": 0,
+  "build_log": "/home/wzk/mygoldmine/env/sglang/build.log",
+  "detected": {
+    "languages": [
+      "python",
+      "rust"
+    ],
+    "system_packages": [
+      "curl",
+      "ca-certificates",
+      "build-essential",
+      "pkg-config"
+    ]
+  },
+  "install_commands": [
+    {
+      "lang": "python",
+      "cmd": "cd '/opt/target/python' && python3 -m pip install --no-cache-dir -e . --no-deps"
+    },
+    {
+      "lang": "rust",
+      "cmd": "cd '/opt/target/rust' && . \"$HOME/.cargo/env\" && (cargo fetch --locked || cargo fetch)"
+    }
+  ],
+  "limitations": [
+    "默认不启用 GPU；GPU/CUDA 路径无法验证（需要 --gpus all 的专用环境）",
+    "未提供外部依赖服务（数据库、Ray 集群、对象存储等）",
+    "auto 模式为静态/导入级环境，不代表可完整启动服务"
+  ],
+  "partial_reasons": [
+    "Python 只做 editable --no-deps，运行时依赖未完整安装",
+    "Rust 只 fetch 依赖，未完整编译"
+  ],
+  "workdir": "/opt/target",
+  "run_script": "/home/wzk/mygoldmine/env/sglang/run.sh",
+  "test_script": "/home/wzk/mygoldmine/env/sglang/test.sh"
+}
