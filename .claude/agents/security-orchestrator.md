@@ -359,6 +359,10 @@ finding: <finding 文件路径或报告中的条目>
 最终报告必须区分：`static finding`、`confirmed`、`rejected`、`inconclusive`、`blocked`。
 禁止把未验证的静态条目写成 confirmed。
 
+`scripts/verify/auto_verify.sh` 只做静态预筛：它现在只输出 `inconclusive`/`blocked`，
+不再把关键词命中标成 confirmed。`run_verify.sh` 会拒绝没有 evidence 文件、或
+`evidence_class=static/static-pattern` 的 confirmed，自动降级为 inconclusive。
+
 ---
 
 ## Agentic Infra Track（harness / inference / training 优先）

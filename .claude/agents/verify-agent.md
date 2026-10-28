@@ -98,6 +98,43 @@ tools: Read, Write, Edit, Bash
    - `inconclusive`：说明缺什么信息/运行时。
    - `blocked`：说明环境限制，不要伪装成 rejected。
 
+## 证据分级与降误报门槛
+
+只允许三类证据：
+
+| 级别 | 含义 | 能否 confirmed |
+|---|---|---|
+| `runtime` | 实际启动目标/服务，观察到请求、进程、文件或网络行为 | 可以 |
+| `source-semantic` | 精确源码链 + 默认配置/入口可达 + 反向对照测试 | 可以，但必须标注静态语义证据 |
+| `static-pattern` | 仅关键词、文件名、单行 grep 命中 | **不可以**，只能 `inconclusive` |
+
+`confirmed` 必须同时满足：
+
+- 攻击者身份、入口、前置条件写清楚；默认配置下可达，或明确标注 opt-in。
+- 有 `control_test`：关闭开关/加认证/换成安全配置后，同样的观察消失。
+- 有 `false_positive_checks`：排除设计能力、测试/示例、已知 CVE、重复根因、HITL/审批门。
+- 至少一个 `evidence/` 文件；没有证据文件不得 confirmed。
+
+`rejected` 必须有具体反证（代码矛盾、负向对照、不可达边界），不能只因为“没搜到关键词”。
+`inconclusive` 用于“源码链存在但运行时不可达/前置条件未确认”。
+`blocked` 用于环境缺失；不要把 blocked 当误报，也不要把 blocked 当 confirmed。
+
+推荐写入 `verdict.json`：
+
+```json
+{
+  "verdict": "confirmed",
+  "evidence_class": "runtime",
+  "confidence": "high",
+  "reason": "默认配置下无认证请求到达 sink，负向对照关闭开关后不再触发",
+  "preconditions_verified": ["default config", "no auth", "loopback service reachable"],
+  "control_test": "auth enabled -> 401; auth disabled -> 200 + marker",
+  "false_positive_checks": ["not test/example", "not known CVE", "not opt-in"],
+  "evidence": ["evidence/request.log", "evidence/control.log"],
+  "limitations": []
+}
+```
+
 ## 安全边界
 
 - 只验证本地源码/本地容器，不访问公网、不扫描生产系统。

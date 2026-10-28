@@ -3,9 +3,10 @@
 #   1. 归一化不同报告 schema 的 findings
 #   2. 按 severity 选 Top-N
 #   3. 为每条生成源码级 harness（引用文件 + sink 模式）
-#   4. 并行调用 run_verify.sh，汇总 confirmed/rejected/inconclusive/blocked
+#   4. 并行调用 run_verify.sh，只输出静态线索（不作为 confirmed）
 #
 # 这是启发式预筛，不替代 verify-agent 的专用 harness。
+# 关键词命中不是漏洞证明；本脚本不再输出 confirmed/rejected 结论。
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -157,7 +158,8 @@ with open(os.environ["FINDING_FILE"], encoding="utf-8") as fh:
 
 def finish(verdict, reason, ev=None, lim=None):
     payload = {"verdict": verdict, "reason": reason,
-               "evidence": ev or [], "limitations": lim or []}
+               "evidence": ev or [], "limitations": lim or [],
+               "evidence_class": "static-pattern"}
     (vdir / "verdict.json").write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     print(f"{verdict}: {reason}")
     sys.exit({"confirmed": 0, "rejected": 10, "inconclusive": 20, "blocked": 30}[verdict])
@@ -204,12 +206,12 @@ for p in checked:
 (edir / "grep.txt").write_text("\n".join(hits) + "\n", encoding="utf-8")
 
 if hits:
-    finish("confirmed", f"在引用文件命中模式 `{pattern}`（源码级）",
+    finish("inconclusive", f"静态模式命中 `{pattern}`，但未证明可达/可触发；不是运行时确认",
            ev=["files.txt", "grep.txt"],
-           lim=["源码级验证，未运行目标程序"])
-finish("rejected", f"引用文件存在但未命中模式 `{pattern}`",
+           lim=["仅关键词/源码模式命中", "未启动目标程序", "需要 verify-agent 生成可达性 harness"])
+finish("inconclusive", f"引用文件存在但未命中模式 `{pattern}`；关键词缺失不等于漏洞不存在",
        ev=["files.txt", "grep.txt"],
-       lim=["源码级验证；模式可能选择不准确，需要人工复核"])
+       lim=["仅关键词/源码模式检查", "未启动目标程序", "需要 verify-agent 生成可达性 harness"])
 PY
 chmod +x "$HARNESS"
 

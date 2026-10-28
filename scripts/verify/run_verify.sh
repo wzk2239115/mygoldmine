@@ -149,9 +149,10 @@ write_report() {
     if [ -f "$ENV_MANIFEST" ]; then
         limits_json="$(jq -c '.limitations // []' "$ENV_MANIFEST" 2>/dev/null || echo '[]')"
     fi
-    local harness_verdict_json="{}"
+    local harness_verdict_json="{}" evidence_class="unknown"
     if [ -f "$RUN_DIR/verdict.json" ] && jq -e . "$RUN_DIR/verdict.json" >/dev/null 2>&1; then
         harness_verdict_json="$(jq -c . "$RUN_DIR/verdict.json")"
+        evidence_class="$(jq -r '.evidence_class // "unknown"' "$RUN_DIR/verdict.json" 2>/dev/null)"
     fi
     jq -n \
         --arg schema_version "1" \
@@ -174,6 +175,7 @@ write_report() {
         --argjson evidence "$evidence_json" \
         --argjson limitations "$limits_json" \
         --argjson harness_verdict "$harness_verdict_json" \
+        --arg evidence_class "$evidence_class" \
         '{
             schema_version: $schema_version,
             project: $project,
@@ -195,6 +197,7 @@ write_report() {
             evidence: $evidence,
             limitations: $limitations,
             harness_verdict: $harness_verdict,
+            evidence_class: $evidence_class,
             artifacts: {
                 stdout: "harness.stdout.log",
                 stderr: "harness.stderr.log",
@@ -295,14 +298,16 @@ if [ "$RC" -eq 124 ] || [ "$RC" -eq 137 ]; then TIMED_OUT="true"; fi
 
 VERDICT=""
 REASON=""
+EVIDENCE_CLASS="unknown"
 if [ -f "$RUN_DIR/verdict.json" ] && jq -e . "$RUN_DIR/verdict.json" >/dev/null 2>&1; then
     VERDICT="$(jq -r '.verdict // empty' "$RUN_DIR/verdict.json" 2>/dev/null)"
     REASON="$(jq -r '.reason // empty' "$RUN_DIR/verdict.json" 2>/dev/null)"
+    EVIDENCE_CLASS="$(jq -r '.evidence_class // "unknown"' "$RUN_DIR/verdict.json" 2>/dev/null)"
 fi
 
 if [ -z "$VERDICT" ]; then
     case "$RC" in
-        0) VERDICT="confirmed"; REASON="harness 退出 0 且未写 verdict.json" ;;
+        0) VERDICT="inconclusive"; REASON="harness 退出 0 但未写 verdict.json，拒绝自动 confirmed" ;;
         10) VERDICT="rejected"; REASON="harness 退出 10（rejected）" ;;
         20) VERDICT="inconclusive"; REASON="harness 退出 20（inconclusive）" ;;
         30) VERDICT="blocked"; REASON="harness 退出 30（blocked）" ;;
@@ -310,6 +315,17 @@ if [ -z "$VERDICT" ]; then
         125|126|127) VERDICT="blocked"; REASON="容器/入口执行失败（rc=$RC）" ;;
         *) VERDICT="inconclusive"; REASON="harness 退出 $RC，未写 verdict.json" ;;
     esac
+fi
+
+if [ "$VERDICT" = "confirmed" ]; then
+    EVIDENCE_COUNT="$(find "$RUN_DIR/evidence" -type f 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "$EVIDENCE_COUNT" -eq 0 ]; then
+        VERDICT="inconclusive"
+        REASON="confirmed 缺少 evidence/ 文件，按 inconclusive 降级"
+    elif [ "$EVIDENCE_CLASS" = "static" ] || [ "$EVIDENCE_CLASS" = "static-pattern" ]; then
+        VERDICT="inconclusive"
+        REASON="confirmed 仅基于静态模式，未证明运行时可达；按 inconclusive 降级"
+    fi
 fi
 
 case "$VERDICT" in confirmed|rejected|inconclusive|blocked) ;; *) VERDICT="inconclusive"; REASON="非法 verdict，按 inconclusive 处理" ;; esac
