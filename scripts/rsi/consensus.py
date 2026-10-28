@@ -91,10 +91,12 @@ def similarity(left, right):
     if not path_score:
         left_names = {path.rsplit("/", 1)[-1] for path in left["file_keys"]}
         right_names = {path.rsplit("/", 1)[-1] for path in right["file_keys"]}
-        path_score = 0.5 if left_names & right_names else 0.0
+        path_score = 0.85 if left_names & right_names else 0.0
     cwe_score = jaccard(set(left["cwe"]), set(right["cwe"]))
     cat_score = 1.0 if left["category"] and left["category"].lower() == right["category"].lower() else 0.0
     score = 0.55 * title_score + 0.30 * path_score + 0.10 * cwe_score + 0.05 * cat_score
+    if path_score >= 0.85 and title_score >= 0.10:
+        score = max(score, 0.46)
     if path_score == 1.0 and title_score >= 0.25:
         score = max(score, 0.56)
     if title_score >= 0.70:
@@ -147,7 +149,7 @@ def cluster_project(project, runs, min_rounds):
                 if score > best_score:
                     best = cluster
                     best_score = score
-            if best is not None and best_score >= 0.50:
+            if best is not None and best_score >= 0.46:
                 best["variants"].append(finding)
                 best["runs"].add(finding["run_id"])
             else:
