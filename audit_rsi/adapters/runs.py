@@ -164,10 +164,14 @@ def import_run(
         project = str(target.get("name") or "project")
     commit = str(target.get("commit") or meta.get("commit") or "")
     duration = float(meta.get("duration_seconds") or 0.0)
-    stages = list(
-        (report.get("coverage", {}) or {}).get("stages", {}) or DEFAULT_STAGES
-    )
-    findings = list(report.get("findings", []) or [])
+    coverage = report.get("coverage", {})
+    if not isinstance(coverage, dict):
+        coverage = {}
+    stages_raw = coverage.get("stages", {})
+    if not isinstance(stages_raw, dict):
+        stages_raw = {}
+    stages = list(stages_raw) or list(DEFAULT_STAGES)
+    findings = list(report.get("findings", []) or report.get("vulnerabilities", []) or [])
     node_budget = max(1, len(stages) + len(findings) + len(verify))
     share = duration / node_budget
 
@@ -185,7 +189,7 @@ def import_run(
     )
 
     stage_ids: dict[str, str] = {}
-    stage_status = (report.get("coverage", {}) or {}).get("stages", {}) or {}
+    stage_status = stages_raw
     for name in stages:
         node_id = f"stage:{name}"
         stage_ids[name] = node_id
