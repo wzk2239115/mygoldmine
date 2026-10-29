@@ -15,7 +15,6 @@ import Toast from './components/Toast.jsx';
 import TopBar from './components/TopBar.jsx';
 
 const DEFAULT_FILTERS = {
-  scope: 'curated',
   project: 'all',
   severities: [],
   verdicts: [],
@@ -27,7 +26,9 @@ function loadFilters() {
   try {
     const raw = localStorage.getItem('vul-ai-filters');
     if (!raw) return DEFAULT_FILTERS;
-    return { ...DEFAULT_FILTERS, ...JSON.parse(raw) };
+    const saved = JSON.parse(raw);
+    delete saved.scope;
+    return { ...DEFAULT_FILTERS, ...saved };
   } catch {
     return DEFAULT_FILTERS;
   }
@@ -244,8 +245,6 @@ export default function App() {
 
   const scoped = useMemo(() => {
     let items = findings;
-    if (filters.scope === 'curated') items = items.filter((finding) => finding.curated);
-    if (filters.scope === 'cve') items = items.filter((finding) => finding.cveTier);
     if (filters.project !== 'all') items = items.filter((finding) => finding.project === filters.project);
     if (filters.cveOnly) items = items.filter((finding) => finding.cveTier);
     const query = filters.query.trim().toLowerCase();
@@ -267,7 +266,7 @@ export default function App() {
       );
     }
     return items;
-  }, [findings, filters.scope, filters.project, filters.cveOnly, filters.query]);
+  }, [findings, filters.project, filters.cveOnly, filters.query]);
 
   const filtered = useMemo(() => {
     let items = scoped;
@@ -327,8 +326,7 @@ export default function App() {
       filters.severities.length ||
       filters.verdicts.length ||
       filters.cveOnly ||
-      filters.query ||
-      filters.scope !== 'curated'
+      filters.query
   );
 
   const clearFilters = () => setFilters(DEFAULT_FILTERS);
@@ -371,25 +369,16 @@ export default function App() {
           </button>
           <button
             type="button"
-            className={cx('rail-button', filters.scope === 'cve' && 'is-active')}
-            title="CVE 候选"
-            aria-label="CVE 候选"
-            onClick={() => setFilters((current) => ({ ...current, scope: current.scope === 'cve' ? 'curated' : 'cve' }))}
+            className={cx('rail-button', filters.cveOnly && 'is-active')}
+            title="只看 CVE 候选"
+            aria-label="只看 CVE 候选"
+            onClick={() => setFilters((current) => ({ ...current, cveOnly: !current.cveOnly }))}
           >
             <ShieldAlert size={18} />
             {board?.stats?.cveCandidates ? <span className="rail-badge">{board.stats.cveCandidates}</span> : null}
           </button>
         </div>
         <div className="rail-bottom">
-          <button
-            type="button"
-            className="rail-button"
-            title="全部原始 findings"
-            aria-label="全部原始 findings"
-            onClick={() => setFilters((current) => ({ ...current, scope: 'all' }))}
-          >
-            <Database size={17} />
-          </button>
           <span className="rail-version">v0.1</span>
         </div>
       </nav>
@@ -444,11 +433,7 @@ export default function App() {
             <div className="content-summary">
               <span className="summary-count">{filtered.length}</span>
               <span>
-                {filters.scope === 'all'
-                  ? '原始 findings'
-                  : filters.scope === 'cve'
-                    ? 'CVE 候选'
-                    : '精选 findings'}
+                findings
                 {filters.project !== 'all' ? ` · ${board?.projects?.find((project) => project.id === filters.project)?.name || filters.project}` : ''}
               </span>
               {hasFilters ? (

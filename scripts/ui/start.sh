@@ -23,4 +23,8 @@ if [ "${SKIP_BUILD:-0}" != "1" ] && [ "$needs_build" = "1" ]; then
   npm run build
 fi
 
+if [ -f "$ROOT/scripts/workflow/build_state.py" ]; then
+  python3 "$ROOT/scripts/workflow/build_state.py" || true
+fi
+
 exec node server/index.mjs "$@"

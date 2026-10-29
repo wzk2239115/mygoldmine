@@ -45,7 +45,7 @@ cd ui
 npm run smoke
 ```
 
-`smoke` 会检查 `/api/board` 的 5 个目标、601 条原始 finding、25 条精选、8 个 CVE 候选、`/api/live` 结构，并读取一次日志尾部。
+`smoke` 会检查 `/api/board` 结构、统计一致性、至少 25 条人工复核、至少 8 个 CVE 候选，以及 `/api/live` 和日志/轨迹接口。
 
 ## 数据来源
 
@@ -53,19 +53,22 @@ npm run smoke
 - 默认排除 `smoke`、`smoke-real`、`smoke-target`。
 - 报告里的 `findings` 或 `vulnerabilities` 会统一归一化；`evidence` / `files` / `location` 合并为可复制证据。
 - `run.sh` 的 `.meta/status.json` 优先；没有 status 的 `overnight.sh` / `mine_one.sh` 运行，只要 `claude.rendered.log` 在 30 分钟内有更新，也会识别为 LIVE。
-- `ui/data/curated.json` 是二次审计的 25 条精选 finding，按 `project:finding-id` 建立初始分诊状态。
-- `ui/data/state.json` 保存手工改动（状态、判定、CVE Tier、备注、关联 CVE）。默认不提交。
-- 所有状态变更都只写 `ui/data/state.json`，**不修改原始报告**。
+- `ui/data/curated.json` 是人工二次审计过的 25 条 finding，按 `project:finding-id` 建立初始状态。
+- `ui/data/auto-state.json` 由 `scripts/workflow/build_state.py` 生成：扫描最新报告、`runs/*/*/verify/**/verify-report.json`、`docs/cve-handoff.json`、`docs/cve-adjudication.json`，自动把 finding 路由到分诊/复现/关闭。
+- `ui/data/state.json` 保存手工改动（状态、判定、CVE Tier、备注、关联 CVE），优先级高于自动状态。默认不提交。
+- 优先级：`state.json` > `curated.json` > `auto-state.json` > 默认 inbox。所有手工变更只写 `state.json`，**不修改原始报告**。
 
 ## 列与判定
 
 | 列 | 含义 |
 |---|---|
-| 收件箱 | 未分诊 |
-| 分诊 | 判断可达性、重复、设计意图 |
-| 复现 | 版本映射、环境验证、最小 PoC |
-| CVE 跟踪 | 去重、披露、CNA 申请 |
+| 收件箱 | 未进入流程 |
+| 分诊 | Critical / High+verified 自动入队；人工判断可达性、重复、设计意图 |
+| 复现 | 已有 verify 记录；补版本映射、环境验证、最小 PoC |
+| CVE 跟踪 | 先查 NVD/GHSA/项目公告去重，再披露/CNA |
 | 已关闭 | 误报、重复、已知 CVE、设计限制 |
+
+自动分诊只代表“值得先看”，不等于漏洞成立；`auto` 徽标表示该状态来自产物而不是人工。
 
 `verdict`：`TP` 代码级成立、`FP` 误报、`DUP` 重复、`UNCLEAR` 待定。
 
@@ -78,7 +81,7 @@ npm run smoke
   - Brief：改状态、判定、CVE Tier、CVE 状态、关联 CVE、审计备注。
   - Evidence：复制证据路径、打开 `audit-report.md` / `.json`、查看原始 finding JSON。
   - Agent stream：读取 `claude.rendered.log` 尾部，可自动刷新、复制 `run.sh --verify-only` 命令。
-- **Filter**：目标、严重度、判定、CVE-only、搜索；范围可切精选 / CVE 候选 / 全部。
+- **Filter**：目标、严重度、判定、CVE-only、搜索；默认展示全部 finding，不再有精选/CVE/全部三档范围切换。
 - 深色/浅色主题；状态与筛选保存在浏览器 localStorage。
 
 ## API
@@ -105,6 +108,7 @@ npm run smoke
 
 ```bash
 printf '{}\n' > ui/data/state.json
+python3 scripts/workflow/build_state.py
 ```
 
 只重置某条：

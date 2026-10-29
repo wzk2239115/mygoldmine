@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { Database, ExternalLink, GitBranch, LayoutGrid, List, Moon, PanelLeft, RefreshCw, Search, Sun, Terminal, X } from 'lucide-react';
-import { SCOPE_OPTIONS } from '../constants.js';
 import { cx, formatDate } from '../utils.js';
 
 const CCUI_URL = import.meta.env.VITE_CCUI_URL || 'http://127.0.0.1:3001';
@@ -55,9 +54,7 @@ export default function TopBar({
         </button>
         <div className="page-title">
           <span className="eyebrow">SECURITY OPERATIONS / FINDINGS</span>
-          <h1>
-            证据看板 <span className="title-slash">/</span> <em>Kanban</em>
-          </h1>
+          <h1>看板</h1>
         </div>
       </div>
 
@@ -91,19 +88,6 @@ export default function TopBar({
       </div>
 
       <div className="topbar-right">
-        <div className="scope-switch" role="group" aria-label="数据范围">
-          {SCOPE_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              className={cx(filters.scope === option.id && 'is-active')}
-              onClick={() => setFilters((current) => ({ ...current, scope: option.id }))}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
         <div className="view-switch" role="group" aria-label="视图">
           <button
             type="button"

@@ -263,6 +263,19 @@ VISUAL_SCRIPT="$REPO_ROOT/.claude/skills/project-cartographer/scripts/build_visu
 if [ -f "$VISUAL_SCRIPT" ] && [ -s "$RUN_DIR/audit-report.json" ]; then
     mkdir -p "$META"
     python3 "$VISUAL_SCRIPT" --project "$PROJECT" --run-dir "$RUN_DIR" >> "$META/visual.log" 2>&1 || true
+    RENDER_SCRIPT="$REPO_ROOT/.claude/skills/project-cartographer/scripts/render_diagrams.py"
+    IMAGE_SCRIPT="$REPO_ROOT/.claude/skills/project-cartographer/scripts/render_attack_images.py"
+    VISUAL_MODEL="$RUN_DIR/visual/visual-model.json"
+    if [ "${VISUAL_RENDER:-0}" = "1" ] && [ -f "$RENDER_SCRIPT" ] && [ -f "$VISUAL_MODEL" ]; then
+        python3 "$RENDER_SCRIPT" --model "$VISUAL_MODEL" --out-dir "$RUN_DIR/visual-rendered" >> "$META/visual.log" 2>&1 || true
+        if [ "${VISUAL_IMAGES:-0}" = "1" ] && [ -f "$IMAGE_SCRIPT" ]; then
+            python3 "$IMAGE_SCRIPT" --model "$VISUAL_MODEL" --max "${VISUAL_IMAGE_MAX:-3}" >> "$META/visual.log" 2>&1 || true
+            python3 "$RENDER_SCRIPT" --model "$VISUAL_MODEL" --out-dir "$RUN_DIR/visual-rendered" >> "$META/visual.log" 2>&1 || true
+        fi
+    fi
+fi
+if [ -f "$REPO_ROOT/scripts/workflow/build_state.py" ]; then
+    python3 "$REPO_ROOT/scripts/workflow/build_state.py" >> "$META/workflow.log" 2>&1 || true
 fi
 log "容器退出 rc=$rc run_dir=$RUN_DIR"
 exit "$rc"

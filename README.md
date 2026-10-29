@@ -116,8 +116,9 @@ bash scripts/ui/start.sh
 - 运行中的 run 会在看板顶部出现 LIVE 条：显示状态、耗时、最后一行日志；点开可实时 tail `claude.rendered.log`（2 秒刷新）。`run.sh` 与 overnight/mine_one 都支持。
 - 卡片：严重度、TP/FP/DUP、CVE Tier、证据数；原生拖拽改状态。
 - 详情：Brief / Evidence / Agent stream；可看原始报告、证据路径、`claude.rendered.log` 尾部。
-- 筛选：目标、严重度、判定、CVE-only、搜索；精选 25 / CVE 候选 / 全部。
-- 状态写入 `ui/data/state.json`，不改原始报告；精选种子在 `ui/data/curated.json`。
+- 筛选：目标、严重度、判定、CVE-only、搜索；默认展示全部 finding，不再分精选/CVE/全部三档。
+- 自动流转：`scripts/workflow/build_state.py` 读取 verify、CVE handoff/adjudication 和最新报告，生成 `ui/data/auto-state.json`；人工状态仍优先。
+- 手工状态写入 `ui/data/state.json`，不改原始报告；人工复核种子在 `ui/data/curated.json`，自动路由缓存不提交。
 - 默认只监听 `127.0.0.1`，避免把未修复漏洞细节暴露到网络。
 
 详见 `ui/README.md`、`docs/cve-candidates.md`、`docs/cve-handoff.json`。
@@ -134,10 +135,14 @@ python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
 ```
 
 产物：
-- `visual-model.json`：项目结构树、审计覆盖树、攻击路径树
-- `visual-rendered/*.svg`：结构图、覆盖图、攻击路径
-- `report-illustrated.md`：带图报告
-- `docs/visuals/*.webp`：image2 封面/章节插图，不充当漏洞证据
+- `visual-model.json`：项目结构树、审计覆盖树、攻击路径树，以及每个攻击的 attacker / victim 场景步骤
+- `visual-rendered/*.svg`：结构图、覆盖图、攻击路径、攻击者/受害者双栏步骤图
+- `report-illustrated.md`：带图报告，包含场景插图、双方执行步骤和证据
+- `docs/visuals/*.webp`：image2 封面/章节/攻击场景插图，不充当漏洞证据
+
+攻击场景插图可用 `render_attack_images.py --model ... --max 3` 生成；`--all` 为每个 Critical/High 攻击生成。
+
+流水线默认只生成 `visual-model.json`；需要审计结束即渲染时设置 `VISUAL_RENDER=1`，需要同时生成 attack 插图时再设置 `VISUAL_IMAGES=1`（可用 `VISUAL_IMAGE_MAX` 限制数量）。
 
 UI 的 **项目地图** 视图读取 `visual-model.json`，可以点节点直接跳到 finding。
 360 平台已验证 `openai/gpt-image-2` 等图像模型；密钥从 opencode 配置读取，不落库。

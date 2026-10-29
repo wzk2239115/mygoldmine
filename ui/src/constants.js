@@ -3,28 +3,28 @@ export const COLUMNS = [
     id: 'inbox',
     code: 'INBOX',
     label: '收件箱',
-    hint: '未分诊的新 finding',
+    hint: '未进入流程的新 finding',
     tone: 'neutral'
   },
   {
     id: 'triage',
     code: 'TRIAGE',
     label: '分诊',
-    hint: '判断可达性、重复与设计意图',
+    hint: 'Critical / High+verified 自动入队，等待人工判定',
     tone: 'cool'
   },
   {
     id: 'reproduce',
     code: 'REPRODUCE',
     label: '复现',
-    hint: '版本映射、环境验证、最小 PoC',
+    hint: '已有 verify 记录；补充版本映射与最小 PoC',
     tone: 'amber'
   },
   {
     id: 'cve',
     code: 'CVE TRACK',
     label: 'CVE 跟踪',
-    hint: '去重、披露、CNA 申请',
+    hint: '先查已知 CVE/GHSA 去重，再披露/CNA',
     tone: 'hot'
   },
   {
@@ -58,12 +58,6 @@ export const CVE_STATUSES = [
   { id: 'known', label: '已知 CVE' },
   { id: 'blocked', label: '受阻' },
   { id: 'disclosed', label: '已披露' }
-];
-
-export const SCOPE_OPTIONS = [
-  { id: 'curated', label: '精选 25' },
-  { id: 'cve', label: 'CVE 候选' },
-  { id: 'all', label: '全部' }
 ];
 
 export const STATUS_LABELS = Object.fromEntries(COLUMNS.map((column) => [column.id, column.label]));

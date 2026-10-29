@@ -271,15 +271,15 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 - 目标：读取 `runs/*/*/audit-report.json`，把二次审计结论做成可操作的五列看板。
 - 产物：`ui/`（React + Vite + Node API）、`scripts/ui/start.sh`、`ui/README.md`。
-- 验收：精选 25 条可筛选/拖拽；详情含 Brief/Evidence/Agent stream；运行中 run 有 LIVE 条和 2s 实时日志抽屉；
+- 验收：默认全部 finding，人工复核 25 条可筛选/拖拽；verify/CVE 产物自动流转；详情含 Brief/Evidence/Agent stream；运行中 run 有 LIVE 条和 2s 实时日志抽屉；
   状态写入 `ui/data/state.json`；默认只监听回环；前端构建与 Playwright 冒烟通过。
 - 状态：[x]
 
 ### T30 项目地图与视觉报告
 
-- 目标：把项目结构、审计覆盖、攻击路径做成可读树，并用 image2 生成封面/插图。
+- 目标：把项目结构、审计覆盖、攻击路径做成可读树，并用 image2 生成封面和攻击场景插图。
 - 产物：`project-cartographer` skill、`visual-model.json`、SVG 图、`report-illustrated.md`、UI Map 视图。
-- 验收：至少 1 个项目生成结构/覆盖/攻击路径图；UI 可点节点跳 finding；image2 生成封面且标注非证据。
+- 验收：至少 1 个项目生成结构/覆盖/攻击路径图；每个 Critical/High 有攻击者/受害者步骤；image2 生成场景插图且标注非证据；UI 可点节点跳 finding。
 - 状态：[x]
 
 ## 初判差距假设（待 T01-T03 用证据确认，不得直接当结论）

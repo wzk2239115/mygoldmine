@@ -19,6 +19,13 @@ import TrajectoryPanel from './TrajectoryPanel.jsx';
 import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
 import DrawerResizer, { useDrawerWidth } from './DrawerResizer.jsx';
 
+const AUTO_SOURCE_LABELS = {
+  severity: '严重度规则',
+  verify: '验证报告',
+  handoff: 'CVE handoff',
+  adjudication: '二次研判'
+};
+
 function DetailSection({ label, children, tone }) {
   if (!children) return null;
   return (
@@ -221,6 +228,12 @@ export default function DetailDrawer({ finding, board, onClose, onPatch, onToast
                     </button>
                   ))}
                 </div>
+                {finding.routedBy === 'auto' ? (
+                  <p className="auto-route" title={finding.autoDetail || finding.autoReason}>
+                    自动流转：{finding.autoReason || 'verify / CVE 产物'}
+                    {finding.autoSource ? ` · ${AUTO_SOURCE_LABELS[finding.autoSource] || finding.autoSource}` : ''}
+                  </p>
+                ) : null}
                 <div className="verdict-row">
                   <span className="field-label">判定</span>
                   <div className="segmented">
@@ -241,9 +254,10 @@ export default function DetailDrawer({ finding, board, onClose, onPatch, onToast
 
               <section className="detail-section cve-section">
                 <div className="decision-head">
-                  <h3>CVE track</h3>
+                  <h3>CVE 去重 / 跟踪</h3>
                   <span>{finding.cveStatus || 'none'}</span>
                 </div>
+                <p className="field-hint">先查 NVD/GHSA/项目公告确认是否已被覆盖；重复时填写 known CVE 并关闭。</p>
                 <div className="cve-controls">
                   <div className="segmented">
                     <button type="button" className={cx(!finding.cveTier && 'is-active')} onClick={() => patch({ cveTier: null })}>

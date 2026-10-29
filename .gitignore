@@ -51,3 +51,6 @@ rsi/batch1/
 
 # Local catalog batch workspace
 catalog/
+
+# Generated workflow routing cache
+ui/data/auto-state.json

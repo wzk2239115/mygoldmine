@@ -309,4 +309,7 @@ jq -n \
 
 log "完成: $OUTPUT/summary.md"
 jq -r '.counts | to_entries[] | "  \(.key)=\(.value)"' "$OUTPUT/summary.json" 2>/dev/null >&2 || true
+if [ -f "$REPO_ROOT/scripts/workflow/build_state.py" ]; then
+    python3 "$REPO_ROOT/scripts/workflow/build_state.py" >&2 || true
+fi
 exit 0

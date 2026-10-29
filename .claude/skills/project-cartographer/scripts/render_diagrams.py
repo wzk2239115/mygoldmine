@@ -95,6 +95,81 @@ def svg_tree(root, title, out, max_depth=8, max_nodes=500):
     Path(out).write_text("\n".join(parts), encoding="utf-8")
 
 
+def wrap_text(value, width=28, max_lines=4):
+    text = str(value or "").strip()
+    if not text:
+        return ["—"]
+    lines = []
+    current = ""
+    for char in text:
+        current += char
+        if len(current) >= width:
+            lines.append(current)
+            current = ""
+            if len(lines) >= max_lines:
+                break
+    if current and len(lines) < max_lines:
+        lines.append(current)
+    if len(lines) >= max_lines and len("".join(lines)) < len(text):
+        lines[-1] = lines[-1][: max(1, width - 1)] + "…"
+    return lines
+
+
+def svg_scene(attack, out):
+    fid = attack.get("finding_id") or attack.get("id", "finding").split(":")[-1]
+    scene = attack.get("scene") or {}
+    title = fit(attack.get("label") or fid, 78)
+    severity = str(attack.get("status") or "high")
+    color = COLORS.get(severity, COLORS["high"])
+    kind = str(scene.get("kind") or "generic")
+    attacker = scene.get("attacker") or ["构造输入"]
+    victim = scene.get("victim") or ["处理输入"]
+    entry = fit(scene.get("entry") or "未标注入口", 54)
+    result = fit(scene.get("result") or "影响以报告为准", 62)
+    width, height = 1160, 720
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">',
+        '<rect width="100%" height="100%" fill="#eee8da"/>',
+        '<style>text{font-family:Inter,"Noto Sans CJK SC","Microsoft YaHei",sans-serif;fill:#1c1b16}.title{font-size:22px;font-weight:700;letter-spacing:-.02em}.kicker{font-family:ui-monospace,monospace;font-size:10px;letter-spacing:.08em;fill:#746c5b}.h{font-size:13px;font-weight:700}.step{font-size:12px}.sub{font-size:10px;fill:#746c5b}.num{font-family:ui-monospace,monospace;font-size:11px;font-weight:700;fill:#fff8ec}.box{stroke:#403c32;stroke-width:1}.dash{fill:none;stroke:#a66a18;stroke-width:1.5;stroke-dasharray:5 5}.arrow{fill:none;stroke:#b23a2b;stroke-width:1.6}</style>',
+        f'<rect x="26" y="22" width="8" height="62" fill="{color}"/>',
+        f'<text x="48" y="43" class="kicker">ATTACK SCENE / {esc(fid)} / {esc(kind)}</text>',
+        f'<text x="48" y="70" class="title">{esc(title)}</text>',
+        f'<text x="48" y="94" class="sub">入口：{esc(entry)} · 图示由 finding 字段生成，作为解释层，不是新结论</text>',
+        '<rect x="48" y="126" width="300" height="456" fill="#fbf7ed" class="box"/>',
+        '<rect x="812" y="126" width="300" height="456" fill="#fbf7ed" class="box"/>',
+        '<rect x="388" y="126" width="384" height="456" fill="none" stroke="#a66a18" stroke-width="1.5" stroke-dasharray="7 6"/>',
+        '<text x="66" y="154" class="h">攻击者 / ATTACKER</text>',
+        '<text x="830" y="154" class="h">受害者 / VICTIM</text>',
+        '<text x="548" y="154" class="h">信任边界</text>',
+        f'<text x="548" y="174" class="sub">entry · {esc(entry)}</text>',
+    ]
+    for index, step in enumerate(attacker[:4]):
+        y = 192 + index * 92
+        parts.append(f'<rect x="66" y="{y}" width="22" height="22" fill="{color}"/>')
+        parts.append(f'<text x="72" y="{y+15}" class="num">{index+1}</text>')
+        for line_index, line in enumerate(wrap_text(step, 30, 3)):
+            parts.append(f'<text x="98" y="{y+13+line_index*16}" class="step">{esc(line)}</text>')
+    for index, step in enumerate(victim[:4]):
+        y = 192 + index * 92
+        parts.append(f'<rect x="830" y="{y}" width="22" height="22" fill="{color}"/>')
+        parts.append(f'<text x="836" y="{y+15}" class="num">{index+1}</text>')
+        for line_index, line in enumerate(wrap_text(step, 30, 3)):
+            parts.append(f'<text x="862" y="{y+13+line_index*16}" class="step">{esc(line)}</text>')
+    for index in range(min(len(attacker), len(victim), 4)):
+        y1 = 227 + index * 92
+        y2 = 227 + index * 92
+        parts.append(f'<path class="arrow" d="M348,{y1} C430,{y1} 500,{y2} 388,{y2}"/>')
+        parts.append(f'<path class="arrow" d="M772,{y2} C690,{y2} 620,{y1} 812,{y1}"/>')
+    parts += [
+        '<rect x="48" y="602" width="1064" height="72" fill="#fbf7ed" class="box"/>',
+        '<text x="66" y="626" class="kicker">IMPACT / RESULT</text>',
+        f'<text x="66" y="651" class="step">{esc(result)}</text>',
+        f'<text x="48" y="700" class="sub">kind={esc(kind)} · 状态色={esc(severity)} · 证据/入口以 finding 报告为准</text>',
+        '</svg>',
+    ]
+    Path(out).write_text("\n".join(parts), encoding="utf-8")
+
+
 def render_report(model, run_dir, out_dir):
     out_dir = Path(out_dir)
     project = model.get("project_name") or model.get("project")
@@ -137,8 +212,25 @@ def render_report(model, run_dir, out_dir):
     ]
     for attack in model.get("trees", {}).get("attacks", [])[:8]:
         fid = attack.get("finding_id") or attack.get("id", "finding").split(":")[-1]
-        svg = f"attack-{fid}.svg"
-        lines += [f"### {fid} — {attack.get('label', '')}", "", f"![attack path]({svg})", ""]
+        scene = attack.get("scene") or {}
+        lines += [f"### {fid} — {attack.get('label', '')}", ""]
+        if (out_dir / f"scene-{fid}.webp").exists():
+            lines += [f"![attack scene](scene-{fid}.webp)", ""]
+        if scene:
+            lines += [
+                "**攻击场景（AI 插图，非证据）**" if (out_dir / f"scene-{fid}.webp").exists() else "**攻击场景**",
+                "",
+                f"![scene sequence](scene-{fid}.svg)",
+                "",
+                "| 攻击者执行 | 受害者执行 |",
+                "|---|---|",
+            ]
+            for index in range(max(len(scene.get("attacker") or []), len(scene.get("victim") or []))):
+                left = (scene.get("attacker") or [])[index] if index < len(scene.get("attacker") or []) else ""
+                right = (scene.get("victim") or [])[index] if index < len(scene.get("victim") or []) else ""
+                lines.append(f"| {left} | {right} |")
+            lines += ["", f"> {scene.get('disclaimer', '')}", ""]
+        lines += [f"![attack path](attack-{fid}.svg)", ""]
     lines += ["## 4. 结果表", "", "| Finding | Severity | Status | Path |", "|---|---|---|---|"]
     leaves = []
 
@@ -170,9 +262,11 @@ def main():
     svg_tree(trees.get("coverage", {}), "Audit coverage", out_dir / "coverage-tree.svg", args.max_depth)
     for attack in trees.get("attacks", [])[:12]:
         fid = attack.get("finding_id") or attack.get("id", "finding").split(":")[-1]
+        if attack.get("scene"):
+            svg_scene(attack, out_dir / f"scene-{fid}.svg")
         svg_tree(attack, f"Attack path / {fid}", out_dir / f"attack-{fid}.svg", 8, 80)
     render_report(model, model_path.parent, out_dir)
-    print(json.dumps({"out_dir": str(out_dir), "diagrams": 2 + min(12, len(trees.get('attacks', []))), "report": str(out_dir / "report-illustrated.md")}, ensure_ascii=False))
+    print(json.dumps({"out_dir": str(out_dir), "diagrams": 2 + min(12, len(trees.get('attacks', []))) + min(12, len([a for a in trees.get('attacks', []) if a.get('scene')])), "report": str(out_dir / "report-illustrated.md")}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

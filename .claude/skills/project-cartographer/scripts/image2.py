@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -93,10 +94,14 @@ def main():
         meta = json.loads(cache_file.read_text(encoding="utf-8"))
         cached = meta.get("file")
         if cached and Path(cached).exists():
+            if Path(cached).resolve() != out.resolve():
+                out.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(cached, out)
+            meta["file"] = str(out)
             if args.json:
                 print(json.dumps({**meta, "cached": True}, ensure_ascii=False, indent=2))
             else:
-                print(cached)
+                print(out)
             return
 
     payload = {"model": args.model, "prompt": prompt, "n": 1, "size": args.size}
@@ -112,7 +117,8 @@ def main():
         json=payload,
         timeout=args.timeout,
     )
-    response.raise_for_status()
+    if not response.ok:
+        raise SystemExit(f"image API {response.status_code}: {response.text[:800]}")
     data = response.json()
     item = (data.get("data") or [{}])[0]
     if item.get("b64_json"):

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "server": "node server/index.mjs",
     "start": "node server/index.mjs",
-    "smoke": "node scripts/api-smoke.mjs"
+    "smoke": "node scripts/api-smoke.mjs",
+    "prestart": "python3 ../scripts/workflow/build_state.py || true"
   },
   "dependencies": {
     "d3-hierarchy": "^3.1.2",

@@ -1,0 +1,23 @@
+{
+  "file": "docs/visuals/open-sandbox-attack-cp-001.json",
+  "model": "vidu/openai/gpt-image-2",
+  "requested_model": "openai/gpt-image-2",
+  "size": "1024x1024",
+  "quality": "auto",
+  "usage": {
+    "total_tokens": 312,
+    "input_tokens": 116,
+    "output_tokens": 196,
+    "input_tokens_details": {
+      "text_tokens": 116,
+      "image_tokens": 0
+    },
+    "output_tokens_details": {
+      "text_tokens": 0,
+      "image_tokens": 196
+    }
+  },
+  "prompt": "editorial ink illustration on warm paper, split-screen systems diagram, focus: credential takeover; surface: control-plane; left attacker sends a request without valid credentials, right gateway accepts and forwards it to a privileged API; left side sender, right side service, a dashed trust boundary and directional arrows between them, vermilion accent, high contrast, subtle paper grain, cinematic but restrained, no text, no letters, no numbers, no logos, no code, no screenshots, no UI, no real product, no gore, 16:9 composition\n",
+  "hash": "bf4d27c5b3ab14b225396c2ef52b3896932d1c120fa53ca1eee8c712f19f16d0",
+  "cached": false
+}

@@ -120,7 +120,7 @@ export default function Board({ findings, onOpen, onMove }) {
                 {items.length === 0 ? (
                   <div className="column-empty">
                     <Inbox size={18} aria-hidden="true" />
-                    <span>当前筛选下没有 finding</span>
+                    <span>暂无条目；自动流转或拖拽后会出现在这里</span>
                   </div>
                 ) : null}
               </div>

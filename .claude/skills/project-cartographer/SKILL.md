@@ -23,6 +23,8 @@ description: 把源码项目、审计覆盖和漏洞证据转成可读的项目�
   project-map.svg
   coverage-tree.svg
   attack-<finding-id>.svg
+  scene-<finding-id>.svg
+  scene-<finding-id>.webp
   cover.webp
   report-illustrated.md
 ```
@@ -65,6 +67,35 @@ python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
 - 字段来自 finding 的 `preconditions/root_cause/impact/evidence`
 - 这是解释图，不是新的漏洞结论
 
+## 攻击场景插图
+
+每个 Critical/High attack tree 会生成一份双栏场景：
+
+```text
+攻击者：构造输入 -> 满足前置条件 -> 触发 root cause
+受害者：接收输入 -> 进入敏感路径 -> 到达 sink / 产生 impact
+中间：信任边界
+```
+
+`scene-<finding-id>.svg` 是数据生成的准确步骤图；`scene-<finding-id>.webp` 是 image2 生成的叙事插图。两者都标注“AI 插图，非漏洞证据”。
+
+```bash
+python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
+  --model runs/aud-048-opensandbox/20261028T080748Z/visual/visual-model.json \
+  --out-dir runs/aud-048-opensandbox/20261028T080748Z/visual-rendered
+
+python3 .claude/skills/project-cartographer/scripts/render_attack_images.py \
+  --model runs/aud-048-opensandbox/20261028T080748Z/visual/visual-model.json \
+  --max 3
+
+# 重新渲染报告以把插图写进 report-illustrated.md
+python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
+  --model runs/aud-048-opensandbox/20261028T080748Z/visual/visual-model.json \
+  --out-dir runs/aud-048-opensandbox/20261028T080748Z/visual-rendered
+```
+
+`--all` 为每个 attack 生成插图；`--dry-run` 只写 prompt，不调用 API。插图 prompt 只使用去标识化的攻击类型和双方动作，不发送源码、端点、密钥或完整报告。
+
 ## image2 插图
 
 360 平台已确认存在：
@@ -101,9 +132,9 @@ POST /images/generations
 
 ## 插图规则
 
-- 只用于封面、章节页、case card 顶部、空状态和氛围
-- **不用于**架构图、攻击路径、覆盖树、代码/证据截图
-- 提示词不得包含源码、密钥、完整报告或未修复漏洞细节
+- 只用于封面、章节页、case card 顶部、攻击场景叙事和氛围
+- **不用于**架构图、攻击路径节点、覆盖树、代码/证据截图；攻击路径和双方步骤由 SVG 准确生成
+- 提示词只使用去标识化攻击类型和双方动作；不得包含源码、端点、密钥、完整报告或可复制的利用细节
 - 图里不要生成文字、代码、UI 截图、真实 logo
 - 生成后写 WebP，单张控制在几百 KB
 - 记录 prompt、model、尺寸、生成时间；在报告里标注“AI 插图，非漏洞证据”

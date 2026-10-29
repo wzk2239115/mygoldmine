@@ -187,6 +187,128 @@ def build_coverage_tree(project, report, findings):
     return root
 
 
+def compact(value, limit=120):
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def scene_kind(finding):
+    title = str(finding.get("title") or "").lower()
+    text = " ".join(
+        str(finding.get(key) or "")
+        for key in ("title", "category", "root_cause", "impact", "reproduction", "reproduction_idea")
+    ).lower()
+    if re.search(r"pickle|deserial|torch\.load|weights_only|trust_remote_code|checkpoint", text):
+        return "deserialization"
+    if re.search(r"command execution|code execution|rce|remote code|nsenter", title):
+        return "rce"
+    if re.search(r"unauthenticated|authentication|auth bypass|api[-_ ]?key|credential", title):
+        return "auth"
+    if re.search(r"ssrf|server-side request|fetch|redirect|egress", text):
+        return "ssrf"
+    if re.search(r"path traversal|arbitrary file|file read|file write|workspace confine", text):
+        return "path"
+    if re.search(r"rce|command|shell|exec\(|spawn|code execution|nsenter", text):
+        return "rce"
+    if re.search(r"auth|unauthenticated|api[-_ ]?key|bearer|token|bypass|permission", text):
+        return "auth"
+    if re.search(r"plugin|mcp|agent|hook|skill|config|environment", text):
+        return "agent"
+    if re.search(r"secret|credential|sensitive|disclos|exfiltrat|leak", text):
+        return "secret"
+    return "generic"
+
+
+def scene_variant(finding, kind):
+    text = " ".join(str(finding.get(key) or "") for key in ("title", "impact", "root_cause")).lower()
+    if re.search(r"credential|api[-_ ]?key|token|takeover", text):
+        return "credential takeover"
+    if re.search(r"reset|restart|stop.*process|denial", text):
+        return "runtime reset"
+    if re.search(r"cross-tenant|cross-sandbox|workspace escape|host file", text):
+        return "cross-boundary access"
+    if re.search(r"plugin|mcp|agent|hook", text):
+        return "agent tool execution"
+    if re.search(r"secret|exfiltrat|disclos|leak", text):
+        return "data exposure"
+    if kind == "ssrf":
+        return "internal network access"
+    if kind == "deserialization":
+        return "malicious model loading"
+    if kind == "auth":
+        return "authentication bypass"
+    return "privileged sink reachability"
+
+
+def scene_visual(kind):
+    return {
+        "rce": "left attacker supplies a crafted command or configuration, right service executes it inside a sandbox runtime",
+        "auth": "left attacker sends a request without valid credentials, right gateway accepts and forwards it to a privileged API",
+        "ssrf": "left attacker supplies a URL, right service fetches an internal resource and returns it",
+        "deserialization": "left attacker supplies a malicious model or checkpoint, right loader deserializes it and runs code",
+        "path": "left attacker supplies a path, right service reads or writes outside the intended workspace",
+        "agent": "left attacker plants a plugin or configuration, right agent loads it and executes a tool",
+        "secret": "left attacker reads a response, right service leaks a token or sensitive record",
+        "generic": "left attacker sends crafted input across a trust boundary, right service processes it at a privileged sink",
+    }[kind]
+
+
+def build_scene(finding, kind):
+    paths = finding_paths(finding)
+    evidence_paths = []
+    for item in finding.get("evidence") or []:
+        if isinstance(item, dict):
+            value = item.get("path") or item.get("file") or ""
+        else:
+            value = str(item or "")
+        value = value.split(":")[0].strip()
+        if value:
+            evidence_paths.append(value)
+    paths = list(dict.fromkeys(paths + evidence_paths))
+    boundary = compact(finding.get("boundary") or (paths[0] if paths else "未标注边界"), 100)
+    preconditions = finding.get("preconditions") or []
+    if isinstance(preconditions, str):
+        preconditions = [preconditions]
+    precondition = compact(preconditions[0], 100) if preconditions else compact(finding.get("reachability") or "默认可达", 100)
+    flow_text = finding.get("source_to_sink") or finding.get("reproduction_idea") or finding.get("repro_idea") or finding.get("root_cause") or ""
+    flow = [compact(part, 150) for part in re.split(r"\s*->\s*", str(flow_text)) if str(part).strip()]
+    root = compact(finding.get("root_cause") or finding.get("title") or "处理不可信输入", 120)
+    impact = compact(finding.get("impact") or finding.get("title") or "影响以报告为准", 120)
+    repro = compact(finding.get("repro_idea") or finding.get("reproduction_idea") or "", 150)
+    attacker = [
+        f"向 {boundary} 发送构造请求",
+        f"输入：{repro}" if repro else f"满足前置条件：{precondition}",
+        f"读取结果：{impact}",
+    ]
+    if flow:
+        victim = [
+            flow[0],
+            " -> ".join(flow[1:3]) if len(flow) > 1 else root,
+            " -> ".join(flow[3:]) if len(flow) > 3 else flow[-1],
+        ]
+    else:
+        victim = [
+            f"在 {boundary} 接收并解析输入",
+            f"沿 {root} 进入敏感路径",
+            f"到达 sink，造成 {impact}",
+        ]
+    return {
+        "kind": kind,
+        "variant": scene_variant(finding, kind),
+        "entry": boundary,
+        "boundary": boundary,
+        "precondition": precondition,
+        "reachability": compact(finding.get("reachability") or "unknown", 40),
+        "result": impact,
+        "attacker": attacker,
+        "victim": victim,
+        "flow": flow[:5],
+        "visual": scene_visual(kind),
+        "evidence": paths[:6],
+        "disclaimer": "场景由 finding 字段生成，用于解释；不是新的漏洞结论",
+    }
+
+
 def build_attack_tree(project, finding, index):
     fid = str(finding.get("id") or f"finding-{index}")
     title = str(finding.get("title") or fid)
@@ -208,6 +330,8 @@ def build_attack_tree(project, finding, index):
     add_child(gate, sink)
     impact = make_node(f"attack:{fid}:impact", str(finding.get("impact") or "impact")[:120], "impact", "impact")
     add_child(sink, impact)
+    kind = scene_kind(finding)
+    root["scene"] = build_scene(finding, kind)
     return root
 
 

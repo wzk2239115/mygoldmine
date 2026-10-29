@@ -19,23 +19,53 @@ export default function StatsStrip({ stats, projects }) {
   }
   const completed = projects?.filter((project) => project.state === 'completed').length || 0;
   const total = projects?.length || 0;
+  const status = stats.status || {};
   const severityTotal = Object.values(stats.severity).reduce((sum, value) => sum + value, 0) || 1;
 
   return (
-    <section className="stats-strip" aria-label="统计">
+    <section className="stats-strip" aria-label="流程统计">
       <div className="metrics">
-        <Metric label="RAW FINDINGS" value={stats.total} hint="所有报告中的原始 finding 数" />
-        <Metric label="CURATED" value={stats.curated} tone="ink" hint="二次审计抽样的 25 条 + 手工移动的条目" />
-        <Metric label="CODE-LEVEL TP" value={stats.tp} tone="green" hint="二次审计判定为代码级成立" />
-        <Metric label="CVE CANDIDATES" value={stats.cveCandidates} tone="amber" hint="Tier 1 / Tier 2 候选" />
-        <Metric label="CVE TRACK" value={stats.cveTrack} tone="red" hint="当前在 CVE 跟踪列" />
-        <Metric label="RUNS" value={`${completed}/${total}`} suffix={stats.live ? `${stats.live} live` : 'done'} hint="最新一轮各目标运行状态" />
+        <Metric
+          label="全部发现"
+          value={stats.total}
+          hint="所有最新报告中的原始 finding；不是已确认漏洞数"
+        />
+        <Metric
+          label="收件箱"
+          value={status.inbox || 0}
+          hint="尚未自动或人工进入流程的 finding，对应看板第一列"
+        />
+        <Metric
+          label="分诊中"
+          value={status.triage || 0}
+          tone="ink"
+          hint="Critical / High+verified 自动入队，等待人工判断可达性与设计意图"
+        />
+        <Metric
+          label="复现中"
+          value={status.reproduce || 0}
+          tone="amber"
+          hint="已有 verify 记录，等待版本映射或最小 PoC"
+        />
+        <Metric
+          label="CVE 跟踪"
+          value={stats.cveTrack}
+          suffix={`/ ${stats.cveCandidates} 候选`}
+          tone="red"
+          hint="已进入 CVE 流程的条目；候选数包含尚未去重的 Tier 1/2"
+        />
+        <Metric
+          label="目标运行"
+          value={`${completed}/${total}`}
+          suffix={stats.live ? `${stats.live} 运行中` : '已结束'}
+          hint="最新一轮各目标运行状态"
+        />
       </div>
 
       <div className="severity-summary">
         <div className="severity-summary-head">
-          <span>SEVERITY MIX</span>
-          <span>{stats.total} findings</span>
+          <span>严重度分布</span>
+          <span>{stats.total} 条</span>
         </div>
         <div className="severity-summary-bar">
           {SEVERITIES.map((severity) => {

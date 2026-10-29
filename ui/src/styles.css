@@ -4386,3 +4386,33 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+.card-auto {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 4px;
+  color: var(--blue);
+  background: color-mix(in srgb, var(--blue) 10%, var(--paper-2));
+  border: 1px solid color-mix(in srgb, var(--blue) 35%, var(--line));
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.auto-route {
+  margin: 8px 0 0;
+  padding: 6px 8px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--blue) 7%, var(--paper-2));
+  border-left: 2px solid var(--blue);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.field-hint {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}

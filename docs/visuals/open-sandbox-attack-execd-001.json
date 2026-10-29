@@ -1,0 +1,23 @@
+{
+  "file": "docs/visuals/open-sandbox-attack-execd-001.json",
+  "model": "mm/openai/gpt-image-2",
+  "requested_model": "openai/gpt-image-2",
+  "size": "1024x1024",
+  "quality": "auto",
+  "usage": {
+    "total_tokens": 305,
+    "input_tokens": 109,
+    "output_tokens": 196,
+    "input_tokens_details": {
+      "text_tokens": 109,
+      "image_tokens": 0
+    },
+    "output_tokens_details": {
+      "text_tokens": 0,
+      "image_tokens": 196
+    }
+  },
+  "prompt": "editorial ink illustration on warm paper, split-screen systems diagram, focus: credential takeover; left attacker supplies a crafted command or configuration, right service executes it inside a sandbox runtime; left side sender, right side service, a dashed trust boundary and directional arrows between them, vermilion accent, high contrast, subtle paper grain, cinematic but restrained, no text, no letters, no numbers, no logos, no code, no screenshots, no UI, no real product, no gore, 16:9 composition\n",
+  "hash": "0d750e56fcc369ec03d5e9c553c015024fca51c7ef6038cda4e040ccf57eaf5f",
+  "cached": false
+}

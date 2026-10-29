@@ -41,6 +41,11 @@ export default function FindingCard({ finding, onOpen, onDragStart, onDragEnd })
       <div className="card-badges">
         <VerdictBadge verdict={finding.verdict} />
         <CveBadge tier={finding.cveTier} knownCve={finding.knownCve} status={finding.cveStatus} />
+        {finding.routedBy === 'auto' ? (
+          <span className="card-auto" title={finding.autoReason || '由 verify/CVE 产物自动流转'}>
+            AUTO
+          </span>
+        ) : null}
         {finding.notes ? (
           <span className="card-note-indicator" title="有审计备注">
             <StickyNote size={11} aria-hidden="true" />
