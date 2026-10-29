@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, BadgeCheck, Database, GitBranch, LayoutGrid, List, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, BookOpen, Database, GitBranch, LayoutGrid, List, RefreshCw, ShieldAlert } from 'lucide-react';
 import { api } from './api.js';
 import { countBy, cx } from './utils.js';
 import Board from './components/Board.jsx';
@@ -9,6 +9,7 @@ import RunsDrawer from './components/RunsDrawer.jsx';
 import LiveRunsStrip from './components/LiveRunsStrip.jsx';
 import MapView from './components/MapView.jsx';
 import RefineryStrip from './components/RefineryStrip.jsx';
+import ArchitectureView from './components/ArchitectureView.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import StatsStrip from './components/StatsStrip.jsx';
 import TableView from './components/TableView.jsx';
@@ -394,6 +395,15 @@ export default function App() {
             <BadgeCheck size={18} />
             {board?.stats?.reviewReady ? <span className="rail-badge">{board.stats.reviewReady}</span> : null}
           </button>
+          <button
+            type="button"
+            className={cx('rail-button', view === 'architecture' && 'is-active')}
+            title="系统架构"
+            aria-label="系统架构"
+            onClick={() => setView('architecture')}
+          >
+            <BookOpen size={18} />
+          </button>
         </div>
         <div className="rail-bottom">
           <span className="rail-version">v0.1</span>
@@ -487,6 +497,8 @@ export default function App() {
               }}
             />
           ) : null}
+
+          {!loading && board && view === 'architecture' ? <ArchitectureView board={board} /> : null}
 
           {!loading && board && view === 'map' ? (
             <MapView

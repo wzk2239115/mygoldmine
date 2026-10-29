@@ -78,6 +78,7 @@ npm run smoke
 - **Board**：5 列 Kanban，原生拖拽移动状态；卡片显示严重度、判定、CVE Tier、证据数。
 - **Live mining**：运行中的 run 在看板顶部显示 LIVE 条（状态、耗时、最后一行日志）；点开进入实时日志抽屉，2 秒刷新，可跳到最新。报告生成后看板自动重载。
 - **Table**：按严重度/目标排序，适合批量分诊。
+- **系统架构**：左侧轨道书图标进入开发者架构页，包含端到端流水线、组件、状态优先级、红队隔离边界和 RSI 回路。
 - **Detail drawer**：Brief / Evidence / Agent stream。
   - Brief：改状态、判定、CVE Tier、CVE 状态、关联 CVE、审计备注。
   - Evidence：复制证据路径、打开 `audit-report.md` / `.json`、查看原始 finding JSON。
