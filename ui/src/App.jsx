@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Database, GitBranch, LayoutGrid, List, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Database, GitBranch, LayoutGrid, List, RefreshCw, ShieldAlert } from 'lucide-react';
 import { api } from './api.js';
 import { countBy, cx } from './utils.js';
 import Board from './components/Board.jsx';
@@ -19,6 +19,8 @@ const DEFAULT_FILTERS = {
   severities: [],
   verdicts: [],
   cveOnly: false,
+  reviewOnly: false,
+  hideInbox: true,
   query: ''
 };
 
@@ -245,6 +247,8 @@ export default function App() {
 
   const scoped = useMemo(() => {
     let items = findings;
+    if (filters.hideInbox) items = items.filter((finding) => finding.status !== 'inbox');
+    if (filters.reviewOnly) items = items.filter((finding) => finding.reviewReady);
     if (filters.project !== 'all') items = items.filter((finding) => finding.project === filters.project);
     if (filters.cveOnly) items = items.filter((finding) => finding.cveTier);
     const query = filters.query.trim().toLowerCase();
@@ -266,7 +270,7 @@ export default function App() {
       );
     }
     return items;
-  }, [findings, filters.project, filters.cveOnly, filters.query]);
+  }, [findings, filters.project, filters.cveOnly, filters.reviewOnly, filters.hideInbox, filters.query]);
 
   const filtered = useMemo(() => {
     let items = scoped;
@@ -326,6 +330,8 @@ export default function App() {
       filters.severities.length ||
       filters.verdicts.length ||
       filters.cveOnly ||
+      filters.reviewOnly ||
+      !filters.hideInbox ||
       filters.query
   );
 
@@ -376,6 +382,16 @@ export default function App() {
           >
             <ShieldAlert size={18} />
             {board?.stats?.cveCandidates ? <span className="rail-badge">{board.stats.cveCandidates}</span> : null}
+          </button>
+          <button
+            type="button"
+            className={cx('rail-button', filters.reviewOnly && 'is-active')}
+            title="待验收：只看图文精品"
+            aria-label="待验收：只看图文精品"
+            onClick={() => setFilters((current) => ({ ...current, reviewOnly: !current.reviewOnly }))}
+          >
+            <BadgeCheck size={18} />
+            {board?.stats?.reviewReady ? <span className="rail-badge">{board.stats.reviewReady}</span> : null}
           </button>
         </div>
         <div className="rail-bottom">
@@ -449,6 +465,7 @@ export default function App() {
           {!loading && board && view === 'board' ? (
             <Board
               findings={filtered}
+              hiddenStatuses={filters.hideInbox ? ['inbox'] : []}
               onOpen={(finding) => {
                 setLiveRun(null);
                 setSelectedKey(finding.key);

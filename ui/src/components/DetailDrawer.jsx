@@ -234,6 +234,12 @@ export default function DetailDrawer({ finding, board, onClose, onPatch, onToast
                     {finding.autoSource ? ` · ${AUTO_SOURCE_LABELS[finding.autoSource] || finding.autoSource}` : ''}
                   </p>
                 ) : null}
+                {finding.reviewReady ? (
+                  <p className="review-ready">
+                    待验收 · {finding.reviewReason || '已精炼的精品 case'}
+                    {finding.reviewScore ? ` · score ${finding.reviewScore}` : ''}
+                  </p>
+                ) : null}
                 <div className="verdict-row">
                   <span className="field-label">判定</span>
                   <div className="segmented">

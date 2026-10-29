@@ -14,6 +14,8 @@ export default function Sidebar({ board, filters, setFilters, facets, onClose })
       filters.severities.length ||
       filters.verdicts.length ||
       filters.cveOnly ||
+      filters.reviewOnly ||
+      !filters.hideInbox ||
       filters.query
   );
 
@@ -60,6 +62,8 @@ export default function Sidebar({ board, filters, setFilters, facets, onClose })
                   severities: [],
                   verdicts: [],
                   cveOnly: false,
+                  reviewOnly: false,
+                  hideInbox: true,
                   query: ''
                 }))
               }
@@ -173,6 +177,34 @@ export default function Sidebar({ board, filters, setFilters, facets, onClose })
           <span>
             <strong>只看 CVE 候选</strong>
             <small>Tier 1 / Tier 2</small>
+          </span>
+        </button>
+        <button
+          type="button"
+          className={cx('toggle-row', filters.reviewOnly && 'is-active')}
+          aria-pressed={filters.reviewOnly}
+          onClick={() => setFilters((current) => ({ ...current, reviewOnly: !current.reviewOnly }))}
+        >
+          <span className={cx('toggle-box', filters.reviewOnly && 'is-checked')}>
+            {filters.reviewOnly ? <Check size={12} aria-hidden="true" /> : null}
+          </span>
+          <span>
+            <strong>只看待验收</strong>
+            <small>已精炼的精品 case</small>
+          </span>
+        </button>
+        <button
+          type="button"
+          className={cx('toggle-row', filters.hideInbox && 'is-active')}
+          aria-pressed={filters.hideInbox}
+          onClick={() => setFilters((current) => ({ ...current, hideInbox: !current.hideInbox }))}
+        >
+          <span className={cx('toggle-box', filters.hideInbox && 'is-checked')}>
+            {filters.hideInbox ? <Check size={12} aria-hidden="true" /> : null}
+          </span>
+          <span>
+            <strong>隐藏原始池</strong>
+            <small>已自动评分，未晋级的不占主视图</small>
           </span>
         </button>
       </div>

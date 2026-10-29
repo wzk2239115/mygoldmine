@@ -54,7 +54,7 @@ npm run smoke
 - 报告里的 `findings` 或 `vulnerabilities` 会统一归一化；`evidence` / `files` / `location` 合并为可复制证据。
 - `run.sh` 的 `.meta/status.json` 优先；没有 status 的 `overnight.sh` / `mine_one.sh` 运行，只要 `claude.rendered.log` 在 30 分钟内有更新，也会识别为 LIVE。
 - `ui/data/curated.json` 是人工二次审计过的 25 条 finding，按 `project:finding-id` 建立初始状态。
-- `ui/data/auto-state.json` 由 `scripts/workflow/build_state.py` 生成：扫描最新报告、`runs/*/*/verify/**/verify-report.json`、`docs/cve-handoff.json`、`docs/cve-adjudication.json`，自动把 finding 路由到分诊/复现/关闭。
+- `ui/data/auto-state.json` 由 `scripts/workflow/build_state.py` 生成：扫描最新报告、`runs/*/*/verify/**/verify-report.json`、`docs/cve-handoff.json`、`docs/cve-adjudication.json`，自动评分并路由到分诊/复现/关闭；同时生成 `review` 精品待验收队列。
 - `ui/data/state.json` 保存手工改动（状态、判定、CVE Tier、备注、关联 CVE），优先级高于自动状态。默认不提交。
 - 优先级：`state.json` > `curated.json` > `auto-state.json` > 默认 inbox。所有手工变更只写 `state.json`，**不修改原始报告**。
 
@@ -68,7 +68,7 @@ npm run smoke
 | CVE 跟踪 | 先查 NVD/GHSA/项目公告去重，再披露/CNA |
 | 已关闭 | 误报、重复、已知 CVE、设计限制 |
 
-自动分诊只代表“值得先看”，不等于漏洞成立；`auto` 徽标表示该状态来自产物而不是人工。
+自动分诊只代表“值得先看”，不等于漏洞成立；`auto` 徽标表示该状态来自产物而不是人工。`原始池` 是自动评分后未达到晋级门槛的 finding，默认隐藏，不是待办。
 
 `verdict`：`TP` 代码级成立、`FP` 误报、`DUP` 重复、`UNCLEAR` 待定。
 
@@ -81,7 +81,8 @@ npm run smoke
   - Brief：改状态、判定、CVE Tier、CVE 状态、关联 CVE、审计备注。
   - Evidence：复制证据路径、打开 `audit-report.md` / `.json`、查看原始 finding JSON。
   - Agent stream：读取 `claude.rendered.log` 尾部，可自动刷新、复制 `run.sh --verify-only` 命令。
-- **Filter**：目标、严重度、判定、CVE-only、搜索；默认展示全部 finding，不再有精选/CVE/全部三档范围切换。
+- **Filter**：目标、严重度、判定、CVE-only、待验收、搜索；默认隐藏原始池，只显示已精炼流程。
+- **待验收**：侧栏/轨道按钮只显示 CVE 候选和已验证的精品 case，人工在这里做最终验收，再决定披露/关闭。
 - 深色/浅色主题；状态与筛选保存在浏览器 localStorage。
 
 ## API

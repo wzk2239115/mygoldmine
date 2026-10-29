@@ -800,7 +800,7 @@ a {
 .metrics {
   display: grid;
   flex: 1 1 auto;
-  grid-template-columns: repeat(6, minmax(76px, 1fr));
+  grid-template-columns: repeat(7, minmax(76px, 1fr));
   gap: 0;
 }
 
@@ -3192,7 +3192,7 @@ body {
 }
 
 .metrics {
-  grid-template-columns: repeat(6, minmax(96px, 1fr));
+  grid-template-columns: repeat(7, minmax(82px, 1fr));
 }
 
 .metric {
@@ -4415,4 +4415,27 @@ body {
   color: var(--muted);
   font-size: 10px;
   line-height: 1.5;
+}
+
+.card-review {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 4px;
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 10%, var(--paper-2));
+  border: 1px solid color-mix(in srgb, var(--green) 35%, var(--line));
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.review-ready {
+  margin: 8px 0 0;
+  padding: 6px 8px;
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 8%, var(--paper-2));
+  border-left: 2px solid var(--green);
+  font-size: 10px;
+  line-height: 1.45;
 }

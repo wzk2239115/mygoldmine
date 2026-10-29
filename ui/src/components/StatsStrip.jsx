@@ -31,9 +31,9 @@ export default function StatsStrip({ stats, projects }) {
           hint="所有最新报告中的原始 finding；不是已确认漏洞数"
         />
         <Metric
-          label="收件箱"
+          label="原始池"
           value={status.inbox || 0}
-          hint="尚未自动或人工进入流程的 finding，对应看板第一列"
+          hint="已自动评分但未达到晋级门槛，不是待办；默认隐藏"
         />
         <Metric
           label="分诊中"
@@ -53,6 +53,12 @@ export default function StatsStrip({ stats, projects }) {
           suffix={`/ ${stats.cveCandidates} 候选`}
           tone="red"
           hint="已进入 CVE 流程的条目；候选数包含尚未去重的 Tier 1/2"
+        />
+        <Metric
+          label="待验收"
+          value={stats.reviewReady || 0}
+          tone="green"
+          hint="已精炼的精品 case：CVE 候选或源码级已验证 finding"
         />
         <Metric
           label="目标运行"

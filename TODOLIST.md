@@ -282,6 +282,13 @@ logs/                       编排器与 ralph 日志（gitignore）
 - 验收：至少 1 个项目生成结构/覆盖/攻击路径图；每个 Critical/High 有攻击者/受害者步骤；image2 生成场景插图且标注非证据；UI 可点节点跳 finding。
 - 状态：[x]
 
+### T31 精炼漏斗与人工验收
+
+- 目标：不让 956 条原始 finding 平铺给人工；自动评分/去噪，只把精品 case 送到人工验收。
+- 产物：`scripts/workflow/build_state.py` 的 score/review 队列、UI “原始池隐藏 / 待验收”过滤、`attack-scene-director` 图文 case。
+- 验收：原始池默认隐藏；CVE 候选和源码级验证项进入待验收；人工只打开待验收队列；验收位置在 CVE 去重之后、披露之前。
+- 状态：[x]
+
 ## 初判差距假设（待 T01-T03 用证据确认，不得直接当结论）
 
 现有 84 个 skill 偏 Web 漏洞与智能合约，对 AI 基础设施可能弱覆盖：

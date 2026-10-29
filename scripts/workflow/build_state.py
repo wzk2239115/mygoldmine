@@ -80,7 +80,9 @@ def latest_findings():
                 "id": finding_id,
                 "severity": sev(raw.get("severity") or raw.get("severity_raw")),
                 "verified": is_verified(raw),
+                "confidence": str(raw.get("confidence") or "").lower(),
                 "report": report_path.relative_to(ROOT).as_posix(),
+                "raw": raw,
             }
     return latest
 
@@ -231,11 +233,15 @@ def main() -> int:
     DATA.mkdir(parents=True, exist_ok=True)
     latest = latest_findings()
     manual = set()
+    manual_data = {}
     for name in ("curated.json", "state.json"):
         payload = load(DATA / name)
-        for raw_key in payload if isinstance(payload, dict) else []:
+        for raw_key, value in payload.items() if isinstance(payload, dict) else []:
             project, finding_id = split_key(raw_key)
-            manual.add(canon(project, finding_id))
+            key = canon(project, finding_id)
+            manual.add(key)
+            if isinstance(value, dict):
+                manual_data[key] = {**manual_data.get(key, {}), **value}
 
     state = build_verify_state(latest, manual)
     for key, patch in build_source_state(latest, manual).items():
@@ -255,17 +261,57 @@ def main() -> int:
                 "artifacts": [item["report"]],
             }
 
+    review = {}
+    for key, item in latest.items():
+        merged = {**state.get(key, {}), **manual_data.get(key, {})}
+        status = merged.get("status", "inbox")
+        if status in {"inbox", "closed"}:
+            continue
+        tier = merged.get("cveTier")
+        verify_verdict = str(merged.get("verifyVerdict") or "").lower()
+        verdict = str(merged.get("verdict") or "").lower()
+        known_cve = str(merged.get("knownCve") or "").strip()
+        score = {"critical": 40, "high": 28, "medium": 12, "low": 3}.get(item["severity"], 0)
+        if tier in (1, 2):
+            score += 20
+        if verify_verdict in {"confirmed", "verified", "reproduced"}:
+            score += 15
+        elif verify_verdict in {"blocked", "inconclusive"}:
+            score += 8
+        if key in manual_data:
+            score += 10
+        if verdict == "tp":
+            score += 8
+        if known_cve or verdict in {"fp", "duplicate"}:
+            score -= 30
+        if item.get("confidence") in {"high", "verified", "medium-high"}:
+            score += 3
+        eligible = status in {"triage", "reproduce", "cve"}
+        strong = tier in (1, 2) or verify_verdict in {"confirmed", "verified", "reproduced"}
+        manual_strong = key in manual_data and verdict == "tp" and score >= 60
+        if eligible and (strong or manual_strong) and not known_cve and verdict not in {"fp", "duplicate"}:
+            reasons = []
+            if tier in (1, 2):
+                reasons.append(f"CVE Tier {tier}")
+            if verify_verdict in {"confirmed", "verified", "reproduced"}:
+                reasons.append("已验证/源码级确认")
+            if key in manual_data:
+                reasons.append("人工复核候选")
+            review[key] = {"score": score, "reason": " / ".join(reasons) or "高强度证据候选"}
+
     payload = {
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "findings_total": len(latest),
         "auto_total": len(state),
+        "review_total": len(review),
         "findings": dict(sorted(state.items())),
+        "review": dict(sorted(review.items())),
     }
     temp = OUT.with_name(f".{OUT.name}.{os.getpid()}.tmp")
     temp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     temp.replace(OUT)
-    print(f"[workflow] latest={len(latest)} auto={len(state)} -> {OUT.relative_to(ROOT)}")
+    print(f"[workflow] latest={len(latest)} auto={len(state)} review={len(review)} -> {OUT.relative_to(ROOT)}")
     return 0
 
 

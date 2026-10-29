@@ -46,6 +46,11 @@ export default function FindingCard({ finding, onOpen, onDragStart, onDragEnd })
             AUTO
           </span>
         ) : null}
+        {finding.reviewReady ? (
+          <span className="card-review" title={finding.reviewReason || '已精炼，等待人工验收'}>
+            待验收
+          </span>
+        ) : null}
         {finding.notes ? (
           <span className="card-note-indicator" title="有审计备注">
             <StickyNote size={11} aria-hidden="true" />

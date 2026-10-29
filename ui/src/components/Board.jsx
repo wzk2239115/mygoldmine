@@ -27,17 +27,21 @@ function SeverityBar({ findings }) {
   );
 }
 
-export default function Board({ findings, onOpen, onMove }) {
+export default function Board({ findings, onOpen, onMove, hiddenStatuses = [] }) {
   const [dragging, setDragging] = useState(null);
   const [overColumn, setOverColumn] = useState(null);
   const [expanded, setExpanded] = useState({});
 
+  const columns = useMemo(
+    () => COLUMNS.filter((column) => !hiddenStatuses.includes(column.id)),
+    [hiddenStatuses]
+  );
   const grouped = useMemo(() => {
-    const result = Object.fromEntries(COLUMNS.map((column) => [column.id, []]));
+    const result = Object.fromEntries(columns.map((column) => [column.id, []]));
     for (const finding of findings) {
       result[finding.status]?.push(finding);
     }
-    for (const column of COLUMNS) {
+    for (const column of columns) {
       result[column.id].sort(
         (a, b) =>
           severityRank(a.severity) - severityRank(b.severity) ||
@@ -46,12 +50,12 @@ export default function Board({ findings, onOpen, onMove }) {
       );
     }
     return result;
-  }, [findings]);
+  }, [findings, columns]);
 
   return (
     <div className="board-scroll">
-      <div className="board">
-        {COLUMNS.map((column, index) => {
+      <div className="board" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(262px, 1fr))` }}>
+        {columns.map((column, index) => {
           const items = grouped[column.id];
           const limit = expanded[column.id] ? items.length : Math.min(items.length, INITIAL_LIMIT);
           const visible = items.slice(0, limit);
@@ -82,7 +86,7 @@ export default function Board({ findings, onOpen, onMove }) {
               <header className="column-head">
                 <div className="column-kicker">
                   <span className="column-code">{column.code}</span>
-                  <span className="column-index">0{index + 1}</span>
+                  <span className="column-index">0{COLUMNS.findIndex((item) => item.id === column.id) + 1}</span>
                 </div>
                 <div className="column-title-row">
                   <h2>{column.label}</h2>

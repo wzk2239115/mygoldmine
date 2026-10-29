@@ -118,6 +118,7 @@ bash scripts/ui/start.sh
 - 详情：Brief / Evidence / Agent stream；可看原始报告、证据路径、`claude.rendered.log` 尾部。
 - 筛选：目标、严重度、判定、CVE-only、搜索；默认展示全部 finding，不再分精选/CVE/全部三档。
 - 自动流转：`scripts/workflow/build_state.py` 读取 verify、CVE handoff/adjudication 和最新报告，生成 `ui/data/auto-state.json`；人工状态仍优先。
+- 精炼漏斗：956 条原始 finding 自动评分，未达门槛的进“原始池”并默认隐藏；CVE 候选/已验证项进入“待验收”，人工只处理图文精品 case。
 - 手工状态写入 `ui/data/state.json`，不改原始报告；人工复核种子在 `ui/data/curated.json`，自动路由缓存不提交。
 - 默认只监听 `127.0.0.1`，避免把未修复漏洞细节暴露到网络。
 
