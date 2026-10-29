@@ -8,6 +8,7 @@ import LiveRunDrawer from './components/LiveRunDrawer.jsx';
 import RunsDrawer from './components/RunsDrawer.jsx';
 import LiveRunsStrip from './components/LiveRunsStrip.jsx';
 import MapView from './components/MapView.jsx';
+import RefineryStrip from './components/RefineryStrip.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import StatsStrip from './components/StatsStrip.jsx';
 import TableView from './components/TableView.jsx';
@@ -425,6 +426,8 @@ export default function App() {
         />
 
         <StatsStrip stats={board?.stats} projects={board?.projects} />
+
+        {view === 'board' && board?.stats ? <RefineryStrip stats={board.stats} /> : null}
 
         <LiveRunsStrip
           runs={board?.liveRuns}

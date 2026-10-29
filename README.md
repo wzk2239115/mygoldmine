@@ -147,6 +147,8 @@ python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
 
 推荐再加 `VISUAL_AGENTIC=1`：由 `attack-scene-director` 读取 finding/verify/源码证据，先写 attacker/victim 分镜和 prompt，再调用 image2；失败时回退到模板批处理。
 
+看板顶部还有一条 **精炼管线 hero**：3D 风格炼厂概念图 + 原矿/分诊/复现/CVE 去重/验收实时计数。
+
 UI 的 **项目地图** 视图读取 `visual-model.json`，可以点节点直接跳到 finding。
 360 平台已验证 `openai/gpt-image-2` 等图像模型；密钥从 opencode 配置读取，不落库。
 

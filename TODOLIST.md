@@ -296,6 +296,13 @@ logs/                       编排器与 ralph 日志（gitignore）
 - 验收：原始池可逐批下降；归档不丢报告；worker 可暂停/恢复/停止；每条决策有可回放 trajectory。
 - 状态：[x]
 
+### T33 精炼管线 3D Hero
+
+- 目标：在看板列上方放一个精炼厂/管线视觉，让原始池到验收的漏斗一眼可见。
+- 产物：`ui/src/components/RefineryStrip.jsx`、`ui/public/refinery-hero.webp`、CSS flow 动效。
+- 验收：原矿/分诊/复现/CVE/验收计数实时显示；桌面 3D 渲染背景；移动端降级无溢出。
+- 状态：[x]
+
 ## 初判差距假设（待 T01-T03 用证据确认，不得直接当结论）
 
 现有 84 个 skill 偏 Web 漏洞与智能合约，对 AI 基础设施可能弱覆盖：
