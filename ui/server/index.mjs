@@ -39,6 +39,25 @@ const PROJECT_NAMES = {
   'deepseek-harness': 'DeepSeek Harness',
   verl: 'verl'
 };
+const PROJECT_META = (() => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(DATA_ROOT, 'projects.json'), 'utf8')).projects || {};
+  } catch {
+    return {};
+  }
+})();
+
+function projectInfo(project) {
+  const meta = PROJECT_META[project] || {};
+  return {
+    name: meta.name || PROJECT_NAMES[project] || project,
+    direction: meta.direction || '',
+    icon: meta.icon || 'layers',
+    tone: meta.tone || 'ink',
+    url: meta.url || '',
+    auditId: meta.audit_id || ''
+  };
+}
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -413,7 +432,7 @@ function normalizeFindings(project, runId, report, meta) {
       key: `${project}:${id}`,
       id,
       project,
-      projectName: PROJECT_NAMES[project] || project,
+      projectName: projectInfo(project).name,
       runId,
       title,
       severity,
@@ -560,7 +579,7 @@ function discoverRuns({ withFindings = true } = {}) {
 
       runs.push({
         project,
-        projectName: PROJECT_NAMES[project] || project,
+        projectName: projectInfo(project).name,
         runId: runEntry.name,
         runDir,
         reportPath: hasReport ? reportPath : '',
@@ -627,9 +646,15 @@ function buildBoard() {
     const sourceRun = reportRun || latest;
     const activeRun = liveRun || latest;
 
+    const info = projectInfo(project);
     projects.push({
       id: project,
-      name: PROJECT_NAMES[project] || project,
+      name: info.name,
+      direction: info.direction,
+      icon: info.icon,
+      tone: info.tone,
+      url: info.url,
+      auditId: info.auditId,
       latestRunId: activeRun?.runId || sourceRun?.runId || '',
       latestReportRunId: reportRun?.runId || '',
       liveRunId: liveRun?.runId || '',
@@ -715,7 +740,7 @@ function buildLive() {
     const run = liveRuns.find((item) => item.project === project);
     return {
       id: project,
-      name: PROJECT_NAMES[project] || project,
+      name: projectInfo(project).name,
       state: run.state,
       isLive: true,
       latestRunId: run.runId,

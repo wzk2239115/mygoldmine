@@ -334,8 +334,8 @@ a {
   width: 27px;
   height: 27px;
   color: var(--paper-2);
-  background: var(--ink);
-  border-radius: 50%;
+  background: #34312a;
+  border-radius: 7px;
   font-family: var(--font-display);
   font-size: 12px;
   font-weight: 700;
@@ -350,11 +350,12 @@ a {
   font-size: 8px;
 }
 
-.project-vllm { background: #44617a; }
-.project-sglang { background: #8a4e32; }
-.project-deepseek-harness { background: #4f6146; }
-.project-codex { background: #5d4d70; }
-.project-verl { background: #7a5a28; }
+.project-mark.tone-ink { background: #34312a; }
+.project-mark.tone-blue { background: #44617a; }
+.project-mark.tone-amber { background: #8a5a25; }
+.project-mark.tone-green { background: #4f6146; }
+.project-mark.tone-violet { background: #5d4d70; }
+.project-mark.tone-red { background: #9e3a2b; }
 
 .project-copy {
   display: flex;

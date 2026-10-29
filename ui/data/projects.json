@@ -1,0 +1,1056 @@
+{
+  "schema_version": 1,
+  "projects": {
+    "vllm": {
+      "name": "vLLM",
+      "direction": "Inference Engine",
+      "url": "https://github.com/vllm-project/vllm",
+      "icon": "server",
+      "tone": "blue"
+    },
+    "sglang": {
+      "name": "SGLang",
+      "direction": "Inference Engine",
+      "url": "https://github.com/sgl-project/sglang",
+      "icon": "server",
+      "tone": "amber"
+    },
+    "deepseek-harness": {
+      "name": "DeepSeek Harness",
+      "direction": "Agent Harness",
+      "url": "",
+      "icon": "brain",
+      "tone": "violet"
+    },
+    "codex": {
+      "name": "Codex",
+      "direction": "Agent Harness",
+      "url": "https://github.com/openai/codex",
+      "icon": "terminal",
+      "tone": "ink"
+    },
+    "verl": {
+      "name": "verl",
+      "direction": "Training Framework",
+      "url": "https://github.com/volcengine/verl",
+      "icon": "cpu",
+      "tone": "green"
+    },
+    "aud-001-cline": {
+      "name": "Cline",
+      "direction": "Agent Harness",
+      "url": "https://github.com/cline/cline",
+      "icon": "bot",
+      "tone": "blue",
+      "audit_id": "AUD-001"
+    },
+    "aud-002-codex-cli": {
+      "name": "Codex CLI",
+      "direction": "Agent Harness",
+      "url": "https://github.com/openai/codex",
+      "icon": "bot",
+      "tone": "violet",
+      "audit_id": "AUD-002"
+    },
+    "aud-003-gemini-cli": {
+      "name": "Gemini CLI",
+      "direction": "Agent Harness",
+      "url": "https://github.com/google-gemini/gemini-cli",
+      "icon": "terminal",
+      "tone": "violet",
+      "audit_id": "AUD-003"
+    },
+    "aud-004-openclaw": {
+      "name": "OpenClaw",
+      "direction": "Agent Harness",
+      "url": "https://github.com/openclaw/openclaw",
+      "icon": "bot",
+      "tone": "red",
+      "audit_id": "AUD-004"
+    },
+    "aud-005-opencode": {
+      "name": "OpenCode",
+      "direction": "Agent Harness",
+      "url": "https://github.com/anomalyco/opencode",
+      "icon": "terminal",
+      "tone": "ink",
+      "audit_id": "AUD-005"
+    },
+    "aud-006-openhands-software-agent-sdk-a-gent-server": {
+      "name": "OpenHands Software Agent SDK / A gent Server",
+      "direction": "Agent Harness",
+      "url": "https://github.com/OpenHands/software-agent-sdk",
+      "icon": "boxes",
+      "tone": "amber",
+      "audit_id": "AUD-006"
+    },
+    "aud-007-pi": {
+      "name": "Pi",
+      "direction": "Agent Harness",
+      "url": "https://github.com/earendil-works/pi",
+      "icon": "bot",
+      "tone": "violet",
+      "audit_id": "AUD-007"
+    },
+    "aud-008-aider": {
+      "name": "Aider",
+      "direction": "Agent Harness",
+      "url": "https://github.com/Aider-AI/aider",
+      "icon": "bot",
+      "tone": "red",
+      "audit_id": "AUD-008"
+    },
+    "aud-009-continue": {
+      "name": "Continue",
+      "direction": "Agent Harness",
+      "url": "https://github.com/continuedev/continue",
+      "icon": "bot",
+      "tone": "violet",
+      "audit_id": "AUD-009"
+    },
+    "aud-010-crush": {
+      "name": "Crush",
+      "direction": "Agent Harness",
+      "url": "https://github.com/charmbracelet/crush",
+      "icon": "bot",
+      "tone": "ink",
+      "audit_id": "AUD-010"
+    },
+    "aud-011-deerflow": {
+      "name": "DeerFlow",
+      "direction": "Agent Harness",
+      "url": "https://github.com/bytedance/deer-flow",
+      "icon": "bot",
+      "tone": "amber",
+      "audit_id": "AUD-011"
+    },
+    "aud-012-goose": {
+      "name": "goose",
+      "direction": "Agent Harness",
+      "url": "https://github.com/aaif-goose/goose",
+      "icon": "bot",
+      "tone": "ink",
+      "audit_id": "AUD-012"
+    },
+    "aud-013-hermes-agent": {
+      "name": "Hermes Agent",
+      "direction": "Agent Harness",
+      "url": "https://github.com/NousResearch/hermes-agent",
+      "icon": "bot",
+      "tone": "violet",
+      "audit_id": "AUD-013"
+    },
+    "aud-014-kilo-code": {
+      "name": "Kilo Code",
+      "direction": "Agent Harness",
+      "url": "https://github.com/Kilo-Org/kilocode",
+      "icon": "bot",
+      "tone": "ink",
+      "audit_id": "AUD-014"
+    },
+    "aud-015-kimi-code-cli": {
+      "name": "Kimi Code CLI",
+      "direction": "Agent Harness",
+      "url": "https://github.com/MoonshotAI/kimi-code",
+      "icon": "bot",
+      "tone": "red",
+      "audit_id": "AUD-015"
+    },
+    "aud-016-mini-swe-agent": {
+      "name": "mini-SWE-agent",
+      "direction": "Agent Harness",
+      "url": "https://github.com/SWE-agent/mini-swe-agent",
+      "icon": "bot",
+      "tone": "violet",
+      "audit_id": "AUD-016"
+    },
+    "aud-017-mistral-vibe": {
+      "name": "Mistral Vibe",
+      "direction": "Agent Harness",
+      "url": "https://github.com/mistralai/mistral-vibe",
+      "icon": "bot",
+      "tone": "red",
+      "audit_id": "AUD-017"
+    },
+    "aud-018-nanobot": {
+      "name": "nanobot",
+      "direction": "Agent Harness",
+      "url": "https://github.com/HKUDS/nanobot",
+      "icon": "bot",
+      "tone": "amber",
+      "audit_id": "AUD-018"
+    },
+    "aud-019-open-interpreter-rust": {
+      "name": "Open Interpreter（当前 Rust 版）",
+      "direction": "Agent Harness",
+      "url": "https://github.com/openinterpreter/openinterpreter",
+      "icon": "bot",
+      "tone": "ink",
+      "audit_id": "AUD-019"
+    },
+    "aud-020-openhands-agent-canvas": {
+      "name": "OpenHands Agent Canvas",
+      "direction": "Agent Harness",
+      "url": "https://github.com/OpenHands/OpenHands",
+      "icon": "bot",
+      "tone": "green",
+      "audit_id": "AUD-020"
+    },
+    "aud-021-openharness-ohmo": {
+      "name": "OpenHarness / Ohmo",
+      "direction": "Agent Harness",
+      "url": "https://github.com/HKUDS/OpenHarness",
+      "icon": "bot",
+      "tone": "blue",
+      "audit_id": "AUD-021"
+    },
+    "aud-022-qwen-code": {
+      "name": "Qwen Code",
+      "direction": "Agent Harness",
+      "url": "https://github.com/QwenLM/qwen-code",
+      "icon": "bot",
+      "tone": "red",
+      "audit_id": "AUD-022"
+    },
+    "aud-023-swe-agent": {
+      "name": "SWE-agent",
+      "direction": "Agent Harness",
+      "url": "https://github.com/SWE-agent/SWE-agent",
+      "icon": "bot",
+      "tone": "amber",
+      "audit_id": "AUD-023"
+    },
+    "aud-024-deep-agents": {
+      "name": "Deep Agents",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/langchain-ai/deepagents",
+      "icon": "brain",
+      "tone": "green",
+      "audit_id": "AUD-024"
+    },
+    "aud-025-agentscope": {
+      "name": "AgentScope",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/agentscope-ai/agentscope",
+      "icon": "boxes",
+      "tone": "ink",
+      "audit_id": "AUD-025"
+    },
+    "aud-026-agno": {
+      "name": "Agno",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/agno-agi/agno",
+      "icon": "boxes",
+      "tone": "red",
+      "audit_id": "AUD-026"
+    },
+    "aud-027-camel": {
+      "name": "CAMEL",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/camel-ai/camel",
+      "icon": "boxes",
+      "tone": "green",
+      "audit_id": "AUD-027"
+    },
+    "aud-028-crewai": {
+      "name": "CrewAI",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/crewAIInc/crewAI",
+      "icon": "boxes",
+      "tone": "red",
+      "audit_id": "AUD-028"
+    },
+    "aud-029-google-adk": {
+      "name": "Google ADK",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/google/adk-python",
+      "icon": "boxes",
+      "tone": "green",
+      "audit_id": "AUD-029"
+    },
+    "aud-030-langchain": {
+      "name": "LangChain",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/langchain-ai/langchain",
+      "icon": "boxes",
+      "tone": "amber",
+      "audit_id": "AUD-030"
+    },
+    "aud-031-langgraph": {
+      "name": "LangGraph",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/langchain-ai/langgraph",
+      "icon": "boxes",
+      "tone": "ink",
+      "audit_id": "AUD-031"
+    },
+    "aud-032-letta": {
+      "name": "Letta",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/letta-ai/letta",
+      "icon": "boxes",
+      "tone": "red",
+      "audit_id": "AUD-032"
+    },
+    "aud-033-llamaindex-framework": {
+      "name": "LlamaIndex Framework",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/run-llama/llama_index",
+      "icon": "boxes",
+      "tone": "ink",
+      "audit_id": "AUD-033"
+    },
+    "aud-034-mastra": {
+      "name": "Mastra",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/mastra-ai/mastra",
+      "icon": "boxes",
+      "tone": "green",
+      "audit_id": "AUD-034"
+    },
+    "aud-035-metagpt": {
+      "name": "MetaGPT",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/FoundationAgents/MetaGPT",
+      "icon": "boxes",
+      "tone": "amber",
+      "audit_id": "AUD-035"
+    },
+    "aud-036-microsoft-agent-framework": {
+      "name": "Microsoft Agent Framework",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/microsoft/agent-framework",
+      "icon": "boxes",
+      "tone": "violet",
+      "audit_id": "AUD-036"
+    },
+    "aud-037-openai-agents-sdk": {
+      "name": "OpenAI Agents SDK",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/openai/openai-agents-python",
+      "icon": "boxes",
+      "tone": "violet",
+      "audit_id": "AUD-037"
+    },
+    "aud-038-pydantic-ai": {
+      "name": "Pydantic AI",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/pydantic/pydantic-ai",
+      "icon": "boxes",
+      "tone": "violet",
+      "audit_id": "AUD-038"
+    },
+    "aud-039-qwen-agent": {
+      "name": "Qwen-Agent",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/QwenLM/Qwen-Agent",
+      "icon": "boxes",
+      "tone": "green",
+      "audit_id": "AUD-039"
+    },
+    "aud-040-smolagents": {
+      "name": "smolagents",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/huggingface/smolagents",
+      "icon": "boxes",
+      "tone": "red",
+      "audit_id": "AUD-040"
+    },
+    "aud-041-strands-agents-harness-sdk": {
+      "name": "Strands Agents / Harness SDK",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/strands-agents/harness-sdk",
+      "icon": "boxes",
+      "tone": "blue",
+      "audit_id": "AUD-041"
+    },
+    "aud-042-vercel-ai-sdk": {
+      "name": "Vercel AI SDK",
+      "direction": "Agent SDK 与编排",
+      "url": "https://github.com/vercel/ai",
+      "icon": "boxes",
+      "tone": "green",
+      "audit_id": "AUD-042"
+    },
+    "aud-043-browser-use": {
+      "name": "browser-use",
+      "direction": "浏览器 Agent",
+      "url": "https://github.com/browser-use/browser-use",
+      "icon": "bot",
+      "tone": "blue",
+      "audit_id": "AUD-043"
+    },
+    "aud-044-skyvern": {
+      "name": "Skyvern",
+      "direction": "浏览器 Agent",
+      "url": "https://github.com/Skyvern-AI/skyvern",
+      "icon": "bot",
+      "tone": "violet",
+      "audit_id": "AUD-044"
+    },
+    "aud-045-stagehand": {
+      "name": "Stagehand",
+      "direction": "浏览器 Agent",
+      "url": "https://github.com/browserbase/stagehand",
+      "icon": "bot",
+      "tone": "ink",
+      "audit_id": "AUD-045"
+    },
+    "aud-046-agentscope-runtime": {
+      "name": "AgentScope Runtime",
+      "direction": "沙箱与执行",
+      "url": "https://github.com/agentscope-ai/agentscope-runtime",
+      "icon": "boxes",
+      "tone": "red",
+      "audit_id": "AUD-046"
+    },
+    "aud-047-anthropic-sandbox-runtime": {
+      "name": "Anthropic Sandbox Runtime",
+      "direction": "沙箱与执行",
+      "url": "https://github.com/anthropics/sandbox-runtime",
+      "icon": "shield",
+      "tone": "amber",
+      "audit_id": "AUD-047"
+    },
+    "aud-048-opensandbox": {
+      "name": "OpenSandbox",
+      "direction": "沙箱与执行",
+      "url": "https://github.com/opensandbox-group/OpenSandbox",
+      "icon": "shield",
+      "tone": "red",
+      "audit_id": "AUD-048"
+    },
+    "aud-049-dify-plugin-daemon": {
+      "name": "Dify Plugin Daemon",
+      "direction": "沙箱与执行",
+      "url": "https://github.com/langgenius/dify-plugin-daemon",
+      "icon": "shield",
+      "tone": "violet",
+      "audit_id": "AUD-049"
+    },
+    "aud-050-dify-sandbox": {
+      "name": "Dify Sandbox",
+      "direction": "沙箱与执行",
+      "url": "https://github.com/langgenius/dify-sandbox",
+      "icon": "shield",
+      "tone": "blue",
+      "audit_id": "AUD-050"
+    },
+    "aud-051-e2b-runtime": {
+      "name": "E2B Runtime",
+      "direction": "沙箱与执行",
+      "url": "https://github.com/e2b-dev/runtime",
+      "icon": "shield",
+      "tone": "ink",
+      "audit_id": "AUD-051"
+    },
+    "aud-052-kubernetes-agent-sandbox": {
+      "name": "Kubernetes Agent Sandbox",
+      "direction": "沙箱与执行",
+      "url": "https://github.com/kubernetes-sigs/agent-sandbox",
+      "icon": "shield",
+      "tone": "green",
+      "audit_id": "AUD-052"
+    },
+    "aud-053-microsandbox": {
+      "name": "Microsandbox",
+      "direction": "沙箱与执行",
+      "url": "https://github.com/superradcompany/microsandbox",
+      "icon": "shield",
+      "tone": "green",
+      "audit_id": "AUD-053"
+    },
+    "aud-054-nvidia-openshell": {
+      "name": "NVIDIA OpenShell",
+      "direction": "沙箱与执行",
+      "url": "https://github.com/NVIDIA/OpenShell",
+      "icon": "shield",
+      "tone": "red",
+      "audit_id": "AUD-054"
+    },
+    "aud-055-fastmcp": {
+      "name": "FastMCP",
+      "direction": "MCP 与通信",
+      "url": "https://github.com/PrefectHQ/fastmcp",
+      "icon": "layers",
+      "tone": "ink",
+      "audit_id": "AUD-055"
+    },
+    "aud-056-ibm-contextforge": {
+      "name": "IBM ContextForge",
+      "direction": "MCP 与通信",
+      "url": "https://github.com/IBM/mcp-context-forge",
+      "icon": "layers",
+      "tone": "ink",
+      "audit_id": "AUD-056"
+    },
+    "aud-057-agentgateway": {
+      "name": "Agentgateway",
+      "direction": "MCP 与通信",
+      "url": "https://github.com/agentgateway/agentgateway",
+      "icon": "bot",
+      "tone": "red",
+      "audit_id": "AUD-057"
+    },
+    "aud-058-mcp-python-sdk": {
+      "name": "MCP Python SDK",
+      "direction": "MCP 与通信",
+      "url": "https://github.com/modelcontextprotocol/python-sdk",
+      "icon": "layers",
+      "tone": "red",
+      "audit_id": "AUD-058"
+    },
+    "aud-059-mcp-typescript-sdk": {
+      "name": "MCP TypeScript SDK",
+      "direction": "MCP 与通信",
+      "url": "https://github.com/modelcontextprotocol/typescript-sdk",
+      "icon": "layers",
+      "tone": "red",
+      "audit_id": "AUD-059"
+    },
+    "aud-060-llama-cpp": {
+      "name": "llama.cpp",
+      "direction": "推理引擎",
+      "url": "https://github.com/ggml-org/llama.cpp",
+      "icon": "server",
+      "tone": "green",
+      "audit_id": "AUD-060"
+    },
+    "aud-061-sglang": {
+      "name": "SGLang",
+      "direction": "推理引擎",
+      "url": "https://github.com/sgl-project/sglang",
+      "icon": "server",
+      "tone": "green",
+      "audit_id": "AUD-061"
+    },
+    "aud-062-vllm": {
+      "name": "vLLM",
+      "direction": "推理引擎",
+      "url": "https://github.com/vllm-project/vllm",
+      "icon": "server",
+      "tone": "green",
+      "audit_id": "AUD-062"
+    },
+    "aud-063-executorch": {
+      "name": "ExecuTorch",
+      "direction": "推理引擎",
+      "url": "https://github.com/pytorch/executorch",
+      "icon": "server",
+      "tone": "blue",
+      "audit_id": "AUD-063"
+    },
+    "aud-064-exllamav3": {
+      "name": "ExLlamaV3",
+      "direction": "推理引擎",
+      "url": "https://github.com/turboderp-org/exllamav3",
+      "icon": "server",
+      "tone": "green",
+      "audit_id": "AUD-064"
+    },
+    "aud-065-fastdeploy": {
+      "name": "FastDeploy",
+      "direction": "推理引擎",
+      "url": "https://github.com/PaddlePaddle/FastDeploy",
+      "icon": "server",
+      "tone": "violet",
+      "audit_id": "AUD-065"
+    },
+    "aud-066-lightllm": {
+      "name": "LightLLM",
+      "direction": "推理引擎",
+      "url": "https://github.com/ModelTC/LightLLM",
+      "icon": "server",
+      "tone": "red",
+      "audit_id": "AUD-066"
+    },
+    "aud-067-lmdeploy": {
+      "name": "LMDeploy",
+      "direction": "推理引擎",
+      "url": "https://github.com/InternLM/lmdeploy",
+      "icon": "server",
+      "tone": "green",
+      "audit_id": "AUD-067"
+    },
+    "aud-068-mistral-rs": {
+      "name": "mistral.rs",
+      "direction": "推理引擎",
+      "url": "https://github.com/EricLBuehler/mistral.rs",
+      "icon": "server",
+      "tone": "violet",
+      "audit_id": "AUD-068"
+    },
+    "aud-069-mlc-llm": {
+      "name": "MLC LLM",
+      "direction": "推理引擎",
+      "url": "https://github.com/mlc-ai/mlc-llm",
+      "icon": "server",
+      "tone": "blue",
+      "audit_id": "AUD-069"
+    },
+    "aud-070-mlx-lm": {
+      "name": "MLX-LM",
+      "direction": "推理引擎",
+      "url": "https://github.com/ml-explore/mlx-lm",
+      "icon": "server",
+      "tone": "amber",
+      "audit_id": "AUD-070"
+    },
+    "aud-071-mnn": {
+      "name": "MNN",
+      "direction": "推理引擎",
+      "url": "https://github.com/alibaba/MNN",
+      "icon": "server",
+      "tone": "green",
+      "audit_id": "AUD-071"
+    },
+    "aud-072-onnx-runtime-genai": {
+      "name": "ONNX Runtime GenAI",
+      "direction": "推理引擎",
+      "url": "https://github.com/microsoft/onnxruntime-genai",
+      "icon": "server",
+      "tone": "violet",
+      "audit_id": "AUD-072"
+    },
+    "aud-073-openvino-genai": {
+      "name": "OpenVINO GenAI",
+      "direction": "推理引擎",
+      "url": "https://github.com/openvinotoolkit/openvino.genai",
+      "icon": "server",
+      "tone": "red",
+      "audit_id": "AUD-073"
+    },
+    "aud-074-rtp-llm": {
+      "name": "RTP-LLM",
+      "direction": "推理引擎",
+      "url": "https://github.com/alibaba/rtp-llm",
+      "icon": "server",
+      "tone": "red",
+      "audit_id": "AUD-074"
+    },
+    "aud-075-tensorrt-llm": {
+      "name": "TensorRT-LLM",
+      "direction": "推理引擎",
+      "url": "https://github.com/NVIDIA/TensorRT-LLM",
+      "icon": "server",
+      "tone": "green",
+      "audit_id": "AUD-075"
+    },
+    "aud-076-webllm": {
+      "name": "WebLLM",
+      "direction": "推理引擎",
+      "url": "https://github.com/mlc-ai/web-llm",
+      "icon": "server",
+      "tone": "violet",
+      "audit_id": "AUD-076"
+    },
+    "aud-077-xllm": {
+      "name": "xLLM",
+      "direction": "推理引擎",
+      "url": "https://github.com/xLLM-AI/xllm",
+      "icon": "server",
+      "tone": "red",
+      "audit_id": "AUD-077"
+    },
+    "aud-078-ollama": {
+      "name": "Ollama",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/ollama/ollama",
+      "icon": "server",
+      "tone": "red",
+      "audit_id": "AUD-078"
+    },
+    "aud-079-text-embeddings-inference": {
+      "name": "Text Embeddings Inference",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/huggingface/text-embeddings-inference",
+      "icon": "server",
+      "tone": "amber",
+      "audit_id": "AUD-079"
+    },
+    "aud-080-xinference": {
+      "name": "Xinference",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/xorbitsai/inference",
+      "icon": "server",
+      "tone": "blue",
+      "audit_id": "AUD-080"
+    },
+    "aud-081-aibrix": {
+      "name": "AIBrix",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/vllm-project/aibrix",
+      "icon": "server",
+      "tone": "amber",
+      "audit_id": "AUD-081"
+    },
+    "aud-082-bentoml": {
+      "name": "BentoML",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/bentoml/BentoML",
+      "icon": "server",
+      "tone": "green",
+      "audit_id": "AUD-082"
+    },
+    "aud-083-deepspeed-mii": {
+      "name": "DeepSpeed-MII",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/deepspeedai/DeepSpeed-MII",
+      "icon": "server",
+      "tone": "ink",
+      "audit_id": "AUD-083"
+    },
+    "aud-084-fastchat": {
+      "name": "FastChat",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/lm-sys/FastChat",
+      "icon": "server",
+      "tone": "amber",
+      "audit_id": "AUD-084"
+    },
+    "aud-085-gpustack": {
+      "name": "GPUStack",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/gpustack/gpustack",
+      "icon": "server",
+      "tone": "red",
+      "audit_id": "AUD-085"
+    },
+    "aud-086-koboldcpp": {
+      "name": "KoboldCpp",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/LostRuins/koboldcpp",
+      "icon": "server",
+      "tone": "amber",
+      "audit_id": "AUD-086"
+    },
+    "aud-087-kserve": {
+      "name": "KServe",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/kserve/kserve",
+      "icon": "server",
+      "tone": "blue",
+      "audit_id": "AUD-087"
+    },
+    "aud-088-llama-cpp-python": {
+      "name": "llama-cpp-python",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/abetlen/llama-cpp-python",
+      "icon": "server",
+      "tone": "violet",
+      "audit_id": "AUD-088"
+    },
+    "aud-089-llm-d": {
+      "name": "llm-d",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/llm-d/llm-d",
+      "icon": "server",
+      "tone": "green",
+      "audit_id": "AUD-089"
+    },
+    "aud-090-lmcache": {
+      "name": "LMCache",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/LMCache/LMCache",
+      "icon": "server",
+      "tone": "amber",
+      "audit_id": "AUD-090"
+    },
+    "aud-091-localai": {
+      "name": "LocalAI",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/mudler/LocalAI",
+      "icon": "server",
+      "tone": "red",
+      "audit_id": "AUD-091"
+    },
+    "aud-092-mooncake": {
+      "name": "Mooncake",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/kvcache-ai/Mooncake",
+      "icon": "server",
+      "tone": "ink",
+      "audit_id": "AUD-092"
+    },
+    "aud-093-nvidia-dynamo": {
+      "name": "NVIDIA Dynamo",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/ai-dynamo/dynamo",
+      "icon": "server",
+      "tone": "violet",
+      "audit_id": "AUD-093"
+    },
+    "aud-094-ray-serve": {
+      "name": "Ray Serve",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/ray-project/ray",
+      "icon": "server",
+      "tone": "red",
+      "audit_id": "AUD-094"
+    },
+    "aud-095-tabbyapi": {
+      "name": "TabbyAPI",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/theroyallab/tabbyAPI",
+      "icon": "server",
+      "tone": "amber",
+      "audit_id": "AUD-095"
+    },
+    "aud-096-triton-inference-server": {
+      "name": "Triton Inference Server",
+      "direction": "推理服务与集群",
+      "url": "https://github.com/triton-inference-server/server",
+      "icon": "server",
+      "tone": "green",
+      "audit_id": "AUD-096"
+    },
+    "aud-097-vllm-ascend": {
+      "name": "vLLM Ascend",
+      "direction": "硬件适配",
+      "url": "https://github.com/vllm-project/vllm-ascend",
+      "icon": "server",
+      "tone": "amber",
+      "audit_id": "AUD-097"
+    },
+    "aud-098-vllm-jax-tpu-inference": {
+      "name": "vLLM JAX / TPU Inference",
+      "direction": "硬件适配",
+      "url": "https://github.com/vllm-project/tpu-inference",
+      "icon": "server",
+      "tone": "ink",
+      "audit_id": "AUD-098"
+    },
+    "aud-099-litellm": {
+      "name": "LiteLLM",
+      "direction": "API 网关",
+      "url": "https://github.com/BerriAI/litellm",
+      "icon": "server",
+      "tone": "violet",
+      "audit_id": "AUD-099"
+    },
+    "aud-100-agent-router-envoy-ai-gateway": {
+      "name": "Agent Router（原Envoy AI Gateway ）",
+      "direction": "API 网关",
+      "url": "https://github.com/theagentrouter/agent-router",
+      "icon": "bot",
+      "tone": "amber",
+      "audit_id": "AUD-100"
+    },
+    "aud-101-bifrost": {
+      "name": "Bifrost",
+      "direction": "API 网关",
+      "url": "https://github.com/maximhq/bifrost",
+      "icon": "layers",
+      "tone": "green",
+      "audit_id": "AUD-101"
+    },
+    "aud-102-higress": {
+      "name": "Higress",
+      "direction": "API 网关",
+      "url": "https://github.com/higress-group/higress",
+      "icon": "layers",
+      "tone": "ink",
+      "audit_id": "AUD-102"
+    },
+    "aud-103-new-api": {
+      "name": "New API",
+      "direction": "API 网关",
+      "url": "https://github.com/QuantumNous/new-api",
+      "icon": "layers",
+      "tone": "red",
+      "audit_id": "AUD-103"
+    },
+    "aud-104-one-api": {
+      "name": "One API",
+      "direction": "API 网关",
+      "url": "https://github.com/songquanpeng/one-api",
+      "icon": "layers",
+      "tone": "violet",
+      "audit_id": "AUD-104"
+    },
+    "aud-105-portkey-gateway": {
+      "name": "Portkey Gateway",
+      "direction": "API 网关",
+      "url": "https://github.com/Portkey-AI/gateway",
+      "icon": "layers",
+      "tone": "red",
+      "audit_id": "AUD-105"
+    },
+    "aud-106-tensorzero": {
+      "name": "TensorZero",
+      "direction": "API 网关",
+      "url": "https://github.com/tensorzero/tensorzero",
+      "icon": "layers",
+      "tone": "amber",
+      "audit_id": "AUD-106"
+    },
+    "aud-107-dify": {
+      "name": "Dify",
+      "direction": "应用与工作流",
+      "url": "https://github.com/langgenius/dify",
+      "icon": "layers",
+      "tone": "ink",
+      "audit_id": "AUD-107"
+    },
+    "aud-108-langflow": {
+      "name": "Langflow",
+      "direction": "应用与工作流",
+      "url": "https://github.com/langflow-ai/langflow",
+      "icon": "layers",
+      "tone": "red",
+      "audit_id": "AUD-108"
+    },
+    "aud-109-librechat": {
+      "name": "LibreChat",
+      "direction": "应用与工作流",
+      "url": "https://github.com/LibreChat-AI/LibreChat",
+      "icon": "layers",
+      "tone": "ink",
+      "audit_id": "AUD-109"
+    },
+    "aud-110-open-webui": {
+      "name": "Open WebUI",
+      "direction": "应用与工作流",
+      "url": "https://github.com/open-webui/open-webui",
+      "icon": "layers",
+      "tone": "green",
+      "audit_id": "AUD-110"
+    },
+    "aud-111-ragflow": {
+      "name": "RAGFlow",
+      "direction": "应用与工作流",
+      "url": "https://github.com/infiniflow/ragflow",
+      "icon": "layers",
+      "tone": "green",
+      "audit_id": "AUD-111"
+    },
+    "aud-112-autogen": {
+      "name": "AutoGen（历史部署）",
+      "direction": "历史与存量",
+      "url": "https://github.com/microsoft/autogen",
+      "icon": "layers",
+      "tone": "red",
+      "audit_id": "AUD-112"
+    },
+    "aud-113-daytona": {
+      "name": "Daytona（历史公开仓）",
+      "direction": "历史与存量",
+      "url": "https://github.com/daytonaio/daytona",
+      "icon": "layers",
+      "tone": "green",
+      "audit_id": "AUD-113"
+    },
+    "aud-114-exllamav2": {
+      "name": "ExLlamaV2",
+      "direction": "历史与存量",
+      "url": "https://github.com/turboderp-org/exllamav2",
+      "icon": "layers",
+      "tone": "violet",
+      "audit_id": "AUD-114"
+    },
+    "aud-115-fastertransformer": {
+      "name": "FasterTransformer",
+      "direction": "历史与存量",
+      "url": "https://github.com/NVIDIA/FasterTransformer",
+      "icon": "layers",
+      "tone": "green",
+      "audit_id": "AUD-115"
+    },
+    "aud-116-flowise": {
+      "name": "Flowise",
+      "direction": "历史与存量",
+      "url": "https://github.com/FlowiseAI/Flowise",
+      "icon": "layers",
+      "tone": "green",
+      "audit_id": "AUD-116"
+    },
+    "aud-117-roo-code": {
+      "name": "Roo Code（历史部署）",
+      "direction": "历史与存量",
+      "url": "https://github.com/RooCodeInc/Roo-Code",
+      "icon": "terminal",
+      "tone": "red",
+      "audit_id": "AUD-117"
+    },
+    "aud-118-tgi": {
+      "name": "TGI",
+      "direction": "历史与存量",
+      "url": "https://github.com/huggingface/text-generation-inference",
+      "icon": "layers",
+      "tone": "ink",
+      "audit_id": "AUD-118"
+    },
+    "aud-119-tensorizer": {
+      "name": "Tensorizer",
+      "direction": "共享底层依赖",
+      "url": "https://github.com/coreweave/tensorizer",
+      "icon": "layers",
+      "tone": "ink",
+      "audit_id": "AUD-119"
+    },
+    "aud-120-candle": {
+      "name": "Candle",
+      "direction": "共享底层依赖",
+      "url": "https://github.com/huggingface/candle",
+      "icon": "layers",
+      "tone": "amber",
+      "audit_id": "AUD-120"
+    },
+    "aud-121-flashinfer": {
+      "name": "FlashInfer",
+      "direction": "共享底层依赖",
+      "url": "https://github.com/flashinfer-ai/flashinfer",
+      "icon": "layers",
+      "tone": "amber",
+      "audit_id": "AUD-121"
+    },
+    "aud-122-ggml": {
+      "name": "ggml",
+      "direction": "共享底层依赖",
+      "url": "https://github.com/ggml-org/ggml",
+      "icon": "layers",
+      "tone": "violet",
+      "audit_id": "AUD-122"
+    },
+    "aud-123-llguidance": {
+      "name": "llguidance",
+      "direction": "共享底层依赖",
+      "url": "https://github.com/guidance-ai/llguidance",
+      "icon": "layers",
+      "tone": "ink",
+      "audit_id": "AUD-123"
+    },
+    "aud-124-safetensors": {
+      "name": "Safetensors",
+      "direction": "共享底层依赖",
+      "url": "https://github.com/safetensors/safetensors",
+      "icon": "layers",
+      "tone": "ink",
+      "audit_id": "AUD-124"
+    },
+    "aud-125-tokenizers": {
+      "name": "Tokenizers",
+      "direction": "共享底层依赖",
+      "url": "https://github.com/huggingface/tokenizers",
+      "icon": "layers",
+      "tone": "amber",
+      "audit_id": "AUD-125"
+    },
+    "aud-126-transformers": {
+      "name": "Transformers",
+      "direction": "共享底层依赖",
+      "url": "https://github.com/huggingface/transformers",
+      "icon": "layers",
+      "tone": "green",
+      "audit_id": "AUD-126"
+    },
+    "aud-127-xgrammar": {
+      "name": "XGrammar",
+      "direction": "共享底层依赖",
+      "url": "https://github.com/mlc-ai/xgrammar",
+      "icon": "layers",
+      "tone": "red",
+      "audit_id": "AUD-127"
+    }
+  }
+}

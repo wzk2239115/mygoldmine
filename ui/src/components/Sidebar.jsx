@@ -1,6 +1,7 @@
 import { Check, Filter, RotateCcw, Target, X } from 'lucide-react';
 import { SEVERITIES, VERDICTS } from '../constants.js';
-import { cx, projectInitial } from '../utils.js';
+import { cx } from '../utils.js';
+import ProjectMark from './ProjectMark.jsx';
 
 function CountPill({ value }) {
   return <span className="filter-count">{value}</span>;
@@ -102,7 +103,7 @@ export default function Sidebar({ board, filters, setFilters, facets, onClose })
             className={cx('project-row', filters.project === project.id && 'is-active')}
             onClick={() => setProject(project.id)}
           >
-            <span className={cx('project-mark', `project-${project.id}`)}>{projectInitial(project.id)}</span>
+            <ProjectMark project={project} />
             <span className="project-copy">
               <strong>{project.name}</strong>
               <span>
