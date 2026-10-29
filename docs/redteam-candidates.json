@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "note": "17 条进入红队队列的候选。必须存在 labs/<project>/scenario.json 才能实际启动 victim。",
+  "candidates": [
+    {"project": "aud-048-opensandbox", "id": "CP-001"},
+    {"project": "aud-048-opensandbox", "id": "EXECD-001"},
+    {"project": "aud-048-opensandbox", "id": "EXECD-002"},
+    {"project": "aud-097-vllm-ascend", "id": "CFG-003"},
+    {"project": "aud-097-vllm-ascend", "id": "HA-001"},
+    {"project": "aud-097-vllm-ascend", "id": "HA-003"},
+    {"project": "aud-097-vllm-ascend", "id": "IPC-001"},
+    {"project": "aud-097-vllm-ascend", "id": "IPC-003"},
+    {"project": "aud-097-vllm-ascend", "id": "IPC-004"},
+    {"project": "codex", "id": "F-06"},
+    {"project": "codex", "id": "F-32"},
+    {"project": "deepseek-harness", "id": "VULN-003"},
+    {"project": "deepseek-harness", "id": "VULN-005"},
+    {"project": "sglang", "id": "VULN-008"},
+    {"project": "vllm", "id": "F-02"},
+    {"project": "vllm", "id": "F-05"},
+    {"project": "vllm", "id": "F-09"}
+  ]
+}

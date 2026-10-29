@@ -310,6 +310,13 @@ logs/                       编排器与 ralph 日志（gitignore）
 - 验收：攻击者容器无 host/flag 挂载；flag 随机；红队可 agentic 执行 shell；judge 可拒绝作弊轨迹；approved 写入 RSI 轨迹。
 - 状态：[x]
 
+### T35 系统架构说明
+
+- 目标：给开发者一份从挖掘、精炼、verify、红队 lab、judge、review、RSI 的完整架构说明。
+- 产物：`docs/system-architecture.md`、`docs/redteam-candidates.json`、`scripts/redteam/batch.py`。
+- 验收：组件边界、状态优先级、lab 不变量、judge 契约、运行手册和失败模式完整。
+- 状态：[x]
+
 ## 初判差距假设（待 T01-T03 用证据确认，不得直接当结论）
 
 现有 84 个 skill 偏 Web 漏洞与智能合约，对 AI 基础设施可能弱覆盖：

@@ -1,0 +1,7 @@
+{
+  "victim_image": "mygoldmine/lab-demo-victim",
+  "attacker_image": "curlimages/curl:latest",
+  "target_url": "http://victim:8000",
+  "health_path": "/health",
+  "note": "local command-injection fixture; not a real target"
+}
