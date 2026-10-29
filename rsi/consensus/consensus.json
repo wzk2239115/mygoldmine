@@ -1,0 +1,3935 @@
+{
+  "generated_at": "2026-10-28T09:09:17.709250+00:00",
+  "min_rounds": 2,
+  "projects": {
+    "aud-001-cline": {
+      "runs": [
+        "aud-001-cline/20261027T181038Z",
+        "aud-001-cline/20261028T070634Z",
+        "aud-001-cline/20261028T080748Z"
+      ],
+      "findings_total": 81,
+      "clusters_total": 42,
+      "stable_total": 13,
+      "high_stable_total": 6,
+      "clusters": [
+        {
+          "title": "Configured-agent tool allowlist maps benign/read-only legacy names to privileged tools (list_files -> run_commands), so a repository agent config that looks read-only silently receives shell execution",
+          "severity": "high",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "agents/src/agent-runtime.ts",
+            "apps/cli/readme.md",
+            "cli/src/main.ts",
+            "desktop-app/sidecar/chat-session.ts",
+            "extensions/tools/constants.ts",
+            "extensions/tools/presets.ts",
+            "hooks/chat-session/constants.ts",
+            "host/local/spawn-tool.ts",
+            "runtime/interactive/approvals.ts",
+            "runtime/orchestration/runtime-builder.ts",
+            "src/agents/types.ts",
+            "src/commands/program.ts",
+            "src/llms/tools.ts",
+            "src/server/sessions.ts",
+            "src/utils/startup-settings.ts"
+          ],
+          "cwe": [
+            "CWE-1188",
+            "CWE-269",
+            "CWE-862"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "AUTOAPPROVE-001",
+              "title": "Tool auto-approval is enabled by default across CLI, desktop sidecar, hub sessions and the shared SDK ToolPolicy (fail-open)",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-001",
+              "title": "CLI defaults to auto-approving every tool, including run_commands (model output executes on host without human review)",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-003",
+              "title": "SDK tool policy is fail-open: unlisted tools default to enabled+autoApprove; spawned sub-agents don't inherit approval",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-03",
+              "title": "CLI defaults to auto-approving every tool, including run_commands, so a prompt-injected model gets unattended command execution",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-25",
+              "title": "Configured-agent tool allowlist maps benign/read-only legacy names to privileged tools (list_files -> run_commands), so a repository agent config that looks read-only silently receives shell execution",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Desktop example sidecar WebSocket accepts originless clients and grants all non-approval commands; optional 0.0.0.0 bind widens exposure",
+          "severity": "high",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "components/ui/markdown.tsx",
+            "desktop-app/sidecar/commands.ts",
+            "desktop-app/sidecar/server.ts",
+            "desktop-app/sidecar/types.ts",
+            "desktop-app/src-tauri/tauri.conf.json",
+            "src-tauri/capabilities/default.json",
+            "src-tauri/src/main.rs",
+            "src-tauri/src/terminal.rs",
+            "src/services/telemetry.ts",
+            "webview/app/layout.tsx",
+            "webview/app/page.tsx",
+            "webview/lib/desktop-client.ts"
+          ],
+          "cwe": [
+            "/",
+            "CWE-1021",
+            "CWE-306",
+            "CWE-532",
+            "CWE-693",
+            "CWE-78"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "TAURI-RENDERER-001",
+              "title": "Tauri webview has no CSP and exposes an unrestricted interactive PTY shell (renderer script execution -> native RCE)",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-021",
+              "title": "Example desktop app trusts any originless local client (sidecar WS) and exposes an unconfined Tauri PTY",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-10",
+              "title": "Desktop example PTY command surface spawns a shell in a caller-supplied cwd and accepts raw bytes as shell input",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-11",
+              "title": "Desktop example webview has no Content-Security-Policy (csp: null) and no navigation guard, so any XSS yields full Tauri IPC",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-19",
+              "title": "Desktop example sidecar WebSocket accepts originless clients and grants all non-approval commands; optional 0.0.0.0 bind widens exposure",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-20",
+              "title": "Desktop example sidecar approval_token in the transport URL leaks into telemetry error reports",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Unauthenticated hub public routes (/health, /config.json) leak hub address and client PIDs/versions, readable cross-origin via DNS rebinding",
+          "severity": "high",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "apps/cline-hub/readme.md",
+            "cline-hub/src/options.ts",
+            "cline-hub/src/server.ts",
+            "src/server/browser-auth.ts",
+            "src/server/state-payloads.ts"
+          ],
+          "cwe": [
+            "CWE-200",
+            "CWE-306",
+            "CWE-532"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "HUB-TUNNEL-001",
+              "title": "ROOM_SECRET enforced only for non-loopback HOST, so a loopback bind published through a public tunnel can be unauthenticated",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "HUB-PUBLIC-ROUTES-001",
+              "title": "Public hub routes (/health, /version, /config.json, /api/marketplace/catalog) bypass Host/Origin/ROOM_SECRET",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-020",
+              "title": "Public info routes bypass browser auth and expose version/health/config and marketplace metadata",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-028",
+              "title": "ROOM_SECRET is printed into the console invite URL",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-14",
+              "title": "Unauthenticated hub public routes (/health, /config.json) leak hub address and client PIDs/versions, readable cross-origin via DNS rebinding",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Workspace .clinerules/hooks and .cline/hooks scripts auto-execute on agent/session start and task events with no workspace-trust confirmation",
+          "severity": "high",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "core/hooks/hook-factory.ts",
+            "core/hooks/hookprocess.ts",
+            "core/hooks/hooks-utils.ts",
+            "core/storage/disk.ts",
+            "extensions/mcp/client.ts",
+            "extensions/mcp/config-loader.ts",
+            "extensions/plugin/plugin-config-loader.ts",
+            "extensions/plugin/plugin-loader.ts",
+            "extensions/plugin/plugin-module-import.ts",
+            "extensions/plugin/plugin-registry.ts",
+            "runtime/interactive/session-runtime.ts",
+            "runtime/orchestration/runtime-builder.ts",
+            "runtime/tools/worker-sandbox.ts",
+            "shared/storage/state-keys.ts",
+            "src/hooks/hook-file-config.ts",
+            "src/hooks/hook-file-hooks.ts",
+            "src/hooks/subprocess-runner.ts",
+            "src/runtime/run-agent.ts",
+            "src/sdk/vscode-session-host.ts",
+            "src/services/local-runtime-bootstrap.ts",
+            "src/session/runtime-config.ts",
+            "src/storage/paths.ts"
+          ],
+          "cwe": [
+            "CWE-78",
+            "CWE-829",
+            "CWE-94"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "WS-TRUST-001",
+              "title": "No workspace-trust gate: repo-controlled hooks and plugins execute code by default when a task runs",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-010",
+              "title": "Workspace .clinerules/hooks and .cline/hooks scripts auto-execute on agent/session start and task events with no workspace-trust confirmation",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-011",
+              "title": "Workspace .cline/plugins JS/TS modules are imported and executed at session start when default plugins extension is enabled",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-01",
+              "title": "Workspace-controlled hook scripts auto-execute on session/tool events with no trust prompt",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-02",
+              "title": "Workspace .cline/plugins JS/TS modules are auto-discovered and evaluated at session bootstrap (arbitrary code execution)",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-08",
+              "title": "User/global MCP stdio servers auto-spawn at session build without per-session approval",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "fetch_web_content is auto-approved and performs SSRF-capable fetches with no loopback/private/metadata blocking and follows redirects",
+          "severity": "high",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "cli/src/main.ts",
+            "extensions/tools/definitions.ts",
+            "extensions/tools/presets.ts",
+            "src/runtime/tool-policies.ts",
+            "tools/executors/index.ts",
+            "tools/executors/web-fetch.ts"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "SSRF-WEBFETCH-001",
+              "title": "SSRF: fetch_web_content fetches model-controlled URLs and follows redirects with no private-address/metadata blocking",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-014",
+              "title": "fetch_web_content performs server-side fetch without private-IP/metadata filtering and follows redirects (SSRF)",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-04",
+              "title": "fetch_web_content is auto-approved and performs SSRF-capable fetches with no loopback/private/metadata blocking and follows redirects",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "editor/apply_patch write, delete and move arbitrary absolute paths; restrictToCwd only gates relative inputs and symlinks are unresolved",
+          "severity": "high",
+          "rounds_seen": 2,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "extensions/tools/definitions.ts",
+            "src/sdk/sdk-tool-policies.ts",
+            "src/shared/autoapprovalsettings.ts",
+            "tools/executors/apply-patch.ts",
+            "tools/executors/editor.ts",
+            "tools/executors/file-read.ts"
+          ],
+          "cwe": [
+            "/",
+            "CWE-200",
+            "CWE-22",
+            "CWE-73"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "FILE-READ-001",
+              "title": "read_files/read_file accept arbitrary absolute paths with no workspace containment",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "FILE-WRITE-001",
+              "title": "editor/apply_patch write, delete and move arbitrary absolute paths; restrictToCwd only gates relative inputs and symlinks are unresolved",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-013",
+              "title": "File read/write tools accept absolute paths outside the workspace; only relative inputs are confined",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Connector authorization hook is fail-open: spawn errors, non-zero exit, malformed output, and missing action all resolve to allow",
+          "severity": "medium",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "connectors/adapters/linear.ts",
+            "connectors/adapters/whatsapp.ts",
+            "docs/cli/connectors.mdx",
+            "src/connectors/connector-host.ts",
+            "src/connectors/hooks.ts"
+          ],
+          "cwe": [
+            "CWE-78",
+            "CWE-863"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "CONNECTOR-AUTHZ-001",
+              "title": "Connector authorization hook fails open on missing, failed or malformed hook output",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-012",
+              "title": "Connector authorization hook is fail-open: spawn errors, non-zero exit, malformed output, and missing action all resolve to allow",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-09",
+              "title": "Connector authorization hook executes an operator-supplied shell command and fails open to allow on error",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Core hub WebSocket treats any localhost Origin as authentication and permits unregistered session.create at a caller-chosen workspaceRoot",
+          "severity": "medium",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "hub/server/browser-websocket.ts",
+            "hub/server/hub-server-transport.ts",
+            "hub/server/hub-websocket-server.ts",
+            "server/handlers/approval-handlers.ts",
+            "server/handlers/capability-handlers.ts",
+            "server/handlers/session-handlers.ts"
+          ],
+          "cwe": [
+            "CWE-306",
+            "CWE-346",
+            "CWE-639",
+            "CWE-862"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "HUB-WS-AUTH-001",
+              "title": "Core hub WebSocket treats any localhost Origin as authentication and permits unregistered session.create at a caller-chosen workspaceRoot",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-016",
+              "title": "SDK hub session.create trusts client-supplied workspaceRoot/cwd and auto-approve regardless of connection authority",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-017",
+              "title": "SDK hub WebSocket grants token-less access to any localhost Origin and does not validate the request Host header",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-26",
+              "title": "SDK hub /hub WebSocket authorizes any localhost Origin without a token and serves session commands/events before registration",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-27",
+              "title": "SDK hub approval.respond lacks the responder-ownership check that capability.respond enforces",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Provider credentials returned in cleartext to the dashboard browser: unmasked apiKey in the provider catalog and full OAuth accessToken from run_provider_oauth_login",
+          "severity": "medium",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "desktop-app/sidecar/commands.ts",
+            "desktop-app/sidecar/oauth-login.ts",
+            "services/llms/provider-defaults.ts",
+            "services/providers/local-provider-service.ts",
+            "services/providers/model-source.ts",
+            "src/lib/provider-schema.ts",
+            "src/server/desktop-commands.ts",
+            "src/server/providers.ts",
+            "src/server/sessions.ts",
+            "views/settings/provider-list-view.tsx",
+            "views/settings/settings-view.tsx"
+          ],
+          "cwe": [
+            "CWE-200",
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "HUB-SSRF-001",
+              "title": "SSRF: add_provider models_source_url is fetched by the hub with no host validation",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "PROVIDER-CRED-LEAK-001",
+              "title": "Provider API keys / OAuth tokens returned in plaintext to local IPC and hub browser peers",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-015",
+              "title": "Provider models_source_url and custom base_url are fetched without scheme/host validation or private-IP filtering",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-022",
+              "title": "Browser provider_catalog frame sends raw provider API keys to every webview peer",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-023",
+              "title": "run_provider_oauth_login returns the full OAuth access token to the webview",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-06",
+              "title": "Provider credentials returned in cleartext to the dashboard browser: unmasked apiKey in the provider catalog and full OAuth accessToken from run_provider_oauth_login",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-15",
+              "title": "Server-side request forgery via caller-controlled models_source_url in add_provider",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Cline Hub browser control plane grants RCE-class commands (MCP stdio spawn, marketplace/connector installers, auto-approved agent turns with caller-chosen workspaceRoot) gated only by Host/Origin plus a shared roomSecret",
+          "severity": "medium",
+          "rounds_seen": 2,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "cline-hub/src/options.ts",
+            "cline-hub/src/server.ts",
+            "extensions/mcp/client.ts",
+            "src/server/browser-auth.ts",
+            "src/server/connectors.ts",
+            "src/server/desktop-commands.ts",
+            "src/server/marketplace.ts",
+            "src/server/mcp.ts",
+            "src/server/sessions.ts"
+          ],
+          "cwe": [
+            "CWE-862"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-018",
+              "title": "cline-hub has no method-level authorization: every connected browser can invoke all desktop commands including process spawning, MCP command injection, and secret export",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-05",
+              "title": "Cline Hub browser control plane grants RCE-class commands (MCP stdio spawn, marketplace/connector installers, auto-approved agent turns with caller-chosen workspaceRoot) gated only by Host/Origin plus a shared roomSecret",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Plan-mode read-only command guard is a bypassable blacklist (interpreters, wrappers, substitutions, variable indirection)",
+          "severity": "medium",
+          "rounds_seen": 2,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "extensions/tools/command-guard-extension.ts",
+            "extensions/tools/command-guard.ts",
+            "extensions/tools/presets.ts",
+            "runtime/orchestration/runtime-builder.ts"
+          ],
+          "cwe": [
+            "CWE-693"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-007",
+              "title": "Plan-mode command guard is a bypassable blacklist on run_commands",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-07",
+              "title": "Plan-mode read-only command guard is a bypassable blacklist (interpreters, wrappers, substitutions, variable indirection)",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "The 'sandbox' is not a security boundary; shell/exec runs unconfined and --data-dir only isolates state",
+          "severity": "medium",
+          "rounds_seen": 2,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "extensions/plugin/plugin-sandbox.ts",
+            "runtime/tools/subprocess-sandbox.ts",
+            "runtime/tools/worker-sandbox.ts",
+            "tools/executors/bash.ts"
+          ],
+          "cwe": [
+            "CWE-693"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-005",
+              "title": "The 'sandbox' is not a security boundary; shell/exec runs unconfined and --data-dir only isolates state",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-17",
+              "title": "Plugin sandbox (worker/subprocess) is fault isolation only, not a security boundary",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "VS Code command auto-approval is a single all-or-nothing toggle with no per-command allowlist or prefix matching",
+          "severity": "medium",
+          "rounds_seen": 2,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "src/sdk/sdk-tool-policies.ts",
+            "src/sdk/vscode-run-commands-tool.ts",
+            "src/shared/autoapprovalsettings.ts"
+          ],
+          "cwe": [
+            "CWE-183",
+            "CWE-78"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "VSCODE-EXEC-TOGGLE-001",
+              "title": "VS Code 'Execute commands' toggle auto-approves every command with no prefix/content allowlist",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-006",
+              "title": "VS Code command auto-approval is a single all-or-nothing toggle with no per-command allowlist or prefix matching",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Desktop sidecar treats Origin-less clients as trusted and leaves powerful commands ungated (chat, MCP upsert, git/editor, shutdown)",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "desktop-app/sidecar/commands.ts",
+            "desktop-app/sidecar/server.ts",
+            "desktop-app/sidecar/types.ts"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "SIDECAR-AUTH-001",
+              "title": "Desktop sidecar treats Origin-less clients as trusted and leaves powerful commands ungated (chat, MCP upsert, git/editor, shutdown)",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Model/tool-controlled URL is interpolated into an OS shell by openUrlInBrowser",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "components/chat/chatrow.tsx",
+            "controller/ui/openurl.ts",
+            "src/sdk/message-translator.ts",
+            "src/utils/github-url-utils.ts"
+          ],
+          "cwe": [
+            "CWE-78"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-23",
+              "title": "Model/tool-controlled URL is interpolated into an OS shell by openUrlInBrowser",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Published CLI binary auto-loads .env and bunfig.toml from the launch directory, letting a repository redirect all CLINE_*/HOME config roots (and optionally preload code) before any trust decision",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "cli/bin/cline",
+            "cli/script/build.ts",
+            "cli/script/compile-binary.ts",
+            "desktop-app/scripts/build-desktop-runtime.ts",
+            "src-tauri/src/main.rs",
+            "src/storage/paths.ts"
+          ],
+          "cwe": [
+            "CWE-426"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-24",
+              "title": "Published CLI binary auto-loads .env and bunfig.toml from the launch directory, letting a repository redirect all CLINE_*/HOME config roots (and optionally preload code) before any trust decision",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Scheduled/background runs are always auto-approved; model-callable tasks tool can create arbitrary-prompt schedules (default yolo)",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "cron/runner/cron-runner.ts",
+            "cron/service/schedule-tool.ts",
+            "extensions/tools/runtime.ts"
+          ],
+          "cwe": [
+            "CWE-862"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-002",
+              "title": "Scheduled/background runs are always auto-approved; model-callable tasks tool can create arbitrary-prompt schedules (default yolo)",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Unauthenticated vscode:// LG-task deep link reads arbitrary local files, installs executable hooks, and overwrites the webhook config; /auth lacks state validation",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "services/lg-cns-integration/webhook-hooks.ts",
+            "services/uri/sharedurihandler.ts",
+            "vscode/src/extension.ts"
+          ],
+          "cwe": [
+            "CWE-939"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "DEEPLINK-001",
+              "title": "Unauthenticated vscode:// LG-task deep link reads arbitrary local files, installs executable hooks, and overwrites the webhook config; /auth lacks state validation",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Auto-update on by default trusts npm without signature verification and disables the minimum-release-age guard",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "cli/src/main.ts",
+            "src/commands/update.ts",
+            "src/services/global-settings.ts"
+          ],
+          "cwe": [
+            "CWE-494"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "AUTOUPDATE-001",
+              "title": "Auto-update on by default trusts npm without signature verification and disables the minimum-release-age guard",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Cline Hub defaults session tool policies to autoApprove:true unless the client explicitly sends false",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "cline-hub/src/options.ts",
+            "src/server/sessions.ts"
+          ],
+          "cwe": [
+            "CWE-862"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-004",
+              "title": "Cline Hub defaults session tool policies to autoApprove:true unless the client explicitly sends false",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Connector bot tokens and MCP OAuth tokens persisted in plaintext with default file permissions",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "extensions/mcp/config-loader.ts",
+            "services/storage/provider-settings-manager.ts",
+            "src/db/connector-store.ts",
+            "src/db/sqlite-db.ts"
+          ],
+          "cwe": [
+            "CWE-312"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "SECRETS-AT-REST-001",
+              "title": "Connector bot tokens and MCP OAuth tokens persisted in plaintext with default file permissions",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Connector/provider secrets placed in child process argv and written to CLI logs",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "connectors/adapters/discord.ts",
+            "connectors/adapters/gchat.ts",
+            "connectors/adapters/linear.ts",
+            "connectors/adapters/telegram.ts",
+            "connectors/adapters/whatsapp.ts",
+            "src/connectors/base.ts",
+            "src/connectors/common.ts",
+            "src/logging/adapter.ts",
+            "src/logging/process.ts"
+          ],
+          "cwe": [
+            "CWE-214"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-024",
+              "title": "Connector/provider secrets placed in child process argv and written to CLI logs",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Cross-peer session access and approval resolution without ownership checks",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "src/server/approvals.ts",
+            "src/server/sessions.ts"
+          ],
+          "cwe": [
+            "CWE-639"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "HUB-PEER-001",
+              "title": "Cross-peer session access and approval resolution without ownership checks",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Desktop example local-runtime Ollama operations use a configurable baseUrl and send a Bearer API key without verifying the host is local",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "desktop-app/sidecar/local-models.ts",
+            "sidecar/local-runtimes/ollama.ts",
+            "sidecar/local-runtimes/shared.ts"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-13",
+              "title": "Desktop example local-runtime Ollama operations use a configurable baseUrl and send a Bearer API key without verifying the host is local",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Desktop example marketplace skill install runs catalog-supplied npx args with shell:true on Windows; catalog URL is env-overridable",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "desktop-app/sidecar/commands.ts",
+            "desktop-app/sidecar/marketplace.ts"
+          ],
+          "cwe": [
+            "CWE-78"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-12",
+              "title": "Desktop example marketplace skill install runs catalog-supplied npx args with shell:true on Windows; catalog URL is env-overridable",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Hub dashboard sessions accept caller-controlled workspaceRoot/cwd",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "src/server/sessions.ts"
+          ],
+          "cwe": [
+            "CWE-639"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "HUB-SESSION-WORKSPACE-001",
+              "title": "Hub dashboard sessions accept caller-controlled workspaceRoot/cwd",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Model search query is passed unseparated to ripgrep, allowing argument injection (e.g. --pre) and program execution",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "extensions/tools/definitions.ts",
+            "extensions/tools/schemas.ts",
+            "tools/executors/search.ts"
+          ],
+          "cwe": [
+            "CWE-88"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-28",
+              "title": "Model search query is passed unseparated to ripgrep, allowing argument injection (e.g. --pre) and program execution",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Remote plugin/skill/marketplace installs fetched over HTTPS without checksum or signature verification",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "src/server/marketplace.ts",
+            "src/services/plugin-install.ts"
+          ],
+          "cwe": [
+            "CWE-494"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "PLUGIN-SIGN-001",
+              "title": "Remote plugin/skill/marketplace installs fetched over HTTPS without checksum or signature verification",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "SSRF: extension fetches MCP-response-controlled URLs for link previews/image HEAD with incomplete private-range blocking and redirects followed",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "chat-display/utils/mcprichutil.ts",
+            "integrations/misc/link-preview.ts"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "SSRF-MCP-PREVIEW-001",
+              "title": "SSRF: extension fetches MCP-response-controlled URLs for link previews/image HEAD with incomplete private-range blocking and redirects followed",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Standalone core protobus gRPC is unauthenticated, uses insecure credentials, enables reflection, and can bind non-loopback via PROTOBUS_ADDRESS",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "src/standalone/cline-core.ts",
+            "src/standalone/protobus-service.ts"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-019",
+              "title": "Standalone core protobus gRPC is unauthenticated, uses insecure credentials, enables reflection, and can bind non-loopback via PROTOBUS_ADDRESS",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "\"Sandbox mode\" (--data-dir / CLINE_SANDBOX) only redirects data directories; there is no OS-level isolation",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "cli/src/main.ts",
+            "src/utils/helpers.ts"
+          ],
+          "cwe": [
+            "CWE-1188"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-16",
+              "title": "\"Sandbox mode\" (--data-dir / CLINE_SANDBOX) only redirects data directories; there is no OS-level isolation",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": ".clineignore is not enforced on tool reads/writes (documented as a non-security, deprecated filter)",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "core/ignore/clineignorecontroller.ts",
+            "core/prompts/responses.ts",
+            "docs/customization/clineignore.mdx"
+          ],
+          "cwe": [
+            "CWE-693"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "CLINEIGNORE-001",
+              "title": ".clineignore is not enforced on tool reads/writes (documented as a non-security, deprecated filter)",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Desktop example checkout_git_branch passes a caller-controlled branch name to git without an option separator",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "desktop-app/sidecar/commands.ts"
+          ],
+          "cwe": [
+            "CWE-73",
+            "CWE-88"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-21",
+              "title": "Desktop example open_file_in_editor accepts arbitrary absolute paths with no workspace containment",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-22",
+              "title": "Desktop example checkout_git_branch passes a caller-controlled branch name to git without an option separator",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Example diagnostics report redaction misses Bearer tokens and file is written with default permissions",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "desktop-app/sidecar/diagnostics.ts"
+          ],
+          "cwe": [
+            "CWE-532"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-026",
+              "title": "Example diagnostics report redaction misses Bearer tokens and file is written with default permissions",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "MCP stdio servers inherit the full host environment",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "extensions/mcp/client.ts",
+            "extensions/mcp/config-loader.ts",
+            "src/storage/paths.ts"
+          ],
+          "cwe": [
+            "CWE-526"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "MCP-ENV-001",
+              "title": "MCP stdio servers inherit the full host environment",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Project rules, workflows, skills, and AGENTS.md are loaded as prompt/command text (prompt-injection surface)",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "extensions/config/user-instruction-service.ts",
+            "runtime/safety/rules.ts",
+            "src/storage/paths.ts"
+          ],
+          "cwe": [
+            "CWE-1426"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T080748Z",
+              "id": "F-18",
+              "title": "Project rules, workflows, skills, and AGENTS.md are loaded as prompt/command text (prompt-injection surface)",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "ROOM_SECRET carried in URL query/stdout with no strength validation or constant-time compare",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "cline-hub/src/options.ts",
+            "src/server/browser-auth.ts"
+          ],
+          "cwe": [
+            "CWE-598"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "HUB-SECRET-URL-001",
+              "title": "ROOM_SECRET carried in URL query/stdout with no strength validation or constant-time compare",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Repo-supplied rules, skills, workflows and AGENTS.md are injected into the trusted prompt and skills are auto-approved",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "extensions/config/user-instruction-config-loader.ts",
+            "runtime/orchestration/runtime-builder.ts",
+            "src/runtime/tool-policies.ts"
+          ],
+          "cwe": [
+            "CWE-1426"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261027T181038Z",
+              "id": "CFG-RULES-INJECT-001",
+              "title": "Repo-supplied rules, skills, workflows and AGENTS.md are injected into the trusted prompt and skills are auto-approved",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Secrets are fingerprinted with a stable 8-hex SHA-256 prefix in debug logs",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "src/auth/cline.ts",
+            "src/logging/early-logger.ts"
+          ],
+          "cwe": [
+            "CWE-532"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-027",
+              "title": "Secrets are fingerprinted with a stable 8-hex SHA-256 prefix in debug logs",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Supply-chain execution: kanban@latest global install and npx -y skills with shell:true on Windows",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "src/commands/kanban.ts",
+            "src/commands/skill.ts"
+          ],
+          "cwe": [
+            "CWE-78"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-009",
+              "title": "Supply-chain execution: kanban@latest global install and npx -y skills with shell:true on Windows",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "cline auth --apikey exposes the provider API key in process argv",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "cli/src/main.ts",
+            "src/commands/auth.ts"
+          ],
+          "cwe": [
+            "CWE-214"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-025",
+              "title": "cline auth --apikey exposes the provider API key in process argv",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "run_commands input schema has no length/type bounds and cwd is used without validation",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "extensions/tools/definitions.ts",
+            "extensions/tools/helpers.ts",
+            "extensions/tools/schemas.ts"
+          ],
+          "cwe": [
+            "CWE-20"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-001-cline/20261028T070634Z",
+              "id": "CLINE-008",
+              "title": "run_commands input schema has no length/type bounds and cwd is used without validation",
+              "severity": "low"
+            }
+          ]
+        }
+      ]
+    },
+    "aud-006-openhands-software-agent-sdk-a-gent-server": {
+      "runs": [
+        "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+        "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+        "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z"
+      ],
+      "findings_total": 55,
+      "clusters_total": 30,
+      "stable_total": 10,
+      "high_stable_total": 5,
+      "clusters": [
+        {
+          "title": "Repository/plugin-controlled SKILL.md inline !`cmd` executes via invoke_skill with shell=True and the full inherited environment (no sanitized_env) (merged CFG-003/EXEC-002)",
+          "severity": "critical",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "conversation/impl/local_conversation.py",
+            "local_conversation.py",
+            "openhands/agent_server/api.py",
+            "openhands/agent_server/config.py",
+            "openhands/agent_server/dependencies.py",
+            "openhands/agent_server/mcp_router.py",
+            "plugin/format/base.py",
+            "plugin/format/claude_code.py",
+            "sdk/agent/base.py",
+            "sdk/context/agent_context.py",
+            "sdk/hooks/executor.py",
+            "sdk/mcp/config.py",
+            "sdk/mcp/utils.py",
+            "sdk/plugin/discovery.py",
+            "sdk/plugin/loader.py",
+            "sdk/plugin/plugin.py",
+            "sdk/profiles/resolver.py",
+            "sdk/skills/execute.py",
+            "sdk/skills/utils.py",
+            "sdk/utils/command.py",
+            "tool/builtins/invoke_skill.py",
+            "verified"
+          ],
+          "cwe": [
+            "CWE-200",
+            "CWE-522",
+            "CWE-78",
+            "CWE-829",
+            "CWE-918",
+            "CWE-94"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "SEC-001",
+              "title": "Workspace project plugins auto-load and execute hooks (shell=True) and MCP stdio commands at conversation start with no opt-in",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "CFG-001",
+              "title": "Ambient project plugins auto-load and run repository-controlled SessionStart hooks (shell=True) with no opt-in or confirmation",
+              "severity": "critical"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "MCP-001",
+              "title": "Ambient project plugin .mcp.json spawns a repository-controlled stdio command at conversation initialization (merged CFG-002/MCP-001)",
+              "severity": "critical"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "EXEC-002",
+              "title": "Repository/plugin-controlled SKILL.md inline !`cmd` executes via invoke_skill with shell=True and the full inherited environment (no sanitized_env) (merged CFG-003/EXEC-002)",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "MCP-002",
+              "title": "Conversation secrets and process environment are expanded into repository-controlled MCP command/args/env/url/headers, enabling secret exfiltration",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "MCP-003",
+              "title": "POST /api/mcp/test executes a caller-supplied stdio command and connects to an arbitrary remote url",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "EXEC-01",
+              "title": "Untrusted workspace plugin hooks execute via shell=True at conversation start (SessionStart) with no opt-in",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "EXEC-02",
+              "title": "Untrusted workspace plugin MCP stdio server is spawned at agent init with no opt-in",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "EXEC-03",
+              "title": "Skill inline !`cmd` executes with the full inherited process environment (incl. session keys), reachable via model-invoked invoke_skill on ambient plugin skills",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "SSRF-01",
+              "title": "/api/mcp/test connects to a client-supplied MCP URL (SSRF) and spawns client-supplied stdio commands",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Unauthenticated POST /api/init on deferred-init servers without a secret_key permits control-plane takeover (env injection, arbitrary persistence paths, attacker-chosen session keys)",
+          "severity": "critical",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "init_router.py",
+            "openhands/agent_server/api.py",
+            "openhands/agent_server/config.py",
+            "openhands/agent_server/conversation_service.py",
+            "openhands/agent_server/init_router.py",
+            "openhands/agent_server/mcp_oauth_store.py",
+            "openhands/agent_server/vscode_router.py",
+            "openhands/agent_server/vscode_service.py",
+            "verified"
+          ],
+          "cwe": [
+            "CWE-200",
+            "CWE-306",
+            "CWE-522",
+            "CWE-598",
+            "CWE-73",
+            "CWE-78",
+            "CWE-862",
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "HTTP-003",
+              "title": "POST /api/init is unauthenticated when a deferred-init (warm-pool) server has no secret_key, allowing unauthenticated takeover and process-environment injection",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "CP-002",
+              "title": "POST /api/init is unauthenticated when no secret_key is configured (dormant warm-pool takeover)",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "CP-006",
+              "title": "GET /api/init leaks dormant state and raw initialization error text",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "AUTH-02",
+              "title": "Unauthenticated POST /api/init on deferred-init servers without a secret_key permits control-plane takeover (env injection, arbitrary persistence paths, attacker-chosen session keys)",
+              "severity": "critical"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "AUTH-07",
+              "title": "VSCode connection token reuses the session API key and openvscode-server binds 0.0.0.0",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "SSRF-03",
+              "title": "Webhook base_url (operator config or /api/init) drives server-side POSTs and receives the session API key",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Top-level /api/file routes accept arbitrary absolute host paths with no workspace containment (read/write/mkdir/archive)",
+          "severity": "high",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "file_router.py",
+            "openhands/agent_server/api.py",
+            "openhands/agent_server/file_router.py",
+            "openhands/agent_server/runtime_router.py",
+            "openhands/agent_server/workspace_router.py",
+            "verified"
+          ],
+          "cwe": [
+            "CWE-200",
+            "CWE-22",
+            "CWE-73"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "FS-001",
+              "title": "Top-level /api/file and /api/git endpoints accept arbitrary absolute host paths with no workspace confinement",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "CP-007",
+              "title": "Top-level /api/file routes accept arbitrary absolute paths with no workspace containment",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "FS-01",
+              "title": "Top-level /api/file routes accept arbitrary absolute host paths with no workspace containment (read/write/mkdir/archive)",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Fail-open unauthenticated control plane: no-key mode accepts all REST/WebSockets with no Origin/Host validation; wildcard bind only warns and the shipped SandboxTemplate runs 0.0.0.0 without a key (merged CP-001/CP-003)",
+          "severity": "high",
+          "rounds_seen": 2,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "agent_sandbox/deploy/sandboxtemplate.yaml",
+            "dependencies.py",
+            "openhands/agent_server/__main__.py",
+            "openhands/agent_server/dependencies.py",
+            "openhands/agent_server/middleware.py",
+            "openhands/agent_server/sockets.py",
+            "verified",
+            "workspace/agent_sandbox/workspace.py"
+          ],
+          "cwe": [
+            "CWE-1385",
+            "CWE-306",
+            "CWE-350",
+            "CWE-942"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "HTTP-002",
+              "title": "Session-key auth is fail-open when no keys are configured and a wildcard bind without a key is only a warning; the shipped SandboxTemplate uses exactly that shape",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "CP-001",
+              "title": "Fail-open unauthenticated control plane: no-key mode accepts all REST/WebSockets with no Origin/Host validation; wildcard bind only warns and the shipped SandboxTemplate runs 0.0.0.0 without a key (merged CP-001/CP-003)",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Session-key authentication fails open when session_api_keys is empty; unauthenticated HTTP and WebSocket API (default), amplified by shipped wildcard-bind SandboxTemplate",
+          "severity": "high",
+          "rounds_seen": 2,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "02_remote_agent_server/agent_sandbox_deploy/sandboxtemplate.yaml",
+            "agent_sandbox/deploy/sandboxtemplate.yaml",
+            "agent_server/openai/router.py",
+            "openhands/agent_server/__main__.py",
+            "openhands/agent_server/dependencies.py",
+            "openhands/agent_server/sockets.py",
+            "sockets.py",
+            "workspace/agent_sandbox/workspace.py"
+          ],
+          "cwe": [
+            "CWE-1188",
+            "CWE-1385",
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "HTTP-001",
+              "title": "WebSocket handlers validate neither Origin nor any credential when no session key is configured, enabling cross-site WebSocket hijacking to bash execution",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "AUTH-01",
+              "title": "Session-key authentication fails open when session_api_keys is empty; unauthenticated HTTP and WebSocket API (default), amplified by shipped wildcard-bind SandboxTemplate",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Workspace cookie routes use wildcard CORS with credentials and an ambient SameSite=None cookie whose value is the raw session API key, shared across all conversations",
+          "severity": "medium",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "middleware.py",
+            "openhands/agent_server/auth_router.py",
+            "openhands/agent_server/dependencies.py",
+            "openhands/agent_server/middleware.py",
+            "openhands/agent_server/workspace_router.py",
+            "tests/agent_server/test_workspace_cookie_auth.py",
+            "verified"
+          ],
+          "cwe": [
+            "CWE-200",
+            "CWE-522",
+            "CWE-942"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "HTTP-004",
+              "title": "Workspace cookie routes use wildcard CORS with credentials and an ambient SameSite=None cookie whose value is the raw session API key, shared across all conversations",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "CP-004",
+              "title": "Workspace session cookie stores the raw long-lived session key; workspace routes accept any Origin with credentials",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "AUTH-05",
+              "title": "Workspace session cookie stores the raw session API key and is exposed to any origin via wildcard credentialed CORS",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Docker runtime trusts client-supplied workspace.working_dir as a host bind-mount source, allowing an arbitrary host directory to be mounted read-write",
+          "severity": "medium",
+          "rounds_seen": 2,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "agent_server/docker_runtime/provisioning.py",
+            "agent_server/docker_runtime/registry.py",
+            "agent_server/docker_runtime/routers.py",
+            "openhands/agent_server/config.py",
+            "routers.py"
+          ],
+          "cwe": [
+            "CWE-22",
+            "CWE-269",
+            "CWE-73"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "EXEC-003",
+              "title": "Docker conversation runtime bind-mounts a client-supplied host working_dir into the conversation container",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "FS-02",
+              "title": "Docker runtime trusts client-supplied workspace.working_dir as a host bind-mount source, allowing an arbitrary host directory to be mounted read-write",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "OAuth metadata discovery fetches URLs from an untrusted MCP server and its advertised authorization_servers without an allowlist",
+          "severity": "medium",
+          "rounds_seen": 2,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "openhands/agent_server/mcp_router.py",
+            "sdk/mcp/oauth.py",
+            "verified"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "MCP-005",
+              "title": "OAuth metadata discovery fetches URLs from an untrusted MCP server and its advertised authorization_servers without an allowlist",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "SSRF-02",
+              "title": "MCP OAuth metadata discovery follows a client-controlled server_url and an attacker-supplied authorization_servers URL",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Unauthenticated metadata endpoints (/server_info, /docs, /openapi.json, /redoc) and unauthenticated /api/init status disclose versions, build SHA, tool catalog and init error strings",
+          "severity": "low",
+          "rounds_seen": 3,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "api.py",
+            "openhands/agent_server/api.py",
+            "openhands/agent_server/server_details_router.py",
+            "verified"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "HTTP-005",
+              "title": "Unauthenticated metadata endpoints (/server_info, /docs, /openapi.json, /redoc) and unauthenticated /api/init status disclose versions, build SHA, tool catalog and init error strings",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "CP-005",
+              "title": "Unauthenticated /server_info (and /openapi.json, /docs) disclose build/runtime/tooling details",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "AUTH-06",
+              "title": "Unauthenticated /server_info (and /docs, /openapi.json, /redoc, root) discloses versions, tools, build SHA and backend URLs",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Secrets are persisted in plaintext when no cipher is configured (when OH_SECRET_KEY and session keys are unset)",
+          "severity": "low",
+          "rounds_seen": 2,
+          "rounds_total": 3,
+          "stable": true,
+          "paths": [
+            "agent_server/persistence/store.py",
+            "openhands/agent_server/config.py",
+            "persistence/store.py"
+          ],
+          "cwe": [
+            "CWE-312",
+            "CWE-522"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "SEC-006",
+              "title": "Secrets are persisted in plaintext when no cipher is configured (when OH_SECRET_KEY and session keys are unset)",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "SEC-01",
+              "title": "Secrets persisted in plaintext when no cipher is configured, mitigated by 0700/0600 permissions",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "At-rest encryption key defaults to the session API key and uses single-pass unsalted SHA-256, coupling transport auth with encryption",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "config.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "SEC-007",
+              "title": "At-rest encryption key defaults to the session API key and uses single-pass unsalted SHA-256, coupling transport auth with encryption",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Client-supplied LookupSecret URL is fetched server-side; the response becomes a secret readable by the conversation",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "agent_server/docker_runtime/routers.py",
+            "openhands/agent_server/conversation_router.py",
+            "openhands/agent_server/launch.py",
+            "openhands/agent_server/models.py",
+            "sdk/secret/secrets.py"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "SSRF-04",
+              "title": "Client-supplied LookupSecret URL is fetched server-side; the response becomes a secret readable by the conversation",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Dynamic workflow script's AST-only validator is bypassable by str.format attribute/index traversal (read-only disclosure; arbitrary code execution NOT demonstrated)",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "tools/workflow/impl.py",
+            "verified"
+          ],
+          "cwe": [
+            "CWE-200",
+            "CWE-693"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "EXEC-001",
+              "title": "Dynamic workflow script's AST-only validator is bypassable by str.format attribute/index traversal (read-only disclosure; arbitrary code execution NOT demonstrated)",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "MCP OAuth refresh-state write-back posts plaintext access/refresh tokens and the raw session API key to configured webhooks over any scheme",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "mcp_oauth_store.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "SEC-004",
+              "title": "MCP OAuth refresh-state write-back posts plaintext access/refresh tokens and the raw session API key to configured webhooks over any scheme",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "OAuth callback forwarder follows redirects (SSRF) and probe jobs are not bound to the creating client",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "openhands/agent_server/mcp_router.py",
+            "verified"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "MCP-004",
+              "title": "OAuth callback forwarder follows redirects (SSRF) and probe jobs are not bound to the creating client",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "POST /api/mcp/test spawns an arbitrary caller-supplied stdio command (no executable allowlist)",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "mcp_router.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "SEC-003",
+              "title": "POST /api/mcp/test spawns an arbitrary caller-supplied stdio command (no executable allowlist)",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "SDK git helpers omit core.fsmonitor=false, unlike the hardened server storage/selectors",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "agent_server/storage/selectors.py",
+            "openhands/agent_server/local_storage.py",
+            "sdk/git/git_changes.py",
+            "sdk/git/git_diff.py",
+            "sdk/git/utils.py"
+          ],
+          "cwe": [
+            "CWE-78",
+            "CWE-829"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T080748Z",
+              "id": "EXEC-04",
+              "title": "SDK git helpers omit core.fsmonitor=false, unlike the hardened server storage/selectors",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Server-side request forgery through user-controlled URLs in profile validation, MCP remote transport, credential bindings, LookupSecret and provider connections",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "profiles_router.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "SEC-005",
+              "title": "Server-side request forgery through user-controlled URLs in profile validation, MCP remote transport, credential bindings, LookupSecret and provider connections",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Skill inline !`cmd` execution runs shell=True with the full unsanitized server environment, bypassing the sanitized_env credential boundary",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "skills/execute.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "EXEC-001",
+              "title": "Skill inline !`cmd` execution runs shell=True with the full unsanitized server environment, bypassing the sanitized_env credential boundary",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "VS Code connection token is the first session API key, openvscode-server binds 0.0.0.0, and the token is placed in the URL",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "vscode_service.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "EXEC-002",
+              "title": "VS Code connection token is the first session API key, openvscode-server binds 0.0.0.0, and the token is placed in the URL",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "resolve_source_path does not confine marketplace entry sources, allowing path traversal from an untrusted marketplace to arbitrary local directories",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "plugin/source.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "FS-003",
+              "title": "resolve_source_path does not confine marketplace entry sources, allowing path traversal from an untrusted marketplace to arbitrary local directories",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "sanitized_env does not strip provider LLM keys/GITHUB_TOKEN, and a local bash child can read the parent's startup environment via /proc/<ppid>/environ",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "openhands/agent_server/bash_service.py",
+            "sdk/utils/command.py",
+            "verified"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "EXEC-003",
+              "title": "sanitized_env does not strip provider LLM keys/GITHUB_TOKEN, and a local bash child can read the parent's startup environment via /proc/<ppid>/environ",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "/api/hooks accepts an arbitrary project_dir and reads {project_dir}/.openhands/hooks.json from the host filesystem",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "hooks_router.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "SEC-009",
+              "title": "/api/hooks accepts an arbitrary project_dir and reads {project_dir}/.openhands/hooks.json from the host filesystem",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Async hook timeout is enforced lazily; timed-out async hook processes can outlive their deadline",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "sdk/hooks/executor.py",
+            "sdk/utils/command.py",
+            "verified"
+          ],
+          "cwe": [
+            "CWE-404"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261028T070634Z",
+              "id": "EXEC-004",
+              "title": "Async hook timeout is enforced lazily; timed-out async hook processes can outlive their deadline",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Conversation hook_config executes arbitrary shell with no source validation (authenticated, designed-in execution)",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "hooks/executor.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "EXEC-004",
+              "title": "Conversation hook_config executes arbitrary shell with no source validation (authenticated, designed-in execution)",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "GET /api/settings/secrets/{name} returns a raw plaintext secret without X-Expose-Secrets gating and ignores agent-profile secret_refs scoping",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "settings_router.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "SEC-008",
+              "title": "GET /api/settings/secrets/{name} returns a raw plaintext secret without X-Expose-Secrets gating and ignores agent-profile secret_refs scoping",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Top-level /api/bash routes bypass cwd confinement because the global BashEventService has default_cwd=None",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "bash_router.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "EXEC-005",
+              "title": "Top-level /api/bash routes bypass cwd confinement because the global BashEventService has default_cwd=None",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Top-level /api/vscode/url accepts an unconfined workspace_dir and mints a tokenised editor URL for any host directory",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "vscode_router.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "FS-004",
+              "title": "Top-level /api/vscode/url accepts an unconfined workspace_dir and mints a tokenised editor URL for any host directory",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Workspace-cookie Secure flag is decided from unconditional X-Forwarded-Proto/X-Forwarded-Host, unlike the rest of the origin logic",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "auth_router.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "HTTP-006",
+              "title": "Workspace-cookie Secure flag is decided from unconditional X-Forwarded-Proto/X-Forwarded-Host, unlike the rest of the origin logic",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "file_router git subprocess inherits unsanitized os.environ and omits core.fsmonitor=false",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 3,
+          "stable": false,
+          "paths": [
+            "file_router.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-006-openhands-software-agent-sdk-a-gent-server/20261027T171025Z",
+              "id": "EXEC-006",
+              "title": "file_router git subprocess inherits unsanitized os.environ and omits core.fsmonitor=false",
+              "severity": "low"
+            }
+          ]
+        }
+      ]
+    },
+    "aud-048-opensandbox": {
+      "runs": [
+        "aud-048-opensandbox/20261027T184554Z",
+        "aud-048-opensandbox/20261028T080748Z"
+      ],
+      "findings_total": 65,
+      "clusters_total": 57,
+      "stable_total": 4,
+      "high_stable_total": 1,
+      "clusters": [
+        {
+          "title": "CreatePoolRequest.template is a raw Dict with no field filtering (schema.py:1549-1555); _get_pool_service resolves the global config namespace and the route calls create_pool with no validation (pool.py:46-106); _build_pool_manifest places the caller template directly into spec.template (pool_service.py:50-74) and create_namespaced_custom_object submits it (106-131), so one tenant can also list/update/delete another's pools in the shared namespace. The CRD declares Template *corev1.PodTemplateSpec with PreserveUnknownFields + Schemaless (pool_types.go:51-54; batchsandbox_types.go:98-126), and the shipped CRDs use x-kubernetes-preserve-unknown-fields (crds.yaml:134-137,384-386). No admission webhook is enabled (kustomization.yaml:21-23 commented out) and controllers perform no hostPath/privileged/hostPID/serviceAccountName checks before GetPodFromTemplate deep-copies the spec (pod.go:83-108; pool_controller.go:1384; batchsandbox_controller.go:213,682-700). Cluster RBAC editor roles grant create/update on these CRDs and the server SA already has create on pools/batchsandboxes. Contrast: the sandbox create path validates volumes with ensure_valid_host_path/allowed_host_paths (default empty), but the Pool API bypasses it. A privileged or hostPath Pool pod executes on the node, enabling node compromise and cross-tenant escape.",
+          "severity": "high",
+          "rounds_seen": 2,
+          "rounds_total": 2,
+          "stable": true,
+          "paths": [
+            "base/files/crds.yaml",
+            "internal/controller/pool_controller.go",
+            "internal/utils/pod.go",
+            "opensandbox_server/api/pool.py",
+            "opensandbox_server/api/schema.py",
+            "services/k8s/pool_service.py"
+          ],
+          "cwe": [
+            "CWE-269"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "K8S-002",
+              "title": "CreatePoolRequest.template is a raw Dict with no field filtering (schema.py:1549-1555); _get_pool_service resolves the global config namespace and the route calls create_pool with no validation (pool.py:46-106); _build_pool_manifest places the caller template directly into spec.template (pool_service.py:50-74) and create_namespaced_custom_object submits it (106-131), so one tenant can also list/update/delete another's pools in the shared namespace. The CRD declares Template *corev1.PodTemplateSpec with PreserveUnknownFields + Schemaless (pool_types.go:51-54; batchsandbox_types.go:98-126), and the shipped CRDs use x-kubernetes-preserve-unknown-fields (crds.yaml:134-137,384-386). No admission webhook is enabled (kustomization.yaml:21-23 commented out) and controllers perform no hostPath/privileged/hostPID/serviceAccountName checks before GetPodFromTemplate deep-copies the spec (pod.go:83-108; pool_controller.go:1384; batchsandbox_controller.go:213,682-700). Cluster RBAC editor roles grant create/update on these CRDs and the server SA already has create on pools/batchsandboxes. Contrast: the sandbox create path validates volumes with ensure_valid_host_path/allowed_host_paths (default empty), but the Pool API bypasses it. A privileged or hostPath Pool pod executes on the node, enabling node compromise and cross-tenant escape.",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CP-002",
+              "title": "Pool management API is not tenant-scoped and accepts an arbitrary PodTemplateSpec",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Docs state writes are confined to the allowlist (docs/architecture/data-plane/execd.md:119) and DefaultConfig.AllowedWritable is /workspace,/mnt,/media,/data (config.go:118-131). CreateIsolatedSession validates ExtraWritable and Binds through pathAllowedResolved (isolated_session_ctrl.go:1212-1291), and validateNormalizedCreate (1301-1336) does not allowlist overlay entries; the overlay loop does os.MkdirAll(ov.Path) and passes paths to bwrapOverlaySegments (bwrap.go:437-465) with rw overlays becoming '--bind path path'. Model validation (isolated_session.go:156-173) only enforces absolute/clean/unique paths. A caller can therefore bind/overlay an arbitrary path with write semantics into the isolated process, escaping the documented confinement. Impact is bounded by the caller already holding execd access, hence Medium; not runtime-tested.",
+          "severity": "medium",
+          "rounds_seen": 2,
+          "rounds_total": 2,
+          "stable": true,
+          "paths": [
+            "pkg/isolation/bwrap.go",
+            "pkg/runtime/isolated_session.go",
+            "web/model/isolated_session.go"
+          ],
+          "cwe": [
+            "CWE-22",
+            "CWE-269"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "EXECD-H1",
+              "title": "Docs state writes are confined to the allowlist (docs/architecture/data-plane/execd.md:119) and DefaultConfig.AllowedWritable is /workspace,/mnt,/media,/data (config.go:118-131). CreateIsolatedSession validates ExtraWritable and Binds through pathAllowedResolved (isolated_session_ctrl.go:1212-1291), and validateNormalizedCreate (1301-1336) does not allowlist overlay entries; the overlay loop does os.MkdirAll(ov.Path) and passes paths to bwrapOverlaySegments (bwrap.go:437-465) with rw overlays becoming '--bind path path'. Model validation (isolated_session.go:156-173) only enforces absolute/clean/unique paths. A caller can therefore bind/overlay an arbitrary path with write semantics into the isolated process, escaping the documented confinement. Impact is bounded by the caller already holding execd access, hence Medium; not runtime-tested.",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "EXECD-005",
+              "title": "Isolated-session mount boundary is caller-controlled: arbitrary absolute binds/extra_writable become rw mounts and network is shared by default",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "_set_session_cookie sets HttpOnly=True and SameSite=lax but secure comes from bff_cookie_secure, default False (config.py:27); the example config also sets it false. Without TLS the signed session cookie is exposed on the wire.",
+          "severity": "medium",
+          "rounds_seen": 2,
+          "rounds_total": 2,
+          "stable": true,
+          "paths": [
+            "app/routes/auth.py",
+            "bff/app/config.py",
+            "bff/app/main.py",
+            "bff/app/session.py",
+            "console/bff/.env.example"
+          ],
+          "cwe": [
+            "CWE-614"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "CONSOLE-002",
+              "title": "_set_session_cookie sets HttpOnly=True and SameSite=lax but secure comes from bff_cookie_secure, default False (config.py:27); the example config also sets it false. Without TLS the signed session cookie is exposed on the wire.",
+              "severity": "low"
+            },
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-005",
+              "title": "BFF sessions are stateless signed cookies with no server-side store: logout does not revoke, tokens replayable for full max_age",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-006",
+              "title": "BFF session cookie Secure defaults to False, SameSite=Lax hardcoded, and state-changing endpoints have no CSRF token",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "authorize() returns true immediately when s.token == '' (policy_server.go:1069-1072). The listener defaults to ':18080' (all interfaces) in the default profile while the fast-sandbox profile uses 127.0.0.1:18080 (configuration.go:168-169); main.go passes os.Getenv(EnvEgressToken) straight into startPolicyServer (main.go:194-196). /policy POST has no Ready()/TLS gate, so policy rewrite is achievable with an empty token even though vault writes require Ready(). Managed paths mitigate by generating/injecting a token, so the weakness is only reachable when the sidecar is run standalone without the token env.",
+          "severity": "medium",
+          "rounds_seen": 2,
+          "rounds_total": 2,
+          "stable": true,
+          "paths": [
+            "components/egress/main.go",
+            "components/egress/policy_server.go",
+            "pkg/constants/configuration.go",
+            "services/k8s/create_helpers.py"
+          ],
+          "cwe": [
+            "CWE-1188",
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "EGRESS-001",
+              "title": "authorize() returns true immediately when s.token == '' (policy_server.go:1069-1072). The listener defaults to ':18080' (all interfaces) in the default profile while the fast-sandbox profile uses 127.0.0.1:18080 (configuration.go:168-169); main.go passes os.Getenv(EnvEgressToken) straight into startPolicyServer (main.go:194-196). /policy POST has no Ready()/TLS gate, so policy rewrite is achievable with an empty token even though vault writes require Ready(). Managed paths mitigate by generating/injecting a token, so the weakness is only reachable when the sidecar is run standalone without the token env.",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "IE-002",
+              "title": "Egress policy and credential-vault control API fails open when OPENSANDBOX_EGRESS_TOKEN is unset and defaults to listening on all interfaces",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "preInitPaths contains /internal/init (router.go:37-41) and accessTokenMiddleware returns early for preInit paths (router.go:198-201); runtimeInitGate is a no-op unless --runtime-init is set (router.go:271-273), so the endpoint is live in classic mode too. InitController.Init parses the body and calls manager.Apply with no authentication, origin, peer-IP, loopback or first-caller restriction (init_runtime.go:175-199). Apply accepts req.AccessTokenHash and installs it into the new binding (init_runtime.go:210-218, 298-316); accessTokenMiddleware then treats the binding hash as authoritative (router.go:209-216), so the attacker-chosen token becomes the only accepted credential (lockout of the control plane plus full API access for the attacker). With preserveRuntimeState=false Apply sets ready=false, resets controllers/sessions, stops user processes and can restart the entrypoint (init_runtime.go:229-292). lifecycle.preStart is executed via exec.Command(hook.Command[0], hook.Command[1:]...) (lifecycle/runner.go:43,64-79). validateInitEnvs only blocks a small case-insensitive execd env blacklist, so arbitrary env vars can be injected into subsequently spawned workloads. No server-side caller of /internal/init or EXECD token provisioning exists under server/opensandbox_server/services/*; the design relies entirely on network isolation of 44772, which the Docker runtime does not enforce by default.",
+          "severity": "critical",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "components/execd/main.go"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "EXECD-001",
+              "title": "preInitPaths contains /internal/init (router.go:37-41) and accessTokenMiddleware returns early for preInit paths (router.go:198-201); runtimeInitGate is a no-op unless --runtime-init is set (router.go:271-273), so the endpoint is live in classic mode too. InitController.Init parses the body and calls manager.Apply with no authentication, origin, peer-IP, loopback or first-caller restriction (init_runtime.go:175-199). Apply accepts req.AccessTokenHash and installs it into the new binding (init_runtime.go:210-218, 298-316); accessTokenMiddleware then treats the binding hash as authoritative (router.go:209-216), so the attacker-chosen token becomes the only accepted credential (lockout of the control plane plus full API access for the attacker). With preserveRuntimeState=false Apply sets ready=false, resets controllers/sessions, stops user processes and can restart the entrypoint (init_runtime.go:229-292). lifecycle.preStart is executed via exec.Command(hook.Command[0], hook.Command[1:]...) (lifecycle/runner.go:43,64-79). validateInitEnvs only blocks a small case-insensitive execd env blacklist, so arbitrary env vars can be injected into subsequently spawned workloads. No server-side caller of /internal/init or EXECD token provisioning exists under server/opensandbox_server/services/*; the design relies entirely on network isolation of 44772, which the Docker runtime does not enforce by default.",
+              "severity": "critical"
+            }
+          ]
+        },
+        {
+          "title": "AuthMiddleware.dispatch returns call_next() for any path matching _PROXY_PATH_RE whenever the app is not multi-tenant, before the valid_api_keys check (auth.py:82-87); configuring server.api_key therefore does not protect proxy routes in single-tenant mode. The only compensation, _verify_secure_access, returns immediately when the resolved endpoint carries no OpenSandbox-Secure-Access header (proxy.py:336-365). Docker rejects secureAccess=request with 400 and the default ingress mode is direct with secure_access=None; on K8s, create_helpers.py writes the secure-access token only when request.secure_access is true (create_helpers.py:76-79) - it does not additionally require ingress.mode=gateway. WebSocket proxy is doubly exposed: BaseHTTPMiddleware does not see WS, and _authenticate_websocket_tenant returns True when tenant_provider is None (proxy.py:267-269). Tests assert the HTTP bypass is intentional. CORRECTION: analyst cited proxy.py:275-276 for the WS return; actual lines are 267-269, and the 'AND ingress.mode=gateway' condition in the analyst narrative is not present in create_helpers.py.",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "opensandbox_server/middleware/auth.py"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "SERVER-001",
+              "title": "AuthMiddleware.dispatch returns call_next() for any path matching _PROXY_PATH_RE whenever the app is not multi-tenant, before the valid_api_keys check (auth.py:82-87); configuring server.api_key therefore does not protect proxy routes in single-tenant mode. The only compensation, _verify_secure_access, returns immediately when the resolved endpoint carries no OpenSandbox-Secure-Access header (proxy.py:336-365). Docker rejects secureAccess=request with 400 and the default ingress mode is direct with secure_access=None; on K8s, create_helpers.py writes the secure-access token only when request.secure_access is true (create_helpers.py:76-79) - it does not additionally require ingress.mode=gateway. WebSocket proxy is doubly exposed: BaseHTTPMiddleware does not see WS, and _authenticate_websocket_tenant returns True when tenant_provider is None (proxy.py:267-269). Tests assert the HTTP bypass is intentional. CORRECTION: analyst cited proxy.py:275-276 for the WS return; actual lines are 267-269, and the 'AND ingress.mode=gateway' condition in the analyst narrative is not present in create_helpers.py.",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Legacy credential-proxy injects vault credentials based on the client-supplied Host header without binding them to the intercepted TLS peer (SNI)",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "components/egress/mitmproxy_transparent.go",
+            "components/egress/revision_launch.go",
+            "egress/mitmscripts/system.py"
+          ],
+          "cwe": [
+            "CWE-522"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "IE-001",
+              "title": "Legacy credential-proxy injects vault credentials based on the client-supplied Host header without binding them to the intercepted TLS peer (SNI)",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "MCP streamable-http transport exposes sandbox control tools to unauthenticated network peers",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "docs/sdks/mcp.md",
+            "src/opensandbox_mcp/__main__.py",
+            "src/opensandbox_mcp/server.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "SDK-001",
+              "title": "MCP streamable-http transport exposes sandbox control tools to unauthenticated network peers",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "NewRouter registers POST /setTasks, POST /tasks, GET/DELETE /tasks/{id} and GET /health with no auth middleware (router.go:21-32). createTask/syncTasks decode an attacker-controlled JSON body requiring only a non-empty Name; Command/Args/Env/WorkingDir/ExecMode flow unchanged (handler.go:56-131). The executor concatenates Command+Args and runs them via /bin/sh -c (process.go:88-134); ExecMode=Remote selects the nsenter branch (process.go:111-128), and findPidByEnvVar picks the first /proc/*/environ process containing SANDBOX_MAIN_CONTAINER=<value> with no ownership checks. The controller client uses plain HTTP with no token (client.go) and the scheduler targets http://<podIP>:5758 (default_scheduler.go:157-166). Samples launch task-executor with -listen-addr=0.0.0.0:5758 and the image is built with USERID=0 (Makefile:259). No NetworkPolicy covers 5758. execd bwrap isolation defaults ShareNet=true (isolated_session.go:203) so it does not unshare net (bwrap.go:197), leaving 127.0.0.1:5758 reachable from isolated user sessions. This is an authorization gap, not shell injection: shellEscape mitigates argument injection, but any caller may choose the command. HYP-001 adds that maxConcurrentTasks=1 lets an unauthenticated caller occupy the only slot and block controller task delivery (task_manager.go:34,114-116,296-298).",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "task-executor/server/router.go"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "K8S-001",
+              "title": "NewRouter registers POST /setTasks, POST /tasks, GET/DELETE /tasks/{id} and GET /health with no auth middleware (router.go:21-32). createTask/syncTasks decode an attacker-controlled JSON body requiring only a non-empty Name; Command/Args/Env/WorkingDir/ExecMode flow unchanged (handler.go:56-131). The executor concatenates Command+Args and runs them via /bin/sh -c (process.go:88-134); ExecMode=Remote selects the nsenter branch (process.go:111-128), and findPidByEnvVar picks the first /proc/*/environ process containing SANDBOX_MAIN_CONTAINER=<value> with no ownership checks. The controller client uses plain HTTP with no token (client.go) and the scheduler targets http://<podIP>:5758 (default_scheduler.go:157-166). Samples launch task-executor with -listen-addr=0.0.0.0:5758 and the image is built with USERID=0 (Makefile:259). No NetworkPolicy covers 5758. execd bwrap isolation defaults ShareNet=true (isolated_session.go:203) so it does not unshare net (bwrap.go:197), leaving 127.0.0.1:5758 reachable from isolated user sessions. This is an authorization gap, not shell injection: shellEscape mitigates argument injection, but any caller may choose the command. HYP-001 adds that maxConcurrentTasks=1 lets an unauthenticated caller occupy the only slot and block controller task delivery (task_manager.go:34,114-116,296-298).",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "POST /internal/init is unauthenticated in every mode and gives command execution, runtime reset, and API credential takeover",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "cmd/task-executor/main.go",
+            "config/network-policy/kustomization.yaml",
+            "pkg/lifecycle/runner.go",
+            "pkg/web/router.go",
+            "task-executor/config/config.go",
+            "task-executor/runtime/process.go",
+            "task-executor/server/router.go",
+            "web/controller/init_runtime.go"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-002",
+              "title": "task-executor HTTP API on 0.0.0.0:5758 with no auth executes /bin/sh -c and nsenter into sandbox main container",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "EXECD-001",
+              "title": "POST /internal/init is unauthenticated in every mode and gives command execution, runtime reset, and API credential takeover",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Secure access is opt-in: the annotation is written only when request.secure_access is true (create_helpers.py:76-79), and CheckIngressSecureAccess returns nil immediately when the resolved endpoint advertises no token (ingress_access.go:77-80, endpoint.go:45-47). Legacy two-segment host/URI routes are accepted unconditionally (host.go:110-123, host_route_parse.go:49-74). Providers watch NamespaceAll (batchsandbox_provider.go:54) and match by name across every namespace, erroring only on duplicate names (89-131); the verifier is built only when --secure-access-keys is set (main.go:69-78). Result: any reachable caller who knows an unsecured sandbox UUID can proxy arbitrary HTTP/WebSocket traffic to it regardless of tenant boundary.",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/proxy/host.go"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "INGRESS-001",
+              "title": "Secure access is opt-in: the annotation is written only when request.secure_access is true (create_helpers.py:76-79), and CheckIngressSecureAccess returns nil immediately when the resolved endpoint advertises no token (ingress_access.go:77-80, endpoint.go:45-47). Legacy two-segment host/URI routes are accepted unconditionally (host.go:110-123, host_route_parse.go:49-74). Providers watch NamespaceAll (batchsandbox_provider.go:54) and match by name across every namespace, erroring only on duplicate names (89-131); the verifier is built only when --secure-access-keys is set (main.go:69-78). Result: any reachable caller who knows an unsecured sandbox UUID can proxy arbitrary HTTP/WebSocket traffic to it regardless of tenant boundary.",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Single-tenant deployments leave /sandboxes/{id}/proxy/{port}/... unauthenticated even when server.api_key is set",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "opensandbox_server/api/proxy.py",
+            "opensandbox_server/middleware/auth.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CP-001",
+              "title": "Single-tenant deployments leave /sandboxes/{id}/proxy/{port}/... unauthenticated even when server.api_key is set",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CP-005",
+              "title": "Auth exemptions use string-prefix matching and expose OpenAPI/docs unauthenticated",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "accessTokenMiddleware checks the binding first, then the legacy token; when no binding hash and legacyToken=='' it calls ctx.Next() unconditionally (router.go:224-227). parser.go defaults ServerAccessToken to '' and only overrides from EXECD_ACCESS_TOKEN/--access-token (parser.go:40-42,62-64). _build_labels_and_env adds EXECD_INIT and OPENSANDBOX_ID but never EXECD_ACCESS_TOKEN (container_ops.py:286-320), and no server-side init/token provisioning was found, so a normal Docker sandbox runs with the empty token. Networking publishes 44772 to (publish_host, host_execd_port) with publish_host default 0.0.0.0 (networking.py:549-553, config.py:1386-1397). Anyone reaching the published host port gets unauthenticated command execution, arbitrary sandbox file read/write and PTY access, bypassing the API-key-protected proxy entirely.",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/flag/parser.go"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "EXECD-002",
+              "title": "accessTokenMiddleware checks the binding first, then the legacy token; when no binding hash and legacyToken=='' it calls ctx.Next() unconditionally (router.go:224-227). parser.go defaults ServerAccessToken to '' and only overrides from EXECD_ACCESS_TOKEN/--access-token (parser.go:40-42,62-64). _build_labels_and_env adds EXECD_INIT and OPENSANDBOX_ID but never EXECD_ACCESS_TOKEN (container_ops.py:286-320), and no server-side init/token provisioning was found, so a normal Docker sandbox runs with the empty token. Networking publishes 44772 to (publish_host, host_execd_port) with publish_host default 0.0.0.0 (networking.py:549-553, config.py:1386-1397). Anyone reaching the published host port gets unauthenticated command execution, arbitrary sandbox file read/write and PTY access, bypassing the API-key-protected proxy entirely.",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "execd API is fully unauthenticated when no access token is configured (code default and documented FastPath deployment)",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "oseps/0007-fast-sandbox-runtime-support.md",
+            "pkg/flag/parser.go",
+            "pkg/web/router.go"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "EXECD-002",
+              "title": "execd API is fully unauthenticated when no access token is configured (code default and documented FastPath deployment)",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "extensions is an arbitrary user-controlled dict; validate_extensions only validates the deprecated access.renew key and has no allowlist (validation.py:127-141), so bootstrap.execd.isolation reaches sandbox creation. docker_service.py:938-958 sets isolation_requested from the extension, adds SYS_ADMIN, strips existing apparmor/seccomp options, appends unconfined profiles, and unconfine_system_paths clears MaskedPaths/ReadonlyPaths (container_ops.py:463-465). provider_common.py:205-215 applies the equivalent SYS_ADMIN + Unconfined context on K8s. This weakens the cap_drop/no-new-privileges/seccomp/AppArmor defaults intended to contain sandbox workloads.",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "services/docker/docker_service.py"
+          ],
+          "cwe": [
+            "CWE-269"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "SERVER-002",
+              "title": "extensions is an arbitrary user-controlled dict; validate_extensions only validates the deprecated access.renew key and has no allowlist (validation.py:127-141), so bootstrap.execd.isolation reaches sandbox creation. docker_service.py:938-958 sets isolation_requested from the extension, adds SYS_ADMIN, strips existing apparmor/seccomp options, appends unconfined profiles, and unconfine_system_paths clears MaskedPaths/ReadonlyPaths (container_ops.py:463-465). provider_common.py:205-215 applies the equivalent SYS_ADMIN + Unconfined context on K8s. This weakens the cap_drop/no-new-privileges/seccomp/AppArmor defaults intended to contain sandbox workloads.",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "fast-sandbox-controller ClusterRole grants cluster-wide nodes delete, secrets CRUD, serviceaccounts create, roles/rolebindings write; installed by default base chart",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "base/templates/fast-sandbox-rbac.yaml",
+            "charts/base/values.yaml"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-004",
+              "title": "fast-sandbox-controller ClusterRole grants cluster-wide nodes delete, secrets CRUD, serviceaccounts create, roles/rolebindings write; installed by default base chart",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "ALLOWED_EGRESS_ENV_VARS explicitly contains OPENSANDBOX_EGRESS_POLICY_FILE, so split_egress_env forwards it (constants.py:104, helpers.py:262-287). Docker appends egress_env to the sidecar environment (networking.py:541-547); K8s stores it in EgressWorkloadSettings.env. main.go reads EnvEgressPolicyFile for startup loading and passes it to startPolicyServer; persistPolicy calls SavePolicyFile, which os.WriteFile()s attacker-influenced JSON to that exact path with only a TrimSpace check (persist.go:92-115) - no directory allowlist, no filepath cleaning. The sidecar image has no USER directive, so this is a root write primitive inside the sidecar and on the per-sandbox rw runtime volume.",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "opensandbox_server/services/constants.py"
+          ],
+          "cwe": [
+            "CWE-73"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "EGRESS-002",
+              "title": "ALLOWED_EGRESS_ENV_VARS explicitly contains OPENSANDBOX_EGRESS_POLICY_FILE, so split_egress_env forwards it (constants.py:104, helpers.py:262-287). Docker appends egress_env to the sidecar environment (networking.py:541-547); K8s stores it in EgressWorkloadSettings.env. main.go reads EnvEgressPolicyFile for startup loading and passes it to startPolicyServer; persistPolicy calls SavePolicyFile, which os.WriteFile()s attacker-influenced JSON to that exact path with only a TrimSpace check (persist.go:92-115) - no directory allowlist, no filepath cleaning. The sidecar image has no USER directive, so this is a root write primitive inside the sidecar and on the per-sandbox rw runtime volume.",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Admin login has no rate limiting/lockout against a static shared admin token; placeholder tokens in example configs",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "app/routes/auth.py",
+            "console/bff/.env.example",
+            "console/k8s/console-bff-secret.example.yaml"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-007",
+              "title": "Admin login has no rate limiting/lockout against a static shared admin token; placeholder tokens in example configs",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "CLI stores API key in a world-readable config file and echoes it to stdout/argv",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "docs/cli/readme.md",
+            "opensandbox_cli/commands/config_cmd.py",
+            "opensandbox_cli/skills/opensandbox-command-execution.md",
+            "src/opensandbox_cli/config.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "SDK-002",
+              "title": "CLI stores API key in a world-readable config file and echoes it to stdout/argv",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Console BFF RBAC grants cluster-wide read of pods/events/deployments across all namespaces",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "bff/app/k8s_resources.py",
+            "console/k8s/console-bff-rbac.example.yaml"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-008",
+              "title": "Console BFF RBAC grants cluster-wide read of pods/events/deployments across all namespaces",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Controller manager RBAC includes cluster-wide secrets read and pods/exec create",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "config/rbac/role.yaml",
+            "controller/templates/clusterrole.yaml",
+            "internal/controller/pool_controller.go"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-010",
+              "title": "Controller manager RBAC includes cluster-wide secrets read and pods/exec create",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "File APIs run with execd identity (root in default image), have no workspace jail, and follow symlinks on upload/download/replace",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "components/execd/dockerfile",
+            "util/pathutil/path.go",
+            "web/controller/filesystem.go",
+            "web/controller/filesystem_download.go",
+            "web/controller/filesystem_upload.go",
+            "web/controller/utils.go"
+          ],
+          "cwe": [
+            "CWE-73"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "EXECD-004",
+              "title": "File APIs run with execd identity (root in default image), have no workspace jail, and follow symlinks on upload/download/replace",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Ingress header/URI routes allow an arbitrary target port on the sandbox pod IP; BatchSandbox provider ignores the requested port and reserved egress port is not blocked",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/proxy/host.go",
+            "pkg/proxy/host_route_parse.go",
+            "pkg/proxy/proxy.go",
+            "pkg/sandbox/batchsandbox_provider.go",
+            "pkg/sandbox/fastsandbox_provider.go"
+          ],
+          "cwe": [
+            "CWE-441",
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "IE-003",
+              "title": "Ingress header/URI routes allow an arbitrary target port on the sandbox pod IP; BatchSandbox provider ignores the requested port and reserved egress port is not blocked",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "IE-004",
+              "title": "Ingress trusts a client-controlled OpenSandbox-Ingress-To header over the Host header for target selection",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Insecure no-API-key mode can be enabled non-interactively and disables all endpoint auth on a 0.0.0.0 default bind",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "server/opensandbox_server/startup_guard.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CP-003",
+              "title": "Insecure no-API-key mode can be enabled non-interactively and disables all endpoint auth on a 0.0.0.0 default bind",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Isolation and hardening layers degrade fail-open; missing bwrap/launcher silently disables confinement",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "components/execd/main.go",
+            "pkg/isolation/config.go",
+            "pkg/runtime/hardening_linux.go"
+          ],
+          "cwe": [
+            "CWE-636"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "EXECD-006",
+              "title": "Isolation and hardening layers degrade fail-open; missing bwrap/launcher silently disables confinement",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Server Helm ClusterRole grants cluster-wide secrets CRUD plus configmaps/services/pods all verbs",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "server/templates/rbac.yaml"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-011",
+              "title": "Server Helm ClusterRole grants cluster-wide secrets CRUD plus configmaps/services/pods all verbs",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Tenant API keys are stored in a ConfigMap consumed by the BFF",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "bff/app/tenants.py",
+            "console/k8s/tenants-configmap.example.yaml"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-009",
+              "title": "Tenant API keys are stored in a ConfigMap consumed by the BFF",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "The signing MAC is the first 4 bytes of SHA256 rendered as 8 lowercase hex chars (signing.py:160-164 hex()[:8]; signature.go:193-203 sum[0:4]) and verification recomputes the same 4 bytes. The key id is a single [0-9a-z] character (36 values, signature.go:108-124). Constant-time comparison prevents timing leaks but not online guessing; with no rate limiter, expected work is about 2^32 guesses per chosen (sandbox, port, expires) tuple, less across many sandboxes or when the key id is narrowed.",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/signature/signature.go"
+          ],
+          "cwe": [
+            "CWE-330"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "INGRESS-002",
+              "title": "The signing MAC is the first 4 bytes of SHA256 rendered as 8 lowercase hex chars (signing.py:160-164 hex()[:8]; signature.go:193-203 sum[0:4]) and verification recomputes the same 4 bytes. The key id is a single [0-9a-z] character (36 values, signature.go:108-124). Constant-time comparison prevents timing leaks but not online guessing; with no rate limiter, expected work is about 2^32 guesses per chosen (sandbox, port, expires) tuple, less across many sandboxes or when the key id is narrowed.",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Unlike k8s workload_access._enforce_tenant_ownership, FastSandboxService._get_cr selects by namespace (tenant namespace when a tenant context exists, else scans tenant namespaces) and never compares SANDBOX_TENANT_LABEL (service.py:514-532). get_endpoint builds an endpoint from _resolve_namespace()/sandbox_id with no existence or ownership check (service.py:766-776); list_sandbox_objects lists the whole namespace with no tenant-label filter. vault._resolve_subject and policy_relay._resolve_subject inherit the same weakness (vault.py:293-296, policy_relay.py:90-93). With a shared namespace, one tenant can read another's CR metadata, request signed endpoints, and reach credentials/policies for a sandbox id it does not own.",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "services/fast_sandbox/service.py"
+          ],
+          "cwe": [
+            "CWE-863"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "SERVER-004",
+              "title": "Unlike k8s workload_access._enforce_tenant_ownership, FastSandboxService._get_cr selects by namespace (tenant namespace when a tenant context exists, else scans tenant namespaces) and never compares SANDBOX_TENANT_LABEL (service.py:514-532). get_endpoint builds an endpoint from _resolve_namespace()/sandbox_id with no existence or ownership check (service.py:766-776); list_sandbox_objects lists the whole namespace with no tenant-label filter. vault._resolve_subject and policy_relay._resolve_subject inherit the same weakness (vault.py:293-296, policy_relay.py:90-93). With a shared namespace, one tenant can read another's CR metadata, request signed endpoints, and reach credentials/policies for a sandbox id it does not own.",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "_validate_config only checks that tenants_toml_path, bff_session_secret and bff_admin_token are non-empty (main.py:28-35); there is no length/entropy check or placeholder rejection. The repository ships literal placeholders in .env.example:3-4 and session encoding uses a fixed public salt (session.py:27-42). With a placeholder/guessable secret an attacker can forge {role:admin} or {role:tenant, tenant, namespace} tokens. The admin token comparison is constant-time but the login route has no rate limiting.",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "bff/app/main.py"
+          ],
+          "cwe": [
+            "CWE-1188"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "CONSOLE-001",
+              "title": "_validate_config only checks that tenants_toml_path, bff_session_secret and bff_admin_token are non-empty (main.py:28-35); there is no length/entropy check or placeholder rejection. The repository ships literal placeholders in .env.example:3-4 and session encoding uses a fixed public salt (session.py:27-42). With a placeholder/guessable secret an attacker can forge {role:admin} or {role:tenant, tenant, namespace} tokens. The admin token comparison is constant-time but the login route has no rate limiting.",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "_validate_endpoint_url only rejects shell metacharacters and whitespace and allows arbitrary host/scheme (normalize_external_endpoint_url defaults to https, helpers.py:185-190). endpoint_url and user options are interpolated into ossfs/ossfs2 command config and executed via subprocess.run in _mount_ossfs_backend_path. The server, not the sandbox, performs the network mount, yielding SSRF from the control plane and possible FUSE/host-path effects. Inline access_key_id/secret are accepted and written to temp cred files.",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "services/docker/ossfs_mixin.py"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "SERVER-005",
+              "title": "_validate_endpoint_url only rejects shell metacharacters and whitespace and allows arbitrary host/scheme (normalize_external_endpoint_url defaults to https, helpers.py:185-190). endpoint_url and user options are interpolated into ossfs/ossfs2 command config and executed via subprocess.run in _mount_ossfs_backend_path. The server, not the sandbox, performs the network mount, yielding SSRF from the control plane and possible FUSE/host-path effects. Inline access_key_id/secret are accepted and written to temp cred files.",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "execd listens on all interfaces (0.0.0.0:44772) instead of loopback or a trusted interface",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "components/execd/main.go"
+          ],
+          "cwe": [
+            "CWE-1327"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "EXECD-003",
+              "title": "execd listens on all interfaces (0.0.0.0:44772) instead of loopback or a trusted interface",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "fast-sandbox runtime DaemonSet runs hostPID with privileged containers and many hostPath mounts",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "charts/opensandbox/values.yaml",
+            "fast-sandbox/templates/runtime-daemonset.yaml"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-012",
+              "title": "fast-sandbox runtime DaemonSet runs hostPID with privileged containers and many hostPath mounts",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "serveDNS evaluates policy by domain name only, then forwardAndReply calls extractResolvedIPs, which appends every A/AAAA address and its TTL and passes them to the nft callback (proxy.go:582-600). There is no filtering and the nft template accepts ip daddr @dynAllowV4Set / ip6 daddr @dynAllowV6Set before the final drop (manager.go:337-341). A wildcard/allowed attacker-controlled name resolving to cloud metadata or an internal service installs those destinations in the dynamic allow sets. CNAMEs are not used as allow keys but terminal A/AAAA records are unfiltered. This is a domain-to-internal-IP (SSRF/rebinding) gap, not a bypass of an explicit deny set.",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/dnsproxy/proxy.go"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "EGRESS-003",
+              "title": "serveDNS evaluates policy by domain name only, then forwardAndReply calls extractResolvedIPs, which appends every A/AAAA address and its TTL and passes them to the nft callback (proxy.go:582-600). There is no filtering and the nft template accepts ip daddr @dynAllowV4Set / ip6 daddr @dynAllowV6Set before the final drop (manager.go:337-341). A wildcard/allowed attacker-controlled name resolving to cloud metadata or an internal service installs those destinations in the dynamic allow sets. CNAMEs are not used as allow keys but terminal A/AAAA records are unfiltered. This is a domain-to-internal-IP (SSRF/rebinding) gap, not a bypass of an explicit deny set.",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "/ready is in preInitPaths (router.go:37-41) so it is served without a token, and Ready() copies binding.SandboxID and binding.Generation into the JSON response (init_runtime.go:158-170). Minor environment identifier/generation disclosure that can aid targeting; required for readiness by design.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/web/router.go"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "EXECD-H2",
+              "title": "/ready is in preInitPaths (router.go:37-41) so it is served without a token, and Ready() copies binding.SandboxID and binding.Generation into the JSON response (init_runtime.go:158-170). Minor environment identifier/generation disclosure that can aid targeting; required for readiness by design.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "BFF admin K8s label selector built from unvalidated sandbox_id; upstream error bodies passed through verbatim",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "app/routes/proxy_utils.py",
+            "bff/app/k8s_resources.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CK-013",
+              "title": "BFF admin K8s label selector built from unvalidated sandbox_id; upstream error bodies passed through verbatim",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "CORS is configured with wildcard origin plus credentials on the control plane",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "server/opensandbox_server/main.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CP-004",
+              "title": "CORS is configured with wildcard origin plus credentials on the control plane",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Development bootstrap script installs downloaded release binaries as root without checksum or signature verification",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "scripts/fast-sandbox-env/integration-env.sh"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "SDK-003",
+              "title": "Development bootstrap script installs downloaded release binaries as root without checksum or signature verification",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "HTTP tenant provider permits a non-HTTPS endpoint and transmits API keys in cleartext",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "opensandbox_server/tenants/http_provider.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CP-008",
+              "title": "HTTP tenant provider permits a non-HTTPS endpoint and transmits API keys in cleartext",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Host header is reflected into the use_server_proxy endpoint URL returned to clients",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "opensandbox_server/api/lifecycle.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CP-007",
+              "title": "Host header is reflected into the use_server_proxy endpoint URL returned to clients",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "NODEAGENT_SERVER_ADDR defaults to ':8080' and the chart sets serverAddr: :8080, so the health listener binds all interfaces (config.go:115). The mux exposes only /healthz and /readyz with no secrets or internal state (server.go:78-114); pprof is separate and loopback-only (config.go:215-245), and the daemonset does not use hostNetwork. Impact is service discovery/health fingerprinting.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/config/config.go"
+          ],
+          "cwe": [
+            "CWE-1327"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "NODE-001",
+              "title": "NODEAGENT_SERVER_ADDR defaults to ':8080' and the chart sets serverAddr: :8080, so the health listener binds all interfaces (config.go:115). The mux exposes only /healthz and /readyz with no secrets or internal state (server.go:78-114); pprof is separate and loopback-only (config.go:215-245), and the daemonset does not use hostNetwork. Impact is service discovery/health fingerprinting.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Neither /health nor /api/version declares an auth dependency (main.py:54-62), so an unauthenticated caller can force upstream lifecycle requests and fingerprint the server version. Low impact but expands the unauthenticated surface and supports availability probing.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "bff/app/main.py"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "CONSOLE-004",
+              "title": "Neither /health nor /api/version declares an auth dependency (main.py:54-62), so an unauthenticated caller can force upstream lifecycle requests and fingerprint the server version. Low impact but expands the unauthenticated surface and supports availability probing.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "No default execution deadline and no bound on concurrent/background commands",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/runtime/ctrl.go",
+            "web/model/codeinterpreting.go"
+          ],
+          "cwe": [
+            "CWE-400"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "EXECD-007",
+              "title": "No default execution deadline and no bound on concurrent/background commands",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Primary parsers validate the port with signature.ParsePortSegment, rejecting leading zeros and values outside 1..65535 (signature.go:126-135). The host fallback calls strconv.Atoi directly (host_route_parse.go:64-73) with no range or leading-zero checks, so 0, -1, 99999 or 08080 are accepted and flow into endpoint resolution. Impact appears low because dialing often rejects them; it is an inconsistent validation path.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/proxy/host_route_parse.go"
+          ],
+          "cwe": [
+            "CWE-20"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "INGRESS-006",
+              "title": "Primary parsers validate the port with signature.ParsePortSegment, rejecting leading zeros and values outside 1..65535 (signature.go:126-135). The host fallback calls strconv.Atoi directly (host_route_parse.go:64-73) with no range or leading-zero checks, so 0, -1, 99999 or 08080 are accepted and flow into endpoint resolution. Impact appears low because dialing often rejects them; it is an inconsistent validation path.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Proxy error responses disclose internal sandbox addresses and raw exception text",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "opensandbox_server/api/proxy.py"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "CP-006",
+              "title": "Proxy error responses disclose internal sandbox addresses and raw exception text",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "SafeJoin performs lexical Join+Abs+isSubPath only and does not resolve symlinks (pathutil.go:23-40); file_store.Create joins the name, os.Stat's the target and returns 'already exists' if it resolves, then os.MkdirAll and writes task files. A TOCTOU race or symlinked leaf could redirect writes outside DataDir, but the window is small and the actor able to write DataDir generally already runs as the task-executor user. Not confirmed.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "task-executor/utils/pathutil.go"
+          ],
+          "cwe": [
+            "CWE-59"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "HYP-002",
+              "title": "SafeJoin performs lexical Join+Abs+isSubPath only and does not resolve symlinks (pathutil.go:23-40); file_store.Create joins the name, os.Stat's the target and returns 'already exists' if it resolves, then os.MkdirAll and writes task files. A TOCTOU race or symlinked leaf could redirect writes outside DataDir, but the window is small and the actor able to write DataDir generally already runs as the task-executor user. Not confirmed.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Sessions are signed payloads with a 24h max_age and no server store or token version (session.py:27-42); logout cannot invalidate an already copied token. SameSite=lax prevents cookies on most cross-site POSTs but not top-level GET navigations, and there is no explicit CSRF token.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "bff/app/session.py"
+          ],
+          "cwe": [
+            "CWE-613"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "CONSOLE-003",
+              "title": "Sessions are signed payloads with a 24h max_age and no server store or token version (session.py:27-42); logout cannot invalidate an already copied token. SameSite=lax prevents cookies on most cross-site POSTs but not top-level GET navigations, and there is no explicit CSRF token.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Shipped troubleshooting skill instructs sending the API key over plaintext HTTP",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "skills/troubleshoot-sandbox/skill.md"
+          ],
+          "cwe": [],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "SDK-004",
+              "title": "Shipped troubleshooting skill instructs sending the API key over plaintext HTTP",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "The MAC input is only tag/namespace/sandbox_id/port and Verify performs no time check (scope.go:50-105). The server explicitly rejects an expires parameter for FSB scopes and builds a token with no timestamp (endpoint.py:53-60,79-85). The 16-byte HMAC is strong, but possession grants indefinite access to that namespace/sandbox/port while the key remains active.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/routescope/scope.go"
+          ],
+          "cwe": [
+            "CWE-613"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "INGRESS-003",
+              "title": "The MAC input is only tag/namespace/sandbox_id/port and Verify performs no time check (scope.go:50-105). The server explicitly rejects an expires parameter for FSB scopes and builds a token with no timestamp (endpoint.py:53-60,79-85). The 16-byte HMAC is strong, but possession grants indefinite access to that namespace/sandbox/port while the key remains active.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "The fast-sandbox profile binds 127.0.0.1:18080 and routes /policy/{uid} without an authorize() check; it dispatches by the UID embedded in the path and validates no caller credential. Isolation depends on no untrusted process reaching the fastlet loopback. validVaultSubjectID blocks path traversal in the derived file name, so this is an auth/co-tenancy issue.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "components/egress/fastsandbox_policy.go"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "EGRESS-H2",
+              "title": "The fast-sandbox profile binds 127.0.0.1:18080 and routes /policy/{uid} without an authorize() check; it dispatches by the UID embedded in the path and validates no caller credential. Isolation depends on no untrusted process reaching the fastlet loopback. validVaultSubjectID blocks path traversal in the derived file name, so this is an auth/co-tenancy issue.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Workload commands inherit the execd process environment when the hardening launcher is not active",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/runtime/command.go",
+            "pkg/runtime/command_argv.go",
+            "pkg/runtime/env.go"
+          ],
+          "cwe": [
+            "CWE-526"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261028T080748Z",
+              "id": "EXECD-008",
+              "title": "Workload commands inherit the execd process environment when the hardening launcher is not active",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "doGetSandboxHostDefinition resolves the endpoint (host.go:79) and may call the waker (host.go:85-90) before the secure-access check (host.go:110-123). Errors propagate with distinct statuses (proxy.go:137-153). This exposes a sandbox-id/readiness oracle and lets an unauthenticated caller trigger resume operations for paused fast sandboxes. UUID4 ids limit practical enumeration.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/proxy/host.go"
+          ],
+          "cwe": [
+            "CWE-203"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "INGRESS-004",
+              "title": "doGetSandboxHostDefinition resolves the endpoint (host.go:79) and may call the waker (host.go:85-90) before the secure-access check (host.go:110-123). Errors propagate with distinct statuses (proxy.go:137-153). This exposes a sandbox-id/readiness oracle and lets an unauthenticated caller trigger resume operations for paused fast sandboxes. UUID4 ids limit practical enumeration.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "docker.publish_host defaults to '0.0.0.0' and is used as HostIp for every sidecar port binding, including 18080 (config.py:1386-1397, networking.py:549). In managed deployments the per-sandbox random token is required, so this is exposure/defense-in-depth rather than an auth bypass.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "server/opensandbox_server/config.py"
+          ],
+          "cwe": [
+            "CWE-1327"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "EGRESS-H1",
+              "title": "docker.publish_host defaults to '0.0.0.0' and is used as HostIp for every sidecar port binding, including 18080 (config.py:1386-1397, networking.py:549). In managed deployments the per-sandbox random token is required, so this is exposure/defense-in-depth rather than an auth bypass.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "findPidByEnvVar scans /proc/*/environ and returns the first PID whose environment contains SANDBOX_MAIN_CONTAINER=<MainContainerName>, skipping only its own PID; there is no ownership, UID, cgroup or container-identity check (process.go:576-620). It then reads that environment and nsenter's all namespaces (111-128). With PID-namespace sharing a co-tenant process could race to be selected and influence the environment/namespaces. Without sharing, the target is likely limited to the same container; not confirmed against a default deployment.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "task-executor/runtime/process.go"
+          ],
+          "cwe": [
+            "CWE-269"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "HYP-003",
+              "title": "findPidByEnvVar scans /proc/*/environ and returns the first PID whose environment contains SANDBOX_MAIN_CONTAINER=<MainContainerName>, skipping only its own PID; there is no ownership, UID, cgroup or container-identity check (process.go:576-620). It then reads that environment and nsenter's all namespaces (111-128). With PID-namespace sharing a co-tenant process could race to be selected and influence the environment/namespaces. Without sharing, the target is likely limited to the same container; not confirmed against a default deployment.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "get_sandbox_inspect iterates Labels and prints k=v for every label, including opensandbox.io/egress-auth-token set at creation (docker_service.py:842-843). Env masking is a substring heuristic, so secrets under non-matching key names are printed. This leaks the token protecting the 18080 egress proxy.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "services/docker/docker_diagnostics.py"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "SERVER-006",
+              "title": "get_sandbox_inspect iterates Labels and prints k=v for every label, including opensandbox.io/egress-auth-token set at creation (docker_service.py:842-843). Env masking is a substring heuristic, so secrets under non-matching key names are printed. This leaks the token protecting the 18080 egress proxy.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "sandbox_id is interpolated into the prefix without a strict UUID/charset check, unlike the lifecycle path which quotes segments. The namespace component comes from the signed tenant session and OSS keys are flat strings, so no cross-namespace traversal was demonstrated statically; impact depends on object-key naming and OSS semantics.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "bff/app/nodeagent_archive.py"
+          ],
+          "cwe": [
+            "CWE-22"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "CONSOLE-005",
+              "title": "sandbox_id is interpolated into the prefix without a strict UUID/charset check, unlike the lifecycle path which quotes segments. The namespace component comes from the signed tenant session and OSS keys are flat strings, so no cross-namespace traversal was demonstrated statically; impact depends on object-key naming and OSS semantics.",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "websocket.Accept is called with InsecureSkipVerify: true, bypassing same-origin checks (websocket.go:155-162); the comment assumes a trusted upstream gateway enforces this. Client X-Forwarded-For is appended rather than replaced (258-261), and the plain HTTP path trusts the first XFF hop (proxy.go:486-490). If the ingress is exposed, any site can open a WebSocket and spoof source addresses; backends must not trust these headers.",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 2,
+          "stable": false,
+          "paths": [
+            "pkg/proxy/websocket.go"
+          ],
+          "cwe": [
+            "CWE-346"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-048-opensandbox/20261027T184554Z",
+              "id": "INGRESS-005",
+              "title": "websocket.Accept is called with InsecureSkipVerify: true, bypassing same-origin checks (websocket.go:155-162); the comment assumes a trusted upstream gateway enforces this. Client X-Forwarded-For is appended rather than replaced (258-261), and the plain HTTP path trusts the first XFF hop (proxy.go:486-490). If the ingress is exposed, any site can open a WebSocket and spoof source addresses; backends must not trust these headers.",
+              "severity": "low"
+            }
+          ]
+        }
+      ]
+    },
+    "aud-080-xinference": {
+      "runs": [
+        "aud-080-xinference/20261027T192717Z"
+      ],
+      "findings_total": 22,
+      "clusters_total": 19,
+      "stable_total": 0,
+      "high_stable_total": 0,
+      "clusters": [
+        {
+          "title": "Audio/TTS loaders torch.load model-supplied checkpoints with weights_only disabled",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "confuciustts/cli/inference.py",
+            "model/audio/confucius4_tts.py",
+            "model/audio/indextts2.py",
+            "model/audio/melotts.py",
+            "thirdparty/indextts/infer_v2.py",
+            "thirdparty/melo/download_utils.py"
+          ],
+          "cwe": [
+            "CWE-502"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "MODEL-005",
+              "title": "Audio/TTS loaders torch.load model-supplied checkpoints with weights_only disabled",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Caller-supplied virtual_env_packages and envs reach package installation and the model subprocess environment without an allowlist",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "api/routers/admin.py",
+            "xinference/api/restful_api.py",
+            "xinference/constants.py",
+            "xinference/core/model_generation.py",
+            "xinference/core/supervisor.py",
+            "xinference/core/utils.py",
+            "xinference/core/virtual_env_manager.py",
+            "xinference/core/worker.py",
+            "xinference/core/worker_relaunch.py"
+          ],
+          "cwe": [
+            "CWE-426",
+            "CWE-73",
+            "CWE-78",
+            "CWE-829",
+            "CWE-94"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "CTRL-002",
+              "title": "Client-supplied absolute python_executable is spawned without an allowlist (relaunch and model reload)",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "MODEL-003",
+              "title": "Caller-supplied virtual_env_packages and envs reach package installation and the model subprocess environment without an allowlist",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Embeddings and rerank endpoints fetch client-supplied media URLs/paths without the media guard (SSRF + local file read)",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "embedding/vllm/core.py",
+            "rerank/vllm/core.py",
+            "xinference/api/restful_api.py"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "SSRF-001",
+              "title": "Embeddings and rerank endpoints fetch client-supplied media URLs/paths without the media guard (SSRF + local file read)",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Trust gate keys on model-family provenance, not model_path provenance: built-in family + caller model_path executes model-repository code",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "embedding/sentence_transformers/core.py",
+            "image/ocr/dots_ocr.py",
+            "image/ocr/ovisocr2.py",
+            "model/audio/core.py",
+            "model/image/core.py",
+            "rerank/sentence_transformers/core.py",
+            "xinference/core/worker.py",
+            "xinference/model/utils.py"
+          ],
+          "cwe": [
+            "CWE-94"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "MODEL-001",
+              "title": "dots.ocr loader hardcodes trust_remote_code=True, bypassing the operational trust gate",
+              "severity": "high"
+            },
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "MODEL-002",
+              "title": "Trust gate keys on model-family provenance, not model_path provenance: built-in family + caller model_path executes model-repository code",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Unauthenticated xoscar actor transport in distributed mode exposes actor RPC and a cloudpickle deserialization sink",
+          "severity": "high",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "api/routers/admin.py",
+            "deploy/docker/docker-compose-distributed.yml",
+            "source/getting_started/environments.rst",
+            "xinference/constants.py",
+            "xinference/core/supervisor.py",
+            "xinference/deploy/cmdline.py",
+            "xinference/deploy/supervisor.py",
+            "xinference/deploy/utils.py"
+          ],
+          "cwe": [
+            "CWE-306",
+            "CWE-502",
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "CTRL-001",
+              "title": "Unauthenticated xoscar actor transport in distributed mode exposes actor RPC and a cloudpickle deserialization sink",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "title": "Model-level authorization (_check_model_access) missing on describe/events/abort/replica endpoints",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "api/routers/models.py",
+            "xinference/api/restful_api.py"
+          ],
+          "cwe": [
+            "CWE-862"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "INFRA-006",
+              "title": "Model-level authorization (_check_model_access) missing on describe/events/abort/replica endpoints",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "No rate limiting or lockout on the password login endpoint POST /token",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "oauth2/advanced/auth_service.py",
+            "oauth2/advanced/routes.py"
+          ],
+          "cwe": [
+            "CWE-307"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "INFRA-001",
+              "title": "No rate limiting or lockout on the password login endpoint POST /token",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Path traversal in VirtualEnvManager.remove_virtual_env enables deletion of arbitrary directories",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "api/routers/admin.py",
+            "xinference/core/virtual_env_manager.py"
+          ],
+          "cwe": [
+            "CWE-22"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "CTRL-004",
+              "title": "Path traversal in VirtualEnvManager.remove_virtual_env enables deletion of arbitrary directories",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Setting XINFERENCE_AUTH_ADVANCED=0 disables authentication on every endpoint (fail-open configuration)",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "xinference/api/restful_api.py",
+            "xinference/constants.py"
+          ],
+          "cwe": [
+            "CWE-306"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "INFRA-004",
+              "title": "Setting XINFERENCE_AUTH_ADVANCED=0 disables authentication on every endpoint (fail-open configuration)",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Transformers direct-chat engines validate the media URL string but let redirect-following vendor readers fetch it (redirect/DNS-rebinding SSRF)",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "llm/transformers/direct_chat.py",
+            "model/llm/media.py",
+            "transformers/multimodal/deepseek_vl2.py",
+            "transformers/multimodal/minicpmv45.py",
+            "transformers/multimodal/qwen2_audio.py",
+            "transformers/multimodal/qwen2_vl.py"
+          ],
+          "cwe": [
+            "CWE-918"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "SSRF-002",
+              "title": "Transformers direct-chat engines validate the media URL string but let redirect-following vendor readers fetch it (redirect/DNS-rebinding SSRF)",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Unauthenticated operational endpoints disclose cluster, configuration and per-key metrics metadata",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "api/routers/admin.py",
+            "api/routers/models.py",
+            "xinference/api/restful_api.py"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "INFRA-003",
+              "title": "Unauthenticated operational endpoints disclose cluster, configuration and per-key metrics metadata",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Uvicorn trusts X-Forwarded-For from any peer when fastapi-guard is disabled, spoofing consumers of the client IP",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "oauth2/advanced/auth_service.py",
+            "xinference/api/guard_integration.py",
+            "xinference/api/restful_api.py"
+          ],
+          "cwe": [
+            "CWE-290"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "INFRA-002",
+              "title": "Uvicorn trusts X-Forwarded-For from any peer when fastapi-guard is disabled, spoofing consumers of the client IP",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "title": "Worker auto-recovery and launch-history SQLite persist secrets to disk without restrictive permissions",
+          "severity": "medium",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "api/routers/launch_history.py",
+            "xinference/core/launch_history_store.py",
+            "xinference/core/worker.py"
+          ],
+          "cwe": [
+            "CWE-200",
+            "CWE-276"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "CFG-004",
+              "title": "Launch-history secret redaction is bypassed when advanced auth is disabled",
+              "severity": "medium"
+            },
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "CFG-005",
+              "title": "Worker auto-recovery and launch-history SQLite persist secrets to disk without restrictive permissions",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "500 handler and many route handlers echo raw exception text to clients",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "api/routers/admin.py",
+            "api/routers/launch_history.py",
+            "xinference/api/restful_api.py"
+          ],
+          "cwe": [
+            "CWE-209"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "CFG-002",
+              "title": "500 handler and many route handlers echo raw exception text to clients",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "IDOR in GET /v1/admin/keys/{key_id}/permissions: no ownership check for holders of keys:create",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "oauth2/advanced/routes.py"
+          ],
+          "cwe": [
+            "CWE-639"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "INFRA-005",
+              "title": "IDOR in GET /v1/admin/keys/{key_id}/permissions: no ownership check for holders of keys:create",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Installer executes unpinned remote scripts (curl | sh and raw main-branch manage_install.py)",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "scripts/install.sh"
+          ],
+          "cwe": [
+            "CWE-494"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "CFG-006",
+              "title": "Installer executes unpinned remote scripts (curl | sh and raw main-branch manage_install.py)",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "PEP517 build backend runs npm ci / npm run build during wheel, sdist and editable installs",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "build_backend.py",
+            "build_web.py",
+            "pyproject.toml"
+          ],
+          "cwe": [
+            "CWE-829"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "CFG-007",
+              "title": "PEP517 build backend runs npm ci / npm run build during wheel, sdist and editable installs",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Partial secret masking leaks first/last 4 chars of hf_token; pip_index_url and hf_endpoint returned unredacted",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "api/routers/system_settings.py",
+            "xinference/core/system_settings_store.py"
+          ],
+          "cwe": [
+            "CWE-200"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "CFG-008",
+              "title": "Partial secret masking leaks first/last 4 chars of hf_token; pip_index_url and hf_endpoint returned unredacted",
+              "severity": "low"
+            }
+          ]
+        },
+        {
+          "title": "Permissive CORS: wildcard origin with credentials and all methods/headers",
+          "severity": "low",
+          "rounds_seen": 1,
+          "rounds_total": 1,
+          "stable": false,
+          "paths": [
+            "xinference/api/restful_api.py"
+          ],
+          "cwe": [
+            "CWE-942"
+          ],
+          "variants": [
+            {
+              "run_id": "aud-080-xinference/20261027T192717Z",
+              "id": "CFG-001",
+              "title": "Permissive CORS: wildcard origin with credentials and all methods/headers",
+              "severity": "low"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

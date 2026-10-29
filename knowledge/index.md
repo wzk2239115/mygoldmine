@@ -16,6 +16,7 @@
 - [verl](projects/verl.md)
 - [codex](projects/codex.md)
 - [deepseek-harness](projects/deepseek-harness.md)
+- [agentscope-runtime](projects/agentscope-runtime.md) — FastAPI 引擎 + 沙箱管理器 + 训练沙箱
 
 ## Playbooks
 
@@ -27,6 +28,7 @@
 - [CVE 卡片格式](cves/README.md)
 - [误报模式](false-positives/README.md)
 - `cases/<project>/` — 每次审计的 confirmed/rejected 记录（由 knowledge-scribe 追加）
+  - [agentscope-runtime/2026-10-27-infra-control-plane](cases/agentscope-runtime/2026-10-27-infra-control-plane.md) — manager fail-open / env_service 无鉴权 / AgentApp shutdown / 默认 token / CORS
 
 ## 使用顺序
 

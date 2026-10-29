@@ -45,3 +45,9 @@ catalog/queue-batch1b.sh
 
 # Image generation cache
 .cache/
+
+# Generated RSI replay worlds
+rsi/batch1/
+
+# Local catalog batch workspace
+catalog/
