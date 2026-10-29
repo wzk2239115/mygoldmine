@@ -1,23 +1,11 @@
 {
-  "file": "docs/visuals/open-sandbox-attack-execd-001.json",
+  "file": "docs/visuals/open-sandbox-attack-execd-001.webp",
+  "mode": "agentic",
+  "agent": "attack-scene-director",
+  "director": "docs/visuals/open-sandbox-attack-execd-001.director.json",
   "model": "mm/openai/gpt-image-2",
-  "requested_model": "openai/gpt-image-2",
   "size": "1024x1024",
-  "quality": "auto",
-  "usage": {
-    "total_tokens": 305,
-    "input_tokens": 109,
-    "output_tokens": 196,
-    "input_tokens_details": {
-      "text_tokens": 109,
-      "image_tokens": 0
-    },
-    "output_tokens_details": {
-      "text_tokens": 0,
-      "image_tokens": 196
-    }
-  },
-  "prompt": "editorial ink illustration on warm paper, split-screen systems diagram, focus: credential takeover; left attacker supplies a crafted command or configuration, right service executes it inside a sandbox runtime; left side sender, right side service, a dashed trust boundary and directional arrows between them, vermilion accent, high contrast, subtle paper grain, cinematic but restrained, no text, no letters, no numbers, no logos, no code, no screenshots, no UI, no real product, no gore, 16:9 composition\n",
-  "hash": "0d750e56fcc369ec03d5e9c553c015024fca51c7ef6038cda4e040ccf57eaf5f",
-  "cached": false
+  "prompt": "editorial ink illustration on warm paper, split-screen systems diagram, focus: an unguarded internal service lane through a checkpoint wall; left side a dim fenced work yard where an untrusted worker figure clutches a small sealed request packet holding a command slip and a blank key; center a tall dashed trust-boundary wall with a checkpoint guardhouse, its public lanes are locked turnstiles with sentries, but one internal service lane stands wide open and unattended; a bold vermilion arrow carries the packet left to right through the open lane only; right side a large supervisor machine hall where the machine first tips over its own running tiles in a full reset, then feeds the command slip into its own execution slot and runs it wearing its own gauntlets, then swaps its keyring for the blank key from the packet; a small vermilion spark escapes the machine wearing the supervisor's keyring; attack direction strictly left to right, dashed boundary clearly visible, vermilion accent on the open lane and the loose spark, high contrast ink linework, subtle paper grain, cinematic but restrained, no text, no letters, no numbers, no logos, no code, no screenshots, no UI, no real product, no gore, balanced square composition",
+  "caption": "AI 插图，非漏洞证据。EXECD-001：左侧不可信 workload 经一条豁免鉴权的内部车道（preInitPaths）向右侧 execd 提交初始化请求，execd 无凭据校验地执行破坏性重置、以自身身份运行请求中的 preStart 命令，并把 API 凭据哈希替换为攻击者所选——控制面通道对本应只属于平台的调用方完全不设防。",
+  "note": "AI 插图，非漏洞证据；由 scene director 读 finding/verify/source 后生成"
 }

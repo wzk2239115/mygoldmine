@@ -96,6 +96,28 @@ python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
 
 `--all` 为每个 attack 生成插图；`--dry-run` 只写 prompt，不调用 API。插图 prompt 只使用去标识化的攻击类型和双方动作，不发送源码、端点、密钥或完整报告。
 
+## Agentic 场景导演（推荐）
+
+`attack-scene-director` agent 会先读 finding、verify 报告和证据源码，设计 attacker / victim 分镜，再写 prompt、调用 image2，并检查/迭代。
+
+```bash
+python3 .claude/skills/project-cartographer/scripts/render_attack_scenes_agentic.py \
+  --model runs/aud-048-opensandbox/20261028T080748Z/visual/visual-model.json \
+  --max 3 --max-attempts 2
+```
+
+产物：
+
+```text
+visual/agentic/<finding>/task.json
+visual/agentic/<finding>/agent.log
+visual/prompts/scene-<finding>.txt
+visual-rendered/scene-<finding>.director.json
+visual-rendered/scene-<finding>.webp
+```
+
+`scene.director.json` 是 agent 自己写的分镜和 prompt，不是固定模板。需要指定 Claude 模型时用 `--claude-model` 或 `VISUAL_AGENT_MODEL`。
+
 ## image2 插图
 
 360 平台已确认存在：
@@ -173,6 +195,7 @@ no code, no screenshots, centered subject, generous clean space for title
 ## 与流水线集成
 
 - `mine_one_docker.sh` 在容器退出且存在 `audit-report.json` 时自动生成 `visual-model.json`
+- `VISUAL_RENDER=1` 渲染 SVG；`VISUAL_IMAGES=1` 生成插图；`VISUAL_AGENTIC=1` 优先使用 scene director agent，失败可回退到 `render_attack_images.py`
 - `render_diagrams.py` 可独立生成 SVG 和插图报告
 - UI 的 Map 视图读取 `GET /api/visual/:project/:runId`
 - 报告生成器可在 `audit-report.md` 后追加 `report-illustrated.md` 的链接

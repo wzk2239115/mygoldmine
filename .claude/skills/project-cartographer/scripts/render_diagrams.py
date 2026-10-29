@@ -95,6 +95,27 @@ def svg_tree(root, title, out, max_depth=8, max_nodes=500):
     Path(out).write_text("\n".join(parts), encoding="utf-8")
 
 
+def load_director(out_dir, fid):
+    path = Path(out_dir) / f"scene-{fid}.director.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def director_storyboard(director):
+    story = (director or {}).get("storyboard") or {}
+    attacker = story.get("attacker") or {}
+    victim = story.get("victim") or {}
+    return {
+        "trust_boundary": story.get("trust_boundary") or "",
+        "attacker": attacker.get("steps") or [],
+        "victim": victim.get("steps") or [],
+        "caption": story.get("caption") or "",
+        "visual_metaphor": story.get("visual_metaphor") or "",
+    }
+
+
 def wrap_text(value, width=28, max_lines=4):
     text = str(value or "").strip()
     if not text:
@@ -213,10 +234,14 @@ def render_report(model, run_dir, out_dir):
     for attack in model.get("trees", {}).get("attacks", [])[:8]:
         fid = attack.get("finding_id") or attack.get("id", "finding").split(":")[-1]
         scene = attack.get("scene") or {}
+        director = load_director(out_dir, fid)
+        story = director_storyboard(director)
+        attacker = story["attacker"] or scene.get("attacker") or []
+        victim = story["victim"] or scene.get("victim") or []
         lines += [f"### {fid} — {attack.get('label', '')}", ""]
         if (out_dir / f"scene-{fid}.webp").exists():
             lines += [f"![attack scene](scene-{fid}.webp)", ""]
-        if scene:
+        if scene or story["attacker"]:
             lines += [
                 "**攻击场景（AI 插图，非证据）**" if (out_dir / f"scene-{fid}.webp").exists() else "**攻击场景**",
                 "",
@@ -225,11 +250,11 @@ def render_report(model, run_dir, out_dir):
                 "| 攻击者执行 | 受害者执行 |",
                 "|---|---|",
             ]
-            for index in range(max(len(scene.get("attacker") or []), len(scene.get("victim") or []))):
-                left = (scene.get("attacker") or [])[index] if index < len(scene.get("attacker") or []) else ""
-                right = (scene.get("victim") or [])[index] if index < len(scene.get("victim") or []) else ""
+            for index in range(max(len(attacker), len(victim))):
+                left = attacker[index] if index < len(attacker) else ""
+                right = victim[index] if index < len(victim) else ""
                 lines.append(f"| {left} | {right} |")
-            lines += ["", f"> {scene.get('disclaimer', '')}", ""]
+            lines += ["", f"> {story.get('caption') or scene.get('disclaimer', '')}", ""]
         lines += [f"![attack path](attack-{fid}.svg)", ""]
     lines += ["## 4. 结果表", "", "| Finding | Severity | Status | Path |", "|---|---|---|---|"]
     leaves = []
@@ -262,8 +287,18 @@ def main():
     svg_tree(trees.get("coverage", {}), "Audit coverage", out_dir / "coverage-tree.svg", args.max_depth)
     for attack in trees.get("attacks", [])[:12]:
         fid = attack.get("finding_id") or attack.get("id", "finding").split(":")[-1]
-        if attack.get("scene"):
-            svg_scene(attack, out_dir / f"scene-{fid}.svg")
+        story = director_storyboard(load_director(out_dir, fid))
+        scene = dict(attack.get("scene") or {})
+        if story["attacker"] or story["victim"]:
+            scene.update({
+                "attacker": story["attacker"],
+                "victim": story["victim"],
+                "boundary": story["trust_boundary"] or scene.get("boundary"),
+            })
+        if scene:
+            enriched = dict(attack)
+            enriched["scene"] = scene
+            svg_scene(enriched, out_dir / f"scene-{fid}.svg")
         svg_tree(attack, f"Attack path / {fid}", out_dir / f"attack-{fid}.svg", 8, 80)
     render_report(model, model_path.parent, out_dir)
     print(json.dumps({"out_dir": str(out_dir), "diagrams": 2 + min(12, len(trees.get('attacks', []))) + min(12, len([a for a in trees.get('attacks', []) if a.get('scene')])), "report": str(out_dir / "report-illustrated.md")}, ensure_ascii=False))

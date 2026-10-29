@@ -6,7 +6,8 @@
 |---|---|---|---|
 | `open-sandbox-cover.webp` | OpenSandbox 报告封面 | `openai/gpt-image-2` | 证据档案/纸面风格，无文字 |
 | `open-sandbox-cover.json` | 生成元数据 | — | prompt、尺寸、usage |
-| `open-sandbox-attack-execd-001.webp` | RCE 攻击场景插图 | `openai/gpt-image-2` | 左侧输入、右侧 execd 执行，无文字 |
+| `open-sandbox-attack-execd-001.webp` | RCE 攻击场景插图 | `openai/gpt-image-2` | agentic scene director 设计分镜，左侧输入、右侧 execd 执行 |
+| `open-sandbox-attack-execd-001.director.json` | agent 分镜/提示词 | — | attack-scene-director 产物 |
 | `open-sandbox-attack-cp-001.webp` | 认证绕过场景插图 | `openai/gpt-image-2` | 代理路径绕过 API key，无文字 |
 
 规则：

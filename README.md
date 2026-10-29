@@ -144,6 +144,8 @@ python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
 
 流水线默认只生成 `visual-model.json`；需要审计结束即渲染时设置 `VISUAL_RENDER=1`，需要同时生成 attack 插图时再设置 `VISUAL_IMAGES=1`（可用 `VISUAL_IMAGE_MAX` 限制数量）。
 
+推荐再加 `VISUAL_AGENTIC=1`：由 `attack-scene-director` 读取 finding/verify/源码证据，先写 attacker/victim 分镜和 prompt，再调用 image2；失败时回退到模板批处理。
+
 UI 的 **项目地图** 视图读取 `visual-model.json`，可以点节点直接跳到 finding。
 360 平台已验证 `openai/gpt-image-2` 等图像模型；密钥从 opencode 配置读取，不落库。
 

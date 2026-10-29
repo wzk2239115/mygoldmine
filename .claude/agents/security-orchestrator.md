@@ -344,16 +344,20 @@ Task(
 - `visual/visual-model.json`：项目结构树、覆盖树、攻击路径树
 - `visual-rendered/*.svg`：报告用结构图/覆盖图/攻击路径
 - `report-illustrated.md`：带图报告
-- 可选 image2 封面/章节插图
+- 可选 image2 封面、章节插图、攻击者/受害者场景插图
 
 ```bash
 python3 .claude/skills/project-cartographer/scripts/build_visual_model.py --project <project>
 python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
   --model runs/<project>/<run>/visual/visual-model.json \
   --out-dir runs/<project>/<run>/visual-rendered
+
+# 推荐：由 attack-scene-director 读证据、设计分镜后生成 image2 插图
+python3 .claude/skills/project-cartographer/scripts/render_attack_scenes_agentic.py \
+  --model runs/<project>/<run>/visual/visual-model.json --max 3
 ```
 
-结构图、覆盖图和攻击路径必须由源码/证据数据生成；image2 只做封面和氛围插图，不作为漏洞证据。
+结构图、覆盖图、攻击路径和双方步骤必须由源码/证据数据生成；image2 只做叙事插图，不作为漏洞证据。
 
 ## Phase 4：漏洞验证（verify-agent）
 

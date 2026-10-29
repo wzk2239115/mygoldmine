@@ -1,0 +1,64 @@
+{
+  "finding_id": "EXECD-001",
+  "storyboard": {
+    "trust_boundary": "execd 的 HTTP 控制面（沙箱网络命名空间内的 44772 端口）。这堵墙上本应有 accessTokenMiddleware 的哨卡核验令牌，但 /internal/init 被列在 preInitPaths 免检名单上：中间件在读任何凭据之前就放行（router.go:198-201），且该豁免在 classic 模式和 runtime-init 模式下都无条件生效（runtimeInitGate 默认关闭且同样豁免该路径，router.go:269-278）。哨卡存在，但这条内部车道永远敞开。",
+    "attacker": {
+      "actor": "沙箱内部进程（与 execd 共享网络命名空间的不可信 workload 代码），或任何被网关路由到 44772 端口的客户端（依报告 impact 表述，外网可达需经 CP-001/IE-003 等链路，未在图中作为既定事实绘制）",
+      "goal": "免凭据调用内部初始化端点：让 execd 以自身身份执行任意程序（默认镜像中为 root）、重置全部用户进程（DoS）、并写入自己选定的 accessTokenHash 篡夺 API 凭据",
+      "steps": [
+        "向 execd 的内部初始化端点发送构造的 JSON 请求：sandboxId/generation、lifecycle.preStart.command argv、accessTokenHash、envs 均由攻击者控制",
+        "请求体携带一个任意的 preStart 命令与一枚攻击者自选的凭据哈希",
+        "无需任何令牌头即通过哨卡",
+        "读取 200 响应（status=initialized），随后以新凭据持有全部 API"
+      ]
+    },
+    "victim": {
+      "asset": "execd —— 沙箱监督守护进程：进程执行权、RuntimeBinding（含 AccessTokenHash 与沙箱 Envs）、全部用户命令与会话的可用性",
+      "steps": [
+        "accessTokenMiddleware 命中 preInitPaths 免检名单，在读任何凭据之前直接放行（router.go:37-41, 196-201）",
+        "InitController.Init 解码 RuntimeInitRequest（init_runtime.go:175-186）",
+        "RuntimeInitManager.Apply 校验仅覆盖 identity/env 黑名单/lifecycle 形状，preStart 命令无白名单（init_runtime.go:349-380; lifecycle/config.go:208-218）",
+        "默认路径执行破坏性重置：stopPeriodic + Ctrl.Reset + IsolatedResetter.Reset + RetireEntrypoint + StopUserProcesses（init_runtime.go:229-251）",
+        "applyBinding 原子替换进程级 RuntimeBinding：SandboxID/Generation/Envs/AccessTokenHash 全部改为请求值（init_runtime.go:298-309）",
+        "runPreStart → lifecycle.RunPreStart → RunHook → exec.Command(hook.Command[0], hook.Command[1:]...) 以 execd 进程身份执行（runner.go:43）"
+      ]
+    },
+    "panels": [
+      {
+        "stage": "before",
+        "attacker": "围栏工作场院内的不可信 workload 蹲伏待命，手中备好一只密封的请求小包：一张命令纸条和一枚空白钥匙",
+        "victim": "界墙另一侧，execd 如同一台大型机器安静运转：挂着钥匙环，管理着几块正在运行的进程瓦片；墙上哨卡的公共通道都是上锁的闸机",
+        "visual": "左右分屏，中间一道高耸的虚线界墙；左侧昏暗场院，右侧机器大厅；哨卡亮着但只有一条内部车道虚掩"
+      },
+      {
+        "stage": "trigger",
+        "attacker": "workload 把密封请求包掷出，包内是命令纸条与空白钥匙；粗重的朱红色箭头自左向右穿越界墙",
+        "victim": "哨卡的公共闸机全部锁死，唯独这条内部车道无人值守、完全敞开——没有哨兵，没有索要令牌；请求包径直落在机器的操作台上",
+        "visual": "界墙上的检查站：多条上锁的旋转闸机道 与 一条敞开的无人车道形成对比；朱红箭头只走敞开的那条"
+      },
+      {
+        "stage": "process",
+        "attacker": "攻击者的输入开始生效：命令纸条被机器自己的机械手拾起",
+        "victim": "机器先做彻底自洁/重置——运行中的进程瓦片纷纷倾倒坠落；随后把命令纸条塞进自身的执行槽位，戴上自己的手套运行它；最后摘下旧钥匙环，换上包里的空白钥匙",
+        "visual": "右侧机器三段连续动作：倾倒瓦片（重置）→ 喂入纸条执行（RCE）→ 更换钥匙环（凭据篡夺）"
+      },
+      {
+        "stage": "impact",
+        "attacker": "一枚朱红色的火花挣脱机器，戴上了监督者的钥匙环在厅内自由游走——攻击者的程序以 execd 身份在跑，API 凭据已是攻击者选定的那把",
+        "victim": "execd 状态显示为已初始化并正常应答；原有用户进程尽数消失，绑定已被整体替换；机器此后只认新钥匙",
+        "visual": "朱红火花+钥匙环 作为画面唯一的高亮焦点，机器恢复运转但已易主"
+      }
+    ],
+    "visual_metaphor": "哨卡墙上虚掩的内部检修门：防御工事（哨卡、闸机、令牌核验）对公共通道全部生效，唯独为内部控制面留的那条车道不设岗、不上锁；穿过它的东西会被机器亲手执行，并被交出机器的钥匙。",
+    "caption": "AI 插图，非漏洞证据。EXECD-001：左侧不可信 workload 经一条豁免鉴权的内部车道（preInitPaths）向右侧 execd 提交初始化请求，execd 无凭据校验地执行破坏性重置、以自身身份运行请求中的 preStart 命令，并把 API 凭据哈希替换为攻击者所选——控制面通道对本应只属于平台的调用方完全不设防。",
+    "uncertainty": [
+      "攻击者仅画为沙箱内部进程；报告 impact 亦提到经网关路由到 44772 的外部客户端，该路径依赖 CP-001/IE-003 等链路与部署形态（Docker publish_host 默认 0.0.0.0、host 网络模式），远程默认暴露未被证实，图中未作为既定事实绘制。",
+      "验证为 source-semantic（无 Go 工具链、无容器运行时）：hook 执行与凭据替换由源码逐行确认，非运行时观测。",
+      "preStart hook 的实际权限等于 execd 进程身份，'默认镜像中为 root' 取自 finding；实际部署镜像可能不同。",
+      "仓库内不存在 /internal/init 的控制面调用方，亦无 EXECD_ACCESS_TOKEN 注入路径，预期凭据引导方式无法观测（verify 报告 limitations）。"
+    ]
+  },
+  "prompt": "editorial ink illustration on warm paper, split-screen systems diagram, focus: an unguarded internal service lane through a checkpoint wall; left side a dim fenced work yard where an untrusted worker figure clutches a small sealed request packet holding a command slip and a blank key; center a tall dashed trust-boundary wall with a checkpoint guardhouse, its public lanes are locked turnstiles with sentries, but one internal service lane stands wide open and unattended; a bold vermilion arrow carries the packet left to right through the open lane only; right side a large supervisor machine hall where the machine first tips over its own running tiles in a full reset, then feeds the command slip into its own execution slot and runs it wearing its own gauntlets, then swaps its keyring for the blank key from the packet; a small vermilion spark escapes the machine wearing the supervisor's keyring; attack direction strictly left to right, dashed boundary clearly visible, vermilion accent on the open lane and the loose spark, high contrast ink linework, subtle paper grain, cinematic but restrained, no text, no letters, no numbers, no logos, no code, no screenshots, no UI, no real product, no gore, balanced square composition",
+  "negative_prompt": "text, letters, words, numbers, code, logo, screenshot, UI, photorealistic gore",
+  "attempts": []
+}
