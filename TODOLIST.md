@@ -289,6 +289,13 @@ logs/                       编排器与 ralph 日志（gitignore）
 - 验收：原始池默认隐藏；CVE 候选和源码级验证项进入待验收；人工只打开待验收队列；验收位置在 CVE 去重之后、披露之前。
 - 状态：[x]
 
+### T32 自动精炼 worker 与 RSI 轨迹
+
+- 目标：后台分批消费原始池，自动归档低价值 finding，只把候选送入分诊/复现/待验收。
+- 产物：`scripts/workflow/refine_worker.py`、`refine_worker.sh`、`ui/data/refine-queue.json`、`rsi/trajectories/refine.jsonl`。
+- 验收：原始池可逐批下降；归档不丢报告；worker 可暂停/恢复/停止；每条决策有可回放 trajectory。
+- 状态：[x]
+
 ## 初判差距假设（待 T01-T03 用证据确认，不得直接当结论）
 
 现有 84 个 skill 偏 Web 漏洞与智能合约，对 AI 基础设施可能弱覆盖：

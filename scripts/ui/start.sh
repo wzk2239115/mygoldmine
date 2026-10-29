@@ -27,4 +27,8 @@ if [ -f "$ROOT/scripts/workflow/build_state.py" ]; then
   python3 "$ROOT/scripts/workflow/build_state.py" || true
 fi
 
+if [ "${REFINE_WORKER:-1}" = "1" ] && [ -x "$ROOT/scripts/workflow/refine_worker.sh" ]; then
+  bash "$ROOT/scripts/workflow/refine_worker.sh" start || true
+fi
+
 exec node server/index.mjs "$@"

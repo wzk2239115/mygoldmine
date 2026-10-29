@@ -54,3 +54,19 @@ catalog/
 
 # Generated workflow routing cache
 ui/data/auto-state.json
+
+ui/data/refine-state.json
+
+ui/data/refine-queue.json
+
+ui/data/refine.pause
+
+ui/data/refine.stop
+
+ui/data/.refine-worker.lock
+
+ui/data/refine-worker.log
+
+ui/data/refine-worker.pid
+
+rsi/trajectories/

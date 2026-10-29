@@ -283,5 +283,8 @@ fi
 if [ -f "$REPO_ROOT/scripts/workflow/build_state.py" ]; then
     python3 "$REPO_ROOT/scripts/workflow/build_state.py" >> "$META/workflow.log" 2>&1 || true
 fi
+if [ -f "$REPO_ROOT/scripts/workflow/refine_worker.py" ]; then
+    python3 "$REPO_ROOT/scripts/workflow/refine_worker.py" --once --batch "${REFINE_BATCH:-50}" >> "$META/workflow.log" 2>&1 || true
+fi
 log "容器退出 rc=$rc run_dir=$RUN_DIR"
 exit "$rc"

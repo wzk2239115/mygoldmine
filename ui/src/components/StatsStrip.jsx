@@ -33,13 +33,14 @@ export default function StatsStrip({ stats, projects }) {
         <Metric
           label="原始池"
           value={status.inbox || 0}
-          hint="已自动评分但未达到晋级门槛，不是待办；默认隐藏"
+          suffix={`已归档 ${status.archived || 0}`}
+          hint="尚未晋级；后台精炼 worker 会把未达门槛的 finding 归档并从这里移走"
         />
         <Metric
           label="分诊中"
           value={status.triage || 0}
           tone="ink"
-          hint="Critical / High+verified 自动入队，等待人工判断可达性与设计意图"
+          hint="Critical/High 自动入队，等待人工判断可达性与设计意图"
         />
         <Metric
           label="复现中"

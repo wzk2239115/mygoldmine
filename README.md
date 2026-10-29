@@ -122,7 +122,7 @@ bash scripts/ui/start.sh
 - 手工状态写入 `ui/data/state.json`，不改原始报告；人工复核种子在 `ui/data/curated.json`，自动路由缓存不提交。
 - 默认只监听 `127.0.0.1`，避免把未修复漏洞细节暴露到网络。
 
-详见 `ui/README.md`、`docs/cve-candidates.md`、`docs/cve-handoff.json`。
+详见 `ui/README.md`、`docs/refine-pipeline.md`、`docs/cve-candidates.md`、`docs/cve-handoff.json`。
 
 ## 项目地图与视觉报告
 

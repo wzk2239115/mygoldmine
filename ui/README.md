@@ -56,6 +56,7 @@ npm run smoke
 - `ui/data/curated.json` 是人工二次审计过的 25 条 finding，按 `project:finding-id` 建立初始状态。
 - `ui/data/auto-state.json` 由 `scripts/workflow/build_state.py` 生成：扫描最新报告、`runs/*/*/verify/**/verify-report.json`、`docs/cve-handoff.json`、`docs/cve-adjudication.json`，自动评分并路由到分诊/复现/关闭；同时生成 `review` 精品待验收队列。
 - `ui/data/state.json` 保存手工改动（状态、判定、CVE Tier、备注、关联 CVE），优先级高于自动状态。默认不提交。
+- `scripts/workflow/refine_worker.py` 后台按批处理原始池，低优先级条目归档；轨迹写入 `rsi/trajectories/refine.jsonl`。
 - 优先级：`state.json` > `curated.json` > `auto-state.json` > 默认 inbox。所有手工变更只写 `state.json`，**不修改原始报告**。
 
 ## 列与判定
@@ -63,7 +64,7 @@ npm run smoke
 | 列 | 含义 |
 |---|---|
 | 收件箱 | 未进入流程 |
-| 分诊 | Critical / High+verified 自动入队；人工判断可达性、重复、设计意图 |
+| 分诊 | Critical / High 自动入队；人工判断可达性、重复、设计意图 |
 | 复现 | 已有 verify 记录；补版本映射、环境验证、最小 PoC |
 | CVE 跟踪 | 先查 NVD/GHSA/项目公告去重，再披露/CNA |
 | 已关闭 | 误报、重复、已知 CVE、设计限制 |

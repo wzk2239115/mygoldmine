@@ -38,7 +38,7 @@ function loadFilters() {
 
 function deriveStats(findings) {
   const severity = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
-  const status = { inbox: 0, triage: 0, reproduce: 0, cve: 0, closed: 0 };
+  const status = { inbox: 0, triage: 0, reproduce: 0, cve: 0, closed: 0, archived: 0 };
   const verdict = { untriaged: 0, tp: 0, fp: 0, duplicate: 0, unclear: 0 };
   for (const finding of findings) {
     severity[finding.severity] += 1;

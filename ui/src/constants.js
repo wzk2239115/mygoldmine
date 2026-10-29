@@ -10,7 +10,7 @@ export const COLUMNS = [
     id: 'triage',
     code: 'TRIAGE',
     label: '分诊',
-    hint: 'Critical / High+verified 自动入队，等待人工判定',
+    hint: 'Critical/High 自动入队，等待人工判定',
     tone: 'cool'
   },
   {
@@ -60,7 +60,7 @@ export const CVE_STATUSES = [
   { id: 'disclosed', label: '已披露' }
 ];
 
-export const STATUS_LABELS = Object.fromEntries(COLUMNS.map((column) => [column.id, column.label]));
+export const STATUS_LABELS = { ...Object.fromEntries(COLUMNS.map((column) => [column.id, column.label])), archived: '已归档' };
 export const VERDICT_LABELS = Object.fromEntries(VERDICTS.map((verdict) => [verdict.id, verdict.label]));
 export const CVE_STATUS_LABELS = Object.fromEntries(CVE_STATUSES.map((status) => [status.id, status.label]));
 export const PROJECT_ORDER = ['vllm', 'sglang', 'deepseek-harness', 'codex', 'verl'];
