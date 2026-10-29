@@ -35,7 +35,7 @@ bash scripts/workflow/refine_worker.sh once
 - `archived`：低优先级、证据不足、重复项；不是“已确认漏洞”。
 - `triage`：Critical、High、评分达到阈值。
 - `reproduce`：已有 verify 记录或 CVE Tier 候选。
-- `review`：CVE 候选或源码级已验证项，进入人工验收队列。
+- `review`：必须经过红队捕获 flag、独立 judge 审核通过，并且图文报告已生成，才进入人工验收。
 - 人工状态仍然优先于自动状态。
 
 ## RSI 轨迹

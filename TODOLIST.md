@@ -286,7 +286,7 @@ logs/                       编排器与 ralph 日志（gitignore）
 
 - 目标：不让 956 条原始 finding 平铺给人工；自动评分/去噪，只把精品 case 送到人工验收。
 - 产物：`scripts/workflow/build_state.py` 的 score/review 队列、UI “原始池隐藏 / 待验收”过滤、`attack-scene-director` 图文 case。
-- 验收：原始池默认隐藏；CVE 候选和源码级验证项进入待验收；人工只打开待验收队列；验收位置在 CVE 去重之后、披露之前。
+- 验收：原始池默认隐藏；必须经过红队捕获 flag、judge 审核通过并生成图文报告，才进入待验收；人工只打开待验收队列。
 - 状态：[x]
 
 ### T32 自动精炼 worker 与 RSI 轨迹

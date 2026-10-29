@@ -262,42 +262,31 @@ def main() -> int:
             }
 
     review = {}
-    for key, item in latest.items():
-        merged = {**state.get(key, {}), **manual_data.get(key, {})}
-        status = merged.get("status", "inbox")
-        if status in {"inbox", "closed"}:
+    for result_path in sorted((ROOT / "runs" / "redteam").glob("*/*/result.json")):
+        result = load(result_path)
+        judge = result.get("judge") if isinstance(result.get("judge"), dict) else {}
+        status = str(result.get("status") or "").lower()
+        approved = judge.get("verdict") == "approved" or status in {"judge_approved", "runtime-validated"}
+        if not approved:
             continue
-        tier = merged.get("cveTier")
-        verify_verdict = str(merged.get("verifyVerdict") or "").lower()
-        verdict = str(merged.get("verdict") or "").lower()
-        known_cve = str(merged.get("knownCve") or "").strip()
-        score = {"critical": 40, "high": 28, "medium": 12, "low": 3}.get(item["severity"], 0)
-        if tier in (1, 2):
-            score += 20
-        if verify_verdict in {"confirmed", "verified", "reproduced"}:
-            score += 15
-        elif verify_verdict in {"blocked", "inconclusive"}:
-            score += 8
-        if key in manual_data:
-            score += 10
-        if verdict == "tp":
-            score += 8
-        if known_cve or verdict in {"fp", "duplicate"}:
-            score -= 30
-        if item.get("confidence") in {"high", "verified", "medium-high"}:
-            score += 3
-        eligible = status in {"triage", "reproduce", "cve"}
-        strong = tier in (1, 2) or verify_verdict in {"confirmed", "verified", "reproduced"}
-        manual_strong = key in manual_data and verdict == "tp" and score >= 60
-        if eligible and (strong or manual_strong) and not known_cve and verdict not in {"fp", "duplicate"}:
-            reasons = []
-            if tier in (1, 2):
-                reasons.append(f"CVE Tier {tier}")
-            if verify_verdict in {"confirmed", "verified", "reproduced"}:
-                reasons.append("已验证/源码级确认")
-            if key in manual_data:
-                reasons.append("人工复核候选")
-            review[key] = {"score": score, "reason": " / ".join(reasons) or "高强度证据候选"}
+        finding_data = load(result_path.parent / "finding.json")
+        project = result.get("project") or result_path.parent.parent.name
+        finding_id = finding_data.get("id")
+        key = canon(project, finding_id)
+        item = latest.get(key)
+        if not item:
+            continue
+        run_dir = ROOT / Path(item["report"]).parent
+        illustrated = run_dir / "visual-rendered" / "report-illustrated.md"
+        scene_image = run_dir / "visual-rendered" / f"scene-{finding_id}.webp"
+        if not illustrated.exists() or not scene_image.exists():
+            continue
+        review[key] = {
+            "score": 100,
+            "reason": "红队捕获 flag · judge approved · 图文报告已生成",
+            "runtime": "runtime-validated",
+            "trace": str(result_path),
+        }
 
     payload = {
         "schema_version": 1,

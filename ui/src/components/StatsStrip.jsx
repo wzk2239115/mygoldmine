@@ -59,7 +59,7 @@ export default function StatsStrip({ stats, projects }) {
           label="待验收"
           value={stats.reviewReady || 0}
           tone="green"
-          hint="已精炼的精品 case：CVE 候选或源码级已验证 finding"
+          hint="必须经过红队捕获 flag、judge 审核通过，并生成图文报告"
         />
         <Metric
           label="目标运行"

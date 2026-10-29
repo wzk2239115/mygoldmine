@@ -191,7 +191,7 @@ export default function Sidebar({ board, filters, setFilters, facets, onClose })
           </span>
           <span>
             <strong>只看待验收</strong>
-            <small>已精炼的精品 case</small>
+            <small>红队验证 + judge + 图文的精品 case</small>
           </span>
         </button>
         <button

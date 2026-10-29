@@ -83,7 +83,7 @@ npm run smoke
   - Evidence：复制证据路径、打开 `audit-report.md` / `.json`、查看原始 finding JSON。
   - Agent stream：读取 `claude.rendered.log` 尾部，可自动刷新、复制 `run.sh --verify-only` 命令。
 - **Filter**：目标、严重度、判定、CVE-only、待验收、搜索；默认隐藏原始池，只显示已精炼流程。
-- **待验收**：侧栏/轨道按钮只显示 CVE 候选和已验证的精品 case，人工在这里做最终验收，再决定披露/关闭。
+- **待验收**：只显示通过红队 flag 验证、judge 审核和图文报告门槛的 case；人工在这里做最终验收。
 - 深色/浅色主题；状态与筛选保存在浏览器 localStorage。
 
 ## API
