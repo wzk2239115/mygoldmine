@@ -17,7 +17,9 @@ L5 人工验收
 
 ## Lab
 
-`scripts/redteam/lab.py` 创建：
+lab adapter 不是人工写死；`redteam-lab-builder` skill/agent 会读 finding、源码和环境清单，自动判断攻击面并生成 `labs/<project>/scenario.json`、`lab-report.md` 或 `BLOCKED.md`。
+
+`scripts/redteam/lab.py` 负责执行生成的 scenario：
 
 - 独立 Docker network，`--internal`，攻击者不能出公网
 - 受害者容器：目标镜像，不发布宿主机端口；flag 以只读文件挂载到 `/flag`
@@ -71,6 +73,18 @@ python3 scripts/redteam/judge.py \
 ```
 
 红队和 judge 不使用同一模型实例；judge 只看证据，不做攻击。
+
+## 自动构建 lab
+
+```bash
+python3 scripts/redteam/build_lab.py \
+  --project <project> \
+  --finding <finding.json>
+
+# batch 默认会先尝试自动构建缺失的 lab
+python3 scripts/redteam/batch.py
+python3 scripts/redteam/batch.py --no-build-labs
+```
 
 ## 演示
 

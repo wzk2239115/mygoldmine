@@ -317,6 +317,20 @@ logs/                       编排器与 ralph 日志（gitignore）
 - 验收：组件边界、状态优先级、lab 不变量、judge 契约、运行手册和失败模式完整。
 - 状态：[x]
 
+### T36 自动 lab builder skill
+
+- 目标：lab adapter 由 agent 读源码和 finding 自动生成，而不是手工为每个项目写死。
+- 产物：`redteam-lab-builder` skill/agent、lab mode 分类、scenario/lab-report/BLOCKED 契约。
+- 验收：agent 能选择 http/stdio/cli/library/ipc/model 形态；能写 scenario；无法构建时 fail-closed 到 BLOCKED；不伪造 flag。
+- 状态：[x]
+
+### T37 系统架构开发者页面
+
+- 目标：把架构说明做成看板内的可视化页面，而不是只放在 md。
+- 产物：`ui/src/components/ArchitectureView.jsx`、轨道“系统架构”入口、流水线/组件/状态/红队/RSI 图。
+- 验收：页面可滚动、桌面和移动端无横向溢出，红队隔离与 review 门槛一眼可懂。
+- 状态：[x]
+
 ## 初判差距假设（待 T01-T03 用证据确认，不得直接当结论）
 
 现有 84 个 skill 偏 Web 漏洞与智能合约，对 AI 基础设施可能弱覆盖：

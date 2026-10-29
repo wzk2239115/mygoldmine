@@ -28,6 +28,7 @@ def main():
     parser.add_argument("--base-url", default="http://100.81.81.75:8081/v1")
     parser.add_argument("--api-key", default="local")
     parser.add_argument("--max-steps", type=int, default=10)
+    parser.add_argument("--build-labs", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -50,6 +51,15 @@ def main():
             finding_path.write_text(json.dumps(finding, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             entry["finding"] = str(finding_path)
             scenario_path = ROOT / "labs" / project / "scenario.json"
+            if not scenario_path.exists() and args.build_labs and not args.dry_run:
+                builder = subprocess.run(
+                    [sys.executable, str(ROOT / "scripts" / "redteam" / "build_lab.py"),
+                     "--project", project, "--finding", str(finding_path)],
+                    capture_output=True, text=True, cwd=ROOT,
+                )
+                entry["builder_returncode"] = builder.returncode
+                entry["builder_stdout"] = builder.stdout[-1200:]
+                entry["builder_stderr"] = builder.stderr[-1200:]
             if not scenario_path.exists():
                 entry.update({"status": "blocked_no_lab", "scenario": str(scenario_path)})
             else:

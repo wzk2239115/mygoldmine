@@ -1,6 +1,8 @@
 # Red-team labs
 
-每个目标需要自己的 lab 适配，不能拿源码目录直接当“受害者服务”。
+lab 适配由 `redteam-lab-builder` skill/agent 自动生成，不是人工为每个项目写死。agent 先判断攻击面（http/stdio/cli/library/ipc/model），再构建 victim、flag 和 attacker。
+
+没有自动化生成成功时，才需要人工提供下面的 `scenario.json`。
 
 ```text
 labs/<project>/scenario.json

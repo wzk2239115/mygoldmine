@@ -122,7 +122,9 @@ state.json（人工） > curated.json（人工种子） > refine-state.json（wo
 
 ## 6. 动态验收 lab 契约
 
-每个项目必须提供：
+lab adapter 不是人工写死的，由 `redteam-lab-builder` skill/agent 自动生成。agent 先判断攻击面（http/stdio/cli/library/ipc/model），再构建 victim、flag 暴露路径、attacker 隔离和负向控制；无法构建时写 `BLOCKED.md`，不伪造。
+
+每个项目最终落盘：
 
 ```text
 labs/<project>/scenario.json
@@ -150,7 +152,7 @@ labs/<project>/scenario.json
 当前 17 条候选：
 
 - 已进入 `docs/redteam-candidates.json`
-- `batch.py` 运行后会得到 `blocked_no_lab`，因为还没有为这 6 个项目提供 `scenario.json` 和真实可启动 victim
+- `batch.py` 默认会调用 `redteam-lab-builder` 自动尝试构建 lab；构建不出来才 `blocked_no_lab`
 - 这是正确的 fail-closed：没有 lab 就不允许伪造 flag 或进入验收
 
 ## 7. Judge 契约
