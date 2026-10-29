@@ -1,7 +1,9 @@
 import http from 'node:http';
+import net from 'node:net';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -12,6 +14,20 @@ const DATA_ROOT = path.join(UI_ROOT, 'data');
 const DIST_ROOT = path.join(UI_ROOT, 'dist');
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '127.0.0.1';
+const CCUI_URL = (process.env.CCUI_URL || 'http://127.0.0.1:3001').replace(/\/+$/, '');
+const CCUI_HOME = process.env.CCUI_HOME || path.join(RUNS_ROOT, 'ccui-home');
+const CCUI_PREFIX = '/ccui';
+// CloudCLI mounts these under /api; none collide with the board's own API
+// (board|live|runs|findings|health|ccui), so they are proxied as-is and the
+// embedded SPA can keep its absolute fetch('/api/...') URLs.
+const CCUI_API_PREFIXES = [
+  '/api/auth', '/api/file-tree', '/api/projects', '/api/assets', '/api/git',
+  '/api/worktrees', '/api/taskmaster', '/api/commands', '/api/settings',
+  '/api/system', '/api/notifications', '/api/user', '/api/plugins',
+  '/api/browser-use-mcp', '/api/browser-use', '/api/providers',
+  '/api/scheduled-messages', '/api/agent', '/api/voice'
+];
+const CCUI_WS_PATHS = ['/ws', '/shell', '/desktop-notifications', '/plugin-ws'];
 const EXCLUDED_PROJECTS = new Set(['smoke', 'smoke-real', 'smoke-target']);
 const STATUSES = new Set(['inbox', 'triage', 'reproduce', 'cve', 'closed']);
 const VERDICTS = new Set(['untriaged', 'tp', 'fp', 'duplicate', 'unclear']);
@@ -695,6 +711,118 @@ function findRun(project, runId, withFindings = true) {
   return runs.find((run) => run.project === project && run.runId === runId) || null;
 }
 
+const CCUI_HEALTH_TTL_MS = 5000;
+let ccuiHealthCache = { at: 0, reachable: false };
+
+async function ccuiReachable(force = false) {
+  const now = Date.now();
+  if (!force && now - ccuiHealthCache.at < CCUI_HEALTH_TTL_MS) return ccuiHealthCache.reachable;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 1500);
+  try {
+    const response = await fetch(`${CCUI_URL}/health`, { signal: controller.signal });
+    ccuiHealthCache = { at: now, reachable: response.ok };
+    return response.ok;
+  } catch {
+    ccuiHealthCache = { at: now, reachable: false };
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const ccuiImports = new Map();
+
+function runCcuiImporter(project, runId) {
+  return new Promise((resolve) => {
+    const child = spawn(
+      'python3',
+      [
+        path.join(REPO_ROOT, 'scripts', 'ccui', 'import_runs.py'),
+        '--runs', RUNS_ROOT,
+        '--home', CCUI_HOME,
+        '--run', `${project}/${runId}`
+      ],
+      { stdio: ['ignore', 'pipe', 'pipe'] }
+    );
+    let output = '';
+    child.stdout.on('data', (chunk) => { output += chunk; });
+    child.stderr.on('data', (chunk) => { output += chunk; });
+    child.on('error', (error) => resolve({ ok: false, output: String(error) }));
+    child.on('close', (code) => resolve({ ok: code === 0, output }));
+  });
+}
+
+async function ensureCcuiSession(run, { force = false } = {}) {
+  const rawPath = path.join(run.runDir, 'raw.jsonl');
+  if (!fileExists(rawPath)) {
+    return { available: false, reason: 'no raw.jsonl for this run' };
+  }
+  const sidecarPath = path.join(run.runDir, 'ccui-session.json');
+  const sidecar = readJson(sidecarPath, null);
+  const rawStat = fs.statSync(rawPath);
+  const sidecarFresh =
+    sidecar && sidecar.sessionId && fileExists(String(sidecar.sessionFile || ''));
+  if (!force && sidecarFresh) {
+    const importedAt = Date.parse(sidecar.importedAt || '') || 0;
+    if (importedAt >= rawStat.mtimeMs - 50) {
+      return { available: true, session: sidecar, reimported: false };
+    }
+  }
+
+  const key = `${run.project}/${run.runId}`;
+  const inflight = ccuiImports.get(key);
+  if (inflight) await inflight;
+  else {
+    const job = runCcuiImporter(run.project, run.runId).finally(() => ccuiImports.delete(key));
+    ccuiImports.set(key, job);
+    const result = await job;
+    if (!result.ok) {
+      return { available: false, reason: `import failed: ${result.output.slice(-400)}` };
+    }
+  }
+
+  const updated = readJson(sidecarPath, null);
+  if (!updated || !updated.sessionId) {
+    return { available: false, reason: 'import produced no session (empty raw.jsonl?)' };
+  }
+  return { available: true, session: updated, reimported: true };
+}
+
+function isCcuiApiPath(pathname) {
+  return CCUI_API_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+function proxyCcui(req, res, targetPath) {
+  const target = new URL(CCUI_URL);
+  const headers = { ...req.headers };
+  delete headers.connection;
+  delete headers['transfer-encoding'];
+  headers.host = target.host;
+  const upstreamReq = http.request(
+    {
+      hostname: target.hostname,
+      port: Number(target.port) || 80,
+      path: targetPath,
+      method: req.method,
+      headers
+    },
+    (upstreamRes) => {
+      const headersOut = { ...upstreamRes.headers };
+      delete headersOut['transfer-encoding'];
+      res.writeHead(upstreamRes.statusCode || 502, headersOut);
+      upstreamRes.pipe(res);
+    }
+  );
+  upstreamReq.on('error', () => {
+    if (!res.headersSent) sendError(res, 502, 'CloudCLI upstream unavailable');
+    else res.end();
+  });
+  req.pipe(upstreamReq);
+}
+
 function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(statusCode, {
@@ -822,6 +950,15 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = decodeURIComponent(url.pathname);
 
+  if (pathname === CCUI_PREFIX || pathname.startsWith(`${CCUI_PREFIX}/`)) {
+    proxyCcui(req, res, req.url.slice(CCUI_PREFIX.length) || '/');
+    return;
+  }
+  if (isCcuiApiPath(pathname) || pathname === '/health') {
+    proxyCcui(req, res, req.url);
+    return;
+  }
+
   try {
     if (req.method === 'GET' && pathname === '/api/health') {
       sendJson(res, 200, { ok: true, repoRoot: REPO_ROOT, time: new Date().toISOString() });
@@ -861,6 +998,37 @@ const server = http.createServer(async (req, res) => {
         severityCounts: run.severityCounts
       }));
       sendJson(res, 200, { runs });
+      return;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/ccui') {
+      const reachable = await ccuiReachable(true);
+      sendJson(res, 200, { url: CCUI_URL, embedPrefix: CCUI_PREFIX, home: CCUI_HOME, reachable });
+      return;
+    }
+
+    const ccuiMatch = pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/ccui$/);
+    if (req.method === 'GET' && ccuiMatch) {
+      const run = findRun(ccuiMatch[1], ccuiMatch[2], false);
+      if (!run) return sendError(res, 404, 'Run not found');
+      const force = url.searchParams.get('force') === '1';
+      const outcome = await ensureCcuiSession(run, { force });
+      const reachable = await ccuiReachable();
+      if (!outcome.available) {
+        sendJson(res, 200, { available: false, reason: outcome.reason, reachable, url: CCUI_URL });
+        return;
+      }
+      const session = outcome.session;
+      sendJson(res, 200, {
+        available: true,
+        reachable,
+        sessionId: session.sessionId,
+        projectPath: session.cwd || '',
+        messages: session.messages || 0,
+        importedAt: session.importedAt || null,
+        reimported: Boolean(outcome.reimported),
+        url: `${CCUI_PREFIX}/session/${session.sessionId}`
+      });
       return;
     }
 
@@ -1024,6 +1192,30 @@ const server = http.createServer(async (req, res) => {
   } catch (error) {
     sendError(res, 500, error instanceof Error ? error.message : 'Internal error');
   }
+});
+
+server.on('upgrade', (req, clientSocket, head) => {
+  const { pathname } = new URL(req.url, 'http://localhost');
+  const isCcuiWs = CCUI_WS_PATHS.some(
+    (wsPath) => pathname === wsPath || pathname.startsWith(`${wsPath}/`)
+  );
+  if (!isCcuiWs) {
+    clientSocket.destroy();
+    return;
+  }
+  const target = new URL(CCUI_URL);
+  const upstream = net.connect(Number(target.port) || 3001, target.hostname, () => {
+    const lines = [`${req.method} ${req.url} HTTP/1.1`];
+    for (let i = 0; i < req.rawHeaders.length; i += 2) {
+      lines.push(`${req.rawHeaders[i]}: ${req.rawHeaders[i + 1]}`);
+    }
+    upstream.write(`${lines.join('\r\n')}\r\n\r\n`);
+    if (head.length) upstream.write(head);
+    upstream.pipe(clientSocket);
+    clientSocket.pipe(upstream);
+  });
+  upstream.on('error', () => clientSocket.destroy());
+  clientSocket.on('error', () => upstream.destroy());
 });
 
 server.listen(PORT, HOST, () => {

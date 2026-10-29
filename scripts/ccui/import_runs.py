@@ -30,7 +30,15 @@ def _run_dirs(
     projects: set[str] | None,
     latest: bool,
     include_smoke: bool = False,
+    wanted_runs: set[str] | None = None,
 ) -> list[Path]:
+    if wanted_runs:
+        picked: list[Path] = []
+        for key in sorted(wanted_runs):
+            run_dir = runs_root / key
+            if (run_dir / "raw.jsonl").is_file():
+                picked.append(run_dir)
+        return picked
     by_project: dict[str, Path] = {}
     for project_dir in sorted(runs_root.iterdir()):
         if not project_dir.is_dir() or project_dir.name.startswith("."):
@@ -234,6 +242,19 @@ def convert_run(run_dir: Path, home: Path, project: str) -> tuple[str, Path] | N
         "".join(json.dumps(item, ensure_ascii=False) + "\n" for item in history),
         encoding="utf-8",
     )
+    sidecar = {
+        "sessionId": session_id,
+        "project": project,
+        "runId": run_dir.name,
+        "cwd": cwd,
+        "sessionFile": str(out_path),
+        "messages": sum(1 for row in rows if row.get("type") in {"user", "assistant"}),
+        "importedAt": datetime.now(timezone.utc).isoformat(),
+    }
+    (run_dir / "ccui-session.json").write_text(
+        json.dumps(sidecar, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     return session_id, out_path
 
 
@@ -242,6 +263,13 @@ def main() -> int:
     parser.add_argument("--runs", default=str(REPO_ROOT / "runs"))
     parser.add_argument("--home", default=str(REPO_ROOT / "runs" / "ccui-home"))
     parser.add_argument("--project", action="append", default=[])
+    parser.add_argument(
+        "--run",
+        action="append",
+        default=[],
+        metavar="PROJECT/RUN_ID",
+        help="import only these runs (relative to the runs root)",
+    )
     parser.add_argument(
         "--include-smoke",
         action="store_true",
@@ -257,7 +285,8 @@ def main() -> int:
     runs_root = Path(args.runs).resolve()
     home = Path(args.home).resolve()
     projects = set(args.project) if args.project else None
-    run_dirs = _run_dirs(runs_root, projects, not args.all, args.include_smoke)
+    wanted_runs = {item.strip("/") for item in args.run if item.strip("/")} or None
+    run_dirs = _run_dirs(runs_root, projects, not args.all, args.include_smoke, wanted_runs)
     imported = 0
     for run_dir in run_dirs:
         project = run_dir.parent.name

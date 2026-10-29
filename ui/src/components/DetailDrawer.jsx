@@ -16,6 +16,8 @@ import { COLUMNS, CVE_STATUSES, VERDICTS } from '../constants.js';
 import { cx, formatDateTime } from '../utils.js';
 import { CveBadge, SeverityStamp, VerdictBadge } from './Badges.jsx';
 import TrajectoryPanel from './TrajectoryPanel.jsx';
+import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
+import DrawerResizer, { useDrawerWidth } from './DrawerResizer.jsx';
 
 function DetailSection({ label, children, tone }) {
   if (!children) return null;
@@ -51,6 +53,7 @@ function EvidenceList({ items, onCopy }) {
 
 export default function DetailDrawer({ finding, board, onClose, onPatch, onToast }) {
   const [tab, setTab] = useState('brief');
+  const [drawerWidth, setDrawerWidth, resetDrawerWidth] = useDrawerWidth();
   const [notes, setNotes] = useState('');
   const [knownCve, setKnownCve] = useState('');
   const [log, setLog] = useState(null);
@@ -153,7 +156,14 @@ export default function DetailDrawer({ finding, board, onClose, onPatch, onToast
   return (
     <>
       <div className="drawer-backdrop" onClick={onClose} />
-      <aside className="detail-drawer" role="dialog" aria-modal="true" aria-label={`${finding.projectName} ${finding.id}`}>
+      <aside
+        className="detail-drawer"
+        style={drawerWidth ? { width: drawerWidth } : undefined}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${finding.projectName} ${finding.id}`}
+      >
+        <DrawerResizer width={drawerWidth} onResize={setDrawerWidth} onReset={resetDrawerWidth} />
         <header className="drawer-head">
           <div className="drawer-head-top">
             <div className="drawer-ident">
@@ -180,6 +190,7 @@ export default function DetailDrawer({ finding, board, onClose, onPatch, onToast
               ['brief', 'Brief'],
               ['evidence', 'Evidence'],
               ['agent', 'Agent stream'],
+              ['claude', 'Claude UI'],
               ['trajectory', 'Trajectory']
             ].map(([id, label]) => (
               <button key={id} type="button" className={cx(tab === id && 'is-active')} onClick={() => setTab(id)}>
@@ -462,6 +473,13 @@ export default function DetailDrawer({ finding, board, onClose, onPatch, onToast
                 {!logLoading && !log?.lines?.length ? <span className="log-empty">No rendered log for this run.</span> : null}
               </pre>
             </>
+          ) : null}
+          {tab === 'claude' ? (
+            <ClaudeSessionEmbed
+              project={finding.project}
+              runId={finding.runId}
+              live={Boolean(project?.isLive && project.latestRunId === finding.runId)}
+            />
           ) : null}
           {tab === 'trajectory' ? (
             <TrajectoryPanel

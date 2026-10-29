@@ -21,6 +21,11 @@ export const api = {
   live: () => request('/api/live'),
   visual: (project, runId) => request(`/api/visual/${encodeURIComponent(project)}/${encodeURIComponent(runId)}`),
   runs: () => request('/api/runs'),
+  ccuiStatus: () => request('/api/ccui'),
+  runCcui: (project, runId, { force = false } = {}) =>
+    request(
+      `/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/ccui${force ? '?force=1' : ''}`
+    ),
   log: (project, runId, lines = 400) =>
     request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/log?lines=${lines}`),
   trajectory: (project, runId, params = {}) => {

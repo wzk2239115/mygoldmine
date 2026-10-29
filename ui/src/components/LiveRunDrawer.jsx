@@ -13,6 +13,8 @@ import {
 import { api } from '../api.js';
 import { cx, formatDateTime, formatDuration, relativeTime } from '../utils.js';
 import TrajectoryPanel from './TrajectoryPanel.jsx';
+import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
+import DrawerResizer, { useDrawerWidth } from './DrawerResizer.jsx';
 
 export default function LiveRunDrawer({ run, onClose, onToast }) {
   const [log, setLog] = useState(null);
@@ -20,7 +22,8 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
   const [error, setError] = useState('');
   const [follow, setFollow] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [view, setView] = useState(run?.finished ? 'trajectory' : 'stream');
+  const [view, setView] = useState('claude');
+  const [drawerWidth, setDrawerWidth, resetDrawerWidth] = useDrawerWidth();
   const preRef = useRef(null);
   const closeRef = useRef(null);
 
@@ -46,7 +49,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
     setFollow(true);
     setError('');
     setLoading(true);
-    setView('stream');
+    setView('claude');
     loadLog();
     closeRef.current?.focus();
   }, [run?.project, run?.runId, loadLog]);
@@ -87,7 +90,14 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
   return (
     <>
       <div className="drawer-backdrop live-backdrop" onClick={onClose} />
-      <aside className="detail-drawer live-drawer" role="dialog" aria-modal="true" aria-label={`${run.projectName} 实时日志`}>
+      <aside
+        className="detail-drawer live-drawer"
+        style={drawerWidth ? { width: drawerWidth } : undefined}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${run.projectName} 实时日志`}
+      >
+        <DrawerResizer width={drawerWidth} onResize={setDrawerWidth} onReset={resetDrawerWidth} />
         <header className="drawer-head live-drawer-head">
           <div className="drawer-head-top">
             <div className="drawer-ident">
@@ -136,6 +146,15 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
             <button
               type="button"
               role="tab"
+              aria-selected={view === 'claude'}
+              className={cx(view === 'claude' && 'is-active')}
+              onClick={() => setView('claude')}
+            >
+              Claude UI
+            </button>
+            <button
+              type="button"
+              role="tab"
               aria-selected={view === 'stream'}
               className={cx(view === 'stream' && 'is-active')}
               onClick={() => setView('stream')}
@@ -153,7 +172,9 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
             </button>
           </div>
 
-          {view === 'stream' ? (
+          {view === 'claude' ? (
+            <ClaudeSessionEmbed project={run.project} runId={run.runId} live={!run.finished} tall />
+          ) : view === 'stream' ? (
             <>
           <div className="agent-toolbar live-toolbar">
             <button type="button" className="button is-small" onClick={() => loadLog()} disabled={loading}>
@@ -225,8 +246,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
             </>
           ) : (
             <TrajectoryPanel project={run.project} runId={run.runId} finished={Boolean(run.finished)} fill />
-          )}
-        </div>
+          )}        </div>
 
         <footer className="drawer-footer">
           <span className="footer-signal">

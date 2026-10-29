@@ -10,6 +10,7 @@ HOST="${CCUI_HOST:-127.0.0.1}"
 DO_IMPORT=1
 INCLUDE_SMOKE=0
 REBUILD=0
+PLATFORM=1
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -19,6 +20,7 @@ while [ "$#" -gt 0 ]; do
         --no-import) DO_IMPORT=0 ;;
         --include-smoke) INCLUDE_SMOKE=1 ;;
         --rebuild) REBUILD=1 ;;
+        --no-platform) PLATFORM=0 ;;
         -h|--help)
             cat <<'EOF'
 用法: scripts/ccui/start.sh [选项]
@@ -29,10 +31,12 @@ while [ "$#" -gt 0 ]; do
   --no-import       不重新导入 mygoldmine runs
   --include-smoke   也导入 smoke* 测试 run
   --rebuild         强制重建 CloudCLI 前后端
+  --no-platform     关闭平台模式（回到常规注册/登录流程）
   -h, --help        显示帮助
 
-首次运行需要先 npm install 并 npm run build，耗时较长。
-首次打开 UI 需要在浏览器里设置本地用户名/密码。
+默认平台模式（VITE_IS_PLATFORM=true）：跳过登录，所有请求自动以本地
+seed 用户身份执行。首次启动会自动注册随机口令的 seed 用户，凭据写在
+runs/ccui-home/ccui-credentials.json。服务只绑定本机回环地址。
 EOF
             exit 0
             ;;
@@ -55,7 +59,12 @@ fi
 
 if [ "$REBUILD" = "1" ] || [ ! -f "$CCUI_DIR/dist-server/server/index.js" ]; then
     echo "[ccui] building CloudCLI…"
-    (cd "$CCUI_DIR" && npm run build)
+    if [ "$PLATFORM" = "1" ]; then
+        (cd "$CCUI_DIR" && VITE_IS_PLATFORM=true npm run build:server && \
+         VITE_IS_PLATFORM=true npx vite build --config "$REPO_ROOT/scripts/ccui/vite.config.ccui.mjs")
+    else
+        (cd "$CCUI_DIR" && npm run build)
+    fi
 fi
 
 mkdir -p "$CC_HOME/.claude/projects" "$CC_HOME/.cloudcli"
@@ -75,9 +84,58 @@ fi
 echo
 echo "[ccui] CloudCLI: http://$HOST:$PORT"
 echo "[ccui] run home: $CC_HOME"
-echo "[ccui] first run: open the URL and create a local username/password."
+if [ "$PLATFORM" = "1" ]; then
+    echo "[ccui] platform mode: no login required (local-only)."
+fi
 echo "[ccui] Ctrl+C to stop."
 echo
 
-exec env HOME="$CC_HOME" SERVER_PORT="$PORT" HOST="$HOST" \
-    node "$CCUI_DIR/dist-server/server/index.js"
+run_server() {
+    if [ "$PLATFORM" = "1" ]; then
+        env HOME="$CC_HOME" SERVER_PORT="$PORT" HOST="$HOST" VITE_IS_PLATFORM=true \
+            node "$CCUI_DIR/dist-server/server/index.js" &
+    else
+        env HOME="$CC_HOME" SERVER_PORT="$PORT" HOST="$HOST" \
+            node "$CCUI_DIR/dist-server/server/index.js" &
+    fi
+    SERVER_PID=$!
+}
+
+seed_platform_user() {
+    local base="http://$HOST:$PORT"
+    local tries=0
+    until curl -sf -m 2 "$base/health" >/dev/null 2>&1; do
+        tries=$((tries + 1))
+        if [ "$tries" -ge 30 ]; then
+            echo "[ccui] server did not become healthy; skipping seed" >&2
+            return 0
+        fi
+        sleep 0.5
+    done
+
+    local needs_setup
+    needs_setup=$(curl -sf -m 3 "$base/api/auth/status" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("needsSetup"))' 2>/dev/null || echo "")
+    if [ "$needs_setup" = "True" ]; then
+        local pass
+        pass=$(python3 -c 'import secrets; print(secrets.token_urlsafe(24))')
+        if curl -sf -m 5 -H 'Content-Type: application/json' \
+            -d "{\"username\":\"mygoldmine\",\"password\":\"$pass\"}" \
+            "$base/api/auth/register" > /dev/null 2>&1; then
+            umask 077
+            printf '{"username":"mygoldmine","password":"%s"}\n' "$pass" \
+                > "$CC_HOME/ccui-credentials.json"
+            echo "[ccui] seeded local user 'mygoldmine' (credentials: $CC_HOME/ccui-credentials.json)"
+        else
+            echo "[ccui] seed register failed; continuing (user may already exist)" >&2
+        fi
+    fi
+
+    curl -sf -m 5 -X POST "$base/api/user/complete-onboarding" > /dev/null 2>&1 || true
+}
+
+trap 'kill "$SERVER_PID" 2>/dev/null' INT TERM
+run_server
+if [ "$PLATFORM" = "1" ]; then
+    seed_platform_user
+fi
+wait "$SERVER_PID"

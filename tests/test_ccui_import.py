@@ -96,6 +96,16 @@ def test_convert_run_writes_claude_session(tmp_path: Path) -> None:
     history = (home / ".claude" / "history.jsonl").read_text()
     assert session_id in history
 
+    sidecar_path = run / "ccui-session.json"
+    assert sidecar_path.is_file()
+    sidecar = json.loads(sidecar_path.read_text())
+    assert sidecar["sessionId"] == session_id
+    assert sidecar["project"] == "demo"
+    assert sidecar["runId"] == "20260101T000000Z"
+    assert sidecar["sessionFile"] == str(path)
+    assert sidecar["messages"] >= 2
+    assert sidecar["importedAt"]
+
 
 def test_run_dirs_excludes_smoke_by_default(tmp_path: Path) -> None:
     demo = _run(tmp_path, "demo")
@@ -103,3 +113,14 @@ def test_run_dirs_excludes_smoke_by_default(tmp_path: Path) -> None:
     runs_root = tmp_path / "runs"
     assert ccui._run_dirs(runs_root, None, True) == [demo]
     assert set(ccui._run_dirs(runs_root, None, True, True)) == {demo, smoke}
+
+
+def test_run_dirs_wanted_runs_pick_specific_run(tmp_path: Path) -> None:
+    _run(tmp_path, "demo")
+    newer = _run(tmp_path, "other")
+    runs_root = tmp_path / "runs"
+    assert ccui._run_dirs(runs_root, None, True, False, {"other/20260101T000000Z"}) == [
+        newer
+    ]
+    # A run without raw.jsonl is never picked.
+    assert ccui._run_dirs(runs_root, None, True, False, {"missing/20260101T000000Z"}) == []
