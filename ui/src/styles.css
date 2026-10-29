@@ -4504,11 +4504,12 @@ body {
 .refinery-stage span {
   display: flex;
   align-items: center;
-  gap: 4px;
-  color: #d8cdbb;
+  gap: 6px;
+  color: #e6dbc8;
   font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
 }
 
 .refinery-stage strong {
