@@ -303,6 +303,13 @@ logs/                       编排器与 ralph 日志（gitignore）
 - 验收：原矿/分诊/复现/CVE/验收计数实时显示；桌面 3D 渲染背景；移动端降级无溢出。
 - 状态：[x]
 
+### T34 Flag-based 动态验收
+
+- 目标：在隔离 lab 里让红队 agent 实际拿到 flag，再由独立 judge 审核轨迹。
+- 产物：`scripts/redteam/lab.py`、`agent.py`、`judge.py`、`exploit-judge` agent、`labs/demo`。
+- 验收：攻击者容器无 host/flag 挂载；flag 随机；红队可 agentic 执行 shell；judge 可拒绝作弊轨迹；approved 写入 RSI 轨迹。
+- 状态：[x]
+
 ## 初判差距假设（待 T01-T03 用证据确认，不得直接当结论）
 
 现有 84 个 skill 偏 Web 漏洞与智能合约，对 AI 基础设施可能弱覆盖：

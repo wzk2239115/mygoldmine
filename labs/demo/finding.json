@@ -1,0 +1,11 @@
+{
+  "id": "DEMO-CMD-001",
+  "title": "Unauthenticated command injection in /api/run",
+  "severity": "high",
+  "root_cause": "The /api/run endpoint passes the client-controlled cmd parameter directly to subprocess.run(shell=True) without authentication.",
+  "impact": "A network client can execute commands as the service user and read the protected flag file.",
+  "reachability": "default",
+  "evidence": [
+    {"path": "labs/demo/victim.py", "line": 18, "snippet": "subprocess.run(command, shell=True, ...)"}
+  ]
+}
