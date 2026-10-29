@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Database, ExternalLink, LayoutGrid, List, Moon, PanelLeft, RefreshCw, Search, Sun, Terminal, X } from 'lucide-react';
+import { Database, ExternalLink, GitBranch, LayoutGrid, List, Moon, PanelLeft, RefreshCw, Search, Sun, Terminal, X } from 'lucide-react';
 import { SCOPE_OPTIONS } from '../constants.js';
 import { cx, formatDate } from '../utils.js';
 
@@ -122,6 +122,15 @@ export default function TopBar({
             onClick={() => setView('table')}
           >
             <List size={16} />
+          </button>
+          <button
+            type="button"
+            className={cx(view === 'map' && 'is-active')}
+            title="项目地图"
+            aria-label="项目地图"
+            onClick={() => setView('map')}
+          >
+            <GitBranch size={15} />
           </button>
         </div>
 

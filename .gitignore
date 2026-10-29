@@ -42,3 +42,6 @@ catalog/*.log
 catalog/*.jsonl
 catalog/*.pid
 catalog/queue-batch1b.sh
+
+# Image generation cache
+.cache/

@@ -275,6 +275,13 @@ logs/                       编排器与 ralph 日志（gitignore）
   状态写入 `ui/data/state.json`；默认只监听回环；前端构建与 Playwright 冒烟通过。
 - 状态：[x]
 
+### T30 项目地图与视觉报告
+
+- 目标：把项目结构、审计覆盖、攻击路径做成可读树，并用 image2 生成封面/插图。
+- 产物：`project-cartographer` skill、`visual-model.json`、SVG 图、`report-illustrated.md`、UI Map 视图。
+- 验收：至少 1 个项目生成结构/覆盖/攻击路径图；UI 可点节点跳 finding；image2 生成封面且标注非证据。
+- 状态：[x]
+
 ## 初判差距假设（待 T01-T03 用证据确认，不得直接当结论）
 
 现有 84 个 skill 偏 Web 漏洞与智能合约，对 AI 基础设施可能弱覆盖：

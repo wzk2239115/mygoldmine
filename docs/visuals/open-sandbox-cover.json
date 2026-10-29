@@ -1,0 +1,22 @@
+{
+  "file": "docs/visuals/open-sandbox-cover.webp",
+  "model": "softwareone/openai/gpt-image-2",
+  "requested_model": "openai/gpt-image-2",
+  "size": "1024x1024",
+  "quality": "auto",
+  "usage": {
+    "total_tokens": 232,
+    "input_tokens": 36,
+    "output_tokens": 196,
+    "input_tokens_details": {
+      "text_tokens": 36,
+      "image_tokens": 0
+    },
+    "output_tokens_details": {
+      "text_tokens": 0,
+      "image_tokens": 196
+    }
+  },
+  "prompt": "editorial ink illustration of a sealed evidence folder on warm paper, vermilion accent, no text, no logos, high contrast, subtle paper grain",
+  "hash": "2fd261e7878d559e8ea0c9d5699ce4b231e035ec4964ee3a8e64ae4bec4400a5"
+}

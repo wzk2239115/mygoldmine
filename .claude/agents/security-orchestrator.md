@@ -337,6 +337,24 @@ Task(
 环境就绪后，后续分析和 `verify-agent` 都使用该镜像。不要因为环境构建失败就跳过静态扫描；
 在报告中把依赖运行时的结论标为 `unverified`。
 
+## Phase 3.5：视觉报告（project-cartographer）
+
+静态报告生成后，可调用 `project-cartographer` skill 生成：
+
+- `visual/visual-model.json`：项目结构树、覆盖树、攻击路径树
+- `visual-rendered/*.svg`：报告用结构图/覆盖图/攻击路径
+- `report-illustrated.md`：带图报告
+- 可选 image2 封面/章节插图
+
+```bash
+python3 .claude/skills/project-cartographer/scripts/build_visual_model.py --project <project>
+python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
+  --model runs/<project>/<run>/visual/visual-model.json \
+  --out-dir runs/<project>/<run>/visual-rendered
+```
+
+结构图、覆盖图和攻击路径必须由源码/证据数据生成；image2 只做封面和氛围插图，不作为漏洞证据。
+
 ## Phase 4：漏洞验证（verify-agent）
 
 `report-generator` 生成报告后，对 Critical/High（必要时 Medium）逐条调用 `verify-agent`：

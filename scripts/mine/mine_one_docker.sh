@@ -259,5 +259,10 @@ mapfile -d '' -t _cmd < <(docker_cmd)
 rc=$?
 stop_renderer
 trap - INT TERM
+VISUAL_SCRIPT="$REPO_ROOT/.claude/skills/project-cartographer/scripts/build_visual_model.py"
+if [ -f "$VISUAL_SCRIPT" ] && [ -s "$RUN_DIR/audit-report.json" ]; then
+    mkdir -p "$META"
+    python3 "$VISUAL_SCRIPT" --project "$PROJECT" --run-dir "$RUN_DIR" >> "$META/visual.log" 2>&1 || true
+fi
 log "容器退出 rc=$rc run_dir=$RUN_DIR"
 exit "$rc"

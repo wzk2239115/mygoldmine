@@ -19,6 +19,7 @@ async function request(url, options = {}) {
 export const api = {
   board: () => request('/api/board'),
   live: () => request('/api/live'),
+  visual: (project, runId) => request(`/api/visual/${encodeURIComponent(project)}/${encodeURIComponent(runId)}`),
   runs: () => request('/api/runs'),
   log: (project, runId, lines = 400) =>
     request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/log?lines=${lines}`),

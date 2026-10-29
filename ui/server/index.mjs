@@ -935,6 +935,33 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    const visualMatch = pathname.match(/^\/api\/visual\/([^/]+)\/([^/]+)$/);
+    if (req.method === 'GET' && visualMatch) {
+      const run = findRun(visualMatch[1], visualMatch[2], false);
+      if (!run) return sendError(res, 404, 'Run not found');
+      const file = path.join(run.runDir, 'visual', 'visual-model.json');
+      if (!fileExists(file)) return sendError(res, 404, 'Visual model not generated');
+      sendFile(res, file, 'no-store');
+      return;
+    }
+
+    const visualAssetMatch = pathname.match(/^\/api\/visual\/([^/]+)\/([^/]+)\/asset$/);
+    if (req.method === 'GET' && visualAssetMatch) {
+      const run = findRun(visualAssetMatch[1], visualAssetMatch[2], false);
+      if (!run) return sendError(res, 404, 'Run not found');
+      const requested = String(url.searchParams.get('path') || '');
+      if (!requested || requested.includes('..') || path.isAbsolute(requested)) return sendError(res, 400, 'Invalid asset path');
+      const roots = [path.join(run.runDir, 'visual'), path.join(run.runDir, 'visual-rendered')];
+      for (const root of roots) {
+        const file = path.resolve(root, requested);
+        if (file !== root && file.startsWith(`${root}${path.sep}`) && fileExists(file)) {
+          sendFile(res, file, 'no-store');
+          return;
+        }
+      }
+      return sendError(res, 404, 'Visual asset not found');
+    }
+
     const logTextMatch = pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/log\.txt$/);
     if (req.method === 'GET' && logTextMatch) {
       const run = findRun(logTextMatch[1], logTextMatch[2], false);

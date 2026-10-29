@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Database, LayoutGrid, List, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Database, GitBranch, LayoutGrid, List, RefreshCw, ShieldAlert } from 'lucide-react';
 import { api } from './api.js';
 import { countBy, cx } from './utils.js';
 import Board from './components/Board.jsx';
@@ -7,6 +7,7 @@ import DetailDrawer from './components/DetailDrawer.jsx';
 import LiveRunDrawer from './components/LiveRunDrawer.jsx';
 import RunsDrawer from './components/RunsDrawer.jsx';
 import LiveRunsStrip from './components/LiveRunsStrip.jsx';
+import MapView from './components/MapView.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import StatsStrip from './components/StatsStrip.jsx';
 import TableView from './components/TableView.jsx';
@@ -361,6 +362,15 @@ export default function App() {
           </button>
           <button
             type="button"
+            className={cx('rail-button', view === 'map' && 'is-active')}
+            title="项目地图"
+            aria-label="项目地图"
+            onClick={() => setView('map')}
+          >
+            <GitBranch size={18} />
+          </button>
+          <button
+            type="button"
             className={cx('rail-button', filters.scope === 'cve' && 'is-active')}
             title="CVE 候选"
             aria-label="CVE 候选"
@@ -469,6 +479,18 @@ export default function App() {
                 setLiveRun(null);
                 setSelectedKey(finding.key);
               }}
+            />
+          ) : null}
+
+          {!loading && board && view === 'map' ? (
+            <MapView
+              board={board}
+              filters={filters}
+              onOpenFinding={(finding) => {
+                setLiveRun(null);
+                setSelectedKey(finding.key);
+              }}
+              onToast={showToast}
             />
           ) : null}
 

@@ -122,6 +122,26 @@ bash scripts/ui/start.sh
 
 详见 `ui/README.md`、`docs/cve-candidates.md`、`docs/cve-handoff.json`。
 
+## 项目地图与视觉报告
+
+`project-cartographer` skill 把项目结构、审计覆盖和漏洞证据做成可读的树和 case card：
+
+```bash
+python3 .claude/skills/project-cartographer/scripts/build_visual_model.py --project aud-048-opensandbox
+python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
+  --model runs/aud-048-opensandbox/20261028T080748Z/visual/visual-model.json \
+  --out-dir runs/aud-048-opensandbox/20261028T080748Z/visual-rendered
+```
+
+产物：
+- `visual-model.json`：项目结构树、审计覆盖树、攻击路径树
+- `visual-rendered/*.svg`：结构图、覆盖图、攻击路径
+- `report-illustrated.md`：带图报告
+- `docs/visuals/*.webp`：image2 封面/章节插图，不充当漏洞证据
+
+UI 的 **项目地图** 视图读取 `visual-model.json`，可以点节点直接跳到 finding。
+360 平台已验证 `openai/gpt-image-2` 等图像模型；密钥从 opencode 配置读取，不落库。
+
 ## 整夜并行挖掘（Phase 3）
 
 在 Docker 外由宿主机脚本编排：克隆目标源码 → 5 项目并行 → 每项目 ≤ 6h → 产出可读过程日志与报告。
