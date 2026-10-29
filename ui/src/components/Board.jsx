@@ -27,7 +27,7 @@ function SeverityBar({ findings }) {
   );
 }
 
-export default function Board({ findings, onOpen, onMove, hiddenStatuses = [] }) {
+export default function Board({ findings, onOpen, onMove, hiddenStatuses = [], statusTotals = {} }) {
   const [dragging, setDragging] = useState(null);
   const [overColumn, setOverColumn] = useState(null);
   const [expanded, setExpanded] = useState({});
@@ -124,7 +124,12 @@ export default function Board({ findings, onOpen, onMove, hiddenStatuses = [] })
                 {items.length === 0 ? (
                   <div className="column-empty">
                     <Inbox size={18} aria-hidden="true" />
-                    <span>暂无条目；自动流转或拖拽后会出现在这里</span>
+                    <span>当前筛选下没有 finding</span>
+                    {statusTotals[column.id] ? (
+                      <small>全局还有 {statusTotals[column.id]} 条，清除筛选后可查看</small>
+                    ) : (
+                      <small>自动流转或拖拽后会出现在这里</small>
+                    )}
                   </div>
                 ) : null}
               </div>

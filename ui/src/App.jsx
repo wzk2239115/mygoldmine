@@ -469,6 +469,7 @@ export default function App() {
             <Board
               findings={filtered}
               hiddenStatuses={filters.hideInbox ? ['inbox'] : []}
+              statusTotals={board.stats?.status || {}}
               onOpen={(finding) => {
                 setLiveRun(null);
                 setSelectedKey(finding.key);

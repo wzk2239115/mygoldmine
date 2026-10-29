@@ -4573,3 +4573,10 @@ body {
 
   .refinery-stage { min-width: 74px; }
 }
+
+.column-empty small {
+  max-width: 210px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
