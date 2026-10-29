@@ -25,11 +25,6 @@ export default function RefineryStrip({ stats }) {
     <section className="refinery-strip" aria-label="精炼管线">
       <img className="refinery-art" src="/refinery-hero.webp" alt="" aria-hidden="true" />
       <div className="refinery-shade" />
-      <div className="refinery-copy">
-        <span className="eyebrow">REFINERY / FINDINGS PIPELINE</span>
-        <strong>把原始发现炼成可验收的 case</strong>
-        <span className="refinery-sub">自动评分、去重、复现、CVE 去重；人只看最后的精品。</span>
-      </div>
       <div className="refinery-track" aria-label="流程计数">
         {stages.map((stage, index) => (
           <div className="refinery-node" key={stage.label}>

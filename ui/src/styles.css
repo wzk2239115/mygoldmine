@@ -4443,11 +4443,10 @@ body {
 .refinery-strip {
   position: relative;
   display: flex;
-  min-height: 198px;
-  align-items: flex-end;
-  gap: 20px;
+  min-height: 168px;
+  align-items: center;
   margin: 12px 18px 0;
-  padding: 20px 22px;
+  padding: 24px 28px;
   overflow: hidden;
   color: #fff8ec;
   background: #1c1b16;
@@ -4475,39 +4474,12 @@ body {
   z-index: -1;
 }
 
-.refinery-copy {
-  display: flex;
-  min-width: 250px;
-  flex-direction: column;
-  gap: 3px;
-  padding-bottom: 4px;
-}
-
-.refinery-copy .eyebrow {
-  color: #d8cdbb;
-}
-
-.refinery-copy strong {
-  font-family: var(--font-display);
-  font-size: clamp(18px, 2vw, 26px);
-  line-height: 1.1;
-  letter-spacing: -0.03em;
-}
-
-.refinery-sub {
-  max-width: 390px;
-  color: #d8cdbb;
-  font-size: 10px;
-  line-height: 1.5;
-}
-
 .refinery-track {
   display: flex;
-  flex: 1;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: 4px;
-  padding-bottom: 2px;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .refinery-node {
@@ -4518,10 +4490,11 @@ body {
 
 .refinery-stage {
   display: flex;
-  min-width: 82px;
+  min-width: 110px;
+  flex: 1;
   flex-direction: column;
-  gap: 2px;
-  padding: 7px 9px;
+  gap: 3px;
+  padding: 12px 14px;
   color: #fff8ec;
   background: rgba(251, 247, 237, 0.1);
   border: 1px solid rgba(255, 248, 236, 0.24);
@@ -4540,7 +4513,7 @@ body {
 
 .refinery-stage strong {
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 30px;
   line-height: 1;
 }
 
@@ -4586,9 +4559,7 @@ body {
 @media (max-width: 900px) {
   .refinery-strip {
     min-height: 260px;
-    flex-direction: column;
     align-items: stretch;
-    gap: 12px;
   }
 
   .refinery-art { object-position: center; opacity: 0.5; }
