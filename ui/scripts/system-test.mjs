@@ -121,13 +121,15 @@ async function main() {
     assert.equal(await cdp.evaluate("document.querySelectorAll('.eyebrow').length"), 0);
     assert.equal(await cdp.evaluate("getComputedStyle(document.body).backgroundColor"), 'rgb(255, 255, 255)');
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.rail')).backgroundColor"), 'rgb(247, 247, 248)');
-    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-art')).display"), 'none');
+    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-art')).display"), 'block');
+    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-shade')).display"), 'block');
+    assert.equal(await cdp.evaluate("document.querySelector('.refinery-art').naturalWidth"), 1024);
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"设置\"]').click()");
     await cdp.evaluate("document.querySelectorAll('.settings-segment button')[1].click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.documentElement.dataset.theme"), 'dark');
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.rail')).backgroundColor"), 'rgb(23, 23, 23)');
-    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-strip')).backgroundColor"), 'rgb(47, 47, 47)');
+    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-strip')).backgroundColor"), 'rgb(32, 32, 32)');
     await cdp.evaluate("document.querySelectorAll('.settings-segment button')[0].click()");
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"设置\"]').click()");
     await sleep(150);
