@@ -20,11 +20,11 @@ import { cx } from '../utils.js';
 const STAGES = [
   {
     code: '01',
-    title: '原始报告',
+    title: '报告与台账',
     icon: FileCode2,
     tone: 'ink',
-    body: '审计容器输出 audit-report.json。此时只有 finding、证据路径和攻击面描述，没有“已确认”结论。',
-    artifact: 'runs/<project>/<run>/audit-report.json'
+    body: '只接收完整有效的审计报告；occurrence 定位单次观测，semantic 汇聚跨 run 的同一语义，草稿不会覆盖历史。',
+    artifact: 'runs/*/*/audit-report.json → finding-ledger.json'
   },
   {
     code: '02',
@@ -55,8 +55,8 @@ const STAGES = [
     title: '红队 lab',
     icon: Bot,
     tone: 'violet',
-    body: 'lab-builder 自动判断 http/stdio/cli/library/ipc/model 形态，构建 victim、随机 flag 和 attacker。',
-    artifact: 'labs/<project>/scenario.json · runs/redteam/*'
+    body: 'scenario 按 finding 隔离并绑定 source hash；当前执行器只支持 HTTP，其他形态明确 blocked，不做伪装包装。',
+    artifact: 'labs/<project>/<finding-id>/scenario.json · runs/redteam/*'
   },
   {
     code: '06',
@@ -70,39 +70,57 @@ const STAGES = [
 
 const COMPONENTS = [
   {
-    icon: Workflow,
-    title: '精炼 worker',
-    body: '后台分批消费原始池。人工/curated/auto 已处理项跳过；精确重复归档；Critical/High 进入分诊。',
-    code: 'scripts/workflow/refine_worker.py'
+    icon: Layers3,
+    title: 'Finding Ledger',
+    body: '扫描全部完整有效 run，保留 occurrence/semantic 双层身份；同 ID 异义不串状态，历史独有项不消失。',
+    code: 'scripts/workflow/finding_ledger.py'
   },
   {
     icon: Braces,
     title: '状态编译器',
-    body: '聚合报告、verify、红队结果和人工状态，生成 UI 需要的 finding 字段与 review 门槛。',
+    body: '基于台账合并 verify、CVE 和人工状态，再次重算红队 provenance 与 review 门槛。',
     code: 'scripts/workflow/build_state.py'
+  },
+  {
+    icon: Workflow,
+    title: '精炼 worker',
+    body: '按 source hash 重算路由；confirmed 可唤醒归档，高危弱指纹只进入重复候选而不直接归档。',
+    code: 'scripts/workflow/refine_worker.py'
+  },
+  {
+    icon: Database,
+    title: '持久化恢复',
+    body: '全 run 共享 deadline，区分 setup/model/tool idle；attempt 成果落盘，恢复后继续完成 Phase 4。',
+    code: 'scripts/mine/durable_recovery.py'
   },
   {
     icon: Boxes,
     title: 'Lab builder',
-    body: 'agentic skill：读 finding + 源码，选择 lab 形态，构建 victim/attacker，设计 flag 暴露路径。',
+    body: '按 finding/source 绑定 scenario 并校验执行契约；当前只有 HTTP lab 能进入运行阶段。',
     code: '.claude/skills/redteam-lab-builder'
   },
   {
     icon: Network,
     title: 'Red-team runner',
-    body: 'OpenAI-compatible 模型在 attacker 容器里循环执行 shell；每步记录 trace，不接触宿主。',
+    body: 'attacker 在受限容器执行工具；flag 只能来自真实工具输出，最终回答和宿主路径不算证据。',
     code: 'scripts/redteam/agent.py'
   },
   {
     icon: ShieldCheck,
     title: 'Independent judge',
-    body: '不同模型实例审核红队轨迹，拒绝捷径、伪造 flag、调试后门和不可复现路径。',
+    body: '完整固定 schema + 确定性 provenance 双重校验，缺字段、字符串布尔或哈希不一致都拒绝。',
     code: 'scripts/redteam/judge.py'
+  },
+  {
+    icon: ScanSearch,
+    title: 'Verification-RSI',
+    body: '学习验证动作的效用而非模仿历史；trusted 标签、holdout 和统计门禁不足时只允许 shadow。',
+    code: 'audit_rsi/verification.py · evaluation.py · release.py'
   },
   {
     icon: Sparkles,
     title: '视觉报告',
-    body: '结构树、覆盖树、攻击路径、attacker/victim 步骤和 image2 叙事插图；插图不充当证据。',
+    body: '结构树、覆盖树、攻击路径、attacker/victim 步骤和叙事插图；插图不充当漏洞证据。',
     code: '.claude/skills/project-cartographer'
   }
 ];
@@ -272,13 +290,13 @@ export default function ArchitectureView({ board }) {
                         <span>决策也变成训练数据</span>
           </div>
           <div className="arch-loop">
-            <span>refine.jsonl</span><ArrowRight size={14} /><span>validation.jsonl</span><ArrowRight size={14} /><span>RSI policy</span>
+            <span>experience</span><ArrowRight size={14} /><span>trusted labels</span><ArrowRight size={14} /><span>holdout + gates</span><ArrowRight size={14} /><span>release</span>
           </div>
           <p>
-            自动路由记录 features / decision / score；红队通过记录 finding / trace / judge。
-            后续用人工验收和 verify 结果补标签，回放历史策略，调整阈值和排序。
+            经验记录动作前上下文、倾向、证据等级、成本与结果；模型学习 verify / deep_read / human_review 等动作效用。
+            static 标签不能冒充人工或运行时真值；支持不足时只给只读 shadow，不发布生产策略。
           </p>
-          <code>rsi/trajectories/*.jsonl</code>
+          <code>audit_rsi/experience.py → evaluation.py → release.py</code>
         </article>
         <article className="arch-panel">
           <div className="arch-panel-head">

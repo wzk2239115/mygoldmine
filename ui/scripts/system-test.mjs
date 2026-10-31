@@ -149,6 +149,17 @@ async function main() {
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '自动狩猎');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.search-box').length"), 0);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.content-head').length"), 0);
+    await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"系统架构\"]').click()");
+    await sleep(150);
+    assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '系统架构');
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-component').length"), 9);
+    const architectureText = await cdp.evaluate("document.querySelector('.arch-view').innerText");
+    assert.match(architectureText, /Finding Ledger/);
+    assert.match(architectureText, /持久化恢复/);
+    assert.match(architectureText, /Verification-RSI/);
+    assert.match(architectureText, /当前执行器只支持 HTTP/);
+    assert.match(architectureText, /trusted labels/);
+    assert.doesNotMatch(architectureText, /http\/stdio\/cli/);
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"待验收\"]').click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '待验收');

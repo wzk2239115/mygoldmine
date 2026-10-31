@@ -28,6 +28,12 @@
 │ 静态审计报告       │  runs/<project>/<run>/audit-report.json
 │ + coverage/证据    │
 └──────┬───────────┘
+       │ finding_ledger.py（仅完整有效 run）
+       ▼
+┌──────────────────┐
+│ Finding Ledger    │  occurrence / semantic 双层身份
+│ 跨 run 历史台账    │  finding-ledger.json
+└──────┬───────────┘
        │ build_state.py
        ▼
 ┌──────────────────┐
@@ -69,6 +75,8 @@
 | 路径 | 职责 |
 |---|---|
 | `scripts/mine/mine_one_docker.sh` | 启动审计容器、生成原始报告、触发视觉/精炼 |
+| `scripts/mine/progress_guard.py` | 以共享 deadline 和真实进展区分 setup/model/tool idle，超时统一失败语义 |
+| `scripts/mine/durable_recovery.py` | 持久化分支成果、隔离失败并恢复未完成工作，recovery 后继续 Phase 4 |
 | `scripts/workflow/finding_ledger.py` | 扫描全部有效 run，生成 occurrence/semantic 双层身份和历史台账 |
 | `scripts/workflow/build_state.py` | 基于台账合并 verify、CVE 和人工状态，重算红队 provenance 并生成 review 门槛 |
 | `scripts/workflow/refine_worker.py` | 按 source hash 重算路由，低价值归档，高分晋级 |
@@ -79,8 +87,9 @@
 | `scripts/redteam/judge.py` | 确定性 provenance 校验 + 独立模型审核 |
 | `scripts/redteam/batch.py` | 按 finding 构建/预检 lab，保留结构化失败原因 |
 | `.claude/skills/project-cartographer/` | 视觉模型、结构/覆盖/攻击场景图、image2 插图 |
-| `ui/` | 看板、精炼管线、待验收队列、详情、项目地图 |
-| `rsi/` | 多轮一致性和策略回放 |
+| `ui/` | 看板、表格、项目地图、持续监控、系统架构和运行详情 |
+| `audit_rsi/` | 经验构建、标签合并、效用训练、holdout 回放、统计门禁和只读 shadow |
+| `rsi_version/` | 不可变候选版本、发布复核和回滚存储 |
 
 ## 4. 身份、状态与优先级
 
@@ -222,3 +231,9 @@ python3 scripts/redteam/batch.py
 
 - 只改 `exploit-judge.md` 和 `judge.py` 的输出 schema，不改变红队工具权限。
 - judge 不能调用攻击工具，不能修改 trace/finding/result。
+
+## 13. 架构说明维护
+
+根目录 `AGENTS.md` 定义了同步契约。模块、数据流、finding 身份、状态门禁、API、恢复机制、安全边界或 RSI 发布关系变化时，同一轮修改必须核对本文和 `ui/src/components/ArchitectureView.jsx`；用户入口变化还要核对 README。局部且不改变行为的修复不需要机械更新，但不能保留已知过时描述。
+
+架构页是面向使用者的当前实现摘要，本文是面向开发人员的完整契约，两者都不能把计划、静态标签或 shadow 描述成已验证、已发布的生产能力。

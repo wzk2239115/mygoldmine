@@ -105,7 +105,7 @@ workspace-scanner → project-profiler
 
 ## 漏洞挖掘 Kanban UI
 
-`ui/` 提供一个读取 `runs/*/*/audit-report.json` 的本地看板，交互参考 `claudecodeui` 的 workspace 组织方式，视觉按 `oil-ui` 的证据档案方向实现。
+`ui/` 提供一个读取 `runs/*/*/audit-report.json` 的本地看板，采用中性浅色、细边框和清晰状态色；支持看板、表格、项目地图、持续监控与系统架构视图。
 
 ```bash
 bash scripts/ui/start.sh
@@ -114,7 +114,7 @@ bash scripts/ui/start.sh
 
 - 六阶段：原矿 / 分诊 / 复现 / CVE 跟踪 / 待验收 / 已关闭。
 - 运行中的 run 会在看板顶部出现 LIVE 条：显示状态、耗时、最后一行日志；点开默认看 CCUI 对话，另有 **Agent 拓扑** tab 展示 orchestrator → 边界 agent → critic → verify 的 fan-out。运行视图不会自动重载 iframe；有新轨迹时只显示“有新内容 · 更新”按钮，避免阅读位置被刷新打断。
-- 卡片：严重度、TP/FP/DUP、CVE Tier、证据数；原生拖拽改状态。
+- 卡片：严重度、TP/FP/DUP、CVE Tier、证据数；点击或键盘打开详情，在详情中修改状态与判定。
 - 详情：Brief / Evidence / Agent stream；可看原始报告、证据路径、`claude.rendered.log` 尾部。
 - 筛选：目标、严重度、判定、CVE-only、搜索；默认展示全部 finding，不再分精选/CVE/全部三档。
 - 跨 run 台账：`finding_ledger.py` 扫描全部完整有效报告，以 occurrence/semantic 双层身份保留历史独有 finding，并避免同 ID 异义串状态；运行中草稿不替代完整报告。
@@ -149,7 +149,7 @@ python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
 
 推荐再加 `VISUAL_AGENTIC=1`：由 `attack-scene-director` 读取 finding/verify/源码证据，先写 attacker/victim 分镜和 prompt，再调用 image2；失败时回退到模板批处理。
 
-看板顶部还有一条 **精炼管线 hero**：3D 风格炼厂概念图 + 原矿/分诊/复现/CVE 去重/验收实时计数。
+看板首页提供轻量 **精炼管线**：原矿/分诊/复现/CVE 跟踪/待验收/已关闭实时计数，以及严重度和判定筛选；叙事插图只保留在项目地图与图文报告中。
 
 UI 的 **项目地图** 视图读取 `visual-model.json`，可以点节点直接跳到 finding。
 360 平台已验证 `openai/gpt-image-2` 等图像模型；密钥从 opencode 配置读取，不落库。

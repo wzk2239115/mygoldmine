@@ -74,10 +74,10 @@ npm run smoke
 
 ## 视图
 
-- **Board**：5 列 Kanban，原生拖拽移动状态；卡片显示严重度、判定、CVE Tier、证据数。
-- **Live mining**：运行中的 run 在看板顶部显示 LIVE 条（状态、耗时、最后一行日志）；点开进入实时日志抽屉，2 秒刷新，可跳到最新。报告生成后看板自动重载。
+- **Board**：六阶段流程视图；卡片显示严重度、判定、CVE Tier、证据数，点击或键盘打开详情后修改状态。
+- **Live mining**：运行中的 run 在看板顶部显示 LIVE 条（状态、耗时、最后一行日志）；点开进入实时日志抽屉，运行状态每 4 秒轮询，报告生成后看板自动重载。
 - **Table**：按严重度/目标排序，适合批量分诊。
-- **系统架构**：左侧轨道书图标进入开发者架构页，包含端到端流水线、组件、状态优先级、红队隔离边界和 RSI 回路。
+- **系统架构**：左侧轨道书图标进入当前实现说明页，包含 Finding Ledger、端到端流水线、恢复机制、状态优先级、红队隔离边界和 Verification-RSI 门禁。同步维护要求见根目录 `AGENTS.md`。
 - **Detail drawer**：Brief / Evidence / Agent stream。
   - Brief：改状态、判定、CVE Tier、CVE 状态、关联 CVE、审计备注。
   - Evidence：复制证据路径、打开 `audit-report.md` / `.json`、查看原始 finding JSON。
@@ -103,7 +103,7 @@ npm run smoke
 ## 设计说明
 
 - 交互参考 `siteboon/claudecodeui` 的 workspace shell、侧栏、详情面板和 agent session 组织方式；**没有 vendoring 它的代码**（其许可证为 AGPL-3.0-or-later）。
-- 视觉方向按 `oil-oil/oil-ui` 的方法执行：证据档案/现场工作台，不是通用深色 dashboard；压缩展示字 + 等宽证据 + 纸面卡片；一个红色强调，严重度用编码色；避免为每个指标加卡片底板。
+- 视觉采用中性浅色工作区：白色内容面、浅灰侧栏、细边框和柔和圆角；颜色主要用于严重度、判定、错误和运行状态，深色主题使用中性炭灰。
 - 报告是静态分析结果，UI 会明确标注“未运行时验证”。CVE 结论以人工复核和 `docs/cve-handoff.json` 为准。
 
 ## 重置
