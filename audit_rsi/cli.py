@@ -64,9 +64,18 @@ def _emit(data: Any, as_json: bool) -> None:
         print(json.dumps(data, ensure_ascii=False, indent=2))
         return
     if isinstance(data, PolicyScore):
+        fp = f"{data.mean_fp_rate:.3f}" if data.mean_fp_rate is not None else "N/A"
+        dup = (
+            f"{data.mean_dup_rate:.3f}" if data.mean_dup_rate is not None else "N/A"
+        )
+        labels = (
+            f"{data.mean_label_coverage:.3f}"
+            if data.mean_label_coverage is not None
+            else "N/A"
+        )
         print(
             f"{data.policy:>16}  score={data.score:.4f}  "
-            f"fp={data.mean_fp_rate:.3f}  dup={data.mean_dup_rate:.3f}  "
+            f"fp={fp}  dup={dup}  labels={labels}  "
             f"coverage={data.mean_coverage:.3f}  calls={data.total_calls}"
         )
         return
@@ -211,11 +220,126 @@ def cmd_evolve(args: argparse.Namespace) -> int:
         curated_path=args.curated,
         handoff_path=args.handoff,
         adjudication_path=args.adjudication,
+        holdout_project=args.holdout_project,
         betas=args.betas,
         max_workers=args.workers,
         max_rounds=args.max_rounds,
     )
     _emit(result, args.json)
+    return 0
+
+
+def cmd_experience_build(args: argparse.Namespace) -> int:
+    try:
+        from .experience import build_experience
+    except ImportError as exc:
+        raise SystemExit(
+            "experience-build requires audit_rsi.experience.build_experience"
+        ) from exc
+    records = build_experience(runs_root=Path(args.runs), output_path=Path(args.output))
+    _emit(
+        {"output": str(Path(args.output)), "records": len(records)}, args.json
+    )
+    return 0
+
+
+def cmd_label_sample(args: argparse.Namespace) -> int:
+    try:
+        from .labeling import stratified_sample
+    except ImportError as exc:
+        raise SystemExit("label-sample requires audit_rsi.labeling.stratified_sample") from exc
+    from .verification import read_experience, write_jsonl
+
+    records = read_experience(args.pool)
+    sample = stratified_sample(records, sample_size=args.limit, seed=args.seed)
+    write_jsonl(args.output, sample)
+    _emit(
+        {"output": str(Path(args.output)), "records": len(sample)}, args.json
+    )
+    return 0
+
+
+def cmd_label_merge(args: argparse.Namespace) -> int:
+    from .verification import merge_labels, read_experience, write_jsonl
+
+    records = read_experience(args.pool)
+    labels = read_experience(args.labels)
+    try:
+        merged = merge_labels(records, labels)
+    except ValueError as exc:
+        raise SystemExit(f"label-merge rejected input: {exc}") from exc
+    write_jsonl(args.output, merged)
+    _emit(
+        {
+            "output": str(Path(args.output)),
+            "records": len(merged),
+            "merged_labels": len(labels),
+        },
+        args.json,
+    )
+    return 0
+
+
+def _verification_policy(path: str, epsilon: float):
+    from .verification import VerificationPolicy, load_policy
+
+    model = load_policy(path) if path else {}
+    return VerificationPolicy(model, epsilon=epsilon)
+
+
+def cmd_verify_train(args: argparse.Namespace) -> int:
+    from .verification import read_experience, save_policy, train_policy
+
+    records = read_experience(args.pool)
+    model = train_policy(
+        records,
+        holdout_project=args.holdout_project,
+        ridge=args.ridge,
+        seed=args.seed,
+    )
+    save_policy(args.output, model)
+    _emit(model, args.json)
+    return 0
+
+
+def cmd_verify_shadow(args: argparse.Namespace) -> int:
+    from .verification import read_experience, write_shadow
+
+    records = read_experience(args.pool)
+    policy = _verification_policy(args.train_path, args.epsilon)
+    payload = write_shadow(
+        args.output,
+        records,
+        policy,
+        epsilon=args.epsilon,
+        seed=args.seed,
+        holdout_project=args.holdout_project,
+    )
+    _emit(
+        {
+            "output": str(Path(args.output)),
+            "policy_version": payload["policy_version"],
+            "recommendations": len(payload["recommendations"]),
+            "mode": payload["mode"],
+            "status": payload["status"],
+            "reason": payload["reason"],
+        },
+        args.json,
+    )
+    return 0
+
+
+def cmd_verify_replay(args: argparse.Namespace) -> int:
+    from .verification import read_experience, replay_policies, write_json
+
+    records = read_experience(args.pool)
+    policy = _verification_policy(args.train_path, args.epsilon)
+    payload = replay_policies(
+        records, policy, holdout_project=args.holdout_project
+    )
+    if args.output:
+        write_json(args.output, payload)
+    _emit(payload, args.json)
     return 0
 
 
@@ -291,6 +415,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_evolve.add_argument("--agent-cmd", default="")
     p_evolve.add_argument("--timeout", type=int, default=1800)
     p_evolve.add_argument("--dry-run", action="store_true")
+    p_evolve.add_argument("--holdout-project", default="")
     p_evolve.add_argument(
         "--curated", default=str(REPO_ROOT / "ui" / "data" / "curated.json")
     )
@@ -306,6 +431,91 @@ def build_parser() -> argparse.ArgumentParser:
     p_evolve.add_argument("--max-rounds", type=int, default=DEFAULT_MAX_ROUNDS)
     p_evolve.add_argument("--json", action="store_true")
     p_evolve.set_defaults(func=cmd_evolve)
+
+    p_experience = sub.add_parser(
+        "experience-build", help="build verification experience JSONL"
+    )
+    p_experience.add_argument("--runs", default=str(REPO_ROOT / "runs"))
+    p_experience.add_argument(
+        "--output", default=str(REPO_ROOT / "rsi" / "verification-experience.jsonl")
+    )
+    p_experience.add_argument("--json", action="store_true")
+    p_experience.set_defaults(func=cmd_experience_build)
+
+    p_label = sub.add_parser("label-sample", help="sample verification decisions for labels")
+    p_label.add_argument(
+        "--pool", default=str(REPO_ROOT / "rsi" / "verification-experience.jsonl")
+    )
+    p_label.add_argument(
+        "--output", default=str(REPO_ROOT / "rsi" / "verification-label-sample.jsonl")
+    )
+    p_label.add_argument("--limit", type=int, default=100)
+    p_label.add_argument("--seed", type=int, default=0)
+    p_label.add_argument("--json", action="store_true")
+    p_label.set_defaults(func=cmd_label_sample)
+
+    p_label_merge = sub.add_parser(
+        "label-merge", help="merge reviewed labels into verification experience"
+    )
+    p_label_merge.add_argument(
+        "--pool", default=str(REPO_ROOT / "rsi" / "verification-experience.jsonl")
+    )
+    p_label_merge.add_argument(
+        "--labels", default=str(REPO_ROOT / "rsi" / "verification-label-sample.jsonl")
+    )
+    p_label_merge.add_argument(
+        "--output",
+        default=str(REPO_ROOT / "rsi" / "verification-experience-labeled.jsonl"),
+    )
+    p_label_merge.add_argument("--json", action="store_true")
+    p_label_merge.set_defaults(func=cmd_label_merge)
+
+    p_verify_train = sub.add_parser("verify-train", help="train the verification policy")
+    p_verify_train.add_argument(
+        "--pool", default=str(REPO_ROOT / "rsi" / "verification-experience.jsonl")
+    )
+    p_verify_train.add_argument(
+        "--output", default=str(REPO_ROOT / "rsi" / "verification-policy.json")
+    )
+    p_verify_train.add_argument("--holdout-project", default="")
+    p_verify_train.add_argument("--ridge", type=float, default=10.0)
+    p_verify_train.add_argument("--seed", type=int, default=0)
+    p_verify_train.add_argument("--json", action="store_true")
+    p_verify_train.set_defaults(func=cmd_verify_train)
+
+    p_verify_shadow = sub.add_parser(
+        "verify-shadow", help="write recommendation-only verification advice"
+    )
+    p_verify_shadow.add_argument(
+        "--pool", default=str(REPO_ROOT / "rsi" / "verification-experience.jsonl")
+    )
+    p_verify_shadow.add_argument(
+        "--train", "--model", dest="train_path", default=""
+    )
+    p_verify_shadow.add_argument(
+        "--output", default=str(REPO_ROOT / "ui" / "data" / "verification-shadow.json")
+    )
+    p_verify_shadow.add_argument("--holdout-project", default="")
+    p_verify_shadow.add_argument("--epsilon", type=float, default=0.0)
+    p_verify_shadow.add_argument("--seed", type=int, default=0)
+    p_verify_shadow.add_argument("--json", action="store_true")
+    p_verify_shadow.set_defaults(func=cmd_verify_shadow)
+
+    p_verify_replay = sub.add_parser(
+        "verify-replay", help="compare realized baseline/candidate utility"
+    )
+    p_verify_replay.add_argument(
+        "--pool", default=str(REPO_ROOT / "rsi" / "verification-experience.jsonl")
+    )
+    p_verify_replay.add_argument(
+        "--train", "--model", dest="train_path", default=""
+    )
+    p_verify_replay.add_argument("--output", default="")
+    p_verify_replay.add_argument("--holdout-project", default="")
+    p_verify_replay.add_argument("--epsilon", type=float, default=0.0)
+    p_verify_replay.add_argument("--seed", type=int, default=0)
+    p_verify_replay.add_argument("--json", action="store_true")
+    p_verify_replay.set_defaults(func=cmd_verify_replay)
 
     return parser
 

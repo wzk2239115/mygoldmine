@@ -9,6 +9,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
 import build_state as base  # noqa: E402
+from contracts import (  # noqa: E402
+    ContractError,
+    classify_agent_failure,
+    finding_id as validate_finding_id,
+    resolve_scenario,
+    scenario_path,
+)
 
 CANDIDATES = ROOT / "docs" / "redteam-candidates.json"
 BATCH_ROOT = ROOT / "runs" / "redteam" / "batch"
@@ -21,87 +28,164 @@ def load(path, default):
         return default
 
 
+def output_tail(value, limit):
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+    return str(value or "")[-limit:]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidates", default=str(CANDIDATES))
     parser.add_argument("--model", default="flint")
     parser.add_argument("--base-url", default="http://100.81.81.75:8081/v1")
     parser.add_argument("--api-key", default="local")
-    parser.add_argument("--max-steps", type=int, default=10)
+    parser.add_argument("--max-steps", type=int, default=12)
+    parser.add_argument("--max-tokens", type=int, default=1200)
     parser.add_argument("--build-labs", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--build-timeout", type=int, default=1260)
+    parser.add_argument("--agent-timeout", type=int, default=900)
+    parser.add_argument("--judge-timeout", type=int, default=360)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
+    if min(args.build_timeout, args.agent_timeout, args.judge_timeout) <= 0:
+        parser.error("timeouts must be positive")
 
     candidates = load(Path(args.candidates), {}).get("candidates", [])
-    latest = base.latest_findings()
+    ledger = base.finding_ledger.build_ledger()
+    latest = base.latest_findings(ledger)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     batch_dir = BATCH_ROOT / stamp
     batch_dir.mkdir(parents=True, exist_ok=True)
     summary = []
     for index, candidate in enumerate(candidates, 1):
         project = candidate.get("project", "")
-        finding_id = candidate.get("id", "")
-        key = base.canon(project, finding_id)
-        item = latest.get(key)
-        entry = {"project": project, "id": finding_id, "key": key, "status": "blocked_no_finding"}
+        candidate_id = candidate.get("id", "")
+        key = base.canon(project, candidate_id)
+        matches = base.finding_ledger.resolve_reference(
+            ledger,
+            project=project,
+            finding_id=candidate_id,
+            run_id=candidate.get("run_id") or "",
+            occurrence_id=candidate.get("occurrence_id") or "",
+            semantic_id=candidate.get("semantic_id") or "",
+        )
+        item = next((latest[match] for match in matches if match in latest), None)
+        entry = {"project": project, "id": candidate_id, "key": key, "status": "blocked_no_finding"}
         if item:
-            finding_path = batch_dir / f"{index:02d}-{project}-{finding_id}.json"
-            finding = item.get("raw") or {}
-            finding.setdefault("id", finding_id)
+            try:
+                preferred_path = scenario_path(ROOT, project, candidate_id)
+            except ContractError as exc:
+                entry.update({"status": exc.status, "error": str(exc)})
+                summary.append(entry)
+                print(json.dumps(entry, ensure_ascii=False))
+                continue
+            finding_path = batch_dir / f"{index:02d}-{project}-{candidate_id}.json"
+            finding = dict(item.get("raw") or {})
+            finding.setdefault("id", candidate_id)
+            try:
+                if validate_finding_id(finding) != str(candidate_id):
+                    raise ContractError("blocked_finding_mismatch", "candidate and finding ids differ")
+            except ContractError as exc:
+                entry.update({"status": exc.status, "error": str(exc)})
+                summary.append(entry)
+                print(json.dumps(entry, ensure_ascii=False))
+                continue
             finding_path.write_text(json.dumps(finding, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-            entry["finding"] = str(finding_path)
-            scenario_path = ROOT / "labs" / project / "scenario.json"
-            if not scenario_path.exists() and args.build_labs and not args.dry_run:
-                builder = subprocess.run(
-                    [sys.executable, str(ROOT / "scripts" / "redteam" / "build_lab.py"),
-                     "--project", project, "--finding", str(finding_path)],
-                    capture_output=True, text=True, cwd=ROOT,
+            entry.update({"finding": str(finding_path), "scenario": str(preferred_path)})
+            build_attempted = False
+            if not preferred_path.exists() and args.build_labs and not args.dry_run:
+                build_attempted = True
+                try:
+                    builder = subprocess.run(
+                        [sys.executable, str(ROOT / "scripts" / "redteam" / "build_lab.py"),
+                         "--project", project, "--finding", str(finding_path)],
+                        capture_output=True, text=True, cwd=ROOT, timeout=args.build_timeout,
+                    )
+                    entry["builder_returncode"] = builder.returncode
+                    entry["builder_stdout"] = output_tail(builder.stdout, 1200)
+                    entry["builder_stderr"] = output_tail(builder.stderr, 1200)
+                except subprocess.TimeoutExpired as exc:
+                    entry.update({
+                        "status": "build_failed", "builder_returncode": 124,
+                        "builder_timed_out": True,
+                        "builder_stdout": output_tail(exc.stdout, 1200),
+                        "builder_stderr": output_tail(exc.stderr, 1200),
+                    })
+                if entry.get("builder_returncode") != 0:
+                    entry["status"] = "build_failed"
+                    summary.append(entry)
+                    print(json.dumps(entry, ensure_ascii=False))
+                    continue
+            try:
+                resolved_path, scenario = resolve_scenario(
+                    ROOT, project, finding, finding_path.read_bytes()
                 )
-                entry["builder_returncode"] = builder.returncode
-                entry["builder_stdout"] = builder.stdout[-1200:]
-                entry["builder_stderr"] = builder.stderr[-1200:]
-            if not scenario_path.exists():
-                entry.update({"status": "blocked_no_lab", "scenario": str(scenario_path)})
+                entry["scenario"] = str(resolved_path)
+            except ContractError as exc:
+                entry.update({
+                    "status": "build_failed" if build_attempted else exc.status,
+                    "validation_status": exc.status,
+                    "error": str(exc),
+                })
+                summary.append(entry)
+                print(json.dumps(entry, ensure_ascii=False))
+                continue
+            if args.dry_run:
+                entry["status"] = "ready"
             else:
-                scenario = load(scenario_path, {})
-                entry["scenario"] = str(scenario_path)
-                if args.dry_run:
-                    entry["status"] = "ready"
-                else:
-                    run_id = f"batch-{stamp}-{index:02d}"
-                    agent = [
-                        sys.executable, str(ROOT / "scripts" / "redteam" / "agent.py"),
-                        "--finding", str(finding_path),
-                        "--project", project,
-                        "--run-id", run_id,
-                        "--model", args.model,
-                        "--base-url", args.base_url,
-                        "--api-key", args.api_key,
-                        "--max-steps", str(args.max_steps),
-                    ]
-                    if scenario.get("victim_image"):
-                        agent += ["--victim-image", scenario["victim_image"]]
-                    if scenario.get("attacker_image"):
-                        agent += ["--attacker-image", scenario["attacker_image"]]
-                    if scenario.get("target_url"):
-                        agent += ["--target-url", scenario["target_url"]]
-                    if scenario.get("health_path"):
-                        agent += ["--health-path", scenario["health_path"]]
-                    completed = subprocess.run(agent, capture_output=True, text=True, cwd=ROOT)
+                run_id = f"batch-{stamp}-{index:02d}"
+                agent = [
+                    sys.executable, str(ROOT / "scripts" / "redteam" / "agent.py"),
+                    "--finding", str(finding_path),
+                    "--project", project,
+                    "--scenario", str(resolved_path),
+                    "--run-id", run_id,
+                    "--model", args.model,
+                    "--base-url", args.base_url,
+                    "--api-key", args.api_key,
+                    "--max-steps", str(args.max_steps),
+                    "--max-tokens", str(args.max_tokens),
+                ]
+                run_dir = ROOT / "runs" / "redteam" / project / run_id
+                entry["run_dir"] = str(run_dir)
+                agent_timed_out = False
+                try:
+                    completed = subprocess.run(
+                        agent, capture_output=True, text=True, cwd=ROOT,
+                        timeout=args.agent_timeout,
+                    )
                     entry["agent_returncode"] = completed.returncode
-                    run_dir = ROOT / "runs" / "redteam" / project / run_id
-                    if completed.returncode == 0:
+                    entry["stdout"] = output_tail(completed.stdout, 1000)
+                    entry["stderr"] = output_tail(completed.stderr, 1000)
+                except subprocess.TimeoutExpired as exc:
+                    agent_timed_out = True
+                    entry.update({
+                        "agent_returncode": 124, "agent_timed_out": True,
+                        "stdout": output_tail(exc.stdout, 1000),
+                        "stderr": output_tail(exc.stderr, 1000),
+                    })
+                if not agent_timed_out and entry["agent_returncode"] == 0:
+                    try:
                         judge = subprocess.run(
-                            [sys.executable, str(ROOT / "scripts" / "redteam" / "judge.py"), "--run-dir", str(run_dir)],
-                            capture_output=True, text=True, cwd=ROOT,
+                            [sys.executable, str(ROOT / "scripts" / "redteam" / "judge.py"),
+                             "--run-dir", str(run_dir), "--timeout", str(args.judge_timeout)],
+                            capture_output=True, text=True, cwd=ROOT, timeout=args.judge_timeout,
                         )
                         entry["judge_returncode"] = judge.returncode
+                        entry["judge_stdout"] = output_tail(judge.stdout, 1000)
+                        entry["judge_stderr"] = output_tail(judge.stderr, 1000)
                         entry["status"] = "judge_approved" if judge.returncode == 0 else "judge_rejected"
-                    else:
-                        entry["status"] = "not_captured"
-                    entry["run_dir"] = str(run_dir)
-                    entry["stdout"] = completed.stdout[-1000:]
-                    entry["stderr"] = completed.stderr[-1000:]
+                    except subprocess.TimeoutExpired:
+                        entry.update({
+                            "status": "judge_timeout", "judge_returncode": 124,
+                            "judge_timed_out": True,
+                        })
+                else:
+                    result = load(run_dir / "result.json", {})
+                    entry["status"] = classify_agent_failure(
+                        entry["agent_returncode"], result, timed_out=agent_timed_out
+                    )
         summary.append(entry)
         print(json.dumps(entry, ensure_ascii=False))
     output = {"generated_at": datetime.now(timezone.utc).isoformat(), "model": args.model, "results": summary}

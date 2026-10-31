@@ -12,8 +12,15 @@ if (!health.ok) throw new Error('health check failed');
 const board = await get('/api/board');
 if (!Array.isArray(board.projects) || !Array.isArray(board.findings)) throw new Error('board shape invalid');
 if (board.stats.total !== board.findings.length) throw new Error('stats total mismatch');
-if (board.stats.curated < 25) throw new Error(`expected at least 25 curated findings, got ${board.stats.curated}`);
-if (board.stats.cveCandidates < 8) throw new Error(`expected at least 8 CVE candidates, got ${board.stats.cveCandidates}`);
+if (board.stats.curated !== board.findings.filter(f => f.curated).length) throw new Error('curated count mismatch');
+if (board.stats.cveCandidates !== board.findings.filter(f => f.cveTier).length) throw new Error('CVE candidate count mismatch');
+const inboxCount = board.findings.filter((finding) => finding.status === 'inbox').length;
+if (board.stats.status.inbox !== inboxCount) throw new Error(`inbox count mismatch: ${board.stats.status.inbox} != ${inboxCount}`);
+const reviewCount = board.findings.filter((finding) => finding.reviewReady).length;
+if (board.stats.reviewReady !== reviewCount) throw new Error(`reviewReady mismatch: ${board.stats.reviewReady} != ${reviewCount}`);
+if (!board.findings.every((finding) => finding.quality && Array.isArray(finding.quality.missing))) {
+  throw new Error('quality metadata missing');
+}
 
 const live = await get('/api/live');
 if (!Array.isArray(live.liveRuns) || !Array.isArray(live.projects)) throw new Error('live shape invalid');
@@ -37,6 +44,16 @@ for (const key of ['index', 'kind', 'label', 'text', 'preview', 'lineStart', 'li
   if (!(key in firstEvent)) throw new Error(`trajectory event missing ${key}`);
 }
 
+const topologyRun = live.liveRuns[0] || { project: project.id, runId: project.latestRunId };
+const topology = await get(`/api/runs/${topologyRun.project}/${topologyRun.runId}/agents`);
+if (!Array.isArray(topology.agents)) throw new Error('agent topology agents invalid');
+if (!topology.orchestrator || typeof topology.orchestrator !== 'object') throw new Error('agent orchestrator missing');
+if (!topology.summary || topology.summary.total !== topology.agents.length) throw new Error('agent summary mismatch');
+if (!topology.stage || typeof topology.stage !== 'object') throw new Error('agent stage missing');
+if (!topology.agents.every((agent) => agent.id && agent.agent && agent.boundary && agent.status)) {
+  throw new Error('agent lane shape invalid');
+}
+
 const first = board.findings[0];
 const raw = await get(`/api/findings/${first.project}/${first.id}/raw`);
 if (!raw.finding) throw new Error('raw finding missing');
@@ -51,6 +68,7 @@ console.log(
       cveCandidates: board.stats.cveCandidates,
       cveTrack: board.stats.cveTrack,
       liveRuns: live.liveRuns.length,
+      agentLanes: topology.agents.length,
       logLines: log.lines.length,
       trajectoryEvents: trajectory.totalEvents,
       trajectoryLines: trajectory.totalLines

@@ -13,6 +13,9 @@ python3 -m compileall -q \
     rsi_version \
     integrations \
     scripts/ccui \
+    scripts/mine \
+    scripts/redteam \
+    scripts/workflow \
     .claude/skills/jev-triage
 
 if command -v ruff >/dev/null 2>&1; then
@@ -22,7 +25,18 @@ if command -v ruff >/dev/null 2>&1; then
         rsi_version \
         integrations \
         scripts/ccui \
+        scripts/mine/progress_guard.py \
+        scripts/mine/durable_recovery.py \
+        tests/test_durable_recovery.py \
+        scripts/mine/check_report.py \
+        scripts/workflow/report_quality.py \
+        tests/test_report_contract.py \
         tests/test_rsi_version.py \
+        tests/test_rsi_evaluation.py \
+        tests/test_rsi_experience.py \
+        tests/test_rsi_verification.py \
+        tests/test_rsi_eval_gates.py \
+        tests/test_rsi_raw_trace.py \
         tests/test_skillopt_env_build.py \
         tests/test_audit_rsi.py \
         tests/test_jev_triage.py
@@ -31,15 +45,16 @@ else
 fi
 
 echo "== pytest (deterministic) =="
-python3 -m pytest -q \
-    tests/test_rsi_version.py \
-    tests/test_skillopt_env_build.py \
-    tests/test_audit_rsi.py \
-    tests/test_jev_triage.py \
-    tests/test_ccui_import.py
+python3 -m pytest -q tests
+
+if command -v node >/dev/null 2>&1; then
+    echo "== UI contract tests =="
+    (cd ui && node --test tests/*.test.mjs)
+fi
 
 echo "== shell syntax =="
 for file in \
+    run.sh \
     scripts/rsi.sh \
     scripts/skillopt_env_build.sh \
     scripts/ccui/start.sh \

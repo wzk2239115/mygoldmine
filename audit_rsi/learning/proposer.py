@@ -57,8 +57,8 @@ class DiscoveryContext:
     version: int
     policy: str
     score: float
-    mean_fp_rate: float
-    mean_dup_rate: float
+    mean_fp_rate: float | None
+    mean_dup_rate: float | None
     mean_coverage: float
     total_calls: int
     per_world: list[dict[str, Any]] = field(default_factory=list)
@@ -72,8 +72,16 @@ class DiscoveryContext:
             "version": self.version,
             "policy": self.policy,
             "score": round(self.score, 6),
-            "mean_fp_rate": round(self.mean_fp_rate, 6),
-            "mean_dup_rate": round(self.mean_dup_rate, 6),
+            "mean_fp_rate": (
+                round(self.mean_fp_rate, 6)
+                if self.mean_fp_rate is not None
+                else None
+            ),
+            "mean_dup_rate": (
+                round(self.mean_dup_rate, 6)
+                if self.mean_dup_rate is not None
+                else None
+            ),
             "mean_coverage": round(self.mean_coverage, 6),
             "total_calls": self.total_calls,
             "per_world": self.per_world,
@@ -91,11 +99,11 @@ class PolicyProposer(Protocol):
 
 class TemplateProposer:
     def propose(self, context: DiscoveryContext, round_dir: Path) -> str | None:
-        if context.mean_fp_rate > 0.15:
+        if context.mean_fp_rate is not None and context.mean_fp_rate > 0.15:
             return TEMPLATES["precision"]
         if context.mean_coverage < 0.4:
             return TEMPLATES["cve"]
-        if context.mean_dup_rate > 0.1:
+        if context.mean_dup_rate is not None and context.mean_dup_rate > 0.1:
             return TEMPLATES["evidence"]
         if context.total_calls > 0 and context.mean_coverage > 0.75:
             return TEMPLATES["breadth"]

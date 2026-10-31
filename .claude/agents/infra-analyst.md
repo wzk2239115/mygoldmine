@@ -52,7 +52,8 @@ tools: Read, Write, Edit, Bash, Task
 {
   "findings": [{
     "id": "INFRA-001",
-    "title": "...",
+    "title": "本地化标题（按系统语言；英文原名放 title_en）",
+    "title_en": "optional English original",
     "severity": "critical|high|medium|low",
     "confidence": "high|medium|low",
     "reachability": "default|opt-in|dev-only|requires-config|unknown",
@@ -78,5 +79,6 @@ tools: Read, Write, Edit, Bash, Task
 - 不引用未核实 CVE 编号；不确定标 `unverified`。
 - 不写可直接武器化的 exploit；验证思路只写 benign marker/本地请求。
 - 不把测试/示例/文档中的写法当成产品默认行为。
+- 所有面向人的标题、summary、impact、remediation 使用系统语言（见 `scripts/config/language.py --prompt`）；英文原文只放 `title_en`。
 - 不把 `scripts/experimental/infra_surface_index.py` 的输出当 finding；最多当索引用。
 - 发现知识卡与实际代码不符时，在输出 `knowledge_gaps` 中记录，交给 knowledge-scribe 更新。

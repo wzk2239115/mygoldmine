@@ -33,10 +33,11 @@ tools: Read, Write, Edit, Bash
    - Critical 必须 `reachability=default` 且证据完整。
    - `opt-in/dev-only` 的 RCE 通常 High，不是 Critical。
    - 供应链卫生通常 Medium/Low。
-5. **状态**：
+5. **语言**：归一时按系统语言本地化 `title`；上游原文保留到 `title_en`，不要直接丢弃。
+6. **状态**：
    - 每条 finding 的 `verification.status` 必须是 `unverified|confirmed|rejected|inconclusive|blocked` 之一。
    - 没有验证的保持 `unverified`，不要写成 confirmed。
-6. 输出：
+7. 输出：
    - `.workspace/reports/findings.normalized.json`
    - `.workspace/reports/hypothesis-review.md`（合并、降级、拒绝原因）
 

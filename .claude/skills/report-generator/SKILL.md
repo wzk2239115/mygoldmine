@@ -5,6 +5,11 @@ description: 专业报告生成技能：汇总各扫描器的发现，生成面�
 
 ## 概述与边界
 
+- 报告中的 finding `title`、summary、impact、remediation 必须使用系统语言（`scripts/config/language.py --prompt`）；英文原始标题保留为 `title_en`。
+- `title` 是必填字段，不得用英文 `type` / `description` 代替。系统语言为中文时，`title` 必须包含中文；只允许代码、路径、CVE、CWE、产品名等专有标识保留英文。
+- 缺 `title`、`root_cause`、`impact`、`reproduction`、`remediation` 或 `evidence` 的报告视为不完整，不得进入复现/验收。
+- 机器可读报告的交付路径以运行提示词中的 `RUN_DIR/audit-report.json` 为准；`.workspace/reports/` 仅为本技能内部默认路径。
+
 - 聚焦报告生成：收集并合并所有扫描器智能体的结果，生成综合审计报告
 - 不做：漏洞扫描、代码分析、威胁建模
 
@@ -174,6 +179,8 @@ check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --sh
   "vulnerabilities": [
     {
       "id": "string",
+      "title": "系统语言标题，必填",
+      "title_en": "英文原始标题，可选",
       "scanner": "string",
       "type": "string",
       "severity": "string",
@@ -184,9 +191,14 @@ check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --sh
         "line": 0,
         "column": 0
       },
+      "root_cause": "string，必填",
+      "impact": "string，必填",
+      "preconditions": ["string"],
+      "evidence": ["file:line 或代码证据"],
+      "reproduction": "最小复现思路，必填",
+      "remediation": "string，必填",
       "description": "string",
       "exploit": "string",
-      "remediation": "string",
       "fixed_code": "string"
     }
   ],

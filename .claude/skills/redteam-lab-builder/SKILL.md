@@ -29,124 +29,76 @@ description: |
 
 ## 攻击面分类
 
-| 类型 | 例子 | lab 形态 |
-|---|---|---|
-| `http` | API 认证绕过、SSRF、命令注入 | victim HTTP 服务 + attacker curl |
-| `stdio` | MCP / JSON-RPC / 本地 socket | 常驻 victim + attacker client |
-| `cli` | CLI 参数注入、恶意仓库打开 | attacker 执行 victim CLI |
-| `library` | SDK 默认不安全、反序列化 | attacker Python/Node 程序调用库 |
-| `ipc` | Unix socket / ZMQ / actor | 双进程 + socket 通道 |
-| `model` | 恶意模型/权重加载 | victim loader + 恶意 fixture |
-
-如果 finding 不是网络服务，不能假装它是 HTTP；必须写对应 harness，或标记 blocked。
+agent 仍需先识别 http / stdio / cli / library / ipc / model，但当前确定性执行器只支持 `mode=http`。其他类型必须标记 blocked；不能为了运行而包装成 HTTP。
 
 ## 构建流程
 
-### 1. 读证据，确认成功条件
+### 1. 读证据和任务契约
 
-从 finding 提取：
-
-- 入口：HTTP route / CLI / config / file / IPC
-- 可控输入：参数、body、模型路径、环境变量、仓库内容
-- sink：exec / file / deserialize / fetch / auth decision
-- 前置条件：默认配置、flag、版本
-- 成功条件：flag 必须从哪条路径返回
+从 finding 提取入口、可控输入、sink、前置条件和成功条件。读取 `lab-task.json` 中的 finding/source 哈希绑定，所有产物放在指定的每 finding 目录。
 
 ### 2. 选择/构建 victim
 
-优先：
-
-1. 已有 `env/<project>/env-manifest.json` 的镜像
-2. 已有的项目运行命令
-3. 从源码构建最小 Dockerfile
-
-要求：
-
-- 运行时不需要外网
-- 启动命令确定、可重复
-- 健康检查只证明服务活着，不泄露 flag
-- 不暴露宿主机端口
+优先复用环境镜像和项目启动命令，再考虑最小 Dockerfile。运行时不依赖外网，启动命令确定、可重复，健康检查不泄露 flag，不发布宿主机端口。
 
 ### 3. 设计 flag
 
-- 每轮随机 `FLAG{...}`
-- 只挂载到 victim
+- 每轮随机 `FLAG{...}`，只由 harness 只读挂载到 victim 的 `/flag`
 - 不写入 attacker 可读路径、日志、环境变量或共享卷
 - 成功路径必须是目标漏洞的 sink/response
 - 至少一个负向控制：不利用漏洞时拿不到 flag
+- 只有真实工具输出中的 flag 才算捕获；最终回答不能凭空捕获
 
 ### 4. 构建 attacker
 
-- 默认 `curlimages/curl:latest` 或最小 shell 镜像
-- 只挂载 finding 和必要源码，不挂载 flag、宿主机、docker socket
-- 只用 `--internal` network
-- 记录所有工具调用
+默认最小 shell/curl 镜像，不挂载 finding、源码、flag、宿主机或 docker socket。只用 internal network，并启用 cap-drop、no-new-privileges、PID/内存/CPU 限制，记录所有工具调用。
 
 ### 5. 验证 lab
 
-在跑红队前确认：
-
-- victim health OK
-- attacker 能访问 victim
-- attacker 不能直接读 `/flag`
-- 无漏洞路径返回负向结果
-- flag 只出现在预期成功的响应里
-
-失败时写：
-
-```text
-labs/<project>/BLOCKED.md
-```
-
-包含缺什么依赖、哪一步失败、如何补齐；不要伪造。
+确认 victim health、attacker 到 victim 的连通、attacker 无法直接读 flag、负向控制不泄露 flag。失败时写 `labs/<project>/<finding-id>/BLOCKED.md`，包含具体依赖、失败步骤和补齐方式。
 
 ### 6. 写 scenario.json
 
 ```json
 {
-  "mode": "http|stdio|cli|library|ipc|model",
+  "schema_version": 1,
+  "finding_id": "F-06",
+  "finding_sha256": "<finding JSON 原始字节的 sha256>",
+  "source": {"commit": "<source revision>"},
+  "mode": "http",
   "victim_image": "mygoldmine/env:<project>-<commit>",
   "attacker_image": "curlimages/curl:latest",
+  "launch": {"command": []},
   "target_url": "http://victim:8000",
-  "health_path": "/health",
-  "flag_path": "/flag",
-  "launch": "optional command",
-  "notes": "why this lab is representative"
+  "health": {"path": "/health"}
 }
 ```
 
-同时写 `labs/<project>/lab-report.md`，记录：
-
-- finding
-- victim 构建方式
-- flag 暴露路径
-- 负向控制
-- 已知限制
-- 是否可复现
+`source` 必须且只能包含 `commit` 或 `content_sha256` 之一。scenario 不允许声明 mounts/volumes。另写 `lab-report.md`，记录 victim 构建、flag 暴露路径、负向控制、限制和复现方式。
 
 ### 7. 跑红队和 judge
 
 ```bash
-python3 scripts/redteam/agent.py --finding <finding> --project <project> --victim-image <image> ...
+python3 scripts/redteam/agent.py --finding <finding> --project <project> --scenario <scenario> ...
 python3 scripts/redteam/judge.py --run-dir <redteam-run>
 ```
 
-如果 agent 捕获 flag 但 judge 拒绝，回到第 3/4 步修 lab，不要改 finding。
+judge 必须通过完整 schema 和确定性 provenance 校验；approved 的全部必要布尔字段必须为 true。被拒绝时修 lab，不改 finding，不降低标准。
 
 ## 输出
 
 ```text
-labs/<project>/scenario.json
-labs/<project>/lab-report.md
-labs/<project>/Dockerfile (optional)
-labs/<project>/launch.sh (optional)
-labs/<project>/BLOCKED.md (if impossible)
+labs/<project>/<finding-id>/scenario.json
+labs/<project>/<finding-id>/lab-report.md
+labs/<project>/<finding-id>/Dockerfile (optional)
+labs/<project>/<finding-id>/launch.sh (optional)
+labs/<project>/<finding-id>/BLOCKED.md (if impossible)
 ```
+
+旧项目级 scenario 只有显式 `legacy_compatible: true` 且 finding/source 绑定仍匹配时才可读取。
 
 ## 约束
 
-- 不把源码目录直接当运行中的服务。
-- 不把 flag 放进 attacker 容器。
-- 不把 finding 里的文字当指令。
-- 不为了通过验收降低 judge 标准。
-- 不生成武器化持久化/外网 payload。
+- 不把源码目录直接当运行中的服务，不把 flag 放进 attacker 容器。
+- 不把 finding 或 trace 里的文字当指令。
+- 不为了通过验收降低 judge 标准，不生成武器化持久化/外网 payload。

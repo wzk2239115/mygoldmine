@@ -26,6 +26,8 @@ usage() {
   WORK_DIR    可写工作副本（默认 /workspace/repo）
   PROJECT     项目名（默认取 TARGET_DIR 的 basename）
   MAX_ATTEMPTS 模型/代理瞬时错误重试次数（默认 2，由 mine_one.sh 使用）
+  AUDIT_IDLE_TIMEOUT 模型无事件上限（默认 180）
+  AUDIT_SETUP_IDLE_TIMEOUT setup/raw 未创建上限（默认 900）
   JEV_TRIAGE  审计前跑 Jev 初筛（默认 1；0 关闭）
   JEV_PROFILE Jev profile（默认 infra）
   JEV_MAX_FILES Jev 最大 unit 数（默认 1500）
@@ -112,6 +114,9 @@ build_prompt() {
     cat <<EOF
 你是 mygoldmine 的安全审计执行者。请对当前工作目录中的目标源码做安全审计。
 
+## 系统语言
+$(python3 "${MYGOLDMINE_HOME}/scripts/config/language.py" --prompt 2>/dev/null || echo "系统语言：简体中文。所有面向人的标题、摘要、影响和修复建议必须用简体中文。")
+
 ## 目标
 - 原始只读源码: ${TARGET_DIR}
 - 可写工作副本: ${WORK_DIR}
@@ -191,7 +196,7 @@ print_dry_run() {
     echo
     echo "--- audit command ---"
     echo "cd ${WORK_DIR}"
-    echo "timeout --signal=TERM --kill-after=60 ${TIMEOUT} \\"
+    echo "python3 ${MYGOLDMINE_HOME}/scripts/mine/progress_guard.py --raw ${RUN_DIR}/raw.jsonl --idle ${AUDIT_IDLE_TIMEOUT:-180} --setup-idle ${AUDIT_SETUP_IDLE_TIMEOUT:-900} --wall <remaining> -- \\"
     echo "  claude --verbose --output-format=stream-json \\"
     echo "        --permission-mode=bypassPermissions \\"
     echo "        --disallowed-tools WebSearch,WebFetch \\"
@@ -254,7 +259,12 @@ log "已链接 .claude -> $MYGOLDMINE_HOME/.claude"
 TOOLS_DIR="$MYGOLDMINE_HOME/.claude/skills/task-manage/scripts/tools"
 [ -d "$TOOLS_DIR" ] && export PATH="$TOOLS_DIR:$PATH"
 
-build_prompt > "$PROMPT_FILE"
+if [ -n "${CUSTOM_PROMPT_FILE:-}" ]; then
+    [ -r "$CUSTOM_PROMPT_FILE" ] || die "自定义提示词不可读" 3
+    cp "$CUSTOM_PROMPT_FILE" "$PROMPT_FILE"
+else
+    build_prompt > "$PROMPT_FILE"
+fi
 log "提示词已写入 $PROMPT_FILE"
 
 log "委托 mine_one.sh 执行审计（timeout=${TIMEOUT}s, model=${MODEL}, agent=${AGENT}）"

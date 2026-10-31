@@ -1,4 +1,8 @@
 import http from 'node:http';
+import { reportQuality } from './report-quality.mjs';
+import { summarizeRecovery } from './recovery-status.mjs';
+import { parseAgentTopology } from './agent-topology.mjs';
+import { isLedgerV2, isVerified, latestOccurrences, stateForFinding } from './finding-ledger.mjs';
 import net from 'node:net';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -11,6 +15,16 @@ const UI_ROOT = path.resolve(__dirname, '..');
 const REPO_ROOT = path.resolve(UI_ROOT, '..');
 const RUNS_ROOT = path.join(REPO_ROOT, 'runs');
 const DATA_ROOT = path.join(UI_ROOT, 'data');
+const CONFIG_ROOT = path.join(REPO_ROOT, 'config');
+
+function currentLanguage() {
+  try {
+    const payload = JSON.parse(fs.readFileSync(path.join(CONFIG_ROOT, 'system.json'), 'utf8'));
+    return payload.language === 'en' ? 'en' : 'zh';
+  } catch {
+    return 'zh';
+  }
+}
 const DIST_ROOT = path.join(UI_ROOT, 'dist');
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '127.0.0.1';
@@ -54,6 +68,7 @@ function projectInfo(project) {
     direction: meta.direction || '',
     icon: meta.icon || 'layers',
     tone: meta.tone || 'ink',
+    logo: meta.logo || '',
     url: meta.url || '',
     auditId: meta.audit_id || ''
   };
@@ -297,6 +312,19 @@ function normalizeList(value) {
   return [];
 }
 
+function textValue(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (item && typeof item === 'object' ? textValue(item) : String(item || '').trim()))
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (value && typeof value === 'object') {
+    return textValue(value.idea || value.steps || value.note || value.description || '');
+  }
+  return String(value || '').trim();
+}
+
 function normalizeEvidence(value) {
   if (Array.isArray(value)) {
     return unique(
@@ -305,7 +333,7 @@ function normalizeEvidence(value) {
         if (item && typeof item === 'object') {
           const file = item.file || item.path || item.location || '';
           const line = item.lines || item.line || item.range || '';
-          return file ? `${file}${line ? `:${line}` : ''}` : '';
+          return file ? `${file}${line ? `:${line}` : ''}` : textValue(item.description || item.snippet);
         }
         return '';
       })
@@ -322,7 +350,7 @@ function formatLocation(value) {
   if (typeof value === 'string') return value;
   const file = value.file || value.path || '';
   const line = value.line || value.lines || '';
-  return file ? `${file}${line ? `:${line}` : ''}` : '';
+  return file ? `${file}${line ? `:${line}` : ''}` : textValue(value.description || value.snippet);
 }
 
 function runState(meta, status) {
@@ -331,6 +359,7 @@ function runState(meta, status) {
   if (state === 'running' || state === 'stopping') return 'running';
   if (state === 'success' || state === 'completed') return 'completed';
   if (state === 'timeout') return 'timeout';
+  if (state === 'partial') return 'partial';
   if (state === 'failed' || state === 'error') return 'failed';
   if (state === 'stopped' || state === 'interrupted') return 'stopped';
   if (meta.timed_out) return 'timeout';
@@ -388,11 +417,13 @@ function summarizeRun(run) {
     lastLogLine: run.lastLogLine,
     logMtime: run.logMtime,
     logSize: run.logSize,
-    findingsCount: run.findingsCount
+    findingsCount: run.findingsCount,
+    recovery: run.recovery
   };
 }
 
 function normalizeFindings(project, runId, report, meta) {
+  const language = currentLanguage();
   const list = Array.isArray(report.findings)
     ? report.findings
     : Array.isArray(report.vulnerabilities)
@@ -400,7 +431,8 @@ function normalizeFindings(project, runId, report, meta) {
       : [];
   const seen = new Map();
 
-  return list.map((raw, index) => {
+  return list.map((item, index) => {
+    const raw = item && typeof item === 'object' && !Array.isArray(item) ? item : {};
     const baseId = String(raw.id || `F-${String(index + 1).padStart(2, '0')}`).trim();
     const count = (seen.get(baseId) || 0) + 1;
     seen.set(baseId, count);
@@ -411,15 +443,21 @@ function normalizeFindings(project, runId, report, meta) {
     const sourcePaths = unique([...evidence, ...files, location]);
     const title = String(raw.title || raw.description || raw.type || raw.category || 'Untitled finding').trim();
     const severity = normalizeSeverity(raw.severity || raw.severity_raw);
-    const confidence = String(raw.confidence || (raw.verified ? 'verified' : 'unverified')).toLowerCase();
-    const verified = Boolean(raw.verified) || /confirm|verified|已.*验证|reproduced/i.test(String(raw.verification || raw.severity_raw || ''));
-    const preconditions = normalizeList(raw.preconditions);
-    const remediation = Array.isArray(raw.remediation_items)
-      ? unique(raw.remediation_items.map((item) => String(item).trim())).join(' ')
-      : String(raw.remediation || raw.fixed_code || '').trim();
-    const reproduction = String(raw.reproduction_idea || raw.reproduction || raw.exploit || raw.poc || '').trim();
-    const rootCause = String(raw.root_cause || raw.description || raw.type || '').trim();
-    const impact = String(raw.impact || '').trim();
+    const verified = isVerified(raw);
+    const confidence = String(raw.confidence || (verified ? 'verified' : 'unverified')).toLowerCase();
+    const preconditions = normalizeList(raw.preconditions || raw.precondition || raw.precondition_list);
+    const remediation = textValue(
+      raw.remediation_items || raw.remediation || raw.fix || raw.fixed_code ||
+      raw.recommendation || raw.remediation_note || ''
+    );
+    const verification = raw.verification && typeof raw.verification === 'object' ? raw.verification : {};
+    const reproduction = textValue(
+      raw.reproduction_idea || raw.reproduction || raw.exploit || raw.poc ||
+      raw.poc_steps || raw.test_plan || raw.verification_idea ||
+      verification.idea || verification.steps || verification.reproduction || ''
+    );
+    const rootCause = textValue(raw.root_cause || raw.rootCause || raw.description || raw.summary || raw.type || '');
+    const impact = textValue(raw.impact || raw.effect || raw.consequence || '');
     const category = String(raw.category || raw.type || '').trim();
     const cwe = normalizeCwe(raw.cwe || raw.cwe_id);
     const relatedArtifacts = unique([
@@ -428,8 +466,14 @@ function normalizeFindings(project, runId, report, meta) {
       ...normalizeList(raw.source_tasks)
     ]);
 
+    const quality = reportQuality(raw, language);
+
     return {
-      key: `${project}:${id}`,
+      quality,
+      key: `${project}/${runId}/${id}`,
+      occurrence_id: `${project}/${runId}/${id}`,
+      semantic_id: '',
+      finding_id: baseId,
       id,
       project,
       projectName: projectInfo(project).name,
@@ -480,22 +524,19 @@ function loadOverrides() {
   const review = autoPayload.review && typeof autoPayload.review === 'object' ? autoPayload.review : {};
   const refinePayload = readJson(path.join(DATA_ROOT, 'refine-state.json')) || {};
   const refine = refinePayload.findings && typeof refinePayload.findings === 'object' ? refinePayload.findings : {};
-  return { curated, state, auto, refine, review, autoGeneratedAt: autoPayload.generated_at || null };
+  const ledger = readJson(path.join(DATA_ROOT, 'finding-ledger.json')) || {};
+  return { curated, state, auto, refine, review, ledger, autoGeneratedAt: autoPayload.generated_at || null };
 }
 
-function autoSeedFor(finding, auto) {
-  return auto[finding.key] || auto[`${finding.project}:${String(finding.id).toUpperCase()}`] || {};
-}
-
-function mergeOverrides(finding, curated, state, auto, refine, review) {
-  const seed = curated[finding.key] || {};
-  const saved = state[finding.key] || {};
-  const detected = autoSeedFor(finding, auto);
-  const refined = refine[finding.key] || refine[`${finding.project}:${String(finding.id).toUpperCase()}`] || {};
-  const reviewSeed = review[finding.key] || review[`${finding.project}:${String(finding.id).toUpperCase()}`] || {};
+function mergeOverrides(finding, curated, state, auto, refine, review, ledger) {
+  const seed = stateForFinding(finding, curated, ledger);
+  const saved = stateForFinding(finding, state, ledger);
+  const detected = stateForFinding(finding, auto, ledger);
+  const refined = stateForFinding(finding, refine, ledger);
+  const reviewSeed = stateForFinding(finding, review, ledger);
   const merged = { ...detected, ...refined, ...seed, ...saved };
-  const hasSeed = Boolean(curated[finding.key]);
-  const hasSaved = Boolean(state[finding.key]);
+  const hasSeed = Boolean(Object.keys(seed).length);
+  const hasSaved = Boolean(Object.keys(saved).length);
   const hasAuto = Boolean(Object.keys(detected).length);
   const hasRefine = Boolean(Object.keys(refined).length);
 
@@ -597,6 +638,7 @@ function discoverRuns({ withFindings = true } = {}) {
         agent: meta.agent || status.agent || '',
         commit: meta.commit || '',
         targetUrl: meta.target_url || '',
+        recovery: summarizeRecovery(status.recovery),
         container: status.container || '',
         state,
         exitCode: meta.exit_code ?? null,
@@ -604,7 +646,12 @@ function discoverRuns({ withFindings = true } = {}) {
         interrupted: Boolean(meta.interrupted) || state === 'stopped',
         reportsComplete: Boolean(meta.reports_complete),
         reportGeneratedAt: report.generated_at || null,
-        lastLogLine: hasLog ? readLastLine(logPath) : '',
+        lastLogLine: (() => {
+          const renderedLine = hasLog ? readLastLine(logPath) : '';
+          const wrapperPath = path.join(`${runDir}.meta`, 'wrapper.log');
+          const wrapperLine = fileExists(wrapperPath) ? readLastLine(wrapperPath) : '';
+          return renderedLine && !renderedLine.startsWith('#') ? renderedLine : wrapperLine || renderedLine;
+        })(),
         logMtime: logStat ? logStat.mtime.toISOString() : null,
         logSize: logStat ? logStat.size : 0,
         findings,
@@ -617,20 +664,64 @@ function discoverRuns({ withFindings = true } = {}) {
   return runs.sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)));
 }
 
+function findingFromOccurrence(occurrence, runs) {
+  const run = runs.find((item) => item.project === occurrence.project && item.runId === occurrence.run_id);
+  let finding = run?.findings.find((item) => item.occurrence_id === occurrence.occurrence_id);
+  if (!finding) {
+    const reportPath = path.resolve(REPO_ROOT, occurrence.report);
+    const meta = readJson(path.join(path.dirname(reportPath), 'run-meta.json')) || {};
+    finding = normalizeFindings(
+      occurrence.project,
+      occurrence.run_id,
+      { findings: [occurrence.raw || {}], generated_at: occurrence.generated_at },
+      meta
+    )[0];
+  }
+  return {
+    ...finding,
+    key: occurrence.occurrence_id,
+    occurrence_id: occurrence.occurrence_id,
+    semantic_id: occurrence.semantic_id,
+    finding_id: occurrence.finding_id,
+    legacy_key: occurrence.legacy_key,
+    id: occurrence.local_id,
+    runId: occurrence.run_id,
+    severity: occurrence.severity,
+    verified: occurrence.verified === true,
+    confidence: occurrence.confidence,
+    generatedAt: occurrence.generated_at,
+    commit: occurrence.commit,
+    reportPath: run?.reportPath || path.resolve(REPO_ROOT, occurrence.report),
+    reportMdPath: run?.reportMdPath || '',
+    runDir: run?.runDir || path.dirname(path.resolve(REPO_ROOT, occurrence.report))
+  };
+}
+
 function buildBoard() {
   const runs = discoverRuns();
-  const { curated, state, auto, refine, review, autoGeneratedAt } = loadOverrides();
+  const { curated, state, auto, refine, review, ledger, autoGeneratedAt } = loadOverrides();
+  const useLedger = isLedgerV2(ledger);
+  const ledgerOccurrences = latestOccurrences(ledger);
   const latestReport = new Map();
   const latestLive = new Map();
   const latestAny = new Map();
 
   for (const run of runs) {
     if (!latestAny.has(run.project)) latestAny.set(run.project, run);
-    if (run.hasReport && !latestReport.has(run.project)) latestReport.set(run.project, run);
+    if (!useLedger && run.hasReport && !latestReport.has(run.project)) latestReport.set(run.project, run);
     if (run.isLive && !latestLive.has(run.project)) latestLive.set(run.project, run);
   }
+  if (useLedger) {
+    for (const [project, latestValid] of Object.entries(ledger.latest_by_project || {})) {
+      const run = runs.find((item) => item.project === project && item.runId === latestValid.run_id);
+      if (run) latestReport.set(project, run);
+    }
+  }
 
-  const projectIds = new Set([...latestAny.keys(), ...latestReport.keys(), ...latestLive.keys()]);
+  const projectIds = new Set([
+    ...latestAny.keys(), ...latestReport.keys(), ...latestLive.keys(),
+    ...Object.keys(useLedger ? ledger.latest_by_project || {} : {})
+  ]);
   const projects = [];
   const findings = [];
 
@@ -638,7 +729,14 @@ function buildBoard() {
     const reportRun = latestReport.get(project) || null;
     const liveRun = latestLive.get(project) || null;
     const latest = latestAny.get(project) || null;
-    const mergedFindings = (reportRun?.findings || []).map((finding) => mergeOverrides(finding, curated, state, auto, refine, review));
+    const baseFindings = useLedger
+      ? ledgerOccurrences
+        .filter((occurrence) => occurrence.project === project)
+        .map((occurrence) => findingFromOccurrence(occurrence, runs))
+      : reportRun?.findings || [];
+    const mergedFindings = baseFindings.map((finding) =>
+      mergeOverrides(finding, curated, state, auto, refine, review, ledger)
+    );
     findings.push(...mergedFindings);
     const severityCounts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
     for (const finding of mergedFindings) severityCounts[finding.severity] += 1;
@@ -653,6 +751,7 @@ function buildBoard() {
       direction: info.direction,
       icon: info.icon,
       tone: info.tone,
+      logo: info.logo,
       url: info.url,
       auditId: info.auditId,
       latestRunId: activeRun?.runId || sourceRun?.runId || '',
@@ -764,6 +863,54 @@ function buildLive() {
 function findRun(project, runId, withFindings = true) {
   const runs = discoverRuns({ withFindings });
   return runs.find((run) => run.project === project && run.runId === runId) || null;
+}
+
+const AGENT_TOPOLOGY_CACHE = new Map();
+const AGENT_TOPOLOGY_CACHE_LIMIT = 8;
+
+function loadAgentTopology(run) {
+  const rawPath = path.join(run.runDir, 'raw.jsonl');
+  let stat = null;
+  try {
+    stat = fs.statSync(rawPath);
+  } catch {
+    stat = null;
+  }
+
+  const cached = AGENT_TOPOLOGY_CACHE.get(rawPath);
+  if (cached && stat && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+    return cached.payload;
+  }
+
+  const parsed = stat ? parseAgentTopology(rawPath) : { agents: [], summary: { total: 0, running: 0, completed: 0, failed: 0 } };
+  const report = readJson(run.reportPath, null) || {};
+  const boundaries = [...new Set(parsed.agents.map((agent) => agent.boundary))];
+  const payload = {
+    project: run.project,
+    projectName: run.projectName,
+    runId: run.runId,
+    isLive: run.isLive,
+    updatedAt: stat ? stat.mtime.toISOString() : null,
+    orchestrator: {
+      agent: 'security-orchestrator',
+      model: run.model || '',
+      status: run.isLive ? 'running' : 'completed',
+      startedAt: run.startedAt || null
+    },
+    agents: parsed.agents,
+    summary: parsed.summary,
+    boundaries,
+    stage: report.stage && typeof report.stage === 'object' ? report.stage : {}
+  };
+
+  if (stat) {
+    if (AGENT_TOPOLOGY_CACHE.size >= AGENT_TOPOLOGY_CACHE_LIMIT) {
+      const oldest = AGENT_TOPOLOGY_CACHE.keys().next().value;
+      AGENT_TOPOLOGY_CACHE.delete(oldest);
+    }
+    AGENT_TOPOLOGY_CACHE.set(rawPath, { mtimeMs: stat.mtimeMs, size: stat.size, payload });
+  }
+  return payload;
 }
 
 const CCUI_HEALTH_TTL_MS = 5000;
@@ -947,10 +1094,10 @@ function sanitizePatch(body) {
   return patch;
 }
 
-async function saveState(project, id, patch) {
+async function saveState(project, id, patch, occurrenceId = '') {
   const statePath = path.join(DATA_ROOT, 'state.json');
   const state = readJson(statePath) || {};
-  const key = `${project}:${id}`;
+  const key = occurrenceId || `${project}:${id}`;
   state[key] = { ...(state[key] || {}), ...patch };
   await fsp.mkdir(DATA_ROOT, { recursive: true });
   const tempPath = path.join(DATA_ROOT, `.state.${process.pid}.${Date.now()}.tmp`);
@@ -982,13 +1129,24 @@ function serveStatic(req, res, pathname) {
     sendError(res, 403, 'Forbidden');
     return;
   }
-  if (fileExists(candidate)) {
+  if (fileExists(candidate) && relative !== 'index.html') {
     sendFile(res, candidate, pathname.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache');
     return;
   }
   const index = path.join(DIST_ROOT, 'index.html');
   if (fileExists(index)) {
-    sendFile(res, index, 'no-cache');
+    const language = currentLanguage();
+    let html = fs.readFileSync(index, 'utf8');
+    html = html.replace(/<html lang="[^"]*"/, `<html lang="${language === 'zh' ? 'zh-CN' : 'en'}"`);
+    html = html.replace(
+      '<head>',
+      `<head>\n    <script>window.__MYGOLDMINE_LANGUAGE__=${JSON.stringify(language)};</script>`
+    );
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-cache'
+    });
+    res.end(html);
     return;
   }
   sendError(res, 404, 'Not found');
@@ -1025,8 +1183,51 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === 'GET' && pathname === '/api/language') {
+      sendJson(res, 200, { language: currentLanguage() });
+      return;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/language') {
+      const body = await readBody(req);
+      const language = String(body?.language || '').toLowerCase();
+      if (language !== 'zh' && language !== 'en') {
+        return sendError(res, 400, 'language must be zh or en');
+      }
+      try {
+        fs.mkdirSync(CONFIG_ROOT, { recursive: true });
+        fs.writeFileSync(
+          path.join(CONFIG_ROOT, 'system.json'),
+          JSON.stringify({ language }, null, 2) + '\n',
+          'utf8'
+        );
+      } catch (error) {
+        return sendError(res, 500, `failed to save language: ${error.message}`);
+      }
+      sendJson(res, 200, { language });
+      return;
+    }
+
+    if (req.method === 'GET' && pathname === '/api/watch') {
+      try {
+        const payload = JSON.parse(fs.readFileSync(path.join(DATA_ROOT, 'watch-state.json'), 'utf8'));
+        sendJson(res, 200, payload);
+      } catch {
+        sendJson(res, 200, { generatedAt: null, counts: {}, repos: [], brief: { top: [] } });
+      }
+      return;
+    }
+
     if (req.method === 'GET' && pathname === '/api/live') {
       sendJson(res, 200, buildLive());
+      return;
+    }
+
+    const agentsMatch = pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/agents$/);
+    if (req.method === 'GET' && agentsMatch) {
+      const run = findRun(agentsMatch[1], agentsMatch[2], false);
+      if (!run) return sendError(res, 404, 'Run not found');
+      sendJson(res, 200, loadAgentTopology(run));
       return;
     }
 
@@ -1050,6 +1251,7 @@ const server = http.createServer(async (req, res) => {
         model: run.model,
         commit: run.commit,
         findingsCount: run.findingsCount,
+        recovery: run.recovery,
         severityCounts: run.severityCounts
       }));
       sendJson(res, 200, { runs });
@@ -1213,13 +1415,17 @@ const server = http.createServer(async (req, res) => {
     const rawMatch = pathname.match(/^\/api\/findings\/([^/]+)\/([^/]+)\/raw$/);
     if (req.method === 'GET' && rawMatch) {
       const board = buildBoard();
-      const finding = board.findings.find((item) => item.project === rawMatch[1] && item.id === rawMatch[2]);
+      const occurrenceId = url.searchParams.get('occurrence_id') || '';
+      const finding = board.findings.find((item) =>
+        item.project === rawMatch[1] && item.id === rawMatch[2] &&
+        (!occurrenceId || item.occurrence_id === occurrenceId)
+      );
       if (!finding) return sendError(res, 404, 'Finding not found');
-      const latestRun = board.projects.find((item) => item.id === finding.project);
-      const report = latestRun ? readJson(latestRun.reportPath) : null;
+      const report = readJson(finding.reportPath);
       const list = Array.isArray(report?.findings) ? report.findings : Array.isArray(report?.vulnerabilities) ? report.vulnerabilities : [];
       const baseId = finding.id.replace(/~\d+$/, '');
-      const raw = list.find((item) => String(item.id) === baseId) || null;
+      const duplicateIndex = Number(finding.id.match(/~(\d+)$/)?.[1] || 1) - 1;
+      const raw = list.filter((item) => String(item.id || item.finding_id) === baseId)[duplicateIndex] || null;
       sendJson(res, 200, { finding, raw, reportPath: finding.reportPath, runDir: finding.runDir, commit: finding.commit });
       return;
     }
@@ -1228,12 +1434,16 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'PATCH' && patchMatch) {
       const project = patchMatch[1];
       const id = patchMatch[2];
+      const occurrenceId = url.searchParams.get('occurrence_id') || '';
       const board = buildBoard();
-      const finding = board.findings.find((item) => item.project === project && item.id === id);
+      const finding = board.findings.find((item) =>
+        item.project === project && item.id === id &&
+        (!occurrenceId || item.occurrence_id === occurrenceId)
+      );
       if (!finding) return sendError(res, 404, 'Finding not found');
       const body = await readBody(req);
       const patch = sanitizePatch(body);
-      const saved = await saveState(project, id, patch);
+      const saved = await saveState(project, id, patch, finding.occurrence_id || occurrenceId);
       sendJson(res, 200, { ok: true, state: saved });
       return;
     }

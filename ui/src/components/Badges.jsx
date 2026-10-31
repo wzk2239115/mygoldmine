@@ -55,7 +55,7 @@ export function CopyPathButton({ value, onToast, label = 'Copy path' }) {
       onClick={async (event) => {
         event.stopPropagation();
         const ok = await navigator.clipboard.writeText(value).then(() => true).catch(() => false);
-        if (onToast) onToast(ok ? `已复制：${value}` : '复制失败，请手动选择路径');
+        if (onToast) onToast(ok ? `已复制：${value}` : '复制失败，请手动选择路径', ok ? 'success' : 'error');
       }}
     >
       <Copy size={13} aria-hidden="true" />

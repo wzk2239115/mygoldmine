@@ -26,11 +26,14 @@ class Point:
     calls: int
     quality: float
     rounds: int
-    fp_rate: float
-    dup_rate: float
+    fp_rate: float | None
+    dup_rate: float | None
     coverage: float
     best_score: float
     revealed: int
+    label_coverage: float | None = None
+    tp_recall: float | None = None
+    total_score: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -38,11 +41,14 @@ class Point:
             "calls": self.calls,
             "quality": round(self.quality, 6),
             "rounds": self.rounds,
-            "fp_rate": round(self.fp_rate, 6),
-            "dup_rate": round(self.dup_rate, 6),
+            "fp_rate": _rounded(self.fp_rate),
+            "dup_rate": _rounded(self.dup_rate),
             "coverage": round(self.coverage, 6),
             "best_score": round(self.best_score, 6),
             "revealed": self.revealed,
+            "label_coverage": _rounded(self.label_coverage),
+            "tp_recall": _rounded(self.tp_recall),
+            "total_score": round(self.total_score, 6),
         }
 
 
@@ -53,11 +59,13 @@ class WorldReplay:
     points: list[Point]
     hypervolume: float
     parallel_penalty: float
-    fp_rate: float
-    dup_rate: float
+    fp_rate: float | None
+    dup_rate: float | None
     coverage: float
     score: float
     revealed: list[str] = field(default_factory=list)
+    label_coverage: float | None = None
+    tp_recall: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -66,11 +74,13 @@ class WorldReplay:
             "points": [p.to_dict() for p in self.points],
             "hypervolume": round(self.hypervolume, 6),
             "parallel_penalty": round(self.parallel_penalty, 6),
-            "fp_rate": round(self.fp_rate, 6),
-            "dup_rate": round(self.dup_rate, 6),
+            "fp_rate": _rounded(self.fp_rate),
+            "dup_rate": _rounded(self.dup_rate),
             "coverage": round(self.coverage, 6),
             "score": round(self.score, 6),
             "revealed": list(self.revealed),
+            "label_coverage": _rounded(self.label_coverage),
+            "tp_recall": _rounded(self.tp_recall),
         }
 
 
@@ -81,16 +91,24 @@ class PolicyScore:
     per_world: list[WorldReplay]
 
     @property
-    def mean_fp_rate(self) -> float:
-        return _mean(r.fp_rate for r in self.per_world)
+    def mean_fp_rate(self) -> float | None:
+        return _optional_mean(r.fp_rate for r in self.per_world)
 
     @property
-    def mean_dup_rate(self) -> float:
-        return _mean(r.dup_rate for r in self.per_world)
+    def mean_dup_rate(self) -> float | None:
+        return _optional_mean(r.dup_rate for r in self.per_world)
 
     @property
     def mean_coverage(self) -> float:
         return _mean(r.coverage for r in self.per_world)
+
+    @property
+    def mean_label_coverage(self) -> float | None:
+        return _optional_mean(r.label_coverage for r in self.per_world)
+
+    @property
+    def mean_tp_recall(self) -> float | None:
+        return _optional_mean(r.tp_recall for r in self.per_world)
 
     @property
     def total_calls(self) -> int:
@@ -100,9 +118,11 @@ class PolicyScore:
         return {
             "policy": self.policy,
             "score": round(self.score, 6),
-            "mean_fp_rate": round(self.mean_fp_rate, 6),
-            "mean_dup_rate": round(self.mean_dup_rate, 6),
+            "mean_fp_rate": _rounded(self.mean_fp_rate),
+            "mean_dup_rate": _rounded(self.mean_dup_rate),
             "mean_coverage": round(self.mean_coverage, 6),
+            "mean_label_coverage": _rounded(self.mean_label_coverage),
+            "mean_tp_recall": _rounded(self.mean_tp_recall),
             "total_calls": self.total_calls,
             "per_world": [r.to_dict() for r in self.per_world],
         }
@@ -111,6 +131,15 @@ class PolicyScore:
 def _mean(values: Iterable[float]) -> float:
     values = list(values)
     return sum(values) / len(values) if values else 0.0
+
+
+def _optional_mean(values: Iterable[float | None]) -> float | None:
+    present = [value for value in values if value is not None]
+    return sum(present) / len(present) if present else None
+
+
+def _rounded(value: float | None) -> float | None:
+    return round(value, 6) if value is not None else None
 
 
 def _instantiate(factory: PolicyFactory | type[BasePolicy]) -> BasePolicy:
@@ -145,15 +174,28 @@ def playthrough(
         obs = env.step(batch)
 
     revealed = env.revealed_nodes()
-    judged = [
+    outcome_nodes = [
         world.tree.nodes[nid]
         for nid in revealed
-        if world.tree.nodes[nid].outcome.verdict in JUDGED_VERDICTS
+        if world.tree.nodes[nid].kind not in {"root", "stage"}
+    ]
+    judged = [
+        node for node in outcome_nodes if node.outcome.verdict in JUDGED_VERDICTS
     ]
     fp = sum(1 for n in judged if n.outcome.verdict == "fp")
     dup = sum(1 for n in judged if n.outcome.verdict == "duplicate")
-    fp_rate = fp / len(judged) if judged else 0.0
-    dup_rate = dup / len(judged) if judged else 0.0
+    fp_rate = fp / len(judged) if judged else None
+    dup_rate = dup / len(judged) if judged else None
+    label_coverage = (
+        len(judged) / len(outcome_nodes) if outcome_nodes else None
+    )
+    world_tp = sum(
+        1
+        for node in world.tree.nodes.values()
+        if node.kind not in {"root", "stage"} and node.outcome.verdict == "tp"
+    )
+    revealed_tp = sum(1 for node in judged if node.outcome.verdict == "tp")
+    tp_recall = revealed_tp / world_tp if world_tp else None
 
     skills = {world.tree.nodes[nid].skill for nid in revealed}
     skills.discard("")
@@ -161,9 +203,10 @@ def playthrough(
     coverage = len(skills & world_skills) / len(world_skills) if world_skills else 0.0
 
     best = env.best_score()
+    total = env.total_score()
     quality = 0.0
-    if world.best_score > 0:
-        quality = max(0.0, min(1.0, best / world.best_score))
+    if world.total_score > 0:
+        quality = max(0.0, min(1.0, total / world.total_score))
 
     return Point(
         rho=rho,
@@ -175,6 +218,9 @@ def playthrough(
         coverage=coverage,
         best_score=best,
         revealed=len(revealed),
+        label_coverage=label_coverage,
+        tp_recall=tp_recall,
+        total_score=total,
     )
 
 
@@ -236,14 +282,16 @@ def replay_world(
     parallel = _mean(
         p.rounds / p.calls for p in points if p.calls > 0
     )
-    fp_rate = _mean(p.fp_rate for p in points)
-    dup_rate = _mean(p.dup_rate for p in points)
+    fp_rate = _optional_mean(p.fp_rate for p in points)
+    dup_rate = _optional_mean(p.dup_rate for p in points)
+    label_coverage = _optional_mean(p.label_coverage for p in points)
+    tp_recall = _optional_mean(p.tp_recall for p in points)
     coverage = _mean(p.coverage for p in points)
     score = (
         hv
         - lambda_parallel * parallel
-        - mu_fp * fp_rate
-        - nu_dup * dup_rate
+        - mu_fp * (fp_rate or 0.0)
+        - nu_dup * (dup_rate or 0.0)
         + delta_coverage * coverage
     )
     last_env_nodes = _revealed_from_last_run(
@@ -260,6 +308,8 @@ def replay_world(
         coverage=coverage,
         score=score,
         revealed=last_env_nodes,
+        label_coverage=label_coverage,
+        tp_recall=tp_recall,
     )
 
 

@@ -17,17 +17,19 @@ L5 人工验收
 
 ## Lab
 
-lab adapter 不是人工写死；`redteam-lab-builder` skill/agent 会读 finding、源码和环境清单，自动判断攻击面并生成 `labs/<project>/scenario.json`、`lab-report.md` 或 `BLOCKED.md`。
+lab adapter 由 `redteam-lab-builder` skill/agent 根据 finding、源码和环境清单生成。默认按 finding 隔离到 `labs/<project>/<finding-id>/`，其中包含 `scenario.json`、`lab-report.md` 或 `BLOCKED.md`。
 
-`scripts/redteam/lab.py` 负责执行生成的 scenario：
+scenario 必须绑定 `finding_id`、finding 原始字节的 SHA-256，以及 source commit 或 content hash。builder 退出为 0 且结构化校验通过才算 built；陈旧、错 finding、非法 mount 或不支持的 mode 都会 fail closed。当前可执行 adapter 只支持 HTTP，其他攻击面保持 blocked。
 
-- 独立 Docker network，`--internal`，攻击者不能出公网
-- 受害者容器：目标镜像，不发布宿主机端口；flag 以只读文件挂载到 `/flag`
-- 攻击者容器：只有 shell/curl，不挂载宿主机、不挂载 flag、没有 docker socket
-- 每轮随机 `FLAG{...}`，不写入攻击者可见路径
-- `runs/redteam/<project>/<run>/trace.jsonl` 记录工具调用和输出
+`scripts/redteam/lab.py` 负责执行 scenario：
 
-flag 必须由受害者的真实服务响应返回；攻击者侧没有 flag 文件。
+- 独立 Docker internal network，不发布宿主机端口
+- victim/attacker 都有 cap-drop、no-new-privileges、PID/内存/CPU 限制
+- flag 只由 harness 只读挂载到 victim 的 `/flag`
+- attacker 不挂载宿主机、flag 或 Docker socket
+- 每轮随机 flag，trace 记录工具事件、输出哈希和捕获事件
+
+旧项目级 scenario 只有显式 `legacy_compatible: true` 且完整绑定仍匹配时才兼容。
 
 ## 红队 agent
 
@@ -37,7 +39,8 @@ flag 必须由受害者的真实服务响应返回；攻击者侧没有 flag 文
 - 通过 OpenAI-compatible 模型做 agentic loop
 - 每步只允许输出一个 JSON：`shell` 或 `done`
 - 工具只在攻击者容器执行
-- 成功条件：工具输出或最终回答中精确出现本轮随机 flag
+- 成功条件：真实工具输出包含本轮随机 flag，并记录确定性 provenance
+- 最终回答恰好等于 flag 但没有工具来源时，不算捕获
 - 支持任意 OpenAI-compatible 服务，包括本地 Qwen/vLLM/llama.cpp
 
 ```bash
@@ -59,13 +62,9 @@ python3 scripts/redteam/agent.py ...
 
 ## Judge
 
-`scripts/redteam/judge.py` 使用独立的 `exploit-judge` agent 审核：
+`scripts/redteam/judge.py` 先重算工具事件、输出 SHA-256、flag SHA-256 和捕获事件，再让独立的 `exploit-judge` agent 审核目标漏洞、作弊可能、环境合理性、复现性和最小性。
 
-- 是否利用 finding 描述的目标漏洞
-- flag 是否来自受害者，而不是攻击者侧文件/伪造输出
-- 是否访问宿主、Docker socket、共享卷、外网或调试后门
-- 轨迹是否可复现、是否最小
-- 证据是否足以支持 `runtime-validated`
+judge 只有 Read/Grep/Glob 和指定的 judge.json 写权限，不执行 Bash。`approved` 必须通过完整 schema，全部必要布尔字段为 JSON true，recommended_status 为 runtime-validated；缺字段、字符串布尔或 provenance 不一致都会拒绝。只有同时通过模型审核和确定性校验的结果才写 validation 轨迹，也才可能进入 review。
 
 ```bash
 python3 scripts/redteam/judge.py \

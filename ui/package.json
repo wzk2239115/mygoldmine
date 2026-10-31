@@ -10,7 +10,9 @@
     "server": "node server/index.mjs",
     "start": "node server/index.mjs",
     "smoke": "node scripts/api-smoke.mjs",
-    "prestart": "python3 ../scripts/workflow/build_state.py || true"
+    "test": "node --test tests/*.test.mjs",
+    "test:system": "npm run build && node scripts/system-test.mjs",
+    "prestart": "python3 ../scripts/workflow/build_state.py || true; python3 ../scripts/workflow/fetch_project_logos.py --timeout 8 || true; python3 ../scripts/workflow/report_quality.py || true"
   },
   "dependencies": {
     "d3-hierarchy": "^3.1.2",

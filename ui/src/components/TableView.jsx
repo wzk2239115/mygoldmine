@@ -78,7 +78,12 @@ export default function TableView({ findings, onOpen }) {
                   <CveBadge tier={finding.cveTier} knownCve={finding.knownCve} />
                 </td>
                 <td>
-                  <span className={`status-pill status-${finding.status}`}>{STATUS_LABELS[finding.status]}</span>
+                  <span
+                    className={`status-pill status-${finding.status}`}
+                    title={finding.reviewReady ? `底层流程：${STATUS_LABELS[finding.status]}` : undefined}
+                  >
+                    {finding.reviewReady ? '待验收' : STATUS_LABELS[finding.status]}
+                  </span>
                 </td>
                 <td className="table-number">{finding.evidence?.length || 0}</td>
                 <td className="table-date">{formatDate(finding.updatedAt)}</td>

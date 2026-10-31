@@ -105,7 +105,10 @@ def _load_verify(run_dir: Path) -> dict[str, dict[str, Any]]:
 
 
 def _verify_outcome(
-    item: dict[str, Any], finding: dict[str, Any]
+    item: dict[str, Any],
+    finding: dict[str, Any],
+    run_id: str = "",
+    commit: str = "",
 ) -> Outcome:
     raw = str(item.get("verdict", "")).lower()
     verdict = {
@@ -119,7 +122,21 @@ def _verify_outcome(
         confidence="medium",
         source="verify",
         note=str(item.get("reason", "")),
+        run_id=run_id,
+        commit=commit,
+        semantic_id=f"verify:{run_id}:{item.get('finding_id', finding.get('id', ''))}",
     )
+
+
+def _report_findings(report: Any) -> list[dict[str, Any]]:
+    if not isinstance(report, dict):
+        return []
+    raw = report.get("findings")
+    if raw is None:
+        raw = report.get("vulnerabilities")
+    if not isinstance(raw, list):
+        return []
+    return [item for item in raw if isinstance(item, dict)]
 
 
 def manifest_projects(repo_root: str | Path) -> list[str]:
@@ -148,14 +165,20 @@ def find_run_dirs(runs_root: str | Path) -> list[Path]:
 def import_run(
     run_dir: str | Path,
     curated: dict[str, Any] | None = None,
-    handoff: dict[tuple[str, str], dict[str, Any]] | None = None,
+    handoff: dict[tuple[str, ...], dict[str, Any]] | None = None,
+    allow_unscoped_labels: bool = True,
 ) -> ReplayWorld:
     run_path = Path(run_dir)
     report = _load_json(run_path / "audit-report.json", {})
+    if not isinstance(report, dict):
+        report = {}
     meta = _load_json(run_path / "run-meta.json", {})
+    if not isinstance(meta, dict):
+        meta = {}
     curated = curated or {}
     handoff = handoff or {}
     verify = _load_verify(run_path)
+    run_id = run_path.name
 
     target_raw = report.get("target")
     target = target_raw if isinstance(target_raw, dict) else {}
@@ -171,7 +194,7 @@ def import_run(
     if not isinstance(stages_raw, dict):
         stages_raw = {}
     stages = list(stages_raw) or list(DEFAULT_STAGES)
-    findings = list(report.get("findings", []) or report.get("vulnerabilities", []) or [])
+    findings = _report_findings(report)
     node_budget = max(1, len(stages) + len(findings) + len(verify))
     share = duration / node_budget
 
@@ -184,7 +207,7 @@ def import_run(
             label=project,
             skill="",
             cost=Cost(agent_calls=0, seconds=0.0, tokens=0),
-            observation={"commit": commit},
+            observation={"run_id": run_id, "commit": commit},
         )
     )
 
@@ -202,7 +225,11 @@ def import_run(
                 skill=name,
                 tags=_tags(name),
                 cost=Cost(agent_calls=1, seconds=share),
-                observation={"status": stage_status.get(name, "unknown")},
+                observation={
+                    "run_id": run_id,
+                    "commit": commit,
+                    "status": stage_status.get(name, "unknown"),
+                },
             )
         )
 
@@ -213,7 +240,15 @@ def import_run(
         scope = str(evidence[0]) if evidence else ""
         parent_id = _stage_for(category, stage_ids)
         outcome = outcome_from_lookup(
-            project, finding_id, finding, curated, handoff, verify
+            project,
+            finding_id,
+            finding,
+            curated,
+            handoff,
+            verify,
+            run_id=run_id,
+            commit=commit,
+            allow_unscoped=allow_unscoped_labels,
         )
         node = Node(
             id=f"finding:{finding_id}",
@@ -233,6 +268,9 @@ def import_run(
             prior_severity=str(finding.get("severity", "unknown")).lower(),
             observation={
                 "finding_id": finding_id,
+                "run_id": run_id,
+                "commit": commit,
+                "semantic_id": outcome.semantic_id,
                 "category": category,
                 "cwe": finding.get("cwe", []),
                 "preconditions": finding.get("preconditions", []),
@@ -257,10 +295,14 @@ def import_run(
                     ),
                     prior_severity=str(finding.get("severity", "unknown")).lower(),
                     observation={
+                        "run_id": run_id,
+                        "commit": commit,
                         "verdict": verify[finding_id].get("verdict", ""),
                         "reason": verify[finding_id].get("reason", ""),
                     },
-                    outcome=_verify_outcome(verify[finding_id], finding),
+                    outcome=_verify_outcome(
+                        verify[finding_id], finding, run_id=run_id, commit=commit
+                    ),
                     cost=Cost(agent_calls=1, seconds=share),
                 )
             )
@@ -275,6 +317,7 @@ def import_run(
         commit=commit,
         tree=tree,
         meta={
+            "run_id": run_id,
             "run_dir": str(run_path),
             "model": meta.get("model", ""),
             "agent": meta.get("agent", ""),
@@ -294,7 +337,7 @@ def load_labels(
     curated_path: str | Path | None,
     handoff_path: str | Path | None,
     adjudication_path: str | Path | None = None,
-) -> tuple[dict[str, Any], dict[tuple[str, str], dict[str, Any]]]:
+) -> tuple[dict[str, Any], dict[tuple[str, ...], dict[str, Any]]]:
     curated = _load_json(Path(curated_path), {}) if curated_path else {}
     adjudication_raw = (
         _load_json(Path(adjudication_path), {}) if adjudication_path else {}
@@ -311,13 +354,48 @@ def load_labels(
         merged.update(entry)
         curated[key] = merged
     handoff_raw = _load_json(Path(handoff_path), {}) if handoff_path else {}
-    index: dict[tuple[str, str], dict[str, Any]] = {}
+    index: dict[tuple[str, ...], dict[str, Any]] = {}
     for candidate in handoff_raw.get("candidates", []):
         project = candidate.get("project")
         finding_id = candidate.get("finding_id")
-        if project and finding_id:
-            index[(str(project), str(finding_id))] = candidate
+        if not project or not finding_id:
+            continue
+        project = str(project)
+        finding_id = str(finding_id)
+        run_id = str(
+            candidate.get("run_id")
+            or candidate.get("runId")
+            or candidate.get("run")
+            or ""
+        )
+        commit = str(candidate.get("commit") or "")
+        if run_id:
+            index[(project, f"run:{run_id}", finding_id)] = candidate
+        if commit:
+            index[(project, f"commit:{commit}", finding_id)] = candidate
+        if not run_id and not commit:
+            index[(project, finding_id)] = candidate
     return curated, index
+
+
+def _coverage_overlay(run_path: Path) -> dict[str, Any]:
+    report = _load_json(run_path / "audit-report.json", None)
+    meta = _load_json(run_path / "run-meta.json", {})
+    if not isinstance(meta, dict):
+        meta = {}
+    target = report.get("target", {}) if isinstance(report, dict) else {}
+    if not isinstance(target, dict):
+        target = {}
+    coverage = report.get("coverage", {}) if isinstance(report, dict) else {}
+    if not isinstance(coverage, dict):
+        coverage = {}
+    return {
+        "run_id": run_path.name,
+        "run_dir": str(run_path),
+        "commit": str(target.get("commit") or meta.get("commit") or ""),
+        "status": "empty" if isinstance(report, dict) else "invalid",
+        "coverage": coverage,
+    }
 
 
 def import_runs(
@@ -338,15 +416,42 @@ def import_runs(
         run_dirs = [
             path for path in run_dirs if path.parent.name in wanted
         ]
+    by_project: dict[str, list[Path]] = {}
+    for path in run_dirs:
+        by_project.setdefault(path.parent.name, []).append(path)
+
+    selected_runs: list[tuple[Path, list[dict[str, Any]]]] = []
     if latest:
-        by_project: dict[str, Path] = {}
-        for path in run_dirs:
-            by_project[path.parent.name] = path
-        run_dirs = sorted(by_project.values())
+        for paths in by_project.values():
+            paths = sorted(paths)
+            with_findings = [
+                path
+                for path in paths
+                if _report_findings(
+                    _load_json(path / "audit-report.json", None)
+                )
+            ]
+            selected = with_findings[-1] if with_findings else paths[-1]
+            selected_index = paths.index(selected)
+            overlays = [
+                _coverage_overlay(path)
+                for path in paths[selected_index + 1 :]
+            ]
+            selected_runs.append((selected, overlays))
+    else:
+        selected_runs = [(path, []) for path in run_dirs]
 
     worlds = []
-    for path in run_dirs:
-        world = import_run(path, curated=curated, handoff=handoff)
+    for path, overlays in selected_runs:
+        world = import_run(
+            path,
+            curated=curated,
+            handoff=handoff,
+            allow_unscoped_labels=len(by_project[path.parent.name]) == 1,
+        )
+        if overlays:
+            world.meta["report_overlays"] = overlays
+            world.meta["latest_report"] = overlays[-1]
         if skip_empty and not any(
             node.kind == "finding" for node in world.tree.nodes.values()
         ):
@@ -360,5 +465,10 @@ def import_runs(
             "latest_per_project": latest,
             "projects": sorted({w.project for w in worlds}),
             "count": len(worlds),
+            "coverage_overlays": [
+                overlay
+                for _, overlays in selected_runs
+                for overlay in overlays
+            ],
         },
     )

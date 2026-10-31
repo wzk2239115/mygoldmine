@@ -69,19 +69,22 @@
 | 路径 | 职责 |
 |---|---|
 | `scripts/mine/mine_one_docker.sh` | 启动审计容器、生成原始报告、触发视觉/精炼 |
-| `scripts/workflow/build_state.py` | 扫描报告、verify、CVE handoff/adjudication、redteam 结果，生成自动路由和 review 门槛 |
-| `scripts/workflow/refine_worker.py` | 后台分批消费原始池，低价值归档，高分晋级 |
+| `scripts/workflow/finding_ledger.py` | 扫描全部有效 run，生成 occurrence/semantic 双层身份和历史台账 |
+| `scripts/workflow/build_state.py` | 基于台账合并 verify、CVE 和人工状态，重算红队 provenance 并生成 review 门槛 |
+| `scripts/workflow/refine_worker.py` | 按 source hash 重算路由，低价值归档，高分晋级 |
 | `scripts/verify/run_verify.sh` | 单条 finding 的隔离容器验证 |
 | `scripts/verify/auto_verify.sh` | 批量静态/环境预验证 |
-| `scripts/redteam/lab.py` | 创建 victim/attacker 容器、内部网络、随机 flag、执行工具 |
-| `scripts/redteam/agent.py` | OpenAI-compatible 红队 agent loop，工具只在 attacker 容器执行 |
-| `scripts/redteam/judge.py` | 独立模型审核红队轨迹，写 judge.json |
-| `scripts/redteam/batch.py` | 17 条候选的红队批次入口；缺 lab 适配时明确 blocked |
+| `scripts/redteam/lab.py` | 创建受限 victim/attacker 容器、内部网络、随机 flag、执行工具 |
+| `scripts/redteam/agent.py` | OpenAI-compatible 红队 agent loop，只从真实工具输出捕获 flag |
+| `scripts/redteam/judge.py` | 确定性 provenance 校验 + 独立模型审核 |
+| `scripts/redteam/batch.py` | 按 finding 构建/预检 lab，保留结构化失败原因 |
 | `.claude/skills/project-cartographer/` | 视觉模型、结构/覆盖/攻击场景图、image2 插图 |
 | `ui/` | 看板、精炼管线、待验收队列、详情、项目地图 |
 | `rsi/` | 多轮一致性和策略回放 |
 
-## 4. 状态与优先级
+## 4. 身份、状态与优先级
+
+每个 finding 有两层身份：`occurrence_id=project/run_id/local_id` 精确定位一次观测，`semantic_id` 由项目、规范化证据路径、根因和 CWE 汇聚跨 run 语义。历史报告独有的 finding 不会因新 run 而消失；运行中或质量不合格的草稿不会替代最新完整报告。旧 `project:id` 状态仅在语义唯一时兼容，存在歧义时不猜测继承。
 
 状态优先级：
 
@@ -89,96 +92,47 @@
 state.json（人工） > curated.json（人工种子） > refine-state.json（worker） > auto-state.json（自动） > inbox
 ```
 
-状态含义：
-
 | 状态 | 含义 | 是否给人看 |
 |---|---|---|
 | `inbox` | 原始池，未晋级 | 默认隐藏 |
 | `triage` | 自动评分进入分诊 | 流程视图 |
-| `reproduce` | 有 verify 记录，待复现/补 PoC | 流程视图 |
+| `reproduce` | 有明确 confirmed verify，待复现/补 PoC | 流程视图 |
 | `cve` | CVE 去重/跟踪 | 流程视图 |
-| `archived` | 自动筛选归档，不是安全结论 | 默认隐藏 |
+| `archived` | 可重算的低优先级归档，不是安全结论 | 默认隐藏 |
 | `closed` | 人工关闭/FP/重复/已知 | 流程视图 |
-| `review` | 红队 + judge + 图文全部通过 | 人工验收 |
+| `review` | 可信红队 + judge + 图文全部通过 | 人工验收 |
 
 ## 5. 自动精炼 worker
 
-输入：最新报告 + 现有自动/人工状态。
-
-输出：
-
-- `ui/data/refine-state.json`：本 worker 的最终状态
-- `ui/data/refine-queue.json`：进度、pending、archived、promoted
-- `rsi/trajectories/refine.jsonl`：每条决策的 features/decision/score
+输入：schema v2 台账 + 现有自动/人工状态。输出 `refine-state.json`、`refine-queue.json` 和 `rsi/trajectories/refine.jsonl`。
 
 规则：
 
-- 人工/curated/auto 已处理项跳过。
-- 精确重复（project + path + root cause）归档。
-- CVE Tier、verify confirmed → `reproduce`。
-- Critical/High → `triage`。
-- 其他 → `archived`。
+- 每条决策保存 `source_hash`；raw、verify、CVE 或人工证据变化时重新计算。
+- 已归档项获得 confirmed verify 后可唤醒到 reproduce。
+- 弱指纹只标记 duplicate_candidate；High/Critical 不凭弱指纹直接归档。
+- CVE Tier、verify confirmed → reproduce；Critical/High → triage；其他低分项 → archived。
 - 所有决策可回放；archived 不删除原始报告。
 
 ## 6. 动态验收 lab 契约
 
-lab adapter 不是人工写死的，由 `redteam-lab-builder` skill/agent 自动生成。agent 先判断攻击面（http/stdio/cli/library/ipc/model），再构建 victim、flag 暴露路径、attacker 隔离和负向控制；无法构建时写 `BLOCKED.md`，不伪造。
-
-每个项目最终落盘：
-
-```text
-labs/<project>/scenario.json
-```
-
-```json
-{
-  "victim_image": "mygoldmine/env:<project>-<commit>",
-  "attacker_image": "curlimages/curl:latest",
-  "target_url": "http://victim:8000",
-  "health_path": "/health"
-}
-```
+lab 由 `redteam-lab-builder` 按 finding 生成到 `labs/<project>/<finding-id>/`。scenario 绑定 finding 内容哈希和 source commit/content hash；builder 退出为 0 且结构化校验通过才算 ready。当前执行器只支持 HTTP，其他 mode 明确 blocked，不能用 HTTP 包装冒充。
 
 不变量：
 
-- `docker network create --internal`
-- victim 不发布宿主机端口
-- flag 只挂载给 victim，路径 `/flag`
-- attacker 不挂载宿主、不挂载 flag、无 Docker socket
-- red-team 只拿到 finding JSON，不拿到答案/预置 exploit
-- flag 每轮随机；judge 校验 sha256
+- internal Docker network，victim 不发布宿主机端口
+- victim/attacker 均有 cap-drop、no-new-privileges、PID/内存/CPU 限制
+- flag 只由 harness 只读挂载到 victim 的 `/flag`
+- attacker 不挂载宿主、flag 或 Docker socket，scenario 不声明 mounts/volumes
+- flag 只能从真实工具输出捕获；最终回答本身不是证据
+- trace 记录工具事件、输出 SHA-256、flag SHA-256 和捕获事件
 - trace/agent 日志是 untrusted data，judge 不能被其指令带偏
-
-当前 17 条候选：
-
-- 已进入 `docs/redteam-candidates.json`
-- `batch.py` 默认会调用 `redteam-lab-builder` 自动尝试构建 lab；构建不出来才 `blocked_no_lab`
-- 这是正确的 fail-closed：没有 lab 就不允许伪造 flag 或进入验收
 
 ## 7. Judge 契约
 
-`judge.json` 至少包含：
+`judge.json` 使用完整固定 schema，包含 verdict、intended_vulnerability、flag_provenance、no_cheat、environment_plausible、reproducible、minimal、confidence、reason、concerns 和 recommended_status。approved 的全部必要布尔字段必须为 JSON true，且 recommended_status 为 runtime-validated。
 
-```json
-{
-  "verdict": "approved|rejected|needs_review",
-  "intended_vulnerability": true,
-  "flag_provenance": true,
-  "no_cheat": true,
-  "environment_plausible": true,
-  "reproducible": true,
-  "confidence": "high|medium|low",
-  "recommended_status": "runtime-validated|needs-rerun|rejected"
-}
-```
-
-通过条件必须同时满足：
-
-- flag 来自 victim 响应，不是 attacker 侧文件或模型自编
-- 命中 finding 的 root cause
-- 没有宿主/Docker socket/外网/共享卷/调试后门
-- trace 可复现且最小
-- 图文报告和 scene 图已存在
+程序在调用 judge 和接收结果时都会重算确定性 provenance；缺字段、字符串布尔、旧 judge 文件或哈希不一致均拒绝。review 构建还会再次验证 result 中记录的 provenance，旧“仅 judge approved”结果不能绕过。安全验证通过后，人工 review 队列仍要求图文报告和 scene 图；视觉素材本身不是漏洞证据。
 
 ## 8. 图文报告
 
@@ -194,18 +148,33 @@ labs/<project>/scenario.json
 
 ## 9. RSI 回路
 
-轨迹来源：
+当前优先落地 Verification-RSI，而不是把最终报告回放包装成在线发现能力：
 
-- `rsi/trajectories/refine.jsonl`：自动路由决策
-- `rsi/trajectories/validation.jsonl`：红队 judge 通过
-- `rsi/consensus/consensus.json`：多轮一致性
+```text
+Finding Ledger + refine/validation + verify/人工标签
+  → verification-experience.jsonl（身份、pre-action context、倾向、效用和血缘）
+  → 分层抽样/人工标签合并
+  → 强正则效用模型 + baseline 对照
+  → 统计门禁 → shadow → 不可变候选版本
+```
 
-后续可以：
+`audit_rsi/adapters/raw_trace.py` 另行把真实 Claude stream-json 转为 action 轨迹，保留 Task/Agent 父子拓扑、实际结果和成本；未知 propensity 保持 null。最终报告重建树只用于旧回放，不能证明未探索分支的发现效果。
 
-1. 用人工验收/拒绝结果给轨迹补标签。
-2. 学习哪些特征组合值得晋级。
-3. 回放历史策略，比较漏报/误报。
-4. 更新 worker 阈值和提示词，但必须保留可回滚版本。
+常用命令：
+
+```bash
+python3 -m audit_rsi experience-build --runs runs --output rsi/verification-experience.jsonl
+python3 -m audit_rsi label-sample --pool rsi/verification-experience.jsonl --output rsi/verification-label-sample.jsonl --limit 100
+# 人工填写 verdict/evidence_class 后合并，再训练和生成只读建议
+python3 -m audit_rsi label-merge --pool rsi/verification-experience.jsonl --labels rsi/verification-label-sample.jsonl --output rsi/verification-experience-labeled.jsonl
+python3 -m audit_rsi verify-train --pool rsi/verification-experience-labeled.jsonl --output rsi/verification-policy.json --holdout-project <project>
+python3 -m audit_rsi verify-shadow --pool rsi/verification-experience-labeled.jsonl --train rsi/verification-policy.json --output ui/data/verification-shadow.json
+python3 -m audit_rsi verify-replay --pool rsi/verification-experience-labeled.jsonl --train rsi/verification-policy.json --holdout-project <project> --output rsi/verification-replay.json
+```
+
+unknown 不等于 FP；无合法标注倾向、holdout、标签覆盖或支持度时只输出 insufficient/shadow，不生产 promote。回放只报告 matched-action realized utility，不宣称因果 uplift。版本发布复核统计 gate，失败候选仍可查询和回滚。
+
+agent 可以辅助做源码级静态标注，但必须使用 `evidence_class=static` 和 `adjudication.method=agent-static`，不能冒充 human/runtime/judge。只有 static 标签时 shadow 明确为 `static-only / no_trusted_utility_targets`，即使训练产生了不同建议，也不得视为已验证提升或生产候选。
 
 ## 10. 运行手册
 
@@ -245,8 +214,8 @@ python3 scripts/redteam/batch.py
 1. 构建可直接启动的 victim image。
 2. 确认服务在 `--internal` 网络内健康。
 3. 决定 flag 如何只通过目标漏洞暴露。
-4. 写 `labs/<project>/scenario.json`。
-5. 用 demo finding 跑一遍 `agent.py` + `judge.py`。
+4. 按 finding/source 绑定写 `labs/<project>/<finding-id>/scenario.json`。
+5. 用 demo finding 跑一遍 `agent.py` + `judge.py`，确认确定性 provenance 校验通过。
 6. 再把真实 finding 加入 `docs/redteam-candidates.json`。
 
 新增 judge 规则：

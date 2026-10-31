@@ -291,7 +291,51 @@ if [ "$MODE" = "supervise" ]; then
             >> "$META/renderer.log" 2>&1 || true
     fi
 
-    if [ "$SKIP_VERIFY" -eq 0 ] && [ -n "$ENV_IMAGE" ] && [ -s "$RUN_DIR/audit-report.json" ]; then
+    # Structured infra runs can recover independently after a native Agent/CLI failure.
+    # Each finished boundary is persisted by mine_one.sh; only missing tasks are retried.
+    if [ "$RC" -ne 0 ] && [ "${AUTO_RECOVER:-1}" = "1" ] && \
+        python3 - "$REPO_ROOT" "$RUN_DIR" <<'PYRECOVERY'
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(sys.argv[1]) / "scripts/mine"))
+from durable_recovery import plan_from_trace
+try:
+    plan_from_trace(Path(sys.argv[2]))
+except (OSError, ValueError):
+    raise SystemExit(1)
+PYRECOVERY
+    then
+        if [ "$RC" -eq 124 ] || [ "$RC" -eq 125 ] || [ "$RC" -eq 137 ]; then
+            write_status "timeout" "$RC"
+        else
+            write_status "failed" "$RC"
+        fi
+        RECOVERY_RUN="${RUN_DIR}-recovery"
+        log "发现可恢复的 infra 任务，保留原始运行并转入 $RECOVERY_RUN"
+        python3 "$REPO_ROOT/scripts/mine/durable_recovery.py" \
+            --target "$TARGET" --recover-from "$RUN_DIR" --run-dir "$RECOVERY_RUN" \
+            --model "$MODEL" --idle-timeout "${AUDIT_IDLE_TIMEOUT:-180}" \
+            --task-timeout "${RECOVERY_TASK_TIMEOUT:-600}" \
+            --budget "${RECOVERY_BUDGET:-1800}" --max-attempts "${RECOVERY_MAX_ATTEMPTS:-2}"
+        RC=$?
+        RUN_DIR="$RECOVERY_RUN"
+        META="$RUN_DIR.meta"
+        mkdir -p "$META"
+        echo "$RC" > "$META/exit_code"
+    fi
+
+    REPORTS_COMPLETE=0
+    if [ -s "$RUN_DIR/audit-report.md" ] && [ -s "$RUN_DIR/audit-report.json" ]; then
+        if python3 "$REPO_ROOT/scripts/mine/check_report.py" \
+            --report "$RUN_DIR/audit-report.json" --output "$RUN_DIR/report-quality.json" \
+            --fail-missing --fail-language >> "$META/report-quality.log" 2>&1; then
+            REPORTS_COMPLETE=1
+        else
+            log "报告质量合同未通过，不自动执行 Phase 4"
+        fi
+    fi
+
+    if [ "$SKIP_VERIFY" -eq 0 ] && [ -n "$ENV_IMAGE" ] && [ "$REPORTS_COMPLETE" -eq 1 ]; then
         if docker image inspect "$ENV_IMAGE" >/dev/null 2>&1; then
             log "Phase 4: 自动验证（max=$VERIFY_MAX severity=$VERIFY_SEVERITY parallel=$VERIFY_PARALLEL）..."
             bash "$REPO_ROOT/scripts/verify/auto_verify.sh" \
@@ -312,14 +356,19 @@ if [ "$MODE" = "supervise" ]; then
             ENV_STATUS="blocked"
         fi
     else
-        log "Phase 4 跳过（skip/no-report/no-env）"
+        log "Phase 4 跳过（skip/no-valid-report/no-env）"
     fi
 
-    if [ "$RC" -eq 0 ]; then
-        write_status "success" "$RC"
-    elif [ "$RC" -eq 124 ] || [ "$RC" -eq 137 ]; then
+    if [ "$RC" -eq 124 ] || [ "$RC" -eq 125 ] || [ "$RC" -eq 137 ]; then
         write_status "timeout" "$RC"
+    elif [ "$REPORTS_COMPLETE" -eq 1 ]; then
+        if [ "$RC" -eq 0 ]; then
+            write_status "success" "$RC"
+        else
+            write_status "partial" "$RC"
+        fi
     else
+        [ "$RC" -eq 0 ] && RC=2
         write_status "failed" "$RC"
     fi
     log "supervisor 结束 rc=$RC run_dir=$RUN_DIR"

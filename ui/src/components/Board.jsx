@@ -39,7 +39,8 @@ export default function Board({ findings, onOpen, onMove, hiddenStatuses = [], s
   const grouped = useMemo(() => {
     const result = Object.fromEntries(columns.map((column) => [column.id, []]));
     for (const finding of findings) {
-      result[finding.status]?.push(finding);
+      const columnId = finding.reviewReady ? 'review' : finding.status;
+      result[columnId]?.push(finding);
     }
     for (const column of columns) {
       result[column.id].sort(
@@ -68,6 +69,7 @@ export default function Board({ findings, onOpen, onMove, hiddenStatuses = [], s
               className={cx('board-column', `tone-${column.tone}`, isOver && 'is-over')}
               style={{ '--column-index': index }}
               onDragOver={(event) => {
+                if (column.virtual) return;
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
                 if (overColumn !== column.id) setOverColumn(column.id);
@@ -76,6 +78,7 @@ export default function Board({ findings, onOpen, onMove, hiddenStatuses = [], s
                 if (!event.currentTarget.contains(event.relatedTarget)) setOverColumn(null);
               }}
               onDrop={(event) => {
+                if (column.virtual) return;
                 event.preventDefault();
                 const key = event.dataTransfer.getData('text/plain') || dragging?.key;
                 setOverColumn(null);

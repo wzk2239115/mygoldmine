@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
+import argparse
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -8,7 +11,7 @@ OUT = ROOT / "ui" / "data" / "projects.json"
 LEGACY = {
     "vllm": {"name": "vLLM", "direction": "Inference Engine", "url": "https://github.com/vllm-project/vllm", "icon": "server", "tone": "blue"},
     "sglang": {"name": "SGLang", "direction": "Inference Engine", "url": "https://github.com/sgl-project/sglang", "icon": "server", "tone": "amber"},
-    "deepseek-harness": {"name": "DeepSeek Harness", "direction": "Agent Harness", "url": "", "icon": "brain", "tone": "violet"},
+    "deepseek-harness": {"name": "DeepSeek Harness", "direction": "Agent Harness", "url": "https://github.com/deepseek-ai/deepseek-harness", "icon": "brain", "tone": "violet"},
     "codex": {"name": "Codex", "direction": "Agent Harness", "url": "https://github.com/openai/codex", "icon": "terminal", "tone": "ink"},
     "verl": {"name": "verl", "direction": "Training Framework", "url": "https://github.com/volcengine/verl", "icon": "cpu", "tone": "green"},
 }
@@ -41,8 +44,15 @@ def tone_for(key):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--no-logos", action="store_true")
+    args = parser.parse_args()
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     projects = dict(LEGACY)
+    try:
+        existing = json.loads(OUT.read_text(encoding="utf-8")).get("projects") or {}
+    except Exception:
+        existing = {}
     for key, item in (manifest.get("projects") or {}).items():
         direction = item.get("direction") or ""
         name = item.get("name") or key
@@ -72,8 +82,18 @@ def main():
         if key in projects:
             projects[key]["icon"] = icon
             projects[key]["tone"] = tone
+    for key, project in projects.items():
+        old = existing.get(key) or {}
+        for field in ("logo", "logo_source", "logo_owner"):
+            if old.get(field):
+                project[field] = old[field]
     OUT.write_text(json.dumps({"schema_version": 1, "projects": projects}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"[projects] {len(projects)} -> {OUT.relative_to(ROOT)}")
+    if not args.no_logos:
+        subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "workflow" / "fetch_project_logos.py"), "--timeout", "8"],
+            cwd=ROOT, check=False,
+        )
 
 
 if __name__ == "__main__":

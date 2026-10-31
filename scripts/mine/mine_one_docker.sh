@@ -32,7 +32,7 @@ usage() {
   --agent AGENT          Claude Code agent（默认 security-orchestrator）
   --project NAME         项目名
   --target-url URL       仅用于兼容 parallel_mine 的参数，容器内从 git 读取
-  --prompt FILE          仅用于兼容；容器内自动生成提示词
+  --prompt FILE          使用指定提示词（只读挂载；默认自动生成）
   --no-network           容器使用 --network none（仅调试用，无法调模型）
   -h, --help             显示本帮助
 
@@ -55,6 +55,7 @@ MODEL="${MODEL:-360-proxy/deepseek/deepseek-v4.1-flash}"
 AGENT="${AGENT:-security-orchestrator}"
 PROJECT="${PROJECT:-}"
 IMAGE="${MYGOLDMINE_IMAGE:-mygoldmine:dev}"
+CUSTOM_PROMPT=""
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -67,7 +68,8 @@ while [ "$#" -gt 0 ]; do
         --model) [ "$#" -ge 2 ] || die "--model 需要参数" 3; MODEL="$2"; shift ;;
         --agent) [ "$#" -ge 2 ] || die "--agent 需要参数" 3; AGENT="$2"; shift ;;
         --project) [ "$#" -ge 2 ] || die "--project 需要参数" 3; PROJECT="$2"; shift ;;
-        --target-url|--prompt) [ "$#" -ge 2 ] || die "$1 需要参数" 3; shift ;;
+        --prompt) [ "$#" -ge 2 ] || die "--prompt 需要参数" 3; CUSTOM_PROMPT="$(realpath -e "$2")" || die "prompt 不存在" 3; shift ;;
+        --target-url) [ "$#" -ge 2 ] || die "$1 需要参数" 3; shift ;;
         -h|--help) usage; exit 0 ;;
         *) usage >&2; die "未知参数: $1" 3 ;;
     esac
@@ -127,7 +129,7 @@ if ! image_exists && [ "$BUILD" -eq 0 ] && [ "$DRY_RUN" -eq 0 ]; then
     die "镜像不存在: $IMAGE（先执行 docker build -f docker/Dockerfile -t $IMAGE . 或加 --build）" 9
 fi
 
-CONTAINER_NAME="mygoldmine-${PROJECT}-$$"
+CONTAINER_NAME="${MYGOLDMINE_CONTAINER_NAME:-mygoldmine-${PROJECT}-$$}"
 
 docker_cmd() {
     local -a c=(docker run --rm)
@@ -141,12 +143,17 @@ docker_cmd() {
     c+=(--mount "type=bind,src=${REPO_ROOT}/.claude,dst=/opt/mygoldmine/.claude,readonly")
     c+=(--mount "type=bind,src=${REPO_ROOT}/knowledge,dst=/opt/mygoldmine/knowledge")
     [ -d "$REPO_ROOT/rsi" ] && c+=(--mount "type=bind,src=${REPO_ROOT}/rsi,dst=/opt/mygoldmine/rsi,readonly")
+    if [ -n "$CUSTOM_PROMPT" ]; then
+        c+=(--mount "type=bind,src=${CUSTOM_PROMPT},dst=/opt/custom-audit-prompt.txt,readonly")
+        c+=(-e "CUSTOM_PROMPT_FILE=/opt/custom-audit-prompt.txt")
+    fi
     c+=(-e "MYGOLDMINE_HOME=/opt/mygoldmine")
     c+=(-e "TARGET_DIR=/target")
     c+=(-e "WORK_DIR=/workspace/repo")
     c+=(-e "RUN_DIR=${RUN_DIR}")
     c+=(-e "PROJECT=${PROJECT}")
     c+=(-e "TIMEOUT=${TIMEOUT}")
+    c+=(-e "AUDIT_IDLE_TIMEOUT=${AUDIT_IDLE_TIMEOUT:-180}")
     c+=(-e "MODEL=${CLAUDE_MODEL}")
     c+=(-e "AGENT=${AGENT}")
     c+=(-e "ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}")

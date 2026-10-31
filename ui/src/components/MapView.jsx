@@ -122,7 +122,7 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
   const [zoom, setZoom] = useState(1);
 
   const load = async () => {
-    if (!project || !runId) return;
+    if (loading || !project || !runId) return;
     setLoading(true);
     setError('');
     try {
@@ -152,7 +152,6 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
     <div className="map-view">
       <div className="map-head">
         <div className="map-title">
-          <span className="eyebrow">PROJECT CARTOGRAPHY / {project.id}</span>
           <h2>{model?.project_name || project.name}</h2>
           <p>
             {model?.audit_id || 'audit'} · {model?.direction || project.direction || 'direction unknown'} ·{' '}
@@ -171,8 +170,8 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
               <ShieldAlert size={14} /> 攻击路径
             </button>
           </div>
-          <button type="button" className={cx('icon-button', loading && 'is-spinning')} title="刷新视觉模型" aria-label="刷新视觉模型" onClick={load}>
-            <RefreshCw size={16} />
+          <button type="button" className="icon-button" title="刷新视觉模型" aria-label="刷新视觉模型" aria-busy={loading} disabled={loading} onClick={load}>
+            <RefreshCw size={16} className={cx(loading && 'is-spinning')} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -194,7 +193,6 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
                 <div className="map-cover">
                   <img src={`/api/visual/${encodeURIComponent(project.id)}/${encodeURIComponent(runId)}/asset?path=cover.webp`} alt={`${project.name} audit cover`} />
                   <div>
-                    <span className="eyebrow">AUDIT CASE FILE</span>
                     <strong>{model.project_name}</strong>
                     <p>{model.counts?.findings || 0} findings · generated {formatDate(model.generated_at)}</p>
                   </div>
@@ -223,7 +221,6 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
             <aside className="map-detail">
               {selected ? (
                 <>
-                  <span className="eyebrow">{selected.kind || 'node'}</span>
                   <h3>{selected.label}</h3>
                   <dl>
                     {selected.finding_id ? <><dt>Finding</dt><dd>{selected.finding_id}</dd></> : null}
@@ -238,14 +235,13 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
                     </button>
                   ) : null}
                   {selected.path ? (
-                    <button type="button" className="button" onClick={async () => { const ok = await copyText(selected.path); onToast?.(ok ? `已复制：${selected.path}` : '复制失败'); }}>
+                    <button type="button" className="button" onClick={async () => { const ok = await copyText(selected.path); onToast?.(ok ? `已复制：${selected.path}` : '复制失败', ok ? 'success' : 'error'); }}>
                       <Copy size={13} /> 复制路径
                     </button>
                   ) : null}
                 </>
               ) : (
                 <>
-                  <span className="eyebrow">READING THE MAP</span>
                   <h3>从结构到证据</h3>
                   <p>结构树按源码目录和 finding 证据路径生成；覆盖树按审计阶段生成；攻击路径把入口、前置条件、sink 和影响串起来。</p>
                   <div className="map-stat-row">

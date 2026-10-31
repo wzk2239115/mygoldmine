@@ -123,6 +123,13 @@ class TraceEnv:
         ]
         return max(scores, default=0.0)
 
+    def total_score(self) -> float:
+        return sum(
+            max(0.0, self.tree.nodes[nid].score())
+            for nid in self.revealed
+            if self.tree.nodes[nid].kind != "root"
+        )
+
     def observe(self) -> Observation:
         eligible = self.frontier()
         if not eligible or self.rounds >= self.max_rounds:

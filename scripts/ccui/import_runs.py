@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -58,7 +59,8 @@ def _run_dirs(
     return [
         run_dir
         for project_dir in sorted(runs_root.iterdir())
-        if project_dir.is_dir() and not project_dir.name.startswith(".")
+        if project_dir.is_dir()
+        and not project_dir.name.startswith(".")
         and (include_smoke or not project_dir.name.startswith("smoke"))
         and (not projects or project_dir.name in projects)
         for run_dir in sorted(project_dir.iterdir())
@@ -109,9 +111,21 @@ def _header_text(meta: dict[str, Any], run_id: str, project: str) -> str:
     )
 
 
+def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temp.write_text(
+        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8"
+    )
+    temp.replace(path)
+
+
 def convert_run(run_dir: Path, home: Path, project: str) -> tuple[str, Path] | None:
     raw_path = run_dir / "raw.jsonl"
-    meta = _load_json(run_dir / "run-meta.json", {})
+    meta = {
+        **_load_json(run_dir.with_name(run_dir.name + ".meta") / "status.json", {}),
+        **_load_json(run_dir / "run-meta.json", {}),
+    }
     events: list[dict[str, Any]] = []
     for line in raw_path.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
@@ -132,7 +146,14 @@ def convert_run(run_dir: Path, home: Path, project: str) -> tuple[str, Path] | N
     try:
         started = datetime.fromisoformat(started_raw.replace("Z", "+00:00"))
     except ValueError:
-        started = datetime.now(timezone.utc)
+        try:
+            started = datetime.strptime(run_dir.name, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        except ValueError:
+            # Persisted for unstructured run names so periodic import remains stable.
+            previous = _load_json(run_dir / "ccui-session.json", {})
+            started = datetime.fromisoformat(
+                previous.get("startedAt") or datetime.now(timezone.utc).isoformat()
+            )
     title = f"mygoldmine · {project} · {run_dir.name}"
     commit = str(meta.get("commit") or "")
     model = str(meta.get("model") or "")
@@ -162,14 +183,39 @@ def convert_run(run_dir: Path, home: Path, project: str) -> tuple[str, Path] | N
             "timestamp": _ts(started_raw, started),
         },
     ]
+    tasks: dict[str, dict[str, str]] = {}
+    for event in events:
+        if event.get("type") == "system" and event.get("subtype") == "task_started":
+            call = str(event.get("tool_use_id") or "")
+            if call:
+                tasks[call] = {
+                    "id": str(event.get("task_id") or _det_uuid(session_id, call)),
+                    "description": str(event.get("description") or ""),
+                }
+        result = event.get("tool_use_result")
+        if isinstance(result, dict) and result.get("agentId"):
+            for block in event.get("message", {}).get("content", []):
+                if isinstance(block, dict) and block.get("tool_use_id"):
+                    call = str(block["tool_use_id"])
+                    tasks.setdefault(call, {})["id"] = str(result["agentId"])
+                    tasks[call]["type"] = str(result.get("agentType") or "")
+    children: dict[str, list[dict[str, Any]]] = {}
     used_uuids = {header_uuid}
-    parent = header_uuid
+    seen_events: set[str] = set()
+    parents: dict[str, str] = {"": header_uuid}
     index = 0
     for event in events:
         event_type = event.get("type")
         if event_type not in {"assistant", "user", "result"}:
             continue
+        # A streamed child turn is not another human message in the main conversation.
+        branch = str(event.get("parent_tool_use_id") or "")
+        fingerprint = json.dumps(event, ensure_ascii=False, sort_keys=True)
+        if event.get("uuid") and fingerprint in seen_events:
+            continue
+        seen_events.add(fingerprint)
         index += 1
+        parent = parents.get(branch)
         fallback = started + timedelta(seconds=index)
         row_uuid = str(event.get("uuid") or _det_uuid(session_id, f"event-{index}"))
         if row_uuid in used_uuids:
@@ -201,23 +247,46 @@ def convert_run(run_dir: Path, home: Path, project: str) -> tuple[str, Path] | N
             row["uuid"] = row_uuid
             row["parentUuid"] = parent
             row["timestamp"] = _ts(event.get("timestamp"), fallback)
-            row["isSidechain"] = False
+            row["isSidechain"] = bool(branch)
             if event_type == "user":
                 row.setdefault("isMeta", False)
                 row["userType"] = "external"
                 row["entrypoint"] = "cli"
             row.pop("session_id", None)
-        rows.append(row)
-        parent = row_uuid
+        if branch:
+            task = tasks.setdefault(branch, {"id": _det_uuid(session_id, branch)})
+            row["isSidechain"] = True
+            row["agentId"] = task["id"]
+            children.setdefault(branch, []).append(row)
+        else:
+            rows.append(row)
+        parents[branch] = row_uuid
 
     slug = cwd.replace("/", "-")
     out_dir = home / ".claude" / "projects" / slug
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{session_id}.jsonl"
-    out_path.write_text(
-        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
-        encoding="utf-8",
-    )
+    for branch, child_rows in children.items():
+        task = tasks[branch]
+        # Encode untrusted external IDs into a safe filename and keep native IDs for normal runs.
+        agent_id = task["id"]
+        if not agent_id or any(
+            c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-"
+            for c in agent_id
+        ):
+            agent_id = _det_uuid(session_id, agent_id)
+        child_path = out_dir / session_id / "subagents" / f"agent-{agent_id}.jsonl"
+        _write_rows(child_path, child_rows)
+        metadata = {
+            "agentType": task.get("type") or "agent",
+            "description": task.get("description") or "",
+            "toolUseId": branch,
+            "spawnDepth": 1,
+        }
+        child_path.with_suffix(".meta.json").write_text(
+            json.dumps(metadata, ensure_ascii=False), encoding="utf-8"
+        )
+    _write_rows(out_path, rows)
     history_path = home / ".claude" / "history.jsonl"
     history: list[dict[str, Any]] = []
     if history_path.is_file():
@@ -250,6 +319,10 @@ def convert_run(run_dir: Path, home: Path, project: str) -> tuple[str, Path] | N
         "sessionFile": str(out_path),
         "messages": sum(1 for row in rows if row.get("type") in {"user", "assistant"}),
         "importedAt": datetime.now(timezone.utc).isoformat(),
+        "startedAt": started.isoformat(),
+        "importVersion": 2,
+        "subagents": len(children),
+        "subagentMessages": sum(len(items) for items in children.values()),
     }
     (run_dir / "ccui-session.json").write_text(
         json.dumps(sidecar, ensure_ascii=False, indent=2) + "\n",

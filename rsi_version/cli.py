@@ -45,6 +45,8 @@ def cmd_create(args: argparse.Namespace) -> int:
         cost=cost,
         base_git_commit=args.base_git_commit,
         base_git_dirty=args.base_git_dirty,
+        legacy=args.legacy,
+        force=args.force,
     )
     payload = {
         "stage": meta["stage"],
@@ -123,7 +125,12 @@ def cmd_show(args: argparse.Namespace) -> int:
 
 def cmd_promote(args: argparse.Namespace) -> int:
     store = VersionStore(args.root)
-    current = store.promote(args.stage, args.version)
+    current = store.promote(
+        args.stage,
+        args.version,
+        legacy=args.legacy,
+        force=args.force,
+    )
     if args.json:
         _print_json(current)
     else:
@@ -192,6 +199,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_create.add_argument("--no-parent", action="store_true")
     p_create.add_argument("--tag", default="")
     p_create.add_argument("--promote", action="store_true")
+    p_create.add_argument(
+        "--legacy",
+        action="store_true",
+        help="bypass promotion gate only for legacy migration",
+    )
+    p_create.add_argument(
+        "--force",
+        action="store_true",
+        help="bypass promotion gate only for migration",
+    )
     p_create.add_argument("--operator", default="")
     p_create.add_argument("--optimizer-model", default="")
     p_create.add_argument("--target-model", default="")
@@ -226,6 +243,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_promote.add_argument("--root", default="rsi")
     p_promote.add_argument("--stage", required=True)
     p_promote.add_argument("--version", required=True)
+    p_promote.add_argument(
+        "--legacy",
+        action="store_true",
+        help="bypass gate only for legacy migration",
+    )
+    p_promote.add_argument(
+        "--force",
+        action="store_true",
+        help="bypass gate only for migration",
+    )
     p_promote.add_argument("--json", action="store_true")
     p_promote.set_defaults(func=cmd_promote)
 

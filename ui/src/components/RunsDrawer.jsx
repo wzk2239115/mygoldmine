@@ -3,6 +3,7 @@ import { cx, formatDateTime, formatDuration } from '../utils.js';
 
 function stateLabel(run) {
   if (run.isLive) return 'LIVE';
+  if (run.state === 'partial') return '部分完成';
   const state = String(run.state || '').toLowerCase();
   if (state === 'completed' || state === 'finished' || run.hasReport) return 'REPORT';
   return state ? state.toUpperCase() : 'RUN';
@@ -22,7 +23,6 @@ export default function RunsDrawer({ runs, loading, error, onClose, onOpen }) {
         <header className="drawer-head">
           <div className="drawer-head-top">
             <div className="drawer-ident">
-              <span className="eyebrow">CLAUDE CODE / SESSIONS</span>
             </div>
             <button type="button" className="icon-button on-dark" title="关闭" aria-label="关闭运行轨迹" onClick={onClose}>
               <X size={18} />

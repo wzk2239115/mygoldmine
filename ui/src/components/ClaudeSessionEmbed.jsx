@@ -3,7 +3,7 @@ import { ExternalLink, Loader2, RefreshCw, ServerOff, Terminal } from 'lucide-re
 import { api } from '../api.js';
 import { cx, formatDateTime } from '../utils.js';
 
-const LIVE_POLL_MS = 15000;
+const LIVE_POLL_MS = 4000;
 
 function resolveEmbedUrl(url) {
   if (!url) return '';
@@ -11,15 +11,30 @@ function resolveEmbedUrl(url) {
   return url;
 }
 
-export default function ClaudeSessionEmbed({ project, runId, live = false, tall = false }) {
+const EMBED_CSS = `
+  header.pwa-header-safe,
+  .chat-composer-shell { display: none !important; }
+  #root > div.fixed.inset-0 > div.relative.h-full.flex-shrink-0 { display: none !important; }
+  #root > div.fixed.inset-0 { left: 0 !important; }
+  .chat-messages-pane { padding-top: 0 !important; }
+`;
+
+export default function ClaudeSessionEmbed({ project, runId, live = false, tall = false, chrome = true }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [stale, setStale] = useState(false);
   const [error, setError] = useState('');
-  const [frameKey, setFrameKey] = useState(0);
   const requestSeq = useRef(0);
   const importedAtRef = useRef('');
+  const frameRef = useRef(null);
+
+  // Keep the iframe document and its React tree alive; the inner app merges history.
+  const notifyFrame = useCallback((payload) => {
+    if (!payload?.sessionId) return;
+    frameRef.current?.contentWindow?.postMessage({
+      type: 'mygoldmine:history-updated', sessionId: payload.sessionId
+    }, window.location.origin);
+  }, []);
 
   const load = useCallback(
     async (force = false) => {
@@ -33,7 +48,7 @@ export default function ClaudeSessionEmbed({ project, runId, live = false, tall 
         if (seq !== requestSeq.current) return null;
         importedAtRef.current = payload.importedAt || '';
         setSession(payload);
-        if (force) setFrameKey((key) => key + 1);
+        if (force) notifyFrame(payload);
         return payload;
       } catch (loadError) {
         if (seq === requestSeq.current) setError(loadError.message);
@@ -42,47 +57,85 @@ export default function ClaudeSessionEmbed({ project, runId, live = false, tall 
         if (seq === requestSeq.current && !force) setLoading(false);
       }
     },
-    [project, runId]
+    [project, runId, notifyFrame]
   );
 
   useEffect(() => {
     setSession(null);
-    setStale(false);
-    setFrameKey(0);
     importedAtRef.current = '';
     load(false);
   }, [load]);
 
   useEffect(() => {
     if (!live || !project || !runId) return undefined;
+    let cancelled = false;
+    let pending = false;
     const timer = window.setInterval(async () => {
-      const payload = await api.runCcui(project, runId).catch(() => null);
-      if (!payload?.importedAt) return;
-      if (payload.importedAt !== importedAtRef.current) setStale(true);
+      if (pending) return;
+      pending = true;
+      try {
+        const payload = await api.runCcui(project, runId);
+        if (cancelled || !payload?.importedAt) return;
+        if (payload.importedAt !== importedAtRef.current) {
+          importedAtRef.current = payload.importedAt;
+          setSession(payload);
+          notifyFrame(payload);
+        }
+      } catch {
+        // A failed poll keeps the existing readable transcript on screen.
+      } finally {
+        pending = false;
+      }
     }, LIVE_POLL_MS);
-    return () => window.clearInterval(timer);
-  }, [live, project, runId]);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [live, project, runId, notifyFrame]);
 
   const sync = useCallback(async () => {
     setSyncing(true);
-    setStale(false);
     await load(true);
     setSyncing(false);
   }, [load]);
+
+  const applyEmbedCss = useCallback((event) => {
+    try {
+      const doc = event?.currentTarget?.contentDocument || frameRef.current?.contentDocument;
+      if (!doc?.head) return;
+      let style = doc.getElementById('mygoldmine-embed-style');
+      if (!style) {
+        style = doc.createElement('style');
+        style.id = 'mygoldmine-embed-style';
+        doc.head.appendChild(style);
+      }
+      style.textContent = EMBED_CSS;
+    } catch {
+      // The iframe is same-origin through the board proxy; ignore transient access failures.
+    }
+  }, []);
+
+  useEffect(() => {
+    const ready = (event) => {
+      if (event.origin !== window.location.origin || event.source !== frameRef.current?.contentWindow) return;
+      if (event.data?.type !== 'mygoldmine:history-ready') return;
+      // React can be ready before window.load (for example while a font request stalls).
+      applyEmbedCss();
+      notifyFrame({ sessionId: event.data.sessionId });
+    };
+    window.addEventListener('message', ready);
+    return () => window.removeEventListener('message', ready);
+  }, [applyEmbedCss, notifyFrame]);
 
   const embedUrl = useMemo(() => resolveEmbedUrl(session?.url), [session?.url]);
   const showFrame = Boolean(session?.available && session.reachable && embedUrl);
   const importedLabel = session?.importedAt ? formatDateTime(session.importedAt) : '';
 
   return (
-    <section className={cx('ccui-embed', tall && 'ccui-embed-tall')} aria-label="Claude Code UI 会话">
-      <div className="ccui-toolbar">
+    <section className={cx('ccui-embed', tall && 'ccui-embed-tall', !chrome && 'is-bare')} aria-label="Claude Code UI 会话">
+      {chrome ? <div className="ccui-toolbar">
         <span className="ccui-title">
           {showFrame
             ? `Claude Code UI · ${session.messages || 0} 条消息${importedLabel ? ` · 导入于 ${importedLabel}` : ''}`
             : 'Claude Code UI'}
         </span>
-        {stale ? <span className="ccui-stale">有新内容</span> : null}
         <div className="ccui-actions">
           {showFrame ? (
             <button type="button" className="traj-button" onClick={sync} disabled={syncing}>
@@ -97,7 +150,7 @@ export default function ClaudeSessionEmbed({ project, runId, live = false, tall 
             </a>
           ) : null}
         </div>
-      </div>
+      </div> : null}
 
       {loading ? (
         <div className="ccui-state">
@@ -143,11 +196,12 @@ export default function ClaudeSessionEmbed({ project, runId, live = false, tall 
       {showFrame ? (
         <div className="ccui-frame-wrap">
           <iframe
-            key={frameKey}
+            ref={frameRef}
             className="ccui-frame"
             src={embedUrl}
             title={`Claude Code UI session ${runId}`}
             allow="clipboard-read; clipboard-write"
+            onLoad={applyEmbedCss}
           />
         </div>
       ) : null}

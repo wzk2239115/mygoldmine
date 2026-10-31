@@ -40,6 +40,8 @@ usage() {
   RUN_DIR TARGET_DIR WORK_DIR TIMEOUT MODEL AGENT PROJECT PROMPT_FILE
   MAX_ATTEMPTS           模型/代理瞬时错误重试次数（默认 2）
   RETRY_DELAY            重试前等待秒数（默认 60，测试可设 0）
+  AUDIT_IDLE_TIMEOUT     模型无事件上限（默认 180）
+  AUDIT_SETUP_IDLE_TIMEOUT setup/raw 未创建上限（默认 900）
   MYGOLDMINE_HOME        mygoldmine 骨架目录（默认仓库根目录）
   JEV_TRIAGE             审计前跑 Jev 初筛（默认 1；0 关闭）
   JEV_PROFILE            Jev profile（默认 infra）
@@ -55,7 +57,7 @@ usage() {
   run-meta.json          运行元信息（不含密钥）
 
 退出码:
-  0 成功且报告齐全；2 无有效报告；124 超时；130/143 被信号中断；
+  0 成功且报告通过质量合同；2 无有效报告；124/125 超时；130/143 被信号中断；
   3 输入校验失败；4 缺少 claude CLI；5 缺少依赖/脚本；6 产物目录非空
 EOF
 }
@@ -141,6 +143,9 @@ build_prompt() {
     cat <<EOF
 你是 mygoldmine 的安全审计执行者。请对当前工作目录中的目标源码做安全审计。
 
+## 系统语言
+$(python3 "${MYGOLDMINE_HOME}/scripts/config/language.py" --prompt 2>/dev/null || echo "系统语言：简体中文。所有面向人的标题、摘要、影响和修复建议必须用简体中文。")
+
 ## 目标
 - 原始只读源码: ${TARGET_REAL}
 - 可写工作副本: ${TARGET_REAL}
@@ -214,7 +219,7 @@ print_dry_run() {
     echo
     echo "--- 审计命令 ---"
     echo "cd ${TARGET_REAL}"
-    echo "timeout --signal=TERM --kill-after=60 ${TIMEOUT} \\"
+    echo "python3 ${REPO_ROOT}/scripts/mine/progress_guard.py --raw ${RAW} --idle ${AUDIT_IDLE_TIMEOUT:-180} --setup-idle ${AUDIT_SETUP_IDLE_TIMEOUT:-900} --wall <remaining> -- \\"
     echo "  ${CLAUDE_BIN} --verbose --output-format=stream-json \\"
     echo "               --permission-mode=bypassPermissions \\"
     echo "               --disallowed-tools WebSearch,WebFetch \\"
@@ -245,6 +250,21 @@ mkdir -p "$RUN_DIR" || die "无法创建 RUN_DIR: $RUN_DIR" 3
 if [ -n "$(ls -A "$RUN_DIR" 2>/dev/null || true)" ]; then
     die "RUN_DIR 非空，拒绝覆盖: $RUN_DIR" 6
 fi
+
+# Persist subtask artifacts before the disposable container can be removed.
+mkdir -p "$TARGET_REAL/.workspace" "$RUN_DIR/task-artifacts" "$RUN_DIR/task-state"
+for pair in findings:task-artifacts tasks:task-state; do
+    workspace_part="${pair%%:*}"
+    persistent_part="${pair#*:}"
+    original="$TARGET_REAL/.workspace/$workspace_part"
+    if [ -d "$original" ] && [ ! -L "$original" ]; then
+        cp -a "$original/." "$RUN_DIR/$persistent_part/"
+    fi
+    if [ -e "$original" ] || [ -L "$original" ]; then
+        mv "$original" "$original.before-run.$(date -u +%s).$$"
+    fi
+    ln -s "$RUN_DIR/$persistent_part" "$original"
+done
 
 # 提示词：外部未提供时生成临时文件，退出时清理
 AUTO_PROMPT=0
@@ -291,6 +311,7 @@ export CLAUDE_CODE_SUBAGENT_MODEL="$CLAUDE_MODEL"
 export RUN_DIR PROJECT TARGET_DIR TIMEOUT MODEL AGENT MAX_ATTEMPTS
 
 START_EPOCH="$(date +%s)"
+RUN_DEADLINE=$(( START_EPOCH + TIMEOUT ))
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 : > "$RAW"
 : > "$ERR_LOG"
@@ -302,6 +323,8 @@ TIMED_OUT=0
 ATTEMPTS=0
 CLAUDE_RC=0
 FINALIZED=0
+REPORTS_COMPLETE=0
+REMAINING=0
 
 on_signal() {
     INTERRUPTED=1
@@ -316,9 +339,15 @@ on_signal() {
 trap 'on_signal 130' INT
 trap 'on_signal 143' TERM
 
+remaining_budget() {
+    REMAINING=$(( RUN_DEADLINE - $(date +%s) ))
+    [ "$REMAINING" -gt 0 ]
+}
+
 is_transient_error() {
-    [ -s "$ERR_LOG" ] || return 1
-    grep -Eqi '429|rate.?limit|overloaded|5[0-9][0-9]|timed? ?out|ECONNRESET|ETIMEDOUT|temporarily unavailable' "$ERR_LOG"
+    local attempt_stderr="$1"
+    [ -s "$attempt_stderr" ] || return 1
+    grep -Eqi '429|rate.?limit|overloaded|5[0-9][0-9]|timed? ?out|ECONNRESET|ETIMEDOUT|temporarily unavailable' "$attempt_stderr"
 }
 
 render_log() {
@@ -389,10 +418,13 @@ maybe_jev_triage() {
         log "WARN: 未找到 $script，跳过 Jev 初筛"
         return 0
     fi
+    remaining_budget || { log "墙钟预算已耗尽，跳过 Jev 初筛"; return 0; }
+    local jev_budget="$JEV_TIMEOUT"
+    [ "$jev_budget" -gt "$REMAINING" ] && jev_budget="$REMAINING"
     mkdir -p "$RUN_DIR/triage" || return 0
     local out="$RUN_DIR/triage/jev-${JEV_PROFILE}.json"
-    log "Jev 初筛: profile=$JEV_PROFILE max_files=$JEV_MAX_FILES workers=$JEV_WORKERS -> $out"
-    if timeout --signal=TERM --kill-after=30 "$JEV_TIMEOUT" python3 "$script" \
+    log "Jev 初筛: profile=$JEV_PROFILE max_files=$JEV_MAX_FILES workers=$JEV_WORKERS timeout=$jev_budget -> $out"
+    if timeout --signal=TERM --kill-after=30 "$jev_budget" python3 "$script" \
         --root "$TARGET_REAL" --profile "$JEV_PROFILE" \
         --max-files "$JEV_MAX_FILES" --workers "$JEV_WORKERS" \
         --cache-dir "$RUN_DIR/triage/jev-cache" --out "$out" \
@@ -404,12 +436,13 @@ maybe_jev_triage() {
 }
 
 write_meta() {
-    local exit_code="$1" renderer_rc="$2" ended_at duration
+    local exit_code="$1" renderer_rc="$2" status="$3" ended_at duration
     ended_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     duration=$(( $(date +%s) - START_EPOCH ))
-    local timed_out_json="false" interrupted_json="false"
+    local timed_out_json="false" interrupted_json="false" reports_complete_json="false"
     [ "$TIMED_OUT" = "1" ] && timed_out_json="true"
     [ "$INTERRUPTED" = "1" ] && interrupted_json="true"
+    [ "$REPORTS_COMPLETE" = "1" ] && reports_complete_json="true"
     local report_md_present="false" report_json_present="false"
     [ -s "$REPORT_MD" ] && report_md_present="true"
     [ -s "$REPORT_JSON" ] && report_json_present="true"
@@ -425,6 +458,7 @@ write_meta() {
         --argjson duration_seconds "$duration" \
         --arg model "$MODEL" \
         --arg agent "$AGENT" \
+        --arg status "$status" \
         --argjson attempts "$ATTEMPTS" \
         --argjson exit_code "$exit_code" \
         --argjson timed_out "$timed_out_json" \
@@ -432,6 +466,7 @@ write_meta() {
         --argjson renderer_exit_code "$renderer_rc" \
         --argjson report_md_present "$report_md_present" \
         --argjson report_json_present "$report_json_present" \
+        --argjson reports_complete "$reports_complete_json" \
         '{
             schema_version: ($schema_version | tonumber),
             project: $project,
@@ -442,12 +477,13 @@ write_meta() {
             duration_seconds: $duration_seconds,
             model: $model,
             agent: $agent,
+            status: $status,
             attempts: $attempts,
             exit_code: $exit_code,
             timed_out: $timed_out,
             interrupted: $interrupted,
             renderer_exit_code: $renderer_exit_code,
-            reports_complete: ($report_md_present and $report_json_present),
+            reports_complete: $reports_complete,
             artifacts: {
                 raw: "raw.jsonl",
                 rendered: "claude.rendered.log",
@@ -476,57 +512,99 @@ finalize() {
     local renderer_rc=0
     render_log || renderer_rc=$?
 
-    local effective_rc="$CLAUDE_RC"
+    local effective_rc="$CLAUDE_RC" quality_rc=0 status
     if [ "$INTERRUPTED" = "1" ]; then
         effective_rc="$INTERRUPT_RC"
-    elif [ ! -s "$REPORT_MD" ] || [ ! -s "$REPORT_JSON" ]; then
-        # Agent 提前退出：即使 rc=0 也视为失败
+    fi
+    if [ -s "$REPORT_MD" ] && [ -s "$REPORT_JSON" ]; then
+        python3 "$REPO_ROOT/scripts/mine/check_report.py" \
+            --report "$REPORT_JSON" --output "$RUN_DIR/report-quality.json" \
+            --fail-missing --fail-language \
+            >> "$RUN_DIR/report-quality.log" 2>&1 || quality_rc=$?
+        if [ "$quality_rc" -eq 0 ]; then
+            REPORTS_COMPLETE=1
+        else
+            log "报告格式不合格，见 $RUN_DIR/report-quality.json"
+        fi
+    fi
+    if [ "$REPORTS_COMPLETE" != "1" ]; then
         [ "$effective_rc" -eq 0 ] && effective_rc=2
     fi
-
-    write_meta "$effective_rc" "$renderer_rc" || true
+    if [ "$TIMED_OUT" = "1" ] || [ "$effective_rc" -eq 124 ] || \
+        [ "$effective_rc" -eq 125 ] || [ "$effective_rc" -eq 137 ]; then
+        TIMED_OUT=1
+        status="timeout"
+    elif [ "$REPORTS_COMPLETE" != "1" ]; then
+        status="failed"
+    elif [ "$effective_rc" -eq 0 ]; then
+        status="success"
+    else
+        status="partial"
+    fi
+    write_meta "$effective_rc" "$renderer_rc" "$status" || true
 
     [ "$AUTO_PROMPT" = "1" ] && rm -f "$PROMPT_FILE"
     FINAL_CODE="$effective_rc"
-    log "完成: exit_code=$effective_rc timed_out=$TIMED_OUT attempts=$ATTEMPTS run_dir=$RUN_DIR"
+    log "完成: status=$status exit_code=$effective_rc timed_out=$TIMED_OUT attempts=$ATTEMPTS run_dir=$RUN_DIR"
     return 0
 }
 trap 'finalize; [ -n "${FINAL_CODE:-}" ] && exit "$FINAL_CODE" || exit 1' EXIT
 
 maybe_jev_triage
 
-# 单次尝试；只有瞬时错误才重试，超时不原地重试
+# All attempts and retry delays share one wall-clock deadline.
 while :; do
+    if ! remaining_budget; then
+        TIMED_OUT=1
+        CLAUDE_RC=124
+        log "墙钟预算已耗尽，不再启动新尝试"
+        break
+    fi
+    attempt_budget="$REMAINING"
     ATTEMPTS=$((ATTEMPTS + 1))
+    ATTEMPT_ERR_LOG="$RUN_DIR/claude.stderr.attempt-$(printf '%02d' "$ATTEMPTS").log"
+    : > "$ATTEMPT_ERR_LOG"
     if [ "$ATTEMPTS" -gt 1 ]; then
         printf '%s\n' "--- mine_one retry attempt ${ATTEMPTS} at $(date -u +%Y-%m-%dT%H:%M:%SZ) ---" >> "$RAW"
-        log "第 ${ATTEMPTS} 次尝试"
+        log "第 ${ATTEMPTS} 次尝试（剩余 ${attempt_budget}s）"
     fi
 
     (
         cd "$TARGET_REAL" || exit 3
-        exec timeout --signal=TERM --kill-after=60 "$TIMEOUT" \
+        exec python3 "$REPO_ROOT/scripts/mine/progress_guard.py" \
+            --raw "$RAW" --health "$RUN_DIR/attempt-health-${ATTEMPTS}.json" \
+            --idle "${AUDIT_IDLE_TIMEOUT:-180}" \
+            --setup-idle "${AUDIT_SETUP_IDLE_TIMEOUT:-900}" --wall "$attempt_budget" -- \
             "$CLAUDE_BIN" --verbose --output-format=stream-json \
                 --permission-mode=bypassPermissions \
                 --disallowed-tools WebSearch,WebFetch \
                 --agent "$AGENT"
-    ) < "$PROMPT_FILE" >> "$RAW" 2>> "$ERR_LOG" &
+    ) < "$PROMPT_FILE" >> "$RAW" 2> "$ATTEMPT_ERR_LOG" &
     CHILD_PID=$!
 
     CLAUDE_RC=0
     wait "$CHILD_PID" || CLAUDE_RC=$?
     CHILD_PID=""
+    cat "$ATTEMPT_ERR_LOG" >> "$ERR_LOG"
 
     [ "$INTERRUPTED" = "1" ] && break
     [ "$CLAUDE_RC" -eq 0 ] && break
-    if [ "$CLAUDE_RC" -eq 124 ] || [ "$CLAUDE_RC" -eq 137 ]; then
+    if [ "$CLAUDE_RC" -eq 124 ] || [ "$CLAUDE_RC" -eq 125 ] || [ "$CLAUDE_RC" -eq 137 ]; then
         TIMED_OUT=1
         log "超时（rc=$CLAUDE_RC），保留日志并退出"
         break
     fi
-    if [ "$ATTEMPTS" -lt "$MAX_ATTEMPTS" ] && is_transient_error; then
-        log "检测到瞬时错误（rc=$CLAUDE_RC），${RETRY_DELAY}s 后重试"
-        sleep "$RETRY_DELAY"
+    if [ "$ATTEMPTS" -lt "$MAX_ATTEMPTS" ] && is_transient_error "$ATTEMPT_ERR_LOG"; then
+        if ! remaining_budget; then
+            TIMED_OUT=1
+            CLAUDE_RC=124
+            break
+        fi
+        retry_delay="$RETRY_DELAY"
+        [ "$retry_delay" -gt "$REMAINING" ] && retry_delay="$REMAINING"
+        log "检测到本次瞬时错误（rc=$CLAUDE_RC），${retry_delay}s 后重试"
+        sleep "$retry_delay"
+        [ "$INTERRUPTED" = "1" ] && break
         continue
     fi
     break

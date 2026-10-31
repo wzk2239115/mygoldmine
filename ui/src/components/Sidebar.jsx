@@ -1,4 +1,4 @@
-import { Check, Filter, RotateCcw, Target, X } from 'lucide-react';
+import { Check, Filter, RotateCcw, Target } from 'lucide-react';
 import { SEVERITIES, VERDICTS } from '../constants.js';
 import { cx } from '../utils.js';
 import ProjectMark from './ProjectMark.jsx';
@@ -7,7 +7,7 @@ function CountPill({ value }) {
   return <span className="filter-count">{value}</span>;
 }
 
-export default function Sidebar({ board, filters, setFilters, facets, onClose }) {
+export default function Sidebar({ board, filters, setFilters, facets }) {
   const projects = board?.projects || [];
   const stats = board?.stats;
   const active = Boolean(
@@ -43,10 +43,9 @@ export default function Sidebar({ board, filters, setFilters, facets, onClose })
   };
 
   return (
-    <aside className="sidebar" aria-label="筛选与目标">
+    <aside className="sidebar" id="finding-filters" aria-label="筛选与目标">
       <div className="sidebar-head">
         <div>
-          <span className="eyebrow">WORKSPACE</span>
           <h2>漏洞矿场</h2>
         </div>
         <div className="sidebar-head-actions">
@@ -72,9 +71,6 @@ export default function Sidebar({ board, filters, setFilters, facets, onClose })
               <RotateCcw size={14} />
             </button>
           ) : null}
-          <button type="button" className="icon-button is-small sidebar-close" title="关闭" aria-label="关闭侧栏" onClick={onClose}>
-            <X size={16} />
-          </button>
         </div>
       </div>
 
@@ -87,6 +83,7 @@ export default function Sidebar({ board, filters, setFilters, facets, onClose })
         <button
           type="button"
           className={cx('project-row', filters.project === 'all' && 'is-active')}
+          aria-pressed={filters.project === 'all'}
           onClick={() => setFilters((current) => ({ ...current, project: 'all' }))}
         >
           <span className="project-mark is-all">ALL</span>
@@ -101,6 +98,7 @@ export default function Sidebar({ board, filters, setFilters, facets, onClose })
             key={project.id}
             type="button"
             className={cx('project-row', filters.project === project.id && 'is-active')}
+            aria-pressed={filters.project === project.id}
             onClick={() => setProject(project.id)}
           >
             <ProjectMark project={project} />

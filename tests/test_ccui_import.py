@@ -5,12 +5,7 @@ import json
 import sys
 from pathlib import Path
 
-SCRIPT = (
-    Path(__file__).resolve().parents[1]
-    / "scripts"
-    / "ccui"
-    / "import_runs.py"
-)
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "ccui" / "import_runs.py"
 spec = importlib.util.spec_from_file_location("ccui_import_runs", SCRIPT)
 assert spec and spec.loader
 ccui = importlib.util.module_from_spec(spec)
@@ -89,8 +84,7 @@ def test_convert_run_writes_claude_session(tmp_path: Path) -> None:
     assert rows[1]["type"] == "custom-title"
     assert any(row["type"] == "assistant" for row in rows)
     assert any(
-        row["type"] == "assistant"
-        and "audit complete" in json.dumps(row, ensure_ascii=False)
+        row["type"] == "assistant" and "audit complete" in json.dumps(row, ensure_ascii=False)
         for row in rows
     )
     history = (home / ".claude" / "history.jsonl").read_text()
@@ -119,8 +113,130 @@ def test_run_dirs_wanted_runs_pick_specific_run(tmp_path: Path) -> None:
     _run(tmp_path, "demo")
     newer = _run(tmp_path, "other")
     runs_root = tmp_path / "runs"
-    assert ccui._run_dirs(runs_root, None, True, False, {"other/20260101T000000Z"}) == [
-        newer
-    ]
+    assert ccui._run_dirs(runs_root, None, True, False, {"other/20260101T000000Z"}) == [newer]
     # A run without raw.jsonl is never picked.
     assert ccui._run_dirs(runs_root, None, True, False, {"missing/20260101T000000Z"}) == []
+
+
+def _append_events(run: Path, events: list[dict]) -> None:
+    with (run / "raw.jsonl").open("a") as stream:
+        for event in events:
+            stream.write(json.dumps(event) + "\n")
+
+
+def test_subagent_prompt_is_not_flattened_into_human_conversation(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    prompt = "Analyze config trust boundary"
+    _append_events(
+        run,
+        [
+            {
+                "type": "system",
+                "subtype": "task_started",
+                "tool_use_id": "call-agent",
+                "task_id": "agent-config",
+                "description": "Config analysis",
+            },
+            {
+                "type": "assistant",
+                "uuid": "launch-1",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "call-agent",
+                            "name": "Agent",
+                            "input": {"prompt": prompt},
+                        }
+                    ],
+                },
+            },
+            {
+                "type": "user",
+                "uuid": "child-prompt",
+                "parent_tool_use_id": "call-agent",
+                "message": {"role": "user", "content": [{"type": "text", "text": prompt}]},
+            },
+            {
+                "type": "assistant",
+                "uuid": "child-tool",
+                "parent_tool_use_id": "call-agent",
+                "message": {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "name": "Read",
+                            "id": "read-1",
+                            "input": {"file_path": "config.ts"},
+                        }
+                    ],
+                },
+            },
+        ],
+    )
+    _, path = ccui.convert_run(run, tmp_path / "home", "demo")
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    assert not any(row.get("uuid") == "child-prompt" for row in rows)
+    assert any(row.get("uuid") == "launch-1" for row in rows)
+    children = path.parent / "sess-demo/subagents/agent-agent-config.jsonl"
+    child_rows = [json.loads(line) for line in children.read_text().splitlines()]
+    assert [row["uuid"] for row in child_rows] == ["child-prompt", "child-tool"]
+    assert all(row["isSidechain"] and row["agentId"] == "agent-config" for row in child_rows)
+    assert child_rows[1]["parentUuid"] == "child-prompt"
+    assert json.loads(children.with_suffix(".meta.json").read_text())["toolUseId"] == "call-agent"
+    sidecar = json.loads((run / "ccui-session.json").read_text())
+    assert sidecar["subagents"] == 1 and sidecar["subagentMessages"] == 2
+    assert "child-prompt" in (run / "raw.jsonl").read_text()
+
+
+def test_identical_stream_event_is_imported_once_but_distinct_turns_are_preserved(
+    tmp_path: Path,
+) -> None:
+    run = _run(tmp_path)
+    event = {
+        "type": "user",
+        "uuid": "repeat-1",
+        "message": {"role": "user", "content": "same text"},
+    }
+    _append_events(run, [event, event, {**event, "uuid": "repeat-2"}])
+    _, path = ccui.convert_run(run, tmp_path / "home", "demo")
+    rows = [json.loads(line) for line in path.read_text().splitlines()]
+    repeated = [row for row in rows if row.get("message", {}).get("content") == "same text"]
+    assert [row["uuid"] for row in repeated] == ["repeat-1", "repeat-2"]
+
+
+def test_live_import_without_final_metadata_keeps_timestamps_stable(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    (run / "run-meta.json").unlink()
+    _, path = ccui.convert_run(run, tmp_path / "home", "demo")
+    before = path.read_text()
+    ccui.convert_run(run, tmp_path / "home", "demo")
+    assert path.read_text() == before
+    assert "2026-01-01T00:00:00+00:00" in before
+
+
+def test_subagent_path_cannot_escape_session_directory(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    _append_events(
+        run,
+        [
+            {
+                "type": "system",
+                "subtype": "task_started",
+                "tool_use_id": "call-agent",
+                "task_id": "../../escape",
+            },
+            {
+                "type": "user",
+                "uuid": "child",
+                "parent_tool_use_id": "call-agent",
+                "message": {"role": "user", "content": "child prompt"},
+            },
+        ],
+    )
+    _, path = ccui.convert_run(run, tmp_path / "home", "demo")
+    children = list((path.parent / "sess-demo/subagents").glob("agent-*.jsonl"))
+    assert len(children) == 1
+    assert not (path.parent / "escape.jsonl").exists()

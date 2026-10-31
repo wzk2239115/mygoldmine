@@ -1,4 +1,4 @@
-import { FileCode2, GripVertical, StickyNote } from 'lucide-react';
+import { FileCode2, GripVertical } from 'lucide-react';
 import { CveBadge, SeverityStamp, VerdictBadge } from './Badges.jsx';
 import { cx, truncate } from '../utils.js';
 
@@ -8,8 +8,8 @@ export default function FindingCard({ finding, onOpen, onDragStart, onDragEnd })
 
   return (
     <article
-      className={cx('finding-card', `severity-${finding.severity}`, finding.touched && 'is-touched')}
-      draggable
+      className={cx('finding-card', `severity-${finding.severity}`, finding.touched && 'is-touched', onDragStart && 'is-draggable')}
+      draggable={Boolean(onDragStart)}
       tabIndex={0}
       role="button"
       aria-label={`打开 ${finding.projectName} ${finding.id}: ${finding.title}`}
@@ -21,15 +21,18 @@ export default function FindingCard({ finding, onOpen, onDragStart, onDragEnd })
         }
       }}
       onDragStart={(event) => {
+        if (!onDragStart) return;
         event.dataTransfer.setData('text/plain', finding.key);
         event.dataTransfer.effectAllowed = 'move';
         onDragStart(finding);
       }}
       onDragEnd={onDragEnd}
     >
-      <div className="card-grip" aria-hidden="true">
-        <GripVertical size={13} />
-      </div>
+      {onDragStart ? (
+        <div className="card-grip" aria-hidden="true">
+          <GripVertical size={13} />
+        </div>
+      ) : null}
       <div className="card-topline">
         <SeverityStamp severity={finding.severity} compact />
         <span className="card-project">{finding.projectName}</span>
@@ -49,11 +52,6 @@ export default function FindingCard({ finding, onOpen, onDragStart, onDragEnd })
         {finding.reviewReady ? (
           <span className="card-review" title={finding.reviewReason || '已精炼，等待人工验收'}>
             待验收
-          </span>
-        ) : null}
-        {finding.notes ? (
-          <span className="card-note-indicator" title="有审计备注">
-            <StickyNote size={11} aria-hidden="true" />
           </span>
         ) : null}
       </div>

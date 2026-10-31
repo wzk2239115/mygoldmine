@@ -14,6 +14,7 @@ import { api } from '../api.js';
 import { cx, formatDateTime, formatDuration, relativeTime } from '../utils.js';
 import TrajectoryPanel from './TrajectoryPanel.jsx';
 import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
+import AgentTopology from './AgentTopology.jsx';
 import DrawerResizer, { useDrawerWidth } from './DrawerResizer.jsx';
 
 export default function LiveRunDrawer({ run, onClose, onToast }) {
@@ -84,7 +85,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
 
   const copy = async (value, label = '已复制') => {
     const ok = await navigator.clipboard.writeText(value).then(() => true).catch(() => false);
-    onToast?.(ok ? `${label}：${value}` : '复制失败，请手动选择文本');
+    onToast?.(ok ? `${label}：${value}` : '复制失败，请手动选择文本', ok ? 'success' : 'error');
   };
 
   return (
@@ -103,7 +104,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
             <div className="drawer-ident">
               <span className={cx('live-badge', `state-${state}`)}>
                 <Radio size={11} aria-hidden="true" />
-                {state === 'finished' ? 'FINISHED' : 'LIVE'}
+                {state === 'finished' ? '已结束' : '实时'}
               </span>
               <span className="drawer-project">{run.projectName}</span>
               <span className="drawer-id">{run.runId}</span>
@@ -115,7 +116,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
               </button>
             </div>
           </div>
-          <h2>{run.finished ? 'CC 运行轨迹' : '实时挖掘日志'}</h2>
+          <h2>{run.finished ? '运行轨迹' : '实时挖掘日志'}</h2>
           <div className="live-drawer-meta">
             <span>
               <Clock3 size={12} aria-hidden="true" />
@@ -123,8 +124,8 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
               {timeout ? ` / ${formatDuration(timeout)}` : ''}
             </span>
             <span>{run.model || 'unknown model'}</span>
-            <span>{run.container || 'container pending'}</span>
-            {run.hasReport ? <span className="report-ready">REPORT READY</span> : null}
+            <span>{run.container || (run.recovery ? '独立任务恢复' : 'container pending')}</span>
+            {run.hasReport ? <span className="report-ready">{run.finished ? 'REPORT WRITTEN' : 'DRAFT'}</span> : null}
           </div>
           {progress !== null ? (
             <div className="live-progress is-large" aria-label={`已运行 ${progress}%`}>
@@ -138,11 +139,20 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
             {run.finished
               ? '运行已结束。关闭后刷新看板；如果报告尚未出现，请查看下方日志尾部。'
               : run.hasReport
-                ? '报告已生成，关闭后刷新看板即可切换到 findings。'
+                ? '已有增量报告草稿，挖掘仍在运行；最终格式检查与漏洞复现尚未完成。'
                 : '报告尚未生成时，看板先展示这条实时日志。完成后会自动刷新看板并载入 findings。'}
           </div>
 
-          <div className="traj-switch" role="tablist" aria-label="实时日志视图">
+          {run.recovery ? (
+            <div className="live-notice" aria-label="检查点恢复进度">
+              已复用 {run.recovery.reused}/{run.recovery.total} 个任务检查点 ·
+              新完成 {run.recovery.completed} · 失败 {run.recovery.failed}
+              {run.recovery.active
+                ? ` · 正在恢复：${run.recovery.active}（第 ${run.recovery.attempt} 次尝试）`
+                : ' · 汇总阶段'}
+            </div>
+          ) : null}
+          <div className="traj-switch" role="tablist" aria-label="运行视图">
             <button
               type="button"
               role="tab"
@@ -150,16 +160,16 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
               className={cx(view === 'claude' && 'is-active')}
               onClick={() => setView('claude')}
             >
-              Claude UI
+              运行视图
             </button>
             <button
               type="button"
               role="tab"
-              aria-selected={view === 'stream'}
-              className={cx(view === 'stream' && 'is-active')}
-              onClick={() => setView('stream')}
+              aria-selected={view === 'agents'}
+              className={cx(view === 'agents' && 'is-active')}
+              onClick={() => setView('agents')}
             >
-              Stream
+              Agent 拓扑
             </button>
             <button
               type="button"
@@ -168,12 +178,29 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
               className={cx(view === 'trajectory' && 'is-active')}
               onClick={() => setView('trajectory')}
             >
-              Trajectory
+              结构化轨迹
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'stream'}
+              className={cx(view === 'stream' && 'is-active')}
+              onClick={() => setView('stream')}
+            >
+              原始日志
             </button>
           </div>
 
           {view === 'claude' ? (
-            <ClaudeSessionEmbed project={run.project} runId={run.runId} live={!run.finished} tall />
+            <ClaudeSessionEmbed project={run.project} runId={run.runId} live={!run.finished} tall chrome={false} />
+          ) : view === 'agents' ? (
+            <AgentTopology
+              project={run.project}
+              runId={run.runId}
+              projectName={run.projectName}
+              model={run.model}
+              live={!run.finished}
+            />
           ) : view === 'stream' ? (
             <>
           <div className="agent-toolbar live-toolbar">
@@ -251,7 +278,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
         <footer className="drawer-footer">
           <span className="footer-signal">
             <Radio size={13} aria-hidden="true" />
-            {run.finished ? 'complete trajectory · CC session' : 'streaming · 2s refresh'}
+            {run.finished ? '运行已结束' : '实时输出 · 2 秒刷新'}
           </span>
           <div className="footer-actions">
             <button type="button" className="button is-small" onClick={() => copy(run.runDir, '已复制 run 目录')}>

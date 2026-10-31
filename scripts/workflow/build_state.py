@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import json
-import os
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import finding_ledger
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNS = ROOT / "runs"
@@ -47,44 +49,12 @@ def sev(value) -> str:
 
 
 def is_verified(raw: dict) -> bool:
-    if raw.get("verified"):
-        return True
-    text = f"{raw.get('verification', '')} {raw.get('severity_raw', '')}"
-    return bool(re.search(r"confirm|verified|已.*验证|reproduced", text, re.I))
+    return finding_ledger.is_verified(raw)
 
 
-def latest_findings():
-    latest = {}
-    for project_dir in sorted(RUNS.iterdir() if RUNS.exists() else []):
-        if not project_dir.is_dir() or project_dir.name.startswith(".") or project_dir.name in EXCLUDED:
-            continue
-        candidates = []
-        for report_path in project_dir.glob("*/audit-report.json"):
-            report = load(report_path)
-            meta = load(report_path.parent / "run-meta.json")
-            stamp = meta.get("started_at") or report.get("generated_at") or report_path.parent.name
-            candidates.append((str(stamp), report_path.parent.name, report_path, report))
-        if not candidates:
-            continue
-        _, _, report_path, report = max(candidates)
-        findings = report.get("findings") if isinstance(report.get("findings"), list) else report.get("vulnerabilities")
-        if not isinstance(findings, list):
-            continue
-        for index, raw in enumerate(findings):
-            if not isinstance(raw, dict):
-                continue
-            finding_id = raw.get("id") or raw.get("finding_id") or f"F-{index + 1:02d}"
-            key = canon(project_dir.name, finding_id)
-            latest[key] = {
-                "project": project_dir.name,
-                "id": finding_id,
-                "severity": sev(raw.get("severity") or raw.get("severity_raw")),
-                "verified": is_verified(raw),
-                "confidence": str(raw.get("confidence") or "").lower(),
-                "report": report_path.relative_to(ROOT).as_posix(),
-                "raw": raw,
-            }
-    return latest
+def latest_findings(ledger=None):
+    ledger = ledger if ledger is not None else finding_ledger.build_ledger()
+    return finding_ledger.latest_occurrences(ledger)
 
 
 def pick_verdict(entry: dict, outer: dict):
@@ -121,7 +91,8 @@ def verify_candidates(report_path: Path, outer: dict):
     yield str(finding_id), outer
 
 
-def build_verify_state(latest: dict, manual: set):
+def build_verify_state(latest: dict, manual: set, ledger=None):
+    ledger = ledger if ledger is not None else finding_ledger.build_ledger()
     state = {}
     for report_path in sorted(RUNS.glob("*/*/verify/**/verify-report.json")) if RUNS.exists() else []:
         relative = report_path.relative_to(RUNS)
@@ -132,50 +103,66 @@ def build_verify_state(latest: dict, manual: set):
         ended_at = outer.get("ended_at") or datetime.fromtimestamp(report_path.stat().st_mtime, timezone.utc).isoformat()
         for raw_id, entry in verify_candidates(report_path, outer):
             finding_id = norm_id(raw_id)
-            key = canon(project, finding_id)
-            if not finding_id or finding_id in {"VERIFY", "RECHECK", "SUMMARY"} or key not in latest or key in manual:
+            if not finding_id or finding_id in {"VERIFY", "RECHECK", "SUMMARY"}:
                 continue
-            verdict = str(pick_verdict(entry, outer) or "").lower()
-            if not verdict:
+            verdict = finding_ledger.normalized_verdict(pick_verdict(entry, outer))
+            transition = finding_ledger.verify_transition(verdict)
+            if not transition:
                 continue
-            verification = entry.get("verification") if isinstance(entry.get("verification"), dict) else {}
-            evidence_class = (
-                entry.get("evidence_class")
-                or verification.get("method")
-                or outer.get("evidence_class")
-                or ""
+            status, auto_verdict = transition
+            matches = finding_ledger.resolve_reference(
+                ledger,
+                project=project,
+                finding_id=finding_id,
+                run_id=entry.get("run_id") or outer.get("run_id") or "",
+                occurrence_id=entry.get("occurrence_id") or outer.get("occurrence_id") or "",
+                semantic_id=entry.get("semantic_id") or outer.get("semantic_id") or "",
             )
-            reason = entry.get("reason") or verification.get("reason") or outer.get("reason") or ""
-            if verdict in {"rejected", "false-positive", "fp"}:
-                status = "closed"
-                auto_verdict = "fp"
-            else:
-                status = "reproduce"
-                auto_verdict = None
-            patch = {
-                "status": status,
-                "reason": f"verify: {verdict}" + (f" · {evidence_class}" if evidence_class else ""),
-                "source": "verify",
-                "source_detail": reason[:500],
-                "artifacts": [report_path.relative_to(ROOT).as_posix()],
-                "verifyVerdict": verdict,
-                "verifyEvidenceClass": evidence_class,
-                "updatedAt": ended_at,
-            }
-            if auto_verdict:
-                patch["verdict"] = auto_verdict
-            previous = state.get(key)
-            if not previous or str(patch["updatedAt"]) >= str(previous.get("updatedAt", "")):
-                state[key] = {**previous, **patch} if previous else patch
+            verification = entry.get("verification") if isinstance(entry.get("verification"), dict) else {}
+            evidence_class = entry.get("evidence_class") or verification.get("method") or outer.get("evidence_class") or ""
+            reason = str(entry.get("reason") or verification.get("reason") or outer.get("reason") or "")
+            for key in matches:
+                if key in manual:
+                    continue
+                patch = {
+                    "status": status,
+                    "reason": f"verify: {verdict}" + (f" · {evidence_class}" if evidence_class else ""),
+                    "source": "verify",
+                    "source_detail": reason[:500],
+                    "artifacts": [report_path.relative_to(ROOT).as_posix()],
+                    "verifyVerdict": verdict,
+                    "verifyEvidenceClass": evidence_class,
+                    "updatedAt": ended_at,
+                }
+                if auto_verdict:
+                    patch["verdict"] = auto_verdict
+                previous = state.get(key)
+                if not previous or str(patch["updatedAt"]) >= str(previous.get("updatedAt", "")):
+                    state[key] = {**previous, **patch} if previous else patch
     return state
 
 
-def build_source_state(latest: dict, manual: set):
+def build_source_state(latest: dict, manual: set, ledger=None):
+    ledger = ledger if ledger is not None else finding_ledger.build_ledger()
     state = {}
+
+    def resolve(project, finding_id, item=None):
+        item = item if isinstance(item, dict) else {}
+        matches = finding_ledger.resolve_reference(
+            ledger,
+            project=project,
+            finding_id=finding_id,
+            occurrence_id=item.get("occurrence_id") or "",
+            semantic_id=item.get("semantic_id") or "",
+        )
+        return next((key for key in matches if key in latest and key not in manual), None)
+
     handoff = load(ROOT / "docs" / "cve-handoff.json")
     for candidate in handoff.get("candidates", []) if isinstance(handoff.get("candidates"), list) else []:
-        key = canon(candidate.get("project", ""), candidate.get("finding_id", ""))
-        if key not in latest or key in manual:
+        if not isinstance(candidate, dict):
+            continue
+        key = resolve(candidate.get("project", ""), candidate.get("finding_id", ""), candidate)
+        if not key:
             continue
         tier = candidate.get("tier")
         state[key] = {
@@ -190,8 +177,10 @@ def build_source_state(latest: dict, manual: set):
     adjudication = load(ROOT / "docs" / "cve-adjudication.json")
     for raw_key, item in adjudication.get("findings", {}).items() if isinstance(adjudication.get("findings"), dict) else []:
         project, finding_id = split_key(raw_key)
-        key = canon(project, finding_id)
-        if key not in latest or key in manual or not isinstance(item, dict):
+        if not isinstance(item, dict):
+            continue
+        key = resolve(project, finding_id, item)
+        if not key:
             continue
         verdict = str(item.get("verdict", "")).lower()
         known = str(item.get("knownCve", "")).strip()
@@ -229,22 +218,38 @@ def build_source_state(latest: dict, manual: set):
     return state
 
 
+def verified_redteam_provenance(result_path: Path, result: dict):
+    redteam_dir = str(ROOT / "scripts" / "redteam")
+    if redteam_dir not in sys.path:
+        sys.path.insert(0, redteam_dir)
+    from contracts import ContractError, recompute_flag_provenance, validate_verdict
+
+    judge = result.get("judge") if isinstance(result.get("judge"), dict) else {}
+    status = str(result.get("status") or "").lower()
+    if status not in {"judge_approved", "runtime-validated"} or judge.get("verdict") != "approved":
+        return None
+    try:
+        validate_verdict(judge)
+        provenance = recompute_flag_provenance(result_path.parent, result)
+    except ContractError:
+        return None
+    if result.get("flag_provenance_verified") != provenance:
+        return None
+    return provenance
+
+
 def main() -> int:
     DATA.mkdir(parents=True, exist_ok=True)
-    latest = latest_findings()
-    manual = set()
-    manual_data = {}
-    for name in ("curated.json", "state.json"):
-        payload = load(DATA / name)
-        for raw_key, value in payload.items() if isinstance(payload, dict) else []:
-            project, finding_id = split_key(raw_key)
-            key = canon(project, finding_id)
-            manual.add(key)
-            if isinstance(value, dict):
-                manual_data[key] = {**manual_data.get(key, {}), **value}
+    ledger = finding_ledger.build_ledger()
+    finding_ledger.write(finding_ledger.OUT, ledger)
+    latest = latest_findings(ledger)
+    manual_data = finding_ledger.merge_manual_state(
+        ledger, [load(DATA / "curated.json"), load(DATA / "state.json")]
+    )
+    manual = set(manual_data)
 
-    state = build_verify_state(latest, manual)
-    for key, patch in build_source_state(latest, manual).items():
+    state = build_verify_state(latest, manual, ledger)
+    for key, patch in build_source_state(latest, manual, ledger).items():
         if key in state:
             state[key] = {**state[key], **patch}
         else:
@@ -264,15 +269,20 @@ def main() -> int:
     review = {}
     for result_path in sorted((ROOT / "runs" / "redteam").glob("*/*/result.json")):
         result = load(result_path)
-        judge = result.get("judge") if isinstance(result.get("judge"), dict) else {}
-        status = str(result.get("status") or "").lower()
-        approved = judge.get("verdict") == "approved" or status in {"judge_approved", "runtime-validated"}
-        if not approved:
+        provenance = verified_redteam_provenance(result_path, result)
+        if not provenance:
             continue
         finding_data = load(result_path.parent / "finding.json")
         project = result.get("project") or result_path.parent.parent.name
         finding_id = finding_data.get("id")
-        key = canon(project, finding_id)
+        matches = finding_ledger.resolve_reference(
+            ledger,
+            project=project,
+            finding_id=finding_id,
+            occurrence_id=finding_data.get("occurrence_id") or result.get("occurrence_id") or "",
+            semantic_id=finding_data.get("semantic_id") or result.get("semantic_id") or "",
+        )
+        key = next((match for match in matches if match in latest), None)
         item = latest.get(key)
         if not item:
             continue
@@ -286,21 +296,20 @@ def main() -> int:
             "reason": "红队捕获 flag · judge approved · 图文报告已生成",
             "runtime": "runtime-validated",
             "trace": str(result_path),
+            "flag_provenance": provenance,
         }
 
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "findings_total": len(latest),
         "auto_total": len(state),
         "review_total": len(review),
-        "findings": dict(sorted(state.items())),
-        "review": dict(sorted(review.items())),
+        "findings": finding_ledger.identified_states(state, ledger),
+        "review": finding_ledger.identified_states(review, ledger),
     }
-    temp = OUT.with_name(f".{OUT.name}.{os.getpid()}.tmp")
-    temp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    temp.replace(OUT)
-    print(f"[workflow] latest={len(latest)} auto={len(state)} review={len(review)} -> {OUT.relative_to(ROOT)}")
+    finding_ledger.write(OUT, payload)
+    print(f"[workflow] latest={len(latest)} auto={len(state)} review={len(review)} -> {OUT}")
     return 0
 
 

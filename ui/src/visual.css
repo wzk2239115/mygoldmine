@@ -414,16 +414,33 @@
 
 @media (max-width: 760px) {
   .map-view {
+    min-width: 0;
     padding: 8px 10px 12px;
   }
 
   .map-head {
+    min-width: 0;
     flex-direction: column;
     gap: 8px;
   }
 
+  .map-title,
+  .map-head-actions,
+  .map-cover > div {
+    min-width: 0;
+  }
+
+  .map-title h2,
+  .map-title p,
+  .map-cover strong,
+  .map-cover p,
+  .map-detail h3 {
+    overflow-wrap: anywhere;
+  }
+
   .map-head-actions {
     width: 100%;
+    flex-wrap: wrap;
     justify-content: space-between;
   }
 
@@ -441,7 +458,14 @@
     font-size: 15px;
   }
 
+  .map-body,
+  .map-stage,
   .map-detail {
-    display: none;
+    min-width: 0;
+  }
+
+  .map-detail {
+    display: block;
+    overflow: visible;
   }
 }

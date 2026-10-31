@@ -34,7 +34,10 @@ OUT_DIR="$(realpath -m "$OUT_DIR")"
 mkdir -p "$OUT_DIR"
 cd "$REPO_ROOT"
 
-PROMPT="Build a reproducible Docker environment for the source below.
+LANGUAGE_DIRECTIVE="$(python3 "$REPO_ROOT/scripts/config/language.py" --prompt 2>/dev/null || true)"
+PROMPT="${LANGUAGE_DIRECTIVE}
+
+Build a reproducible Docker environment for the source below.
 
 project: ${PROJECT}
 source: ${SOURCE}

@@ -18,7 +18,10 @@ async function request(url, options = {}) {
 
 export const api = {
   board: () => request('/api/board'),
+  watch: () => request('/api/watch'),
   live: () => request('/api/live'),
+  agents: (project, runId) =>
+    request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/agents`),
   visual: (project, runId) => request(`/api/visual/${encodeURIComponent(project)}/${encodeURIComponent(runId)}`),
   runs: () => request('/api/runs'),
   ccuiStatus: () => request('/api/ccui'),
@@ -39,10 +42,10 @@ export const api = {
       `/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/trajectory${suffix ? `?${suffix}` : ''}`
     );
   },
-  raw: (project, id) =>
-    request(`/api/findings/${encodeURIComponent(project)}/${encodeURIComponent(id)}/raw`),
-  update: (project, id, patch) =>
-    request(`/api/findings/${encodeURIComponent(project)}/${encodeURIComponent(id)}`, {
+  raw: (project, id, occurrenceId = '') =>
+    request(`/api/findings/${encodeURIComponent(project)}/${encodeURIComponent(id)}/raw${occurrenceId ? `?occurrence_id=${encodeURIComponent(occurrenceId)}` : ''}`),
+  update: (project, id, patch, occurrenceId = '') =>
+    request(`/api/findings/${encodeURIComponent(project)}/${encodeURIComponent(id)}${occurrenceId ? `?occurrence_id=${encodeURIComponent(occurrenceId)}` : ''}`, {
       method: 'PATCH',
       body: JSON.stringify(patch)
     })

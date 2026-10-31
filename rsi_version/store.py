@@ -79,6 +79,8 @@ class VersionStore:
         cost: dict[str, Any] | None = None,
         base_git_commit: str | None = None,
         base_git_dirty: bool | None = None,
+        legacy: bool = False,
+        force: bool = False,
     ) -> dict[str, Any]:
         self.init_stage(stage)
         skill_path = Path(skill_path)
@@ -172,7 +174,12 @@ class VersionStore:
         self._write_diff(stage, version_dir, parent_version, skill_text)
 
         if promote:
-            self.promote(stage, version_id)
+            self.promote(
+                stage,
+                version_id,
+                legacy=legacy,
+                force=force,
+            )
         return meta
 
     def load(self, stage: str, version_id: str) -> dict[str, Any]:
@@ -213,8 +220,26 @@ class VersionStore:
         value = current.get("version_id")
         return str(value) if value else None
 
-    def promote(self, stage: str, version_id: str) -> dict[str, Any]:
+    def promote(
+        self,
+        stage: str,
+        version_id: str,
+        *,
+        legacy: bool = False,
+        force: bool = False,
+    ) -> dict[str, Any]:
         meta = self.load(stage, version_id)
+        gate = meta.get("gate")
+        accepted = (
+            isinstance(gate, dict)
+            and gate.get("status") == "accepted"
+            and gate.get("accepted") is True
+        )
+        if not accepted and not legacy and not force:
+            raise ValueError(
+                "promotion requires gate.status='accepted' and "
+                "gate.accepted=true; use legacy/force only for migration"
+            )
         current = {
             "schema": CURRENT_SCHEMA,
             "stage": stage,

@@ -112,13 +112,15 @@ bash scripts/ui/start.sh
 # http://127.0.0.1:8787
 ```
 
-- 五列：收件箱 / 分诊 / 复现 / CVE 跟踪 / 已关闭。
-- 运行中的 run 会在看板顶部出现 LIVE 条：显示状态、耗时、最后一行日志；点开可实时 tail `claude.rendered.log`（2 秒刷新）。`run.sh` 与 overnight/mine_one 都支持。
+- 六阶段：原矿 / 分诊 / 复现 / CVE 跟踪 / 待验收 / 已关闭。
+- 运行中的 run 会在看板顶部出现 LIVE 条：显示状态、耗时、最后一行日志；点开默认看 CCUI 对话，另有 **Agent 拓扑** tab 展示 orchestrator → 边界 agent → critic → verify 的 fan-out。运行视图不会自动重载 iframe；有新轨迹时只显示“有新内容 · 更新”按钮，避免阅读位置被刷新打断。
 - 卡片：严重度、TP/FP/DUP、CVE Tier、证据数；原生拖拽改状态。
 - 详情：Brief / Evidence / Agent stream；可看原始报告、证据路径、`claude.rendered.log` 尾部。
 - 筛选：目标、严重度、判定、CVE-only、搜索；默认展示全部 finding，不再分精选/CVE/全部三档。
-- 自动流转：`scripts/workflow/build_state.py` 读取 verify、CVE handoff/adjudication 和最新报告，生成 `ui/data/auto-state.json`；人工状态仍优先。
-- 精炼漏斗：956 条原始 finding 自动评分，未达门槛的进“原始池”并默认隐藏；CVE 候选/已验证项进入“待验收”，人工只处理图文精品 case。
+- 跨 run 台账：`finding_ledger.py` 扫描全部完整有效报告，以 occurrence/semantic 双层身份保留历史独有 finding，并避免同 ID 异义串状态；运行中草稿不替代完整报告。
+- 自动流转：`scripts/workflow/build_state.py` 合并台账、verify、CVE handoff/adjudication，生成 `ui/data/auto-state.json`；人工状态仍优先，歧义旧 ID 不猜测继承。
+- 精炼漏斗：按 source hash 自动评分和重算，新 confirmed 证据可唤醒归档项；未达门槛的进“原始池”并默认隐藏，高危弱指纹不会直接归档。
+- 动态验收：红队 flag 必须有真实工具输出 provenance，judge 通过完整 schema 后才具备资格；进入人工待验收还要求图文报告和场景图。
 - 手工状态写入 `ui/data/state.json`，不改原始报告；人工复核种子在 `ui/data/curated.json`，自动路由缓存不提交。
 - 默认只监听 `127.0.0.1`，避免把未修复漏洞细节暴露到网络。
 
@@ -448,8 +450,8 @@ goldmine 不再把规则扫描器当结论，而是“薄索引 + 厚知识 + ag
 ```text
 project-profiler --json（轻量画像）
   → knowledge/project-types/<type>.md + knowledge/projects/<project>.md
-  → infra-analyst（按 trust boundary 并行读代码）
-  → hypothesis-critic（去重、证据挑战、reachability/severity 校准）
+  → infra-analyst × N（config / process-exec / mcp / sandbox / control-plane / filesystem 并行读代码）
+  → hypothesis-critic（按 root cause/aliases 去重、跨边界链校准）
   → report-generator（canonical findings）
   → verify-agent（Top Critical/High）
   → knowledge-scribe（confirmed/rejected 回写 knowledge/）
@@ -460,6 +462,7 @@ project-profiler --json（轻量画像）
 - `.claude/agents/infra-analyst.md`
 - `.claude/agents/hypothesis-critic.md`
 - `.claude/agents/knowledge-scribe.md`
+- `.claude/agents/diff-auditor.md`（单 commit 供应链审查）
 
 知识库：
 
@@ -476,6 +479,18 @@ knowledge/
 原则：代码只做“索引/统计/环境/验证”，判断交给 agent；每次审计后由 `knowledge-scribe`
 把新入口、配置开关、验证配方、误报写回知识库。`scripts/experimental/infra_surface_index.py`
 是可选索引，不产出正式 finding。
+
+## Verification-RSI 与可信回放
+
+RSI 当前优先优化已有 finding 的验证资源配置。经验数据保留 occurrence/semantic 身份、动作前特征、动作/标注倾向、证据等级和实际效用；支持分层标注、效用训练、baseline 回放、统计门禁和只读 shadow，不会把未验证策略直接用于生产审计。
+
+```bash
+python3 -m audit_rsi experience-build --runs runs --output rsi/verification-experience.jsonl
+python3 -m audit_rsi label-sample --pool rsi/verification-experience.jsonl --output rsi/verification-label-sample.jsonl --limit 100
+# 人工标注后：label-merge → verify-train → verify-shadow / verify-replay
+```
+
+数据或 holdout 不足时输出 `insufficient`，shadow 回退 baseline；回放不宣称因果 uplift。完整命令和轨迹契约见 `docs/system-architecture.md` 第 9 节。
 
 ## 完整流水线：run.sh
 
@@ -546,6 +561,43 @@ bash scripts/verify/run_verify.sh \
 
 两个智能体定义在 `.claude/agents/environment-builder.md` 和 `.claude/agents/verify-agent.md`。
 
+## 系统语言
+
+在 `config/system.json` 设置 `language`（`zh` / `en`），或在看板左下角齿轮里切换。提示词会通过 `scripts/config/language.py --prompt` 自动注入，详见 `docs/language.md`。
+
+## 持续监控（Claude Security 模式）
+
+连接仓库后按提交持续审查变化，而不是每次人工重跑全仓库：
+
+```bash
+python3 scripts/watch/watch.py add --project codex --path targets/codex
+python3 scripts/watch/watch.py poll --fetch
+python3 scripts/watch/watch.py brief
+```
+
+每次更新生成 `runs/watch/<project>/<sha>.md`，按 critical/high/review/low 排序；
+高风险项进入 `runs/watch/queue/`，再转给 `run.sh` 深度审计。看板“自动狩猎”页读取
+`ui/data/watch-state.json`。规则、常驻方式和边界见 `docs/continuous-watch.md`。
+
+## 测试与报告质量
+
+```bash
+# 前端单元测试：阶段计数、reviewReady 归属、原矿只展开 inbox
+cd ui && npm test
+
+# 系统测试：自启服务 + headless Chrome，验证流程计数、阶段切换和项目筛选联动
+cd ui && npm run test:system
+
+# 报告字段/语言完整性
+pytest -q tests/test_report_quality.py tests/test_check_report.py
+python3 scripts/workflow/report_quality.py
+python3 scripts/workflow/report_quality.py --fail --fail-language
+python3 scripts/mine/check_report.py --report runs/<project>/<run>/audit-report.json --fail-missing --fail-language
+```
+
+`report_quality.py` 输出 `ui/data/report-quality.json` 和 `runs/report-quality.md`；
+系统语言为中文时，英文 `title` 会标记为 `titleLanguage` 缺失，不再静默进入分诊/复现。
+
 ## 目录结构
 
 ```
@@ -574,3 +626,5 @@ bash scripts/verify/run_verify.sh \
 ## License
 
 MIT
+
+异常退出后的产物保留、超时与断点恢复见 [挖掘异常恢复](docs/durable-recovery.md)。

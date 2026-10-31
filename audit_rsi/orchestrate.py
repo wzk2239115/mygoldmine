@@ -44,11 +44,7 @@ def policy_factory(name: str, out_dir: str | Path = "rsi"):
 
 
 def _skill_tags(skill: str) -> list[str]:
-    return [
-        part.strip().lower()
-        for part in re.split(r"[/,;|]", skill or "")
-        if part.strip()
-    ]
+    return [part.strip().lower() for part in re.split(r"[/,;|]", skill or "") if part.strip()]
 
 
 def _tag_stats(score: PolicyScore, pool: TracePool) -> dict[str, dict[str, Any]]:
@@ -92,13 +88,7 @@ def _ranked_tags(stats: dict[str, dict[str, Any]]) -> tuple[list[dict], list[dic
     priorities: list[dict[str, Any]] = []
     low: list[dict[str, Any]] = []
     for tag, entry in stats.items():
-        judged = (
-            entry["tp"]
-            + entry["fp"]
-            + entry["duplicate"]
-            + entry["design"]
-            + entry["unclear"]
-        )
+        judged = entry["tp"] + entry["fp"] + entry["duplicate"] + entry["design"] + entry["unclear"]
         tp_rate = entry["tp"] / judged if judged else 0.0
         fp_rate = (entry["fp"] + entry["duplicate"]) / judged if judged else 0.0
         item = {
@@ -115,9 +105,7 @@ def _ranked_tags(stats: dict[str, dict[str, Any]]) -> tuple[list[dict], list[dic
         priorities.append(item)
         if judged and entry["tp"] == 0 and (entry["fp"] + entry["duplicate"]) > 0:
             low.append(item)
-    priorities.sort(
-        key=lambda x: (x["tp_rate"], x["tp"], -x["calls"]), reverse=True
-    )
+    priorities.sort(key=lambda x: (x["tp_rate"], x["tp"], -x["calls"]), reverse=True)
     low.sort(key=lambda x: (x["fp_rate"], x["calls"]), reverse=True)
     return priorities, low
 
@@ -168,9 +156,16 @@ def plan_from_pool(
     max_workers: int = 10,
     max_rounds: int = DEFAULT_MAX_ROUNDS,
     top: int = 12,
+    policy_path: str | Path | None = None,
+    artifact_status: str = "current",
 ) -> dict[str, Any]:
+    factory = (
+        load_policy_file(policy_path)
+        if policy_path is not None
+        else policy_factory(policy_name, out_dir)
+    )
     score = evaluate(
-        policy_factory(policy_name, out_dir),
+        factory,
         pool,
         betas=betas,
         max_workers=max_workers,
@@ -180,10 +175,17 @@ def plan_from_pool(
     priorities, low = _ranked_tags(stats)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "artifact_status": artifact_status,
+        "is_current": artifact_status == "current",
         "policy": score.policy,
         "score": round(score.score, 6),
-        "mean_fp_rate": round(score.mean_fp_rate, 6),
-        "mean_dup_rate": round(score.mean_dup_rate, 6),
+        "mean_fp_rate": (round(score.mean_fp_rate, 6) if score.mean_fp_rate is not None else None),
+        "mean_dup_rate": (
+            round(score.mean_dup_rate, 6) if score.mean_dup_rate is not None else None
+        ),
+        "mean_label_coverage": (
+            round(score.mean_label_coverage, 6) if score.mean_label_coverage is not None else None
+        ),
         "mean_coverage": round(score.mean_coverage, 6),
         "total_calls": score.total_calls,
         "priorities": priorities[:top],
@@ -194,14 +196,19 @@ def plan_from_pool(
 
 
 def render_plan_markdown(plan: dict[str, Any]) -> str:
+    fp_rate = plan["mean_fp_rate"]
+    dup_rate = plan["mean_dup_rate"]
+    label_coverage = plan.get("mean_label_coverage")
     lines = [
         "# audit-rsi 优先审计计划",
         "",
         f"- generated_at: {plan['generated_at']}",
+        f"- artifact status: {plan.get('artifact_status', 'current')}",
         f"- policy: {plan['policy']}",
         f"- replay score: {plan['score']}",
-        f"- FP rate: {plan['mean_fp_rate']}",
-        f"- duplicate rate: {plan['mean_dup_rate']}",
+        f"- FP rate: {fp_rate if fp_rate is not None else 'N/A'}",
+        f"- duplicate rate: {dup_rate if dup_rate is not None else 'N/A'}",
+        f"- label coverage: {label_coverage if label_coverage is not None else 'N/A'}",
         f"- coverage: {plan['mean_coverage']}",
         f"- total calls: {plan['total_calls']}",
         "",
@@ -224,19 +231,16 @@ def render_plan_markdown(plan: dict[str, Any]) -> str:
             )
     lines.extend(["", "## 按项目", ""])
     for project in plan["per_project"]:
-        lines.append(
-            f"### {project['project']} ({project['world_id']})"
-        )
+        lines.append(f"### {project['project']} ({project['world_id']})")
         if not project["top_findings"]:
             lines.append("- 无确认 finding")
             continue
         for finding in project["top_findings"]:
             lines.append(
-                f"- {finding['id']} [{finding['severity']}] "
-                f"{finding['title']} @ {finding['scope']}"
+                f"- {finding['id']} [{finding['severity']}] {finding['title']} @ {finding['scope']}"
             )
     lines.extend(["", "## 预算建议", ""])
-    if plan["mean_fp_rate"] > 0.15:
+    if plan["mean_fp_rate"] is not None and plan["mean_fp_rate"] > 0.15:
         lines.append("- 先做证据/可达性预筛，再升级到 CVE 跟踪，避免 FP 消耗。")
     elif plan["mean_coverage"] < 0.4:
         lines.append("- 先扩大入口/类别覆盖，再对单条链路加深。")
@@ -246,14 +250,18 @@ def render_plan_markdown(plan: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def write_plan(plan: dict[str, Any], out_dir: str | Path = "rsi") -> tuple[Path, Path]:
+def write_plan(
+    plan: dict[str, Any],
+    out_dir: str | Path = "rsi",
+    *,
+    shadow: bool = False,
+) -> tuple[Path, Path]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    json_path = out / "plan.json"
-    md_path = out / "plan.md"
-    json_path.write_text(
-        json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    stem = "shadow-plan" if shadow else "plan"
+    json_path = out / f"{stem}.json"
+    md_path = out / f"{stem}.md"
+    json_path.write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     md_path.write_text(render_plan_markdown(plan), encoding="utf-8")
     return json_path, md_path
 
@@ -329,7 +337,11 @@ def evolve(
     betas: Sequence[float] = DEFAULT_BETAS,
     max_workers: int = 10,
     max_rounds: int = DEFAULT_MAX_ROUNDS,
+    holdout_project: str = "",
+    holdout: TracePool | str | Path | None = None,
 ) -> dict[str, Any]:
+    if holdout_project and holdout is not None:
+        raise ValueError("use either holdout_project or explicit holdout, not both")
     repo_root = Path(__file__).resolve().parent.parent
     projects = manifest_projects(repo_root) or None
     pool = import_runs(
@@ -340,36 +352,68 @@ def evolve(
         handoff_path=handoff_path,
         adjudication_path=adjudication_path,
     )
+    if isinstance(holdout, (str, Path)):
+        holdout = TracePool.load(holdout)
+    if holdout_project:
+        holdout_ids = {world.world_id for world in pool.worlds if world.project == holdout_project}
+        if not holdout_ids:
+            raise ValueError(f"no worlds for project: {holdout_project}")
+        holdout_pool = pool.subset(holdout_ids)
+    elif holdout is not None:
+        if not holdout.worlds:
+            raise ValueError("explicit holdout must contain worlds")
+        holdout_pool = holdout
+        holdout_ids = set(holdout_pool.ids())
+    else:
+        holdout_pool = None
+        holdout_ids = set()
+    train_pool = pool.exclude(holdout_ids)
+    if holdout_pool is not None and not train_pool.worlds:
+        raise ValueError("holdout leaves no training worlds")
+
     history: list[dict[str, Any]] = []
     discover_result: DiscoverResult | None = None
     plan: dict[str, Any] | None = None
+    plan_paths: tuple[Path, Path] | None = None
 
     for cycle in range(max(1, cycles)):
         discover_result = discover(
-            pool,
+            train_pool,
             proposer=proposer,
             rounds=rounds,
             betas=betas,
             max_workers=max_workers,
             max_rounds=max_rounds,
             out_dir=out_dir,
+            holdout=holdout_pool,
         )
+        promoted = discover_result.method_status == "promoted"
+        policy_path = discover_result.shadow_policy
+        if policy_path is None:
+            current_method = Path(out_dir) / "policy" / "method.py"
+            policy_path = str(current_method) if current_method.exists() else None
         plan = plan_from_pool(
-            pool,
-            policy_name="method",
+            train_pool,
+            policy_name="method" if promoted else "baseline",
             out_dir=out_dir,
             betas=betas,
             max_workers=max_workers,
             max_rounds=max_rounds,
+            policy_path=policy_path,
+            artifact_status="current" if promoted else "shadow",
         )
-        write_plan(plan, out_dir)
+        plan_paths = write_plan(plan, out_dir, shadow=not promoted)
         history.append(
             {
                 "cycle": cycle,
-                "worlds": len(pool.worlds),
+                "worlds": len(train_pool.worlds),
+                "holdout_worlds": len(holdout_pool.worlds) if holdout_pool else 0,
                 "best_policy": discover_result.best_policy,
                 "best_score": round(discover_result.best_score, 6),
                 "baseline_score": round(discover_result.baseline_score, 6),
+                "method_status": discover_result.method_status,
+                "gate_status": discover_result.gate_status,
+                "gate_reasons": list(discover_result.gate_reasons),
             }
         )
         if not online:
@@ -378,20 +422,22 @@ def evolve(
             targets = resolve_targets(repo_root)
         if not targets:
             break
-        curated, handoff = load_labels(
-            curated_path, handoff_path, adjudication_path
-        )
+        curated, handoff = load_labels(curated_path, handoff_path, adjudication_path)
         explorer = MineExplorer(repo_root)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         for project, target in targets:
             run_dir = Path(runs_root) / project / stamp
-            explorer.run(project, target, run_dir, Path(out_dir) / "plan.md")
+            explorer.run(project, target, run_dir, plan_paths[1])
             world = import_run(run_dir, curated=curated, handoff=handoff)
             pool.worlds.append(world)
+            if world.world_id not in holdout_ids:
+                train_pool.worlds.append(world)
 
     return {
         "cycles": history,
         "discover": discover_result.to_dict() if discover_result else None,
         "plan": plan,
+        "plan_json": str(plan_paths[0]) if plan_paths else None,
+        "plan_md": str(plan_paths[1]) if plan_paths else None,
         "pool": pool.summary(),
     }

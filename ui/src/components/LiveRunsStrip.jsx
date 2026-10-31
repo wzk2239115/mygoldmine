@@ -1,11 +1,12 @@
-import { ChevronRight, Clock3, Radio, Terminal } from 'lucide-react';
+import { ChevronRight, Clock3, Loader2, Radio, Terminal } from 'lucide-react';
 import { cx, formatDuration, relativeTime, truncate } from '../utils.js';
 
 function stateLabel(run) {
-  if (run.finished) return 'FINISHED';
-  if (run.state === 'starting') return 'STARTING';
-  if (run.state === 'running') return 'RUNNING';
-  return String(run.state || 'LIVE').toUpperCase();
+  if (run.finished) return '已结束';
+  if (run.state === 'starting') return '启动中';
+  if (run.state === 'running') return '运行中';
+  return '实时';
+
 }
 
 export default function LiveRunsStrip({ runs, onOpen }) {
@@ -15,9 +16,9 @@ export default function LiveRunsStrip({ runs, onOpen }) {
     <section className="live-strip" aria-label="正在运行的挖掘任务">
       <div className="live-strip-head">
         <span className="live-pulse" aria-hidden="true" />
-        <strong>LIVE MINING</strong>
-        <span className="live-count">{runs.length} RUN{runs.length > 1 ? 'S' : ''}</span>
-        <span className="live-hint">日志每 5 秒刷新 · 报告生成后自动进入看板</span>
+        <strong>实时挖掘</strong>
+        <span className="live-count">{runs.length} 个任务</span>
+        <span className="live-hint">日志每 4 秒刷新 · 报告生成后自动进入看板</span>
       </div>
       <div className="live-strip-list">
         {runs.map((run) => {
@@ -33,9 +34,11 @@ export default function LiveRunsStrip({ runs, onOpen }) {
             >
               <div className="live-run-top">
                 <span className="live-run-project">{run.projectName}</span>
-                <span className={cx('live-state', `state-${run.state}`)}>
-                  <Radio size={10} aria-hidden="true" />
-                  {stateLabel(run)}
+                <span className={cx('live-state', `state-${run.state}`)}
+                  role="status" aria-label={stateLabel(run)} title={stateLabel(run)}>
+                  {!run.finished && run.state === 'running'
+                    ? <><Loader2 size={13} className="is-spinning" aria-hidden="true" />{stateLabel(run)}</>
+                    : <><Radio size={10} aria-hidden="true" />{stateLabel(run)}</>}
                 </span>
                 <span className="live-run-time" title={`${elapsed} / ${timeout || '?'} seconds`}>
                   <Clock3 size={11} aria-hidden="true" />

@@ -57,7 +57,7 @@ usage() {
 
 状态目录:
   run-info.json          编排器整体状态与项目列表
-  projects/<name>.json   单项目状态（pending/running/success/failed/timeout/skipped/stopped）
+  projects/<name>.json   单项目状态（pending/running/success/partial/failed/timeout/skipped/stopped）
   workers/<name>.pid     worker 进程组 PID
   logs/<name>.log        单项目执行器日志
   orchestrator.lock      单实例 flock 锁
@@ -228,7 +228,7 @@ latest_meta() {
 run_is_complete() {
     local meta="$1"
     [ -s "$meta" ] || return 1
-    jq -e '(.reports_complete == true) and ((.exit_code // 1) == 0) and ((.timed_out // false) == false)' "$meta" >/dev/null 2>&1
+    jq -e '(.status == "success") and (.reports_complete == true) and ((.exit_code // 1) == 0) and ((.timed_out // false) == false)' "$meta" >/dev/null 2>&1
 }
 
 free_gb() {
@@ -346,7 +346,7 @@ worker_on_signal() {
 
 run_project() {
     local project="$1" target="$2"
-    local started_at started_epoch ended_at duration attempts=0 rc=0 timed=0 complete=0
+    local started_at started_epoch ended_at duration attempts=0 rc=0 timed=0 complete=0 partial=0
     local run_dir="" logf="$LOGS_DIR/$project.log" child="" outer_timeout
 
     started_at="$(utc_now)"
@@ -385,19 +385,18 @@ run_project() {
         CURRENT_CHILD=""
 
         timed=0
-        if [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ]; then
+        if [ "$rc" -eq 124 ] || [ "$rc" -eq 125 ] || [ "$rc" -eq 137 ]; then
             timed=1
         elif [ -s "$run_dir/run-meta.json" ] && jq -e '.timed_out == true' "$run_dir/run-meta.json" >/dev/null 2>&1; then
             timed=1
         fi
 
         complete=0
-        if [ "$rc" -eq 0 ]; then
-            if run_is_complete "$run_dir/run-meta.json"; then
-                complete=1
-            elif [ -s "$run_dir/audit-report.md" ] && [ -s "$run_dir/audit-report.json" ]; then
-                complete=1
-            fi
+        partial=0
+        if [ "$rc" -eq 0 ] && run_is_complete "$run_dir/run-meta.json"; then
+            complete=1
+        elif [ -s "$run_dir/run-meta.json" ] && jq -e '(.status == "partial") and (.reports_complete == true)' "$run_dir/run-meta.json" >/dev/null 2>&1; then
+            partial=1
         fi
 
         if [ "$complete" -eq 1 ]; then
@@ -424,13 +423,15 @@ run_project() {
     duration=$(( $(date +%s) - started_epoch ))
     local status message
     if [ "$complete" -eq 1 ]; then
-        status="success"; message="报告齐全"
+        status="success"; message="报告已通过质量合同"
     elif [ -f "$STOP_FILE" ] || [ "$STOP_REQUESTED" = "1" ]; then
         status="stopped"; message="收到停止指令"
     elif [ "$timed" -eq 1 ]; then
         status="timeout"; message="超时，日志已保留"
+    elif [ "$partial" -eq 1 ]; then
+        status="partial"; message="报告有效，但执行未完整成功"
     else
-        status="failed"; message="尝试 ${attempts} 次后仍失败"
+        status="failed"; message="尝试 ${attempts} 次后仍失败或报告质量不合格"
     fi
     write_status "$project" "$status" "$attempts" "$rc" "$( [ "$timed" -eq 1 ] && echo true || echo false )" \
         "$run_dir" "$started_at" "$ended_at" "$duration" "$message" "$$"
@@ -491,7 +492,8 @@ show_status() {
                     rc="$(jq -r '.exit_code // "-"' "$meta" 2>/dev/null || echo '-')"
                     dur="$(jq -r '.duration_seconds // 0' "$meta" 2>/dev/null || echo 0)"
                     if run_is_complete "$meta"; then st="done"
-                    elif jq -e '.timed_out == true' "$meta" >/dev/null 2>&1; then st="timeout"; fi
+                    elif jq -e '(.timed_out == true) or ((.exit_code // 0) == 124) or ((.exit_code // 0) == 125) or ((.exit_code // 0) == 137)' "$meta" >/dev/null 2>&1; then st="timeout"
+                    elif jq -e '.status == "partial"' "$meta" >/dev/null 2>&1; then st="partial"; fi
                     printf '%s\t%s\t-\t%s\t%s\t%s\t%s\n' "$p" "$st" "$rc" "$dur" "$(dirname "$meta")" "历史运行"
                 else
                     printf '%s\tpending\t0\t-\t0\t-\t%s\n' "$p" "尚未运行"
@@ -817,12 +819,13 @@ write_info "$final_state" "$ENDED_AT"
 # 停止标记保留到下次启动时清理，便于 --status 看到
 
 # 汇总计数并决定退出码
-count_success=0 count_skipped=0 count_failed=0 count_timeout=0 count_stopped=0
+count_success=0 count_skipped=0 count_partial=0 count_failed=0 count_timeout=0 count_stopped=0
 for p in "${PROJECTS[@]}"; do
     st="$(jq -r '.status // "pending"' "$PROJECTS_DIR/$p.json" 2>/dev/null || echo pending)"
     case "$st" in
         success) count_success=$(( count_success + 1 )) ;;
         skipped) count_skipped=$(( count_skipped + 1 )) ;;
+        partial) count_partial=$(( count_partial + 1 )) ;;
         timeout) count_timeout=$(( count_timeout + 1 )) ;;
         stopped) count_stopped=$(( count_stopped + 1 )) ;;
         *) count_failed=$(( count_failed + 1 )) ;;
@@ -830,13 +833,13 @@ for p in "${PROJECTS[@]}"; do
 done
 
 echo "=== parallel_mine 完成 ==="
-echo "state=$final_state success=$count_success skipped=$count_skipped failed=$count_failed timeout=$count_timeout stopped=$count_stopped"
+echo "state=$final_state success=$count_success skipped=$count_skipped partial=$count_partial failed=$count_failed timeout=$count_timeout stopped=$count_stopped"
 echo "info=$INFO_FILE logs=$LOGS_DIR"
 
 if [ "$STOP_REQUESTED" = "1" ]; then
     exit 143
 fi
-if [ "$count_failed" -gt 0 ] || [ "$count_timeout" -gt 0 ] || [ "$count_stopped" -gt 0 ]; then
+if [ "$count_partial" -gt 0 ] || [ "$count_failed" -gt 0 ] || [ "$count_timeout" -gt 0 ] || [ "$count_stopped" -gt 0 ]; then
     exit 1
 fi
 exit 0

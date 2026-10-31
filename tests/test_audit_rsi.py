@@ -234,7 +234,7 @@ def test_policy_loader_rejects_dangerous_code() -> None:
     assert cls.name == "dreamed-evidence"
 
 
-def test_discover_promotes_better_policy(tmp_path: Path) -> None:
+def test_discover_without_holdout_keeps_better_policy_in_shadow(tmp_path: Path) -> None:
     pool = _pool(tmp_path)
     out = tmp_path / "rsi"
     result = discover(
@@ -247,12 +247,14 @@ def test_discover_promotes_better_policy(tmp_path: Path) -> None:
         out_dir=out,
     )
     assert result.best_score > result.baseline_score
-    assert (out / "policy" / "method.py").exists()
+    assert result.method_status == "shadow"
+    assert not (out / "policy" / "method.py").exists()
+    assert (out / "policy" / "shadow.py").exists()
     assert (out / "learning" / "discover_summary.json").exists()
-    promoted = load_policy_source(
-        (out / "policy" / "method.py").read_text(encoding="utf-8")
+    shadow = load_policy_source(
+        (out / "policy" / "shadow.py").read_text(encoding="utf-8")
     )
-    assert promoted.name.startswith("dreamed-")
+    assert shadow.name.startswith("dreamed-")
 
 
 def test_plan_and_cli_import(tmp_path: Path) -> None:

@@ -23,6 +23,10 @@ class ReplayWorld:
         return self.tree.best_score()
 
     @property
+    def total_score(self) -> float:
+        return self.tree.total_score()
+
+    @property
     def total_calls(self) -> int:
         return self.tree.total_calls()
 
@@ -38,6 +42,7 @@ class ReplayWorld:
             "nodes": len(self.tree.nodes),
             "total_calls": self.total_calls,
             "best_score": round(self.best_score, 6),
+            "total_score": round(self.total_score, 6),
             "skills": sorted(self.skills),
             "meta": self.meta,
         }

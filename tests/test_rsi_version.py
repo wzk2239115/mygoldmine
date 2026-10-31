@@ -123,6 +123,18 @@ def test_cli_create_and_validate(tmp_path: Path) -> None:
     skill = tmp_path / "skill.md"
     skill.write_text("# cli skill\n", encoding="utf-8")
     dataset = _write(tmp_path / "cli-dataset.json", _dataset())
+    gate = _write(
+        tmp_path / "cli-gate.json",
+        {
+            "schema": "mygoldmine-rsi-gate/v1",
+            "status": "accepted",
+            "accepted": True,
+            "metric": "hard",
+            "baseline": 0.5,
+            "candidate": 1.0,
+            "no_regression": True,
+        },
+    )
     assert main(["init", "--root", str(root), "--stage", "env"]) == 0
     assert (
         main(
@@ -136,6 +148,8 @@ def test_cli_create_and_validate(tmp_path: Path) -> None:
                 str(skill),
                 "--dataset",
                 str(dataset),
+                "--gate",
+                str(gate),
                 "--tag",
                 "rsi/env/v000",
                 "--promote",
@@ -173,3 +187,57 @@ def test_validate_detects_provenance_corruption(tmp_path: Path) -> None:
     (version_dir / "provenance.json").write_text(json.dumps(provenance))
     errors = store.validate()
     assert any("provenance_sha256 mismatch" in error for error in errors)
+
+
+def test_promote_rejects_missing_accepted_gate_but_keeps_candidate(
+    tmp_path: Path,
+) -> None:
+    store = VersionStore(tmp_path / "rsi")
+    skill = tmp_path / "skill.md"
+    skill.write_text("# unvalidated\n", encoding="utf-8")
+    dataset = _write(tmp_path / "dataset.json", _dataset())
+
+    with pytest.raises(ValueError, match="promotion requires gate"):
+        store.create(
+            stage="env",
+            skill_path=skill,
+            dataset_path=dataset,
+            tag="rsi/env/v000",
+            promote=True,
+        )
+
+    versions = store.list("env")
+    assert len(versions) == 1
+    assert store.current_version("env") is None
+    assert store.load("env", versions[0]["version_id"])["gate"]["status"] == "seed"
+
+
+def test_promote_rejects_unaccepted_gate_with_explicit_migration_escape(
+    tmp_path: Path,
+) -> None:
+    store = VersionStore(tmp_path / "rsi")
+    skill = tmp_path / "skill.md"
+    skill.write_text("# rejected\n", encoding="utf-8")
+    dataset = _write(tmp_path / "dataset.json", _dataset())
+    gate = _write(
+        tmp_path / "gate.json",
+        {
+            "schema": "mygoldmine-rsi-gate/v1",
+            "status": "rejected",
+            "accepted": False,
+        },
+    )
+    meta = store.create(
+        stage="env",
+        skill_path=skill,
+        dataset_path=dataset,
+        gate_path=gate,
+        tag="rsi/env/v000",
+    )
+
+    with pytest.raises(ValueError, match="promotion requires gate"):
+        store.promote("env", meta["version_id"])
+    assert store.current_version("env") is None
+
+    store.promote("env", meta["version_id"], legacy=True)
+    assert store.current_version("env") == meta["version_id"]

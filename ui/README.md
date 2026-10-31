@@ -49,15 +49,14 @@ npm run smoke
 
 ## 数据来源
 
-- 每个目标取 `runs/<project>/` 下时间最新、且存在 `audit-report.json` 的一次运行。
-- 默认排除 `smoke`、`smoke-real`、`smoke-target`。
-- 报告里的 `findings` 或 `vulnerabilities` 会统一归一化；`evidence` / `files` / `location` 合并为可复制证据。
-- `run.sh` 的 `.meta/status.json` 优先；没有 status 的 `overnight.sh` / `mine_one.sh` 运行，只要 `claude.rendered.log` 在 30 分钟内有更新，也会识别为 LIVE。
-- `ui/data/curated.json` 是人工二次审计过的 25 条 finding，按 `project:finding-id` 建立初始状态。
-- `ui/data/auto-state.json` 由 `scripts/workflow/build_state.py` 生成：扫描最新报告、`runs/*/*/verify/**/verify-report.json`、`docs/cve-handoff.json`、`docs/cve-adjudication.json`，自动评分并路由到分诊/复现/关闭；同时生成 `review` 精品待验收队列。
-- `ui/data/state.json` 保存手工改动（状态、判定、CVE Tier、备注、关联 CVE），优先级高于自动状态。默认不提交。
-- `scripts/workflow/refine_worker.py` 后台按批处理原始池，低优先级条目归档；轨迹写入 `rsi/trajectories/refine.jsonl`。
-- 优先级：`state.json` > `curated.json` > `auto-state.json` > 默认 inbox。所有手工变更只写 `state.json`，**不修改原始报告**。
+- `ui/data/finding-ledger.json` 扫描所有完整有效 run，以 occurrence/semantic 双层身份保留历史独有 finding；运行中、失败或不完整草稿不会替代最新完整报告。没有台账时 UI 回退到旧最新报告路径。
+- 默认排除 `smoke`、`smoke-real`、`smoke-target`；报告里的 `findings` 或 `vulnerabilities` 统一归一化。
+- `run.sh` 的 `.meta/status.json` 优先；没有 status 的运行按日志更新时间识别 LIVE。
+- `ui/data/curated.json` 保存人工复核种子；旧 `project:finding-id` 只有语义唯一时才继承，歧义状态不会套到不同 finding。
+- `ui/data/auto-state.json` 合并台账、verify 和 CVE 产物，生成自动路由及 review 资格；红队 review 会重算确定性 flag provenance。
+- `ui/data/state.json` 保存手工改动，优先使用 occurrence_id，旧 API 仍可回退到 project:id。
+- `scripts/workflow/refine_worker.py` 按 source hash 重算原始池，新证据可唤醒归档；轨迹写入 `rsi/trajectories/refine.jsonl`。
+- 优先级：`state.json` > `curated.json` > `refine-state.json` > `auto-state.json` > 默认 inbox。手工变更不修改原始报告。
 
 ## 列与判定
 

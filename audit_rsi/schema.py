@@ -17,7 +17,8 @@ SEVERITY_WEIGHT = {
 VERDICT_WEIGHT = {
     "tp": 1.0,
     "unclear": 0.3,
-    "unverified": 0.12,
+    "unverified": 0.0,
+    "unknown": 0.0,
     "design": 0.05,
     "duplicate": -0.25,
     "fp": -0.5,
@@ -70,6 +71,9 @@ class Outcome:
     known_cve: str = ""
     source: str = ""
     note: str = ""
+    run_id: str = ""
+    commit: str = ""
+    semantic_id: str = ""
 
     def novelty(self) -> float:
         if self.known_cve:
@@ -89,7 +93,7 @@ class Outcome:
         base *= CONFIDENCE_WEIGHT.get(
             self.confidence, CONFIDENCE_WEIGHT["unknown"]
         )
-        weight = VERDICT_WEIGHT.get(self.verdict, VERDICT_WEIGHT["unverified"])
+        weight = VERDICT_WEIGHT.get(self.verdict, 0.0)
         if weight < 0:
             return weight * max(base, 0.2)
         if self.verdict in {"tp", "unclear", "unverified"}:
@@ -105,6 +109,9 @@ class Outcome:
             "known_cve": self.known_cve,
             "source": self.source,
             "note": self.note,
+            "run_id": self.run_id,
+            "commit": self.commit,
+            "semantic_id": self.semantic_id,
         }
 
     @classmethod
@@ -119,6 +126,9 @@ class Outcome:
             known_cve=str(data.get("known_cve", "")),
             source=str(data.get("source", "")),
             note=str(data.get("note", "")),
+            run_id=str(data.get("run_id", "")),
+            commit=str(data.get("commit", "")),
+            semantic_id=str(data.get("semantic_id", "")),
         )
 
 
@@ -223,6 +233,9 @@ class DiscoveryTree:
     def best_score(self) -> float:
         return max((n.score() for n in self.nodes.values()), default=0.0)
 
+    def total_score(self) -> float:
+        return sum(max(0.0, node.score()) for node in self.nodes.values())
+
     def total_calls(self) -> int:
         return sum(n.cost.agent_calls for n in self.nodes.values() if n.kind != "root")
 
@@ -262,13 +275,34 @@ class DiscoveryTree:
         return errors
 
 
+def _entry_in_scope(
+    entry: dict[str, Any],
+    run_id: str,
+    commit: str,
+    allow_unscoped: bool,
+    key_scoped: bool = False,
+) -> bool:
+    entry_run = str(
+        entry.get("run_id") or entry.get("runId") or entry.get("run") or ""
+    )
+    entry_commit = str(entry.get("commit") or "")
+    if entry_run and entry_run != run_id:
+        return False
+    if entry_commit and entry_commit != commit:
+        return False
+    return bool(entry_run or entry_commit or key_scoped or allow_unscoped)
+
+
 def outcome_from_lookup(
     project: str,
     finding_id: str,
     finding: dict[str, Any],
     curated: dict[str, Any],
-    handoff: dict[tuple[str, str], dict[str, Any]],
+    handoff: dict[tuple[str, ...], dict[str, Any]],
     verify: dict[str, Any],
+    run_id: str = "",
+    commit: str = "",
+    allow_unscoped: bool = True,
 ) -> Outcome:
     verdict = "unverified"
     severity = str(finding.get("severity", "unknown")).lower()
@@ -277,17 +311,44 @@ def outcome_from_lookup(
     known_cve = ""
     sources: list[str] = []
     note = ""
+    semantic_id = str(
+        finding.get("semantic_id")
+        or f"{project}@{commit or run_id}:{finding_id}"
+    )
 
-    handoff_entry = handoff.get((project, finding_id))
+    handoff_entry = None
+    for key, key_scoped in (
+        ((project, f"run:{run_id}", finding_id), bool(run_id)),
+        ((project, f"commit:{commit}", finding_id), bool(commit)),
+        ((project, finding_id), False),
+    ):
+        candidate = handoff.get(key)
+        if isinstance(candidate, dict) and _entry_in_scope(
+            candidate, run_id, commit, allow_unscoped, key_scoped
+        ):
+            handoff_entry = candidate
+            break
     if handoff_entry:
         tier = handoff_entry.get("tier")
         cve_tier = int(tier) if tier is not None else None
         note = str(handoff_entry.get("known_overlap", ""))
         sources.append("handoff")
 
-    curated_entry = curated.get(f"{project}:{finding_id}")
+    curated_entry = None
+    for key, key_scoped in (
+        (f"{project}:{run_id}:{finding_id}" if run_id else "", True),
+        (f"{project}@{commit}:{finding_id}" if commit else "", True),
+        (f"{project}:{finding_id}", False),
+    ):
+        candidate = curated.get(key) if key else None
+        if isinstance(candidate, dict) and _entry_in_scope(
+            candidate, run_id, commit, allow_unscoped, key_scoped
+        ):
+            curated_entry = candidate
+            break
     if curated_entry:
         verdict = str(curated_entry.get("verdict", "unverified")).lower()
+        semantic_id = str(curated_entry.get("semantic_id") or semantic_id)
         if "cveTier" in curated_entry:
             tier = curated_entry.get("cveTier")
             cve_tier = int(tier) if tier is not None else None
@@ -328,4 +389,7 @@ def outcome_from_lookup(
         known_cve=known_cve,
         source="+".join(dict.fromkeys(sources)),
         note=note,
+        run_id=run_id,
+        commit=commit,
+        semantic_id=semantic_id,
     )

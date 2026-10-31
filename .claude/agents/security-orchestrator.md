@@ -53,7 +53,7 @@ tools: Read, Write, Edit, Bash, Task
 |--------------------------|-----------|----------|
 | 依赖或代码含 `transformers`、`torch`、`vllm`、`sglang`、`verl`、`peft`、`accelerate`；出现 `from_pretrained`、`trust_remote_code`、`auto_map`、`get_class_from_dynamic_module`、`torch.load` | `model-loading-analyzer` | 不可信模型 ID / 模型目录 → 远程代码或权重反序列化 |
 | 存在 `.mcp.json`、`.codex/config.toml`、`.claude/settings.json`、`AGENTS.md`、`CLAUDE.md`；出现 `mcpServers`、`approval_policy`、`allow_prefix`、`PrefixRule`、`core.hooksPath`、`fsmonitor` | `agent-config-analyzer` | 项目级配置无确认生效、MCP `command`/`args` 执行任意程序、审批前缀绕过、Git 信任链 |
-| 含 `sandbox`、`seccomp`、`landlock`、`run_code`、`Profile` 等沙箱实现（P1，尚未落地 skill） | 暂不自动追加 | 在报告中记录为已知缺口，待 `agent-sandbox-analyzer` 落地后接入 |
+| 含 `sandbox`、`seccomp`、`landlock`、`run_code`、`Profile`、`sandbox-local` 等沙箱实现 | `sandbox-boundary-analyzer` | 沙箱默认值、fail-open、workspaceRoot、网络/文件系统限制 |
 
 约束：
 - 条件任务只追加、不替换常规任务；同一子工程可同时触发两个新 skill。
@@ -426,20 +426,28 @@ finding: <finding 文件路径或报告中的条目>
    - `$MYGOLDMINE_HOME/knowledge/projects/<project>.md`
    - `$MYGOLDMINE_HOME/knowledge/playbooks/evidence-first.md`、`reachability.md`
 
-3. **并行 infra-analyst**：按 trust boundary 拆任务，每个 boundary 一个 `Task`：
+3. **并行 infra-analyst**：按 trust boundary 拆任务，每个 boundary 一个 `Task`，不要只启一个“总分析”agent：
    ```text
-   Task(subagent_type: "infra-analyst", prompt: "项目: <project>; boundary: <http-auth|model-loading|ipc|sandbox|config>; 可选输入: ${RUN_DIR:-.workspace}/triage/jev-infra.json（只为召回，不是 finding）; 读取 $MYGOLDMINE_HOME/knowledge/...; 产出 .workspace/findings/infra-<boundary>.json")
+   Task(subagent_type: "infra-analyst", prompt: "项目: <project>; boundary: <boundary>; 可选输入: ${RUN_DIR:-.workspace}/triage/jev-infra.json（只为召回，不是 finding）; 读取 $MYGOLDMINE_HOME/knowledge/...; 产出 .workspace/findings/infra-<boundary>.json")
    ```
    默认 boundary（按画像取交集）：
-   - agent-harness：config / process-exec / mcp / sandbox / local-control-plane
+   - agent-harness：config / process-exec / mcp / sandbox / local-control-plane / filesystem
    - inference-engine：http-auth / model-loading / ipc / multimodal / scheduler
    - training-framework：exec-eval / checkpoint / dataset / distributed / config
    - model-serving：http-auth / model-repo / admin / tenant
 
+   每个 boundary 可并行使用对应 skill 作为镜头：`agent-config-analyzer`（config）、
+   `command-injection-analyzer`（process-exec）、`sandbox-boundary-analyzer`（sandbox）、
+   `path-traversal-analyzer`（filesystem）、`rpc-surface-scanner`（control-plane）、
+   `ipc-serialization-analyzer`（IPC）、`model-loading-analyzer`（model repo）。
+   `infra-analyst` 负责 source→sink 深读；skill 的规则命中不能直接当 finding。
+
 4. **critic**：
    ```text
-   Task(subagent_type: "hypothesis-critic", prompt: "合并 .workspace/findings/infra-*.json，去重、校准 reachability/severity，输出 findings.normalized.json")
+   Task(subagent_type: "hypothesis-critic", prompt: "合并 .workspace/findings/infra-*.json，按 root cause/aliases 去重，校准 reachability/severity，输出 findings.normalized.json")
    ```
+   合并时必须检查跨边界链，而不是逐文件独立打分：config→process-exec、MCP→process-exec、
+   control-plane→terminal/filesystem/credentials、sandbox→process-exec/filesystem。
 
 5. **报告**：`report-generator` 只消费 `findings.normalized.json`；每条必须有
    `verification.status`，未验证的保持 `unverified`。

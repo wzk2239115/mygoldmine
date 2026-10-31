@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, BadgeCheck, BookOpen, Database, GitBranch, LayoutGrid, List, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, BookOpen, ChevronLeft, ChevronRight, Database, GitBranch, LayoutGrid, List, Radar, RefreshCw, Settings, ShieldAlert } from 'lucide-react';
 import { api } from './api.js';
+import { useI18n } from './i18n.jsx';
 import { countBy, cx } from './utils.js';
-import Board from './components/Board.jsx';
+import StageView from './components/StageView.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
 import LiveRunDrawer from './components/LiveRunDrawer.jsx';
-import RunsDrawer from './components/RunsDrawer.jsx';
 import LiveRunsStrip from './components/LiveRunsStrip.jsx';
 import MapView from './components/MapView.jsx';
 import RefineryStrip from './components/RefineryStrip.jsx';
+import RailButton from './components/RailButton.jsx';
 import ArchitectureView from './components/ArchitectureView.jsx';
+import WatchView from './components/WatchView.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import StatsStrip from './components/StatsStrip.jsx';
 import TableView from './components/TableView.jsx';
@@ -54,6 +56,7 @@ function deriveStats(findings) {
     cveCandidates: findings.filter((finding) => finding.cveTier).length,
     cveTrack: findings.filter((finding) => finding.status === 'cve').length,
     closed: findings.filter((finding) => finding.status === 'closed').length,
+    reviewReady: findings.filter((finding) => finding.reviewReady).length,
     severity,
     status,
     verdict
@@ -86,22 +89,23 @@ function LoadingBoard() {
 }
 
 export default function App() {
+  const { language, setLanguage, t } = useI18n();
   const [board, setBoard] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [filters, setFiltersState] = useState(loadFilters);
   const [view, setViewState] = useState(() => localStorage.getItem('vul-ai-view') || 'board');
+  const [activeStage, setActiveStageState] = useState('');
   const [theme, setTheme] = useState(() => localStorage.getItem('vul-ai-theme') || 'light');
   const [selectedKey, setSelectedKey] = useState(null);
   const [liveRun, setLiveRun] = useState(null);
-  const [runsOpen, setRunsOpen] = useState(false);
-  const [runs, setRuns] = useState([]);
-  const [runsLoading, setRunsLoading] = useState(false);
-  const [runsError, setRunsError] = useState('');
   const [toast, setToast] = useState('');
+  const [toastType, setToastType] = useState('success');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('vul-ai-sidebar') === 'collapsed');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const liveSignatureRef = useRef('');
+  const hasBoardRef = useRef(false);
 
   const setFilters = useCallback((next) => {
     setFiltersState((current) => {
@@ -116,37 +120,27 @@ export default function App() {
     localStorage.setItem('vul-ai-view', next);
   }, []);
 
-  const showToast = useCallback((message) => setToast(message), []);
-
-  const openRuns = useCallback(async () => {
-    setSelectedKey(null);
-    setLiveRun(null);
-    setRunsOpen(true);
-    setRunsLoading(true);
-    setRunsError('');
-    try {
-      const payload = await api.runs();
-      setRuns(payload.runs || []);
-    } catch (error) {
-      setRunsError(error.message);
-    } finally {
-      setRunsLoading(false);
-    }
+  const setActiveStage = useCallback((next) => {
+    setActiveStageState(next || '');
   }, []);
 
-  const loadBoard = useCallback(async (silent = false) => {
-    if (!silent) setRefreshing(true);
+  const showToast = useCallback((message, type = 'success') => {
+    setToast(message);
+    setToastType(type);
+  }, []);
+
+  const loadBoard = useCallback(async () => {
+    if (!hasBoardRef.current) setLoading(true);
     setError('');
     try {
       const payload = await api.board();
+      hasBoardRef.current = true;
       setBoard(payload);
       liveSignatureRef.current = (payload.liveRuns || []).map((run) => `${run.project}:${run.runId}`).join('|');
       setLoading(false);
     } catch (loadError) {
       setError(loadError.message);
       setLoading(false);
-    } finally {
-      if (!silent) setRefreshing(false);
     }
   }, []);
 
@@ -249,7 +243,7 @@ export default function App() {
 
   const scoped = useMemo(() => {
     let items = findings;
-    if (filters.hideInbox) items = items.filter((finding) => finding.status !== 'inbox');
+    if (filters.hideInbox && view !== 'board') items = items.filter((finding) => finding.status !== 'inbox');
     if (filters.reviewOnly) items = items.filter((finding) => finding.reviewReady);
     if (filters.project !== 'all') items = items.filter((finding) => finding.project === filters.project);
     if (filters.cveOnly) items = items.filter((finding) => finding.cveTier);
@@ -272,7 +266,9 @@ export default function App() {
       );
     }
     return items;
-  }, [findings, filters.project, filters.cveOnly, filters.reviewOnly, filters.hideInbox, filters.query]);
+  }, [findings, filters.project, filters.cveOnly, filters.reviewOnly, filters.hideInbox, filters.query, view]);
+
+  const scopedStats = useMemo(() => deriveStats(scoped), [scoped]);
 
   const filtered = useMemo(() => {
     let items = scoped;
@@ -280,6 +276,8 @@ export default function App() {
     if (filters.verdicts.length) items = items.filter((finding) => filters.verdicts.includes(finding.verdict));
     return items;
   }, [scoped, filters.severities, filters.verdicts]);
+
+  const filteredStats = useMemo(() => deriveStats(filtered), [filtered]);
 
   const facetStats = useMemo(
     () => ({
@@ -303,7 +301,7 @@ export default function App() {
         return { ...current, findings: nextFindings, stats: deriveStats(nextFindings) };
       });
       try {
-        await api.update(finding.project, finding.id, patch);
+        await api.update(finding.project, finding.id, patch, finding.occurrence_id);
         showToast('已保存');
         await loadBoard(true);
       } catch (updateError) {
@@ -312,7 +310,7 @@ export default function App() {
           const nextFindings = current.findings.map((item) => (item.key === finding.key ? previous : item));
           return { ...current, findings: nextFindings, stats: deriveStats(nextFindings) };
         });
-        showToast(`保存失败：${updateError.message}`);
+        showToast(`保存失败：${updateError.message}`, 'error');
       }
     },
     [board, loadBoard, showToast]
@@ -340,7 +338,7 @@ export default function App() {
   const clearFilters = () => setFilters(DEFAULT_FILTERS);
 
   return (
-    <div className={cx('app', sidebarOpen && 'sidebar-open', selected && 'has-drawer')}>
+    <div className={cx('app', sidebarOpen && 'sidebar-open', sidebarCollapsed && 'sidebar-collapsed', selected && 'has-drawer')}>
       <nav className="rail" aria-label="主导航">
         <div className="rail-brand" title="VUL/AI">
           <span>V</span>
@@ -348,143 +346,249 @@ export default function App() {
           <span>A</span>
         </div>
         <div className="rail-group">
-          <button
-            type="button"
-            className={cx('rail-button', view === 'board' && 'is-active')}
-            title="看板"
-            aria-label="看板"
-            onClick={() => setView('board')}
+          <RailButton
+            id="nav-board"
+            label={t('nav.board')}
+            description={t('nav.board.description')}
+            active={view === 'board' && activeStage !== 'review'}
+            current={view === 'board' && activeStage !== 'review'}
+            onClick={() => {
+              setView('board');
+              setActiveStage('');
+            }}
           >
-            <LayoutGrid size={18} />
-          </button>
-          <button
-            type="button"
-            className={cx('rail-button', view === 'table' && 'is-active')}
-            title="表格"
-            aria-label="表格"
+            <LayoutGrid size={18} aria-hidden="true" />
+          </RailButton>
+          <RailButton
+            id="nav-table"
+            label={t('nav.table')}
+            description={t('nav.table.description')}
+            active={view === 'table'}
+            current={view === 'table'}
             onClick={() => setView('table')}
           >
-            <List size={19} />
-          </button>
-          <button
-            type="button"
-            className={cx('rail-button', view === 'map' && 'is-active')}
-            title="项目地图"
-            aria-label="项目地图"
+            <List size={19} aria-hidden="true" />
+          </RailButton>
+          <RailButton
+            id="nav-map"
+            label={t('nav.map')}
+            description={t('nav.map.description')}
+            active={view === 'map'}
+            current={view === 'map'}
             onClick={() => setView('map')}
           >
-            <GitBranch size={18} />
-          </button>
-          <button
-            type="button"
-            className={cx('rail-button', filters.cveOnly && 'is-active')}
-            title="只看 CVE 候选"
-            aria-label="只看 CVE 候选"
+            <GitBranch size={18} aria-hidden="true" />
+          </RailButton>
+          <RailButton
+            id="nav-watch"
+            label={t('nav.watch')}
+            description={t('nav.watch.description')}
+            active={view === 'watch'}
+            current={view === 'watch'}
+            onClick={() => setView('watch')}
+          >
+            <Radar size={18} aria-hidden="true" />
+          </RailButton>
+          <RailButton
+            id="nav-cve"
+            label={t('nav.cve')}
+            description={t('nav.cve.description')}
+            active={filters.cveOnly}
+            pressed={filters.cveOnly}
+            badge={board?.stats?.cveCandidates}
             onClick={() => setFilters((current) => ({ ...current, cveOnly: !current.cveOnly }))}
           >
-            <ShieldAlert size={18} />
-            {board?.stats?.cveCandidates ? <span className="rail-badge">{board.stats.cveCandidates}</span> : null}
-          </button>
-          <button
-            type="button"
-            className={cx('rail-button', filters.reviewOnly && 'is-active')}
-            title="待验收：只看图文精品"
-            aria-label="待验收：只看图文精品"
-            onClick={() => setFilters((current) => ({ ...current, reviewOnly: !current.reviewOnly }))}
+            <ShieldAlert size={18} aria-hidden="true" />
+          </RailButton>
+          <RailButton
+            id="nav-review"
+            label={t('nav.review')}
+            description={t('nav.review.description')}
+            active={view === 'board' && activeStage === 'review'}
+            current={view === 'board' && activeStage === 'review'}
+            badge={board?.stats?.reviewReady}
+            onClick={() => {
+              setActiveStage('review');
+              setView('board');
+              setFilters((current) => ({ ...current, reviewOnly: false }));
+            }}
           >
-            <BadgeCheck size={18} />
-            {board?.stats?.reviewReady ? <span className="rail-badge">{board.stats.reviewReady}</span> : null}
-          </button>
-          <button
-            type="button"
-            className={cx('rail-button', view === 'architecture' && 'is-active')}
-            title="系统架构"
-            aria-label="系统架构"
+            <BadgeCheck size={18} aria-hidden="true" />
+          </RailButton>
+          <RailButton
+            id="nav-architecture"
+            label={t('nav.architecture')}
+            description={t('nav.architecture.description')}
+            active={view === 'architecture'}
+            current={view === 'architecture'}
             onClick={() => setView('architecture')}
           >
-            <BookOpen size={18} />
-          </button>
+            <BookOpen size={18} aria-hidden="true" />
+          </RailButton>
         </div>
         <div className="rail-bottom">
+          <RailButton
+            id="nav-settings"
+            label={t('settings.title')}
+            description={t('settings.description')}
+            active={settingsOpen}
+            expanded={settingsOpen}
+            onClick={() => setSettingsOpen((value) => !value)}
+          >
+            <Settings size={18} aria-hidden="true" />
+          </RailButton>
           <span className="rail-version">v0.1</span>
         </div>
       </nav>
 
+      {settingsOpen ? (
+        <>
+          <button type="button" className="settings-backdrop" aria-label={t('settings.title')} onClick={() => setSettingsOpen(false)} />
+          <div className="settings-popover" role="dialog" aria-label={t('settings.title')}>
+            <div className="settings-head">
+              <strong>{t('settings.title')}</strong>
+              <span>{t('settings.languageHint')}</span>
+            </div>
+            <label className="settings-row">
+              <span>{t('language.label')}</span>
+              <select value={language} onChange={(event) => setLanguage(event.target.value)}>
+                <option value="zh">中文</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+            <div className="settings-row">
+              <span>{t('settings.theme')}</span>
+              <div className="settings-segment" role="group" aria-label={t('settings.theme')}>
+                <button
+                  type="button"
+                  className={cx(theme === 'light' && 'is-active')}
+                  onClick={() => setTheme('light')}
+                >
+                  {t('settings.themeLight')}
+                </button>
+                <button
+                  type="button"
+                  className={cx(theme === 'dark' && 'is-active')}
+                  onClick={() => setTheme('dark')}
+                >
+                  {t('settings.themeDark')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      ) : null}
+
       {sidebarOpen ? <button type="button" className="sidebar-backdrop" aria-label="关闭筛选" onClick={() => setSidebarOpen(false)} /> : null}
+
+      <button
+        type="button"
+        className={sidebarCollapsed ? 'sidebar-expand' : 'sidebar-collapse'}
+        title={sidebarCollapsed ? '展开筛选' : '收起筛选'}
+        aria-label={sidebarCollapsed ? '展开筛选' : '收起筛选'}
+        onClick={() => {
+          const next = !sidebarCollapsed;
+          setSidebarCollapsed(next);
+          localStorage.setItem('vul-ai-sidebar', next ? 'collapsed' : 'open');
+        }}
+      >
+        {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+      </button>
 
       <Sidebar
         board={board}
         filters={filters}
         setFilters={setFilters}
         facets={facetStats}
-        onClose={() => setSidebarOpen(false)}
       />
 
       <main className="main">
         <TopBar
-          board={board}
           filters={filters}
           setFilters={setFilters}
-          view={view}
-          setView={setView}
-          onRefresh={() => loadBoard()}
-          refreshing={refreshing}
-          theme={theme}
-          onOpenRuns={openRuns}
-          onToggleTheme={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
           onToggleSidebar={() => setSidebarOpen((value) => !value)}
+          view={view}
+          activeStage={activeStage}
+          sidebarOpen={sidebarOpen}
         />
 
-        <StatsStrip stats={board?.stats} projects={board?.projects} />
+        {view !== 'board' ? <StatsStrip stats={board?.stats} projects={board?.projects} /> : null}
 
-        {view === 'board' && board?.stats ? <RefineryStrip stats={board.stats} /> : null}
+        {view === 'board' && board?.stats && activeStage ? (
+          <RefineryStrip
+            stats={scopedStats}
+            stageStats={filteredStats}
+            activeStage={activeStage}
+            onSelectStage={setActiveStage}
+            filters={filters}
+            setFilters={setFilters}
+          />
+        ) : null}
 
-        <LiveRunsStrip
-          runs={board?.liveRuns}
-          onOpen={(run) => {
-            setSelectedKey(null);
-            setLiveRun(run);
-          }}
-        />
+        {board?.liveRuns?.length ? (
+          <LiveRunsStrip
+            runs={board.liveRuns}
+            onOpen={(run) => {
+              setSelectedKey(null);
+              setLiveRun(run);
+            }}
+          />
+        ) : null}
 
         {error ? (
           <div className="error-banner" role="alert">
             <AlertTriangle size={15} aria-hidden="true" />
             <span>{error}</span>
-            <button type="button" className="button is-small" onClick={() => loadBoard()}>
-              重试
+            <button type="button" className="button is-small" disabled={loading} aria-busy={loading} onClick={() => loadBoard()}>
+              {loading ? '加载中…' : '重试'}
             </button>
           </div>
         ) : null}
 
-        <div className="content">
-          <div className="content-head">
-            <div className="content-summary">
-              <span className="summary-count">{filtered.length}</span>
-              <span>
-                findings
-                {filters.project !== 'all' ? ` · ${board?.projects?.find((project) => project.id === filters.project)?.name || filters.project}` : ''}
-              </span>
-              {hasFilters ? (
-                <button type="button" className="link-button" onClick={clearFilters}>
-                  清除筛选
-                </button>
-              ) : null}
+        <div className={cx('content', view === 'board' && !activeStage && 'content-landing')}>
+          {view === 'table' ? (
+            <div className="content-head">
+              <div className="content-summary">
+                <span className="summary-count">{filtered.length}</span>
+                <span>
+                  findings
+                  {filters.project !== 'all' ? ` · ${board?.projects?.find((project) => project.id === filters.project)?.name || filters.project}` : ''}
+                </span>
+                {hasFilters ? (
+                  <button type="button" className="link-button" onClick={clearFilters}>
+                    清除筛选
+                  </button>
+                ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           {loading && !board ? <LoadingBoard /> : null}
 
-          {!loading && board && view === 'board' ? (
-            <Board
+          {!loading && board && view === 'board' && !activeStage ? (
+            <section className="pipeline-landing">
+              <RefineryStrip
+                stats={scopedStats}
+                stageStats={filteredStats}
+                activeStage={activeStage}
+                onSelectStage={setActiveStage}
+                filters={filters}
+                setFilters={setFilters}
+                landing
+              />
+            </section>
+          ) : null}
+
+          {!loading && board && view === 'board' && activeStage ? (
+            <StageView
               findings={filtered}
-              hiddenStatuses={filters.hideInbox ? ['inbox'] : []}
-              statusTotals={board.stats?.status || {}}
+              stage={activeStage}
+              statusTotals={{ ...(board.stats?.status || {}), review: board.stats?.reviewReady || 0 }}
+              onBack={() => setActiveStage('')}
               onOpen={(finding) => {
                 setLiveRun(null);
                 setSelectedKey(finding.key);
               }}
-              onMove={moveFinding}
             />
           ) : null}
 
@@ -497,6 +601,8 @@ export default function App() {
               }}
             />
           ) : null}
+
+          {!loading && view === 'watch' ? <WatchView /> : null}
 
           {!loading && board && view === 'architecture' ? <ArchitectureView board={board} /> : null}
 
@@ -534,21 +640,7 @@ export default function App() {
 
       {liveRun ? <LiveRunDrawer run={liveRun} onClose={() => setLiveRun(null)} onToast={showToast} /> : null}
 
-      {runsOpen ? (
-        <RunsDrawer
-          runs={runs}
-          loading={runsLoading}
-          error={runsError}
-          onClose={() => setRunsOpen(false)}
-          onOpen={(run) => {
-            setRunsOpen(false);
-            setSelectedKey(null);
-            setLiveRun(toRunView(run));
-          }}
-        />
-      ) : null}
-
-      <Toast message={toast} onClose={() => setToast('')} />
+      <Toast message={toast} type={toastType} onClose={() => setToast('')} />
     </div>
   );
 }

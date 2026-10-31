@@ -156,8 +156,7 @@ export default function ArchitectureView({ board }) {
     <div className="arch-view">
       <header className="arch-head">
         <div>
-          <span className="eyebrow">SYSTEM ARCHITECTURE / FOR DEVELOPERS</span>
-          <h2>一条 finding 如何变成可验收的 case</h2>
+                    <h2>一条 finding 如何变成可验收的 case</h2>
           <p>
             这不是一张“结果图”，而是系统的真实数据流、状态门和隔离边界。每一层都保留可回放证据；
             自动化负责收敛，红队负责证明，judge 负责人工前的最后一道审阅。
@@ -174,8 +173,7 @@ export default function ArchitectureView({ board }) {
 
       <section className="arch-flow" aria-label="端到端流水线">
         <div className="arch-flow-head">
-          <span className="eyebrow">01 / PIPELINE</span>
-          <span>从原始报告到人工验收</span>
+                    <span>从原始报告到人工验收</span>
         </div>
         <div className="arch-stages">
           {STAGES.map((stage, index) => (
@@ -190,8 +188,7 @@ export default function ArchitectureView({ board }) {
       <div className="arch-columns">
         <section className="arch-panel">
           <div className="arch-panel-head">
-            <span className="eyebrow">02 / COMPONENTS</span>
-            <span>各司其职，不互相冒充</span>
+                        <span>各司其职，不互相冒充</span>
           </div>
           <div className="arch-component-list">
             {COMPONENTS.map(({ icon: Icon, title, body, code }) => (
@@ -209,8 +206,7 @@ export default function ArchitectureView({ board }) {
 
         <section className="arch-panel">
           <div className="arch-panel-head">
-            <span className="eyebrow">03 / STATE PRIORITY</span>
-            <span>人永远可以覆盖机器</span>
+                        <span>人永远可以覆盖机器</span>
           </div>
           <div className="arch-state-list">
             {STATE_ROWS.map(([title, file, body], index) => (
@@ -236,8 +232,7 @@ export default function ArchitectureView({ board }) {
 
       <section className="arch-lab">
         <div className="arch-panel-head">
-          <span className="eyebrow">04 / RED-TEAM BOUNDARY</span>
-          <span>flag 只能从漏洞路径出来</span>
+                    <span>flag 只能从漏洞路径出来</span>
         </div>
         <div className="lab-map">
           <div className="lab-zone attacker-zone">
@@ -274,8 +269,7 @@ export default function ArchitectureView({ board }) {
       <section className="arch-bottom-grid">
         <article className="arch-panel">
           <div className="arch-panel-head">
-            <span className="eyebrow">05 / RSI LOOP</span>
-            <span>决策也变成训练数据</span>
+                        <span>决策也变成训练数据</span>
           </div>
           <div className="arch-loop">
             <span>refine.jsonl</span><ArrowRight size={14} /><span>validation.jsonl</span><ArrowRight size={14} /><span>RSI policy</span>
@@ -288,8 +282,7 @@ export default function ArchitectureView({ board }) {
         </article>
         <article className="arch-panel">
           <div className="arch-panel-head">
-            <span className="eyebrow">06 / RUNBOOK</span>
-            <span>从看板到动态验收</span>
+                        <span>从看板到动态验收</span>
           </div>
           <pre className="arch-code">{`bash scripts/ui/start.sh
 bash scripts/workflow/refine_worker.sh start

@@ -28,6 +28,14 @@ export const COLUMNS = [
     tone: 'hot'
   },
   {
+    id: 'review',
+    code: 'REVIEW',
+    label: '待验收',
+    hint: '红队捕获 flag、judge 通过并生成图文报告',
+    tone: 'green',
+    virtual: true
+  },
+  {
     id: 'closed',
     code: 'CLOSED',
     label: '已关闭',
