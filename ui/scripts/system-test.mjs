@@ -157,7 +157,12 @@ async function main() {
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '系统架构');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-component').length"), 9);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-mining .arch-stage').length"), 6);
     const architectureText = await cdp.evaluate("document.querySelector('.arch-view').innerText");
+    assert.match(architectureText, /挖掘过程：从目标源码到可信报告/);
+    assert.match(architectureText, /Jev 初筛只提供审计线索/);
+    assert.match(architectureText, /reports_complete/);
+    assert.match(architectureText, /targets\/manifest\.json/);
     assert.match(architectureText, /Finding Ledger/);
     assert.match(architectureText, /持久化恢复/);
     assert.match(architectureText, /Verification-RSI/);

@@ -77,7 +77,7 @@ npm run smoke
 - **Board**：六阶段流程视图；卡片显示严重度、判定、CVE Tier、证据数，点击或键盘打开详情后修改状态。
 - **Live mining**：运行中的 run 在看板顶部显示 LIVE 条（状态、耗时、最后一行日志）；点开进入实时日志抽屉，运行状态每 4 秒轮询，报告生成后看板自动重载。
 - **Table**：按严重度/目标排序，适合批量分诊。
-- **系统架构**：左侧轨道书图标进入当前实现说明页，包含 Finding Ledger、端到端流水线、恢复机制、状态优先级、红队隔离边界和 Verification-RSI 门禁。同步维护要求见根目录 `AGENTS.md`。
+- **系统架构**：左侧轨道书图标进入当前实现说明页，包含目标调度、隔离挖掘、增量报告、质量门、Finding Ledger、端到端流水线、恢复机制、状态优先级、红队隔离边界和 Verification-RSI 门禁。同步维护要求见根目录 `AGENTS.md`。
 - **Detail drawer**：Brief / Evidence / Agent stream。
   - Brief：改状态、判定、CVE Tier、CVE 状态、关联 CVE、审计备注。
   - Evidence：复制证据路径、打开 `audit-report.md` / `.json`、查看原始 finding JSON。

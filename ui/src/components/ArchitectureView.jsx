@@ -17,6 +17,57 @@ import {
 } from 'lucide-react';
 import { cx } from '../utils.js';
 
+const MINING_STAGES = [
+  {
+    code: '01',
+    title: '目标与调度',
+    icon: GitBranch,
+    tone: 'ink',
+    body: '从 manifest 选择目标；parallel_mine / overnight 控制并发、失败重试和断点续跑，每个项目使用独立 run。',
+    artifact: 'targets/manifest.json → runs/<project>/<run>/'
+  },
+  {
+    code: '02',
+    title: '隔离工作副本',
+    icon: Boxes,
+    tone: 'blue',
+    body: '目标源码只读挂载到 /target，再复制到可写工作区；容器不挂 Docker socket，并移除 capabilities。',
+    artifact: 'mine_one_docker.sh → entrypoint.sh'
+  },
+  {
+    code: '03',
+    title: '召回与协同审计',
+    icon: Bot,
+    tone: 'violet',
+    body: 'Jev 初筛只提供审计线索，不直接成为 finding；security-orchestrator 组织项目画像、攻击面和分任务审计。',
+    artifact: 'triage/jev-*.json · raw.jsonl'
+  },
+  {
+    code: '04',
+    title: '增量报告与质量门',
+    icon: FileCode2,
+    tone: 'amber',
+    body: '审计开始即创建报告骨架，子任务完成就增量落盘；schema、必填字段和系统语言全部通过才算完整。',
+    artifact: 'audit-report.{md,json} · reports_complete'
+  },
+  {
+    code: '05',
+    title: 'Deadline 与恢复',
+    icon: Database,
+    tone: 'hot',
+    body: '所有尝试共享墙钟预算，按 setup/model/tool 真实进展判活；恢复复用校验过的成果，失败分支不阻塞汇总。',
+    artifact: 'progress_guard.py · durable_recovery.py'
+  },
+  {
+    code: '06',
+    title: '发布到下游',
+    icon: ShieldCheck,
+    tone: 'green',
+    body: '只有完整有效报告才进入 Finding Ledger；随后接入 Phase 4 验证、视觉报告、自动状态和精炼，而不是直接推给人工。',
+    artifact: 'Finding Ledger → Phase 4 → refine'
+  }
+];
+
 const STAGES = [
   {
     code: '01',
@@ -189,9 +240,23 @@ export default function ArchitectureView({ board }) {
         </div>
       </header>
 
+      <section className="arch-flow arch-mining" aria-label="挖掘执行链">
+        <div className="arch-flow-head">
+          <span>挖掘过程：从目标源码到可信报告</span>
+        </div>
+        <div className="arch-stages">
+          {MINING_STAGES.map((stage, index) => (
+            <div className="arch-stage-wrap" key={stage.code}>
+              <Stage stage={stage} />
+              {index < MINING_STAGES.length - 1 ? <ArrowRight className="arch-stage-arrow" size={18} aria-hidden="true" /> : null}
+            </div>
+          ))}
+        </div>
+      </section>
+
       <section className="arch-flow" aria-label="端到端流水线">
         <div className="arch-flow-head">
-                    <span>从原始报告到人工验收</span>
+          <span>从原始报告到人工验收</span>
         </div>
         <div className="arch-stages">
           {STAGES.map((stage, index) => (

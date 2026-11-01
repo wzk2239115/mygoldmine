@@ -70,6 +70,22 @@
 └──────────────────┘
 ```
 
+### 挖掘过程设计
+
+挖掘阶段负责产生**可追溯的静态候选**，不直接把模型结论当作已验证漏洞。执行链如下：
+
+| 阶段 | 设计与职责 | 关键产物/边界 |
+|---|---|---|
+| 目标与调度 | `parallel_mine.sh` / `overnight.sh` 从 `targets/manifest.json` 选择项目，控制并发、失败重试和断点续跑；每个项目使用独立时间戳 run | 已有完整成功报告的项目默认跳过；编排状态与项目产物分离 |
+| 隔离工作副本 | `mine_one_docker.sh` 将源码只读挂载到 `/target`，`entrypoint.sh` 复制到 `/workspace/repo` 后审计 | 不挂载 Docker socket，`cap-drop ALL`、`no-new-privileges`；密钥只通过环境传入，不写入报告 |
+| 召回与协同审计 | Jev 初筛提供 priority、flags 和 mitigations 线索；`security-orchestrator` 组织项目画像、路由/认证、语言与框架攻击面分析，并分派子任务 | Jev 只负责召回，不直接生成 finding；除模型 API 和指定初筛服务外不访问公网 |
+| 增量报告 | 审计开始即创建报告骨架，每个子任务完成后增量更新；finding 必须带文件/行号、根因、影响、复现思路和修复建议 | `raw.jsonl` 保留真实动作流，`claude.rendered.log` 供人阅读，`audit-report.md/json` 保存结论 |
+| 质量与运行状态 | `check_report.py` 检查 schema、必填字段和系统语言；`run-meta.json` 记录尝试次数、退出码、超时、中断和 `reports_complete` | 模型正常退出但报告不合格仍算失败；草稿和质量不合格报告不发布到台账 |
+| Deadline 与恢复 | 所有尝试和重试共享墙钟预算；`progress_guard.py` 按 setup/model/tool 的真实事件判活；`durable_recovery.py` 校验并复用分支成果，隔离失败任务 | 已完成且校验匹配的产物不重跑；恢复源证据不可变，恢复后继续未完成工作和 Phase 4 |
+| 发布到下游 | 完整有效报告进入 Finding Ledger；`run.sh` 可继续执行 Phase 4 自动验证，之后连接视觉报告、状态编译和精炼 | 静态 finding 仍需 verify / red-team 证据才能晋级，不能跳过验证门 |
+
+`run.sh` 在单项目挖掘前还可执行 Phase 0 环境构建，在报告质量门通过后执行 Phase 4 Top-N Critical/High 验证。环境构建失败、报告不完整或验证 blocked 都保留明确状态，不伪装成 ready/confirmed。挖掘负责“找候选并保留证据”，verify 负责“验证候选”，red-team lab 负责“在隔离环境中证明可利用性”，三者不能互相冒充。
+
 ## 3. 核心组件
 
 | 路径 | 职责 |
