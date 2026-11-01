@@ -169,6 +169,30 @@ async function main() {
     assert.match(architectureText, /当前执行器只支持 HTTP/);
     assert.match(architectureText, /trusted labels/);
     assert.doesNotMatch(architectureText, /http\/stdio\/cli/);
+    for (const [selector, count] of [
+      ['.arch-mining .arch-stage', 6],
+      ['.arch-flow:not(.arch-mining) .arch-stage', 6],
+      ['.arch-component', 9]
+    ]) {
+      for (let index = 0; index < count; index += 1) {
+        await cdp.evaluate(`document.querySelectorAll('${selector}')[${index}].click()`);
+        await sleep(150);
+        assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-detail-card').length"), 4, `${selector}[${index}]`);
+        const detailText = await cdp.evaluate("document.querySelector('.arch-detail').innerText");
+        assert.match(detailText, /输入/);
+        assert.match(detailText, /输出/);
+        assert.match(detailText, /失败语义/);
+        assert.match(detailText, /优化时重点检查/);
+        assert.doesNotMatch(detailText, /undefined/);
+        await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
+        await sleep(150);
+      }
+    }
+    await cdp.evaluate("document.querySelector('.arch-mining .arch-stage').click()");
+    await sleep(150);
+    assert.match(await cdp.evaluate("document.querySelector('.arch-detail').innerText"), /parallel_mine\.sh/);
+    await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
+    await sleep(150);
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"待验收\"]').click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '待验收');
