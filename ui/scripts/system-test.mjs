@@ -156,43 +156,47 @@ async function main() {
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"系统架构\"]').click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '系统架构');
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-component').length"), 9);
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-mining .arch-stage').length"), 6);
-    const architectureText = await cdp.evaluate("document.querySelector('.arch-view').innerText");
-    assert.match(architectureText, /挖掘过程：从目标源码到可信报告/);
-    assert.match(architectureText, /Jev 初筛只提供审计线索/);
-    assert.match(architectureText, /reports_complete/);
-    assert.match(architectureText, /targets\/manifest\.json/);
-    assert.match(architectureText, /Finding Ledger/);
-    assert.match(architectureText, /持久化恢复/);
-    assert.match(architectureText, /Verification-RSI/);
-    assert.match(architectureText, /当前执行器只支持 HTTP/);
-    assert.match(architectureText, /trusted labels/);
-    assert.doesNotMatch(architectureText, /http\/stdio\/cli/);
-    for (const [selector, count] of [
-      ['.arch-mining .arch-stage', 6],
-      ['.arch-flow:not(.arch-mining) .arch-stage', 6],
-      ['.arch-component', 9]
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card').length"), 5);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-stage, .arch-component').length"), 0);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-overview img').length"), 6);
+    assert.ok(await cdp.evaluate("[...document.querySelectorAll('.arch-overview img')].every(img => img.complete && img.naturalWidth > 0)"));
+    assert.match(await cdp.evaluate("document.querySelector('.arch-overview').innerText"), /从一座矿，到一份可信证据/);
+    for (const [zoneIndex, stageCount, componentCount] of [
+      [0, 6, 0],
+      [1, 4, 0],
+      [2, 2, 3],
+      [3, 0, 4],
+      [4, 0, 2]
     ]) {
-      for (let index = 0; index < count; index += 1) {
-        await cdp.evaluate(`document.querySelectorAll('${selector}')[${index}].click()`);
-        await sleep(150);
-        assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-detail-card').length"), 4, `${selector}[${index}]`);
-        const detailText = await cdp.evaluate("document.querySelector('.arch-detail').innerText");
-        assert.match(detailText, /输入/);
-        assert.match(detailText, /输出/);
-        assert.match(detailText, /失败语义/);
-        assert.match(detailText, /优化时重点检查/);
-        assert.doesNotMatch(detailText, /undefined/);
-        await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
-        await sleep(150);
+      await cdp.evaluate(`document.querySelectorAll('.arch-zone-card')[${zoneIndex}].click()`);
+      await sleep(150);
+      assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone').length"), 1);
+      assert.ok(await cdp.evaluate("document.querySelector('.arch-zone-hero img').naturalWidth > 0"));
+      for (const [selector, count] of [
+        ['.arch-zone-stages .arch-stage', stageCount],
+        ['.arch-zone-components .arch-component', componentCount]
+      ]) {
+        for (let index = 0; index < count; index += 1) {
+          await cdp.evaluate(`document.querySelectorAll('${selector}')[${index}].click()`);
+          await sleep(100);
+          assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-detail-card').length"), 4, `zone ${zoneIndex} ${selector}[${index}]`);
+          const detailText = await cdp.evaluate("document.querySelector('.arch-detail').innerText");
+          assert.match(detailText, /输入/);
+          assert.match(detailText, /输出/);
+          assert.match(detailText, /失败语义/);
+          assert.match(detailText, /优化时重点检查/);
+          assert.doesNotMatch(detailText, /undefined/);
+          if (zoneIndex === 0 && index === 0) assert.match(detailText, /parallel_mine\.sh/);
+          if (zoneIndex === 2 && index === 0) assert.match(detailText, /当前只支持 HTTP 执行契约/);
+          await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
+          await sleep(100);
+          assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone').length"), 1);
+        }
       }
+      await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
+      await sleep(100);
+      assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card').length"), 5);
     }
-    await cdp.evaluate("document.querySelector('.arch-mining .arch-stage').click()");
-    await sleep(150);
-    assert.match(await cdp.evaluate("document.querySelector('.arch-detail').innerText"), /parallel_mine\.sh/);
-    await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
-    await sleep(150);
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"待验收\"]').click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '待验收');

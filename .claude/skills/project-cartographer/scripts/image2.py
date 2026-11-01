@@ -121,10 +121,10 @@ def main():
         raise SystemExit(f"image API {response.status_code}: {response.text[:800]}")
     data = response.json()
     item = (data.get("data") or [{}])[0]
-    if item.get("b64_json"):
-        content = base64.b64decode(item["b64_json"])
-    elif item.get("url"):
+    if item.get("url"):
         content = download(item["url"], args.timeout)
+    elif item.get("b64_json"):
+        content = base64.b64decode(item["b64_json"])
     else:
         raise SystemExit(f"image response has no b64_json/url: {str(data)[:400]}")
 

@@ -6,7 +6,6 @@ import {
   Bot,
   Boxes,
   Braces,
-  CircleAlert,
   Database,
   FileCode2,
   GitBranch,
@@ -178,21 +177,89 @@ const COMPONENTS = [
   }
 ];
 
-const STATE_ROWS = [
-  ['人工状态', 'state.json', '最高优先级；永不自动覆盖'],
-  ['人工种子', 'curated.json', '二次审计结论'],
-  ['精炼 worker', 'refine-state.json', '分批归档/晋级'],
-  ['自动路由', 'auto-state.json', 'CVE/verify/规则'],
-  ['默认', 'inbox', '原始池']
-];
+const STAGE_SUMMARIES = {
+  '目标与调度': '选目标、控并发、可续跑',
+  '隔离工作副本': '只读源码，隔离执行',
+  '召回与协同审计': '先广召回，再分任务审计',
+  '增量报告与质量门': '边审计边落盘，过质量门',
+  'Deadline 与恢复': '统一预算，复用成果续跑',
+  '发布到下游': '完整报告才进入流水线',
+  '报告与台账': '给每次发现建立稳定身份',
+  '自动精炼': '去重、评分、归档与分诊',
+  '验证 / 复现': '用最小 harness 验证候选',
+  'CVE 去重': '确认是否已知与受影响',
+  '红队 lab': '隔离环境捕获真实 flag',
+  'Judge / 验收': '独立审核后才交给人工'
+};
 
-const INVARIANTS = [
-  ['网络', 'docker network create --internal，attacker 无外网'],
-  ['Flag', '每轮随机，只挂载给 victim，attacker 无可见路径'],
-  ['宿主', 'attacker 不挂载宿主、不挂载 Docker socket'],
-  ['证据', 'trace / agent 输出是不可信数据，judge 不被其指令带偏'],
-  ['验收', '必须 flag + judge approved + 图文报告，三者缺一不可'],
-  ['归档', 'archived 不是“安全”，只是评分未晋级']
+const COMPONENT_SUMMARIES = {
+  'Finding Ledger': '跨 run 的发现身份与历史',
+  '状态编译器': '把证据编译为流程状态',
+  '精炼 worker': '持续执行自动路由',
+  '持久化恢复': '复用成果，恢复中断',
+  'Lab builder': '构建与校验隔离场景',
+  'Red-team runner': '执行受限攻击并留痕',
+  'Independent judge': '独立审核证据与作弊',
+  'Verification-RSI': '从可信标签学习验证策略',
+  '视觉报告': '把证据变成易懂图文'
+};
+
+const ZONES = [
+  {
+    id: 'mining',
+    title: '挖掘工厂',
+    subtitle: '从目标源码到可信报告',
+    description: '目标调度、隔离副本、协同审计、质量门和恢复发布。',
+    image: '/architecture/mining.webp',
+    icon: Boxes,
+    tone: 'blue',
+    stages: MINING_STAGES,
+    components: []
+  },
+  {
+    id: 'pipeline',
+    title: '精炼与验证',
+    subtitle: '从原始 finding 到可验证候选',
+    description: '台账、自动精炼、verify 和 CVE 去重如何逐步收敛候选。',
+    image: '/architecture/refinery.webp',
+    icon: ScanSearch,
+    tone: 'amber',
+    stages: STAGES.slice(0, 4),
+    components: []
+  },
+  {
+    id: 'redteam',
+    title: '红队与验收',
+    subtitle: '在隔离环境里证明，而不是猜',
+    description: 'victim / attacker、真实 flag、独立 judge 和人工验收门。',
+    image: '/architecture/redteam.webp',
+    icon: ShieldCheck,
+    tone: 'hot',
+    stages: STAGES.slice(4),
+    components: COMPONENTS.filter((item) => ['Lab builder', 'Red-team runner', 'Independent judge'].includes(item.title))
+  },
+  {
+    id: 'components',
+    title: '核心组件',
+    subtitle: '数据、状态、路由与恢复',
+    description: '支撑整条流水线的台账、状态编译、精炼 worker 和持久化恢复。',
+    image: '/architecture/components.webp',
+    icon: Layers3,
+    tone: 'ink',
+    stages: [],
+    components: COMPONENTS.filter((item) => ['Finding Ledger', '状态编译器', '精炼 worker', '持久化恢复'].includes(item.title))
+  },
+  {
+    id: 'learning',
+    title: '学习与视觉',
+    subtitle: '让经验可学习，让证据易理解',
+    description: 'Verification-RSI 的严格发布门，以及服务人类理解的视觉报告。',
+    image: '/architecture/learning.webp',
+    icon: Sparkles,
+    tone: 'violet',
+    stages: [],
+    components: COMPONENTS.filter((item) => ['Verification-RSI', '视觉报告'].includes(item.title))
+  }
 ];
 
 const DETAIL_GUIDES = {
@@ -384,15 +451,6 @@ function ArchitectureDetail({ node, onBack }) {
   );
 }
 
-function Count({ value, label }) {
-  return (
-    <div className="arch-count">
-      <strong>{value ?? '—'}</strong>
-      <span>{label}</span>
-    </div>
-  );
-}
-
 function Stage({ stage, onSelect }) {
   const Icon = stage.icon;
   return (
@@ -400,190 +458,114 @@ function Stage({ stage, onSelect }) {
       type="button"
       className={cx('arch-stage', `tone-${stage.tone}`)}
       onClick={onSelect}
-      aria-label={`查看${stage.title}的详细设计`}
+      aria-label={`查看${stage.title}的实现细节`}
     >
       <div className="arch-stage-top">
         <span className="arch-stage-code">{stage.code}</span>
-        <Icon size={17} aria-hidden="true" />
+        <Icon size={20} aria-hidden="true" />
       </div>
       <h3>{stage.title}</h3>
-      <p>{stage.body}</p>
-      <code>{stage.artifact}</code>
-      <span className="arch-stage-cta">点击查看设计 <ArrowRight size={12} aria-hidden="true" /></span>
+      <p>{STAGE_SUMMARIES[stage.title]}</p>
+      <span className="arch-stage-cta">查看实现细节 <ArrowRight size={13} aria-hidden="true" /></span>
     </button>
   );
 }
 
-export default function ArchitectureView({ board }) {
+function ComponentCard({ component, onSelect }) {
+  const Icon = component.icon;
+  return (
+    <button type="button" className="arch-component" onClick={onSelect} aria-label={`查看${component.title}的实现细节`}>
+      <Icon size={20} aria-hidden="true" />
+      <div>
+        <h3>{component.title}</h3>
+        <p>{COMPONENT_SUMMARIES[component.title]}</p>
+        <span className="arch-stage-cta">查看实现细节 <ArrowRight size={13} aria-hidden="true" /></span>
+      </div>
+    </button>
+  );
+}
+
+function ArchitectureZone({ zone, onBack, onSelect }) {
+  return (
+    <section className="arch-zone" aria-labelledby="arch-zone-title">
+      <button type="button" className="arch-detail-back" onClick={onBack}>
+        <ArrowLeft size={15} aria-hidden="true" /> 返回整体架构
+      </button>
+      <header className="arch-zone-hero">
+        <img src={zone.image} alt="" aria-hidden="true" />
+        <div>
+          <span className="arch-detail-group">中层架构 / {zone.id}</span>
+          <h2 id="arch-zone-title">{zone.title}</h2>
+          <p>{zone.description}</p>
+          <span className="arch-zone-hint">选择阶段或组件，继续查看实现细节</span>
+        </div>
+      </header>
+      {zone.stages.length ? (
+        <div className="arch-zone-stages" aria-label={`${zone.title}阶段`}>
+          {zone.stages.map((stage) => (
+            <div className="arch-stage-wrap" key={stage.code}>
+              <Stage stage={stage} onSelect={() => onSelect({ ...stage, group: zone.title })} />
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {zone.components.length ? (
+        <div className="arch-component-list arch-zone-components" aria-label={`${zone.title}组件`}>
+          {zone.components.map((component) => (
+            <ComponentCard key={component.title} component={component} onSelect={() => onSelect({ ...component, group: zone.title })} />
+          ))}
+        </div>
+      ) : null}
+      <p className="arch-visual-note">AI 漫画插图用于辅助理解；准确结构以这些可点击节点和实现详情为准。</p>
+    </section>
+  );
+}
+
+export default function ArchitectureView() {
+  const [zone, setZone] = useState(null);
   const [selected, setSelected] = useState(null);
-  const stats = board?.stats || {};
-  const status = stats.status || {};
-  const review = stats.reviewReady || 0;
   if (selected) {
     return <div className="arch-view"><ArchitectureDetail node={selected} onBack={() => setSelected(null)} /></div>;
   }
+  if (zone) {
+    return <div className="arch-view"><ArchitectureZone zone={zone} onBack={() => setZone(null)} onSelect={setSelected} /></div>;
+  }
   return (
     <div className="arch-view">
-      <header className="arch-head">
-        <div>
-                    <h2>一条 finding 如何变成可验收的 case</h2>
-          <p>
-            这不是一张“结果图”，而是系统的真实数据流、状态门和隔离边界。每一层都保留可回放证据；
-            自动化负责收敛，红队负责证明，judge 负责人工前的最后一道审阅。
-          </p>
-        </div>
-        <div className="arch-counts">
-          <Count value={stats.total} label="原始 finding" />
-          <Count value={status.triage} label="分诊" />
-          <Count value={status.reproduce} label="复现" />
-          <Count value={status.cve} label="CVE" />
-          <Count value={review} label="待验收" />
-        </div>
-      </header>
-
-      <section className="arch-flow arch-mining" aria-label="挖掘执行链">
-        <div className="arch-flow-head">
-          <span>挖掘过程：从目标源码到可信报告</span>
-        </div>
-        <div className="arch-stages">
-          {MINING_STAGES.map((stage, index) => (
-            <div className="arch-stage-wrap" key={stage.code}>
-              <Stage stage={stage} onSelect={() => setSelected({ ...stage, group: '挖掘执行链' })} />
-              {index < MINING_STAGES.length - 1 ? <ArrowRight className="arch-stage-arrow" size={18} aria-hidden="true" /> : null}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="arch-flow" aria-label="端到端流水线">
-        <div className="arch-flow-head">
-          <span>从原始报告到人工验收</span>
-        </div>
-        <div className="arch-stages">
-          {STAGES.map((stage, index) => (
-            <div className="arch-stage-wrap" key={stage.code}>
-              <Stage stage={stage} onSelect={() => setSelected({ ...stage, group: 'Finding 处理链' })} />
-              {index < STAGES.length - 1 ? <ArrowRight className="arch-stage-arrow" size={18} aria-hidden="true" /> : null}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <div className="arch-columns">
-        <section className="arch-panel">
-          <div className="arch-panel-head">
-            <span>各司其职，不互相冒充；点击查看组件契约</span>
+      <section className="arch-overview" aria-labelledby="arch-overview-title">
+        <header className="arch-overview-hero">
+          <img src="/architecture/overview.webp" alt="" aria-hidden="true" />
+          <div className="arch-overview-copy">
+            <span>MYGOLDMINE / SYSTEM MAP</span>
+            <h2 id="arch-overview-title">从一座矿，到一份可信证据</h2>
+            <p>选择一个区域，逐层了解系统如何工作。</p>
           </div>
-          <div className="arch-component-list">
-            {COMPONENTS.map(({ icon: Icon, title, body, code }) => (
+        </header>
+        <div className="arch-zone-grid" aria-label="整体架构区域">
+          {ZONES.map((item) => {
+            const Icon = item.icon;
+            return (
               <button
                 type="button"
-                className="arch-component"
-                key={title}
-                onClick={() => setSelected({ icon: Icon, title, body, code, group: '核心组件' })}
-                aria-label={`查看${title}组件的详细设计`}
+                className={cx('arch-zone-card', `tone-${item.tone}`)}
+                key={item.id}
+                onClick={() => setZone(item)}
+                aria-label={`进入${item.title}中层架构`}
               >
-                <Icon size={16} aria-hidden="true" />
-                <div>
-                  <h3>{title}</h3>
-                  <p>{body}</p>
-                  <code>{code}</code>
-                </div>
+                <img src={item.image} alt="" aria-hidden="true" />
+                <span className="arch-zone-card-body">
+                  <span className="arch-zone-card-icon"><Icon size={20} aria-hidden="true" /></span>
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{item.subtitle}</small>
+                  </span>
+                  <ArrowRight size={18} aria-hidden="true" />
+                </span>
               </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="arch-panel">
-          <div className="arch-panel-head">
-                        <span>人永远可以覆盖机器</span>
-          </div>
-          <div className="arch-state-list">
-            {STATE_ROWS.map(([title, file, body], index) => (
-              <div className="arch-state-row" key={file}>
-                <span className="arch-state-rank">0{index + 1}</span>
-                <div>
-                  <strong>{title}</strong>
-                  <p>{body}</p>
-                </div>
-                <code>{file}</code>
-              </div>
-            ))}
-          </div>
-          <div className="arch-callout">
-            <CircleAlert size={15} aria-hidden="true" />
-            <p>
-              <code>archived</code> 不是安全结论。它只表示自动评分没有达到晋级门槛；报告仍在原始 run 中，
-              未来可以重新捞回。
-            </p>
-          </div>
-        </section>
-      </div>
-
-      <section className="arch-lab">
-        <div className="arch-panel-head">
-                    <span>flag 只能从漏洞路径出来</span>
+            );
+          })}
         </div>
-        <div className="lab-map">
-          <div className="lab-zone attacker-zone">
-            <div className="lab-zone-head"><Bot size={16} /> attacker container</div>
-            <p>只有 shell / curl / python；无 host、无 flag、无 Docker socket。</p>
-            <code>runs/redteam/.../agent.jsonl</code>
-          </div>
-          <div className="lab-boundary">
-            <span>INTERNAL NETWORK</span>
-            <div className="lab-arrow"><ArrowRight size={18} /></div>
-            <small>finding 只作为数据</small>
-          </div>
-          <div className="lab-zone victim-zone">
-            <div className="lab-zone-head"><ShieldCheck size={16} /> victim container</div>
-            <p>真实服务 + 随机 flag；health check 不泄露 flag。</p>
-            <code>/flag · trace.jsonl</code>
-          </div>
-          <div className="lab-verdict">
-            <div className="lab-zone-head"><BadgeCheck size={16} /> independent judge</div>
-            <p>检查目标漏洞、flag provenance、作弊路径、可复现性和证据完整性。</p>
-            <code>judge.json → review</code>
-          </div>
-        </div>
-        <div className="arch-invariants">
-          {INVARIANTS.map(([title, body]) => (
-            <div key={title}>
-              <strong>{title}</strong>
-              <span>{body}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="arch-bottom-grid">
-        <article className="arch-panel">
-          <div className="arch-panel-head">
-                        <span>决策也变成训练数据</span>
-          </div>
-          <div className="arch-loop">
-            <span>experience</span><ArrowRight size={14} /><span>trusted labels</span><ArrowRight size={14} /><span>holdout + gates</span><ArrowRight size={14} /><span>release</span>
-          </div>
-          <p>
-            经验记录动作前上下文、倾向、证据等级、成本与结果；模型学习 verify / deep_read / human_review 等动作效用。
-            static 标签不能冒充人工或运行时真值；支持不足时只给只读 shadow，不发布生产策略。
-          </p>
-          <code>audit_rsi/experience.py → evaluation.py → release.py</code>
-        </article>
-        <article className="arch-panel">
-          <div className="arch-panel-head">
-                        <span>从看板到动态验收</span>
-          </div>
-          <pre className="arch-code">{`bash scripts/ui/start.sh
-bash scripts/workflow/refine_worker.sh start
-python3 scripts/redteam/build_lab.py --project <p> --finding <f>
-python3 scripts/redteam/agent.py --finding <f> --victim-image <img>
-python3 scripts/redteam/judge.py --run-dir runs/redteam/<p>/<run>`}</pre>
-          <p className="arch-footnote">
-            没有 lab 时 fail-closed 到 <code>blocked_no_lab</code>；没有 flag 不进入 review；
-            没有图文报告也不进入 review。
-          </p>
-        </article>
+        <p className="arch-visual-note">漫画由 AI 生成，仅用于叙事；点击节点看到的层级与实现细节才是系统契约。</p>
       </section>
     </div>
   );

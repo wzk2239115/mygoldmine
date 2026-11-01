@@ -4883,6 +4883,267 @@ body {
   margin: 0 auto;
 }
 
+.arch-overview,
+.arch-zone {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.arch-overview-hero {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  background: var(--paper-3);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.arch-overview-hero > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.arch-overview-copy {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 70px 32px 28px;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(18, 18, 18, 0.88));
+}
+
+.arch-overview-copy > span {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.arch-overview-copy h2 {
+  margin: 8px 0;
+  font-size: clamp(30px, 4vw, 48px);
+  letter-spacing: -0.04em;
+}
+
+.arch-overview-copy p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.arch-zone-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.arch-zone-card {
+  padding: 0;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.arch-zone-card:hover {
+  border-color: var(--line-strong);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.arch-zone-card:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.arch-zone-card > img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.arch-zone-card-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.arch-zone-card-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  color: var(--ink);
+  background: var(--paper-3);
+  border-radius: 9px;
+}
+
+.arch-zone-card.tone-blue .arch-zone-card-icon { color: var(--blue); }
+.arch-zone-card.tone-amber .arch-zone-card-icon { color: var(--amber); }
+.arch-zone-card.tone-hot .arch-zone-card-icon { color: var(--red); }
+.arch-zone-card.tone-violet .arch-zone-card-icon { color: var(--violet); }
+
+.arch-zone-card-body strong,
+.arch-zone-card-body small {
+  display: block;
+}
+
+.arch-zone-card-body strong {
+  font-size: 18px;
+}
+
+.arch-zone-card-body small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.arch-visual-note {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.arch-zone-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+  margin-bottom: 16px;
+  overflow: hidden;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+
+.arch-zone-hero > img {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  object-fit: cover;
+}
+
+.arch-zone-hero > div {
+  align-self: center;
+  padding: 30px;
+}
+
+.arch-zone-hero h2 {
+  margin: 8px 0 10px;
+  font-size: 36px;
+  letter-spacing: -0.04em;
+}
+
+.arch-zone-hero p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.arch-zone-hint {
+  display: inline-block;
+  margin-top: 20px;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.arch-zone-stages {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.arch-zone-stages .arch-stage-wrap {
+  display: block;
+}
+
+.arch-zone-stages .arch-stage {
+  min-height: 190px;
+  padding: 18px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-top-width: 3px;
+  border-radius: 12px;
+}
+
+.arch-zone-stages .arch-stage h3 {
+  font-size: 20px;
+}
+
+.arch-zone-stages .arch-stage p {
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.arch-zone-stages .arch-stage-cta,
+.arch-zone-components .arch-stage-cta {
+  font-size: 12px;
+}
+
+.arch-zone-components {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.arch-zone-components .arch-component {
+  align-items: flex-start;
+  padding: 18px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.arch-zone-components .arch-component h3 {
+  font-size: 17px;
+}
+
+.arch-zone-components .arch-component p {
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.arch-detail-hero p {
+  font-size: 15px;
+}
+
+.arch-detail-io strong,
+.arch-detail-card ul,
+.arch-detail-card p {
+  font-size: 14px;
+}
+
+.arch-detail-card code {
+  font-size: 12px;
+}
+
+@media (max-width: 980px) {
+  .arch-zone-grid,
+  .arch-zone-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .arch-zone-hero { grid-template-columns: 1fr; }
+  .arch-zone-hero > img { min-height: 0; aspect-ratio: 16 / 8; }
+}
+
+@media (max-width: 640px) {
+  .arch-overview-hero { min-height: 300px; }
+  .arch-overview-copy { padding: 60px 20px 20px; }
+  .arch-zone-grid,
+  .arch-zone-stages,
+  .arch-zone-components { grid-template-columns: 1fr; }
+  .arch-zone-hero > div { padding: 20px; }
+  .arch-zone-hero h2 { font-size: 30px; }
+}
+
 .arch-detail-back {
   display: inline-flex;
   align-items: center;
