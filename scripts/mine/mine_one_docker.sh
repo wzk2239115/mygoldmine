@@ -130,6 +130,7 @@ if ! image_exists && [ "$BUILD" -eq 0 ] && [ "$DRY_RUN" -eq 0 ]; then
 fi
 
 CONTAINER_NAME="${MYGOLDMINE_CONTAINER_NAME:-mygoldmine-${PROJECT}-$$}"
+SANDBOX_CONTAINER="${SANDBOX_CONTAINER:-}"
 
 docker_cmd() {
     local -a c=(docker run --rm)
@@ -253,17 +254,41 @@ stop_renderer() {
 }
 
 cleanup() {
-    docker stop --time 20 "$CONTAINER_NAME" >/dev/null 2>&1 || true
+    if [ -z "$SANDBOX_CONTAINER" ]; then
+        docker stop --time 20 "$CONTAINER_NAME" >/dev/null 2>&1 || true
+    fi
     stop_renderer
 }
 trap cleanup INT TERM
 
 start_renderer
 
-log "启动容器: project=$PROJECT image=$IMAGE timeout=${TIMEOUT}s model=$CLAUDE_MODEL"
-mapfile -d '' -t _cmd < <(docker_cmd)
-"${_cmd[@]}"
-rc=$?
+if [ -n "$SANDBOX_CONTAINER" ]; then
+    [ -z "$CUSTOM_PROMPT" ] || die "持久沙箱暂不支持独立 --prompt 挂载" 3
+    [ "$(docker container inspect "$SANDBOX_CONTAINER" --format '{{.State.Status}}' 2>/dev/null || true)" = "running" ] \
+        || die "持久沙箱未运行: $SANDBOX_CONTAINER" 4
+    log "进入持久沙箱: project=$PROJECT container=$SANDBOX_CONTAINER timeout=${TIMEOUT}s model=$CLAUDE_MODEL"
+    docker exec --workdir /workspace/repo \
+        -e MYGOLDMINE_HOME=/opt/mygoldmine \
+        -e TARGET_DIR=/target -e WORK_DIR=/workspace/repo \
+        -e RUN_DIR="$RUN_DIR" -e PROJECT="$PROJECT" \
+        -e TIMEOUT="$TIMEOUT" -e AUDIT_IDLE_TIMEOUT="${AUDIT_IDLE_TIMEOUT:-180}" \
+        -e MODEL="$CLAUDE_MODEL" -e AGENT="$AGENT" \
+        -e ANTHROPIC_BASE_URL="$ANTHROPIC_BASE_URL" \
+        -e CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
+        -e LIVE_RENDER="${LIVE_RENDER:-0}" \
+        -e JEV_TRIAGE="${JEV_TRIAGE:-1}" -e JEV_PROFILE="${JEV_PROFILE:-infra}" \
+        -e JEV_MAX_FILES="${JEV_MAX_FILES:-1500}" -e JEV_WORKERS="${JEV_WORKERS:-8}" \
+        -e JEV_TIMEOUT="${JEV_TIMEOUT:-600}" \
+        ${AUTH_MODE:+-e "${AUTH_MODE}=${AUTH_VALUE}"} \
+        "$SANDBOX_CONTAINER" /opt/mygoldmine/scripts/mine/entrypoint.sh
+    rc=$?
+else
+    log "启动容器: project=$PROJECT image=$IMAGE timeout=${TIMEOUT}s model=$CLAUDE_MODEL"
+    mapfile -d '' -t _cmd < <(docker_cmd)
+    "${_cmd[@]}"
+    rc=$?
+fi
 stop_renderer
 trap - INT TERM
 VISUAL_SCRIPT="$REPO_ROOT/.claude/skills/project-cartographer/scripts/build_visual_model.py"

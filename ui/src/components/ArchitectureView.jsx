@@ -32,8 +32,8 @@ const MINING_STAGES = [
     title: '隔离工作副本',
     icon: Boxes,
     tone: 'blue',
-    body: '目标源码只读挂载到 /target，再复制到可写工作区；容器不挂 Docker socket，并移除 capabilities。',
-    artifact: 'mine_one_docker.sh → entrypoint.sh'
+    body: '每个 run 使用独立持久沙箱：原始源码只读，挖掘、verify 和交互 shell 复用同一工作副本。',
+    artifact: 'sandbox.sh → /workspace/repo → verify / shell'
   },
   {
     code: '03',
@@ -179,7 +179,7 @@ const COMPONENTS = [
 
 const STAGE_SUMMARIES = {
   '目标与调度': '选目标、控并发、可续跑',
-  '隔离工作副本': '只读源码，隔离执行',
+  '隔离工作副本': '一个沙箱，持续探索与验证',
   '召回与协同审计': '先广召回，再分任务审计',
   '增量报告与质量门': '边审计边落盘，过质量门',
   'Deadline 与恢复': '统一预算，复用成果续跑',
@@ -272,12 +272,16 @@ const DETAIL_GUIDES = {
     optimize: '优先检查队列公平性、陈旧 running 状态、恢复语义，以及新目标接入是否需要修改调度器。'
   },
   '隔离工作副本': {
-    input: '只读目标目录、审计镜像、空 run 目录和模型凭据',
-    output: '/workspace/repo 可写副本、隔离审计进程、宿主持久化产物',
-    source: 'scripts/mine/mine_one_docker.sh · entrypoint.sh',
-    checks: ['/target 只读挂载，模型只能修改工作副本。', '不挂 Docker socket，cap-drop ALL + no-new-privileges。', '密钥只经环境传递，run-meta 写入前做泄漏扫描。'],
-    failure: '缺镜像、缺鉴权、目标不存在或 run 非空时，在模型执行前明确失败。',
-    optimize: '调整挂载、网络或权限时，先确认最小权限边界没有被便利性的宿主访问打破。'
+    input: '只读目标目录、Phase 0 环境镜像、独立 run 和挖掘时的模型凭据',
+    output: '可持续进入的项目沙箱、共享 /workspace/repo、离线 verify 与持久化产物',
+    source: 'scripts/env/sandbox.sh · mine_one_docker.sh · run_verify.sh',
+    checks: ['每个 run 一个沙箱，挖掘、shell 和 verify 复用同一工作副本。', '原始 /target 只读；不挂 Docker socket，cap-drop ALL，密钥不写入沙箱状态。', 'verify 前 isolate 断开网络；stop 保留工作副本，remove 才删除容器。'],
+    failure: '沙箱创建失败回退一次性容器；联网沙箱拒绝离线 verify；恢复 run 无法共享挂载时回退独立验证容器。',
+    optimize: '优先检查工作副本是否真正复用、验证是否断网、产物挂载是否覆盖，以及 stop/remove 是否混淆。',
+    command: `bash scripts/env/sandbox.sh status --project <project> --run-dir <run>
+bash scripts/env/sandbox.sh shell --project <project> --run-dir <run>
+bash scripts/env/sandbox.sh isolate --project <project> --run-dir <run>
+bash run.sh --verify-only <run>`
   },
   '召回与协同审计': {
     input: '工作副本、知识库、Jev priority/flags 和审计计划',
@@ -437,6 +441,7 @@ function ArchitectureDetail({ node, onBack }) {
           <span className="arch-detail-label">实现入口与产物</span>
           <code>{guide.source}</code>
           <code>{node.artifact || node.code}</code>
+          {guide.command ? <pre className="arch-detail-command">{guide.command}</pre> : null}
         </article>
         <article className="arch-detail-card">
           <span className="arch-detail-label">失败语义</span>

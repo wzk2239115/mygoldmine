@@ -77,7 +77,7 @@
 | 阶段 | 设计与职责 | 关键产物/边界 |
 |---|---|---|
 | 目标与调度 | `parallel_mine.sh` / `overnight.sh` 从 `targets/manifest.json` 选择项目，控制并发、失败重试和断点续跑；每个项目使用独立时间戳 run | 已有完整成功报告的项目默认跳过；编排状态与项目产物分离 |
-| 隔离工作副本 | `mine_one_docker.sh` 将源码只读挂载到 `/target`，`entrypoint.sh` 复制到 `/workspace/repo` 后审计 | 不挂载 Docker socket，`cap-drop ALL`、`no-new-privileges`；密钥只通过环境传入，不写入报告 |
+| 持久项目沙箱 | `sandbox.sh` 为每个 run 启动独立容器，源码只读挂载到 `/target`，挖掘、verify 和交互 shell 复用 `/workspace/repo` | 不挂载 Docker socket，`cap-drop ALL`、`no-new-privileges`；密钥不写入沙箱状态，verify 前断开网络 |
 | 召回与协同审计 | Jev 初筛提供 priority、flags 和 mitigations 线索；`security-orchestrator` 组织项目画像、路由/认证、语言与框架攻击面分析，并分派子任务 | Jev 只负责召回，不直接生成 finding；除模型 API 和指定初筛服务外不访问公网 |
 | 增量报告 | 审计开始即创建报告骨架，每个子任务完成后增量更新；finding 必须带文件/行号、根因、影响、复现思路和修复建议 | `raw.jsonl` 保留真实动作流，`claude.rendered.log` 供人阅读，`audit-report.md/json` 保存结论 |
 | 质量与运行状态 | `check_report.py` 检查 schema、必填字段和系统语言；`run-meta.json` 记录尝试次数、退出码、超时、中断和 `reports_complete` | 模型正常退出但报告不合格仍算失败；草稿和质量不合格报告不发布到台账 |
@@ -86,18 +86,43 @@
 
 `run.sh` 在单项目挖掘前还可执行 Phase 0 环境构建，在报告质量门通过后执行 Phase 4 Top-N Critical/High 验证。环境构建失败、报告不完整或验证 blocked 都保留明确状态，不伪装成 ready/confirmed。挖掘负责“找候选并保留证据”，verify 负责“验证候选”，red-team lab 负责“在隔离环境中证明可利用性”，三者不能互相冒充。
 
+### 持久沙箱生命周期
+
+Phase 0 生成的镜像以 `mygoldmine:dev` 为基础，同时包含 Claude Code 和目标依赖。`run.sh` 默认通过 `scripts/env/sandbox.sh` 为每个 run 创建独立持久容器；`PERSIST_SANDBOX=0` 可退回一次性容器。沙箱名称和元数据保存在 `<run>.meta/sandbox.json`，不保存模型密钥。
+
+```bash
+# 创建/查看（run.sh 默认自动创建）
+bash scripts/env/sandbox.sh start --project <project> --run-dir <run> --source <source>
+bash scripts/env/sandbox.sh status --project <project> --run-dir <run>
+
+# 在同一 /workspace/repo 中继续探索
+bash scripts/env/sandbox.sh exec --project <project> --run-dir <run> -- <command>
+bash scripts/env/sandbox.sh shell --project <project> --run-dir <run>
+
+# 离线验证；run.sh 在 Phase 4 前自动 isolate
+bash scripts/env/sandbox.sh isolate --project <project> --run-dir <run>
+bash run.sh --verify-only <run>
+
+# stop 保留容器与工作副本；remove 才删除容器
+bash scripts/env/sandbox.sh stop --project <project> --run-dir <run>
+bash scripts/env/sandbox.sh remove --project <project> --run-dir <run>
+```
+
+挖掘使用 `/target` 的只读源码生成 `/workspace/repo`，之后 verify 和人工 shell 都进入这个工作副本。verify 复用沙箱时要求网络数为零，且同一工作副本上的 harness 串行执行，避免并行写入冲突。恢复 run 若不能共享原 run 的产物挂载，自动回退到独立验证容器；沙箱创建失败也保留一次性执行路径，不阻断挖掘。
+
 ## 3. 核心组件
 
 | 路径 | 职责 |
 |---|---|
-| `scripts/mine/mine_one_docker.sh` | 启动审计容器、生成原始报告、触发视觉/精炼 |
+| `scripts/env/sandbox.sh` | 每个 run 的持久沙箱生命周期、交互 shell、网络隔离与工作副本复用 |
+| `scripts/mine/mine_one_docker.sh` | 进入持久沙箱或启动一次性审计容器，生成原始报告并触发视觉/精炼 |
 | `scripts/mine/progress_guard.py` | 以共享 deadline 和真实进展区分 setup/model/tool idle，超时统一失败语义 |
 | `scripts/mine/durable_recovery.py` | 持久化分支成果、隔离失败并恢复未完成工作，recovery 后继续 Phase 4 |
 | `scripts/workflow/finding_ledger.py` | 扫描全部有效 run，生成 occurrence/semantic 双层身份和历史台账 |
 | `scripts/workflow/build_state.py` | 基于台账合并 verify、CVE 和人工状态，重算红队 provenance 并生成 review 门槛 |
 | `scripts/workflow/refine_worker.py` | 按 source hash 重算路由，低价值归档，高分晋级 |
-| `scripts/verify/run_verify.sh` | 单条 finding 的隔离容器验证 |
-| `scripts/verify/auto_verify.sh` | 批量静态/环境预验证 |
+| `scripts/verify/run_verify.sh` | 在独立容器或已断网的持久沙箱中验证单条 finding |
+| `scripts/verify/auto_verify.sh` | 批量静态/环境预验证；共享工作副本时串行执行 |
 | `scripts/redteam/lab.py` | 创建受限 victim/attacker 容器、内部网络、随机 flag、执行工具 |
 | `scripts/redteam/agent.py` | OpenAI-compatible 红队 agent loop，只从真实工具输出捕获 flag |
 | `scripts/redteam/judge.py` | 确定性 provenance 校验 + 独立模型审核 |

@@ -187,6 +187,11 @@ async function main() {
           assert.match(detailText, /优化时重点检查/);
           assert.doesNotMatch(detailText, /undefined/);
           if (zoneIndex === 0 && index === 0) assert.match(detailText, /parallel_mine\.sh/);
+          if (zoneIndex === 0 && index === 1) {
+            assert.match(detailText, /sandbox\.sh shell/);
+            assert.match(detailText, /sandbox\.sh isolate/);
+            assert.match(detailText, /复用同一工作副本/);
+          }
           if (zoneIndex === 2 && index === 0) assert.match(detailText, /当前只支持 HTTP 执行契约/);
           await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
           await sleep(100);

@@ -505,8 +505,19 @@ bash run.sh /path/to/source
 | 阶段 | 动作 | 日志/产物 |
 |---|---|---|
 | Phase 0 | `build_env.sh` 构建环境镜像 | `env/<project>/env-manifest.json`、`<run>.meta/env-build.log` |
-| Mine | 容器内 Claude Code 审计 | `<run>/claude.rendered.log`、`audit-report.md/json` |
-| Phase 4 | `auto_verify.sh` 对 Top-N findings 生成源码级 harness 并验证 | `<run>/verify/auto/summary.md`、`<run>.meta/verify.log` |
+| Mine | 持久沙箱内 Claude Code 审计 | `<run>/claude.rendered.log`、`audit-report.md/json`、`<run>.meta/sandbox.json` |
+| Phase 4 | 断网后在同一沙箱中验证 Top-N findings | `<run>/verify/auto/summary.md`、`<run>.meta/verify.log` |
+
+挖掘后可以继续进入同一 `/workspace/repo` 调试和验证，不必重新搭环境：
+
+```bash
+bash scripts/env/sandbox.sh status --project <project> --run-dir <run>
+bash scripts/env/sandbox.sh shell --project <project> --run-dir <run>
+bash scripts/env/sandbox.sh isolate --project <project> --run-dir <run>
+bash run.sh --verify-only <run>
+```
+
+`stop` 只停止并保留沙箱，`remove` 才删除容器。`PERSIST_SANDBOX=0` 可恢复一次性挖掘容器；沙箱创建失败或恢复 run 无法共享挂载时会自动回退到独立容器。
 
 常用开关：
 

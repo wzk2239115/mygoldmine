@@ -30,6 +30,7 @@ usage() {
   --severity LIST      逗号分隔，默认 critical,high
   --parallel N         并行验证数（默认 2）
   --output DIR         输出目录（默认 runs/<project>/verify/auto-<ts>）
+  --sandbox NAME       复用已断网的持久沙箱，并串行验证同一工作副本
   -h, --help           显示帮助
 
 产物:
@@ -48,6 +49,7 @@ MAX=10
 SEVERITY="critical,high"
 PARALLEL=2
 OUTPUT=""
+SANDBOX=""
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -59,6 +61,7 @@ while [ "$#" -gt 0 ]; do
         --severity) [ "$#" -ge 2 ] || die "--severity 需要参数"; SEVERITY="$2"; shift ;;
         --parallel) [ "$#" -ge 2 ] || die "--parallel 需要参数"; PARALLEL="$2"; shift ;;
         --output) [ "$#" -ge 2 ] || die "--output 需要参数"; OUTPUT="$2"; shift ;;
+        --sandbox) [ "$#" -ge 2 ] || die "--sandbox 需要参数"; SANDBOX="$2"; shift ;;
         -h|--help) usage; exit 0 ;;
         *) usage >&2; die "未知参数: $1" ;;
     esac
@@ -72,6 +75,9 @@ REPORT="$RUN_DIR/audit-report.json"
 [ -s "$REPORT" ] || die "缺少 audit-report.json: $REPORT"
 [[ "$MAX" =~ ^[1-9][0-9]*$ ]] || die "--max 必须正整数"
 [[ "$PARALLEL" =~ ^[1-9][0-9]*$ ]] || die "--parallel 必须正整数"
+if [ -n "$SANDBOX" ]; then
+    PARALLEL=1
+fi
 
 MANIFEST="$REPO_ROOT/env/$PROJECT/env-manifest.json"
 if [ -z "$IMAGE" ] && [ -f "$MANIFEST" ]; then
@@ -236,6 +242,7 @@ verify_one() {
         --source "$SOURCE" \
         --run-dir "$OUTPUT/$id" \
         --timeout 180 --network none \
+        ${SANDBOX:+--sandbox "$SANDBOX"} \
         > "$OUTPUT/logs/$id.log" 2>&1
     local rc=$?
     echo "$rc" > "$OUTPUT/$id.exit_code"

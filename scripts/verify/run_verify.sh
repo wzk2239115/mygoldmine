@@ -41,6 +41,7 @@ usage() {
   --memory LIMIT       容器内存（默认 4g）
   --cpus N             容器 CPU（默认 2）
   --keep-container     失败时保留容器（排障用）
+  --sandbox NAME       复用持久沙箱；none 模式要求沙箱已断网
   -h, --help           显示帮助
 
 退出码: 0 confirmed；10 rejected；20 inconclusive；30 blocked；3 参数错误
@@ -59,6 +60,7 @@ NETWORK="none"
 MEMORY="4g"
 CPUS="2"
 KEEP=0
+SANDBOX=""
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -74,6 +76,7 @@ while [ "$#" -gt 0 ]; do
         --memory) [ "$#" -ge 2 ] || die "--memory 需要参数"; MEMORY="$2"; shift ;;
         --cpus) [ "$#" -ge 2 ] || die "--cpus 需要参数"; CPUS="$2"; shift ;;
         --keep-container) KEEP=1 ;;
+        --sandbox) [ "$#" -ge 2 ] || die "--sandbox 需要参数"; SANDBOX="$2"; shift ;;
         -h|--help) usage; exit 0 ;;
         *) usage >&2; die "未知参数: $1" ;;
     esac
@@ -270,27 +273,57 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-log "验证 $FINDING_ID image=$IMAGE network=$NETWORK timeout=${TIMEOUT}s"
+log "验证 $FINDING_ID image=$IMAGE network=$NETWORK timeout=${TIMEOUT}s sandbox=${SANDBOX:-none}"
 set +e
-timeout --signal=TERM --kill-after=10 "$TIMEOUT" \
-    docker run --rm --name "$CNAME" \
-        --network "$NETWORK" \
-        --cap-drop ALL --security-opt no-new-privileges \
-        --pids-limit 512 --memory "$MEMORY" --cpus "$CPUS" \
-        --tmpfs /tmp:rw,exec,size=1g \
-        --mount "type=bind,src=$RUN_DIR,dst=/verify" \
-        "${MOUNT_SOURCE[@]}" \
-        -e VERIFY_DIR=/verify \
-        -e EVIDENCE_DIR=/verify/evidence \
-        -e TARGET_DIR=/opt/target \
-        -e SOURCE_DIR=/source-ro \
-        -e FINDING_FILE="/verify/finding.$FEXT" \
-        -e PROJECT="$PROJECT" \
-        --workdir /opt/target \
-        "${ENTRY[@]}" \
-        "$IMAGE" $ARG \
-        > "$STDOUT_LOG" 2> "$STDERR_LOG"
-RC=$?
+if [ -n "$SANDBOX" ]; then
+    [ "$(docker container inspect "$SANDBOX" --format '{{.State.Status}}' 2>/dev/null || true)" = "running" ] \
+        || { RC=125; printf '沙箱未运行: %s\n' "$SANDBOX" >&2; }
+    SANDBOX_NETWORKS="$(docker container inspect "$SANDBOX" --format '{{json .NetworkSettings.Networks}}' 2>/dev/null | jq 'length' 2>/dev/null || echo 0)"
+    if [ "$NETWORK" = "none" ] && [ "$SANDBOX_NETWORKS" != "0" ]; then
+        RC=125
+        printf '沙箱仍有网络，先执行 sandbox.sh isolate: %s\n' "$SANDBOX" >&2
+    elif ! docker exec "$SANDBOX" test -d "$RUN_DIR" >/dev/null 2>&1; then
+        RC=125
+        printf '沙箱无法访问验证产物目录: %s\n' "$RUN_DIR" >&2
+    else
+        case "$HNAME" in
+            *.sh) SANDBOX_ENTRY=(/bin/bash "$RUN_DIR/harness/$HNAME") ;;
+            *.py) SANDBOX_ENTRY=(python3 "$RUN_DIR/harness/$HNAME") ;;
+            *) SANDBOX_ENTRY=("$RUN_DIR/harness/$HNAME") ;;
+        esac
+        docker exec --workdir /workspace/repo \
+            -e VERIFY_DIR="$RUN_DIR" \
+            -e EVIDENCE_DIR="$RUN_DIR/evidence" \
+            -e TARGET_DIR=/workspace/repo \
+            -e SOURCE_DIR=/target \
+            -e FINDING_FILE="$RUN_DIR/finding.$FEXT" \
+            -e PROJECT="$PROJECT" \
+            "$SANDBOX" timeout --signal=TERM --kill-after=10 "$TIMEOUT" \
+            "${SANDBOX_ENTRY[@]}" \
+            > "$STDOUT_LOG" 2> "$STDERR_LOG"
+        RC=$?
+    fi
+else
+    timeout --signal=TERM --kill-after=10 "$TIMEOUT" \
+        docker run --rm --name "$CNAME" \
+            --network "$NETWORK" \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --pids-limit 512 --memory "$MEMORY" --cpus "$CPUS" \
+            --tmpfs /tmp:rw,exec,size=1g \
+            --mount "type=bind,src=$RUN_DIR,dst=/verify" \
+            "${MOUNT_SOURCE[@]}" \
+            -e VERIFY_DIR=/verify \
+            -e EVIDENCE_DIR=/verify/evidence \
+            -e TARGET_DIR=/opt/target \
+            -e SOURCE_DIR=/source-ro \
+            -e FINDING_FILE="/verify/finding.$FEXT" \
+            -e PROJECT="$PROJECT" \
+            --workdir /opt/target \
+            "${ENTRY[@]}" \
+            "$IMAGE" $ARG \
+            > "$STDOUT_LOG" 2> "$STDERR_LOG"
+    RC=$?
+fi
 set -e
 
 TIMED_OUT="false"

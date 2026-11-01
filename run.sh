@@ -127,12 +127,20 @@ if [ "$MODE" = "verify" ]; then
     [ -n "$IMAGE" ] || die "缺少环境镜像（先 build_env，或传 --image）" 4
     [ -n "$SOURCE" ] || die "缺少源码路径（manifest 中没有 source，或传 --source）" 4
     log "Phase 4 only: project=$PROJECT run_dir=$RUN_DIR image=$IMAGE"
-    bash "$REPO_ROOT/scripts/verify/auto_verify.sh" \
-        --project "$PROJECT" --run-dir "$RUN_DIR" \
-        --image "$IMAGE" --source "$SOURCE" \
-        --max "$VERIFY_MAX" --severity "$VERIFY_SEVERITY" \
-        --parallel "$VERIFY_PARALLEL" \
+    VERIFY_ARGS=(
+        --project "$PROJECT" --run-dir "$RUN_DIR"
+        --image "$IMAGE" --source "$SOURCE"
+        --max "$VERIFY_MAX" --severity "$VERIFY_SEVERITY"
+        --parallel "$VERIFY_PARALLEL"
         --output "$RUN_DIR/verify/auto"
+    )
+    SANDBOX_CONTAINER="$(jq -r '.container // empty' "$RUN_DIR.meta/sandbox.json" 2>/dev/null || true)"
+    if [ -n "$SANDBOX_CONTAINER" ] && \
+        [ "$(docker container inspect "$SANDBOX_CONTAINER" --format '{{.State.Status}}' 2>/dev/null || true)" = "running" ]; then
+        bash "$REPO_ROOT/scripts/env/sandbox.sh" isolate --project "$PROJECT" --run-dir "$RUN_DIR"
+        VERIFY_ARGS+=(--sandbox "$SANDBOX_CONTAINER")
+    fi
+    bash "$REPO_ROOT/scripts/verify/auto_verify.sh" "${VERIFY_ARGS[@]}"
     exit $?
 fi
 
@@ -148,6 +156,12 @@ if [ "$MODE" = "status" ] || [ "$MODE" = "stop" ]; then
             echo "container=$cname state=running"
         else
             echo "container=${cname:-unknown} state=not-running"
+        fi
+        if [ -f "$META/sandbox.json" ]; then
+            sandbox_name="$(jq -r '.container // empty' "$META/sandbox.json")"
+            sandbox_state="$(docker container inspect "$sandbox_name" --format '{{.State.Status}}' 2>/dev/null || echo absent)"
+            echo "sandbox=$sandbox_name state=$sandbox_state workspace=/workspace/repo"
+            echo "shell: bash scripts/env/sandbox.sh shell --project $PROJECT_FROM_RUN --run-dir $RUN_DIR"
         fi
         ENV_MAN="$REPO_ROOT/env/$PROJECT_FROM_RUN/env-manifest.json"
         if [ -f "$ENV_MAN" ]; then
@@ -244,10 +258,21 @@ if [ "$MODE" = "supervise" ]; then
     else
         log "Phase 0 跳过（--skip-env）"
     fi
+    SANDBOX_CONTAINER=""
+    if [ "$SKIP_ENV" -eq 0 ] && [ "${PERSIST_SANDBOX:-1}" = "1" ] && [ -n "$ENV_IMAGE" ]; then
+        SANDBOX_CONTAINER="$(bash "$REPO_ROOT/scripts/env/sandbox.sh" start \
+            --project "$PROJECT" --run-dir "$RUN_DIR" --source "$TARGET" \
+            --image "$ENV_IMAGE" --network "${DOCKER_NETWORK:-bridge}" 2>> "$META/sandbox.log")"
+        if [ -n "$SANDBOX_CONTAINER" ]; then
+            log "持久沙箱已就绪: $SANDBOX_CONTAINER"
+        else
+            log "WARN: 持久沙箱创建失败，回退到一次性挖掘容器"
+        fi
+    fi
     write_status "running" -1
     log "supervisor 启动 project=$PROJECT run_dir=$RUN_DIR"
 
-    MYGOLDMINE_IMAGE="$IMAGE" LIVE_RENDER=1 "$MINER" \
+    SANDBOX_CONTAINER="$SANDBOX_CONTAINER" MYGOLDMINE_IMAGE="$IMAGE" LIVE_RENDER=1 "$MINER" \
         --target "$TARGET" \
         --project "$PROJECT" \
         --run-dir "$RUN_DIR" \
@@ -257,7 +282,11 @@ if [ "$MODE" = "supervise" ]; then
         > "$META/wrapper.log" 2>&1 &
     WPID=$!
     echo "$WPID" > "$META/wrapper.pid"
-    echo "mygoldmine-${PROJECT}-${WPID}" > "$META/container.name"
+    if [ -n "$SANDBOX_CONTAINER" ]; then
+        echo "$SANDBOX_CONTAINER" > "$META/container.name"
+    else
+        echo "mygoldmine-${PROJECT}-${WPID}" > "$META/container.name"
+    fi
 
     for _ in $(seq 1 60); do
         [ -f "$RUN_DIR/raw.jsonl" ] && break
@@ -291,6 +320,11 @@ if [ "$MODE" = "supervise" ]; then
             >> "$META/renderer.log" 2>&1 || true
     fi
 
+    if [ -n "$SANDBOX_CONTAINER" ]; then
+        bash "$REPO_ROOT/scripts/env/sandbox.sh" isolate \
+            --project "$PROJECT" --run-dir "$RUN_DIR" >> "$META/sandbox.log" 2>&1 || true
+    fi
+
     # Structured infra runs can recover independently after a native Agent/CLI failure.
     # Each finished boundary is persisted by mine_one.sh; only missing tasks are retried.
     if [ "$RC" -ne 0 ] && [ "${AUTO_RECOVER:-1}" = "1" ] && \
@@ -320,6 +354,7 @@ PYRECOVERY
         RC=$?
         RUN_DIR="$RECOVERY_RUN"
         META="$RUN_DIR.meta"
+        SANDBOX_CONTAINER=""
         mkdir -p "$META"
         echo "$RC" > "$META/exit_code"
     fi
@@ -338,12 +373,15 @@ PYRECOVERY
     if [ "$SKIP_VERIFY" -eq 0 ] && [ -n "$ENV_IMAGE" ] && [ "$REPORTS_COMPLETE" -eq 1 ]; then
         if docker image inspect "$ENV_IMAGE" >/dev/null 2>&1; then
             log "Phase 4: 自动验证（max=$VERIFY_MAX severity=$VERIFY_SEVERITY parallel=$VERIFY_PARALLEL）..."
-            bash "$REPO_ROOT/scripts/verify/auto_verify.sh" \
-                --project "$PROJECT" --run-dir "$RUN_DIR" \
-                --image "$ENV_IMAGE" --source "$TARGET" \
-                --max "$VERIFY_MAX" --severity "$VERIFY_SEVERITY" \
-                --parallel "$VERIFY_PARALLEL" \
-                --output "$RUN_DIR/verify/auto" \
+            VERIFY_ARGS=(
+                --project "$PROJECT" --run-dir "$RUN_DIR"
+                --image "$ENV_IMAGE" --source "$TARGET"
+                --max "$VERIFY_MAX" --severity "$VERIFY_SEVERITY"
+                --parallel "$VERIFY_PARALLEL"
+                --output "$RUN_DIR/verify/auto"
+            )
+            [ -n "$SANDBOX_CONTAINER" ] && VERIFY_ARGS+=(--sandbox "$SANDBOX_CONTAINER")
+            bash "$REPO_ROOT/scripts/verify/auto_verify.sh" "${VERIFY_ARGS[@]}" \
                 > "$META/verify.log" 2>&1
             VRC=$?
             if [ -f "$RUN_DIR/verify/auto/summary.json" ]; then
@@ -465,6 +503,11 @@ Phase 4 自动验证:
   tail -f "$META/verify.log"
   # 完成后看：
   cat "$RUN_DIR/verify/auto/summary.md"
+
+持久沙箱（同一工作副本继续探索）:
+  bash scripts/env/sandbox.sh status --project "$PROJECT" --run-dir "$RUN_DIR"
+  bash scripts/env/sandbox.sh shell --project "$PROJECT" --run-dir "$RUN_DIR"
+  # stop 保留工作副本；remove 才删除容器。PERSIST_SANDBOX=0 可禁用复用。
 
 查看状态 / 停止:
   bash run.sh --status "$RUN_DIR"

@@ -5264,6 +5264,19 @@ body {
   overflow-wrap: anywhere;
 }
 
+.arch-detail-command {
+  margin: 10px 0 0;
+  padding: 12px;
+  overflow-x: auto;
+  color: var(--ink-2);
+  background: var(--paper-3);
+  border-radius: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.65;
+  white-space: pre;
+}
+
 .arch-detail-card p {
   margin: 12px 0 0;
   color: var(--ink-2);

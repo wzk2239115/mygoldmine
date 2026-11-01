@@ -59,6 +59,9 @@ for file in \
     scripts/skillopt_env_build.sh \
     scripts/ccui/start.sh \
     scripts/env/build_env_agent.sh \
+    scripts/env/sandbox.sh \
+    scripts/verify/run_verify.sh \
+    scripts/verify/auto_verify.sh \
     scripts/mine/mine_one.sh \
     scripts/mine/entrypoint.sh \
     scripts/mine/mine_one_docker.sh \
