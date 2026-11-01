@@ -341,9 +341,7 @@ export default function App() {
     <div className={cx('app', sidebarOpen && 'sidebar-open', sidebarCollapsed && 'sidebar-collapsed', selected && 'has-drawer')}>
       <nav className="rail" aria-label="主导航">
         <div className="rail-brand" title="VUL/AI">
-          <span>V</span>
-          <i>/</i>
-          <span>A</span>
+          <img src="/golden-shovel.webp" alt="VUL/AI 黄金铲子" />
         </div>
         <div className="rail-group">
           <RailButton
