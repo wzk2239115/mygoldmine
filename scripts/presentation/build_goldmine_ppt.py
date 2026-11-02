@@ -255,7 +255,7 @@ def build():
         ("身份与上下文", "occurrence / semantic 双层身份；保存动作前上下文，避免未来信息泄漏。", COLORS["blue"]),
         ("动作与成本", "策略、propensity、agent/token/time 成本；确定性路由不被冒充为探索。", COLORS["gold"]),
         ("结果与证据", "static < runtime < judge < manual；来源 hash 与标签范围可审计。", COLORS["green"]),
-    ], footer="本轮修复：verify-report.json 与 auto-state.json 已接入经验池，结果不再与动作脱节"))
+    ], footer="verify / auto-state 已接入；redteam-experience 分离 run 结果与 attacker step，并复核 provenance"))
     steps = [
         ("轨迹", "真实动作与成本", COLORS["blue"]),
         ("标签 / 效用", "证据等级隔离", COLORS["gold"]),

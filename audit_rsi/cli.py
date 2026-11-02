@@ -358,6 +358,26 @@ def cmd_verify_flips(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_redteam_experience(args: argparse.Namespace) -> int:
+    from .adapters.redteam import scan_redteam_runs
+    from .verification import write_jsonl
+
+    records, steps = scan_redteam_runs(args.runs)
+    write_jsonl(args.output, records)
+    if args.steps_output:
+        write_jsonl(args.steps_output, steps)
+    _emit(
+        {
+            "output": str(Path(args.output)),
+            "records": len(records),
+            "steps": len(steps),
+            "steps_output": args.steps_output or None,
+        },
+        args.json,
+    )
+    return 0
+
+
 def _common(sub: argparse.ArgumentParser, pool_default: str) -> None:
     sub.add_argument("--pool", default=pool_default)
     sub.add_argument("--out", default=str(REPO_ROOT / "rsi"))
@@ -543,6 +563,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_verify_flips.add_argument("--holdout-project", default="")
     p_verify_flips.add_argument("--json", action="store_true")
     p_verify_flips.set_defaults(func=cmd_verify_flips)
+
+    p_redteam_experience = sub.add_parser(
+        "redteam-experience", help="build role-aware red-team experiences and tool steps"
+    )
+    p_redteam_experience.add_argument("--runs", default=str(REPO_ROOT / "runs" / "redteam"))
+    p_redteam_experience.add_argument(
+        "--output", default=str(REPO_ROOT / "rsi" / "redteam-experience.jsonl")
+    )
+    p_redteam_experience.add_argument("--steps-output", default="")
+    p_redteam_experience.add_argument("--json", action="store_true")
+    p_redteam_experience.set_defaults(func=cmd_redteam_experience)
 
     return parser
 

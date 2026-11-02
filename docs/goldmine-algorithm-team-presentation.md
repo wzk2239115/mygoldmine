@@ -59,7 +59,7 @@ RSI × 红队模型 × 可验证的算法闭环
 
 验证层级：static < runtime < judge < manual。
 
-本轮修复：`verify-report.json` 与 `auto-state.json` 现在能进入经验池；有结果但无动作的样本不再被静默丢弃。
+本轮修复：`verify-report.json` 与 `auto-state.json` 现在能进入经验池；有结果但无动作的样本不再被静默丢弃。新增 `redteam-experience`：run 级结果与 step 级 attacker 工具事件分层，provenance 通过后才赋予 runtime/judge 标签。
 
 ## 08 Goldmine 的 RSI 闭环
 

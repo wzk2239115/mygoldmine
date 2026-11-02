@@ -59,6 +59,7 @@
 - 经验池有 986 条 occurrence，真实 actionable verify 支持从 0 修复为 6 条 static 样本。
 - `trusted_support=0`，生产发布仍被拒绝；不能声称生产 RSI 或因果 uplift。
 - `verify-report.json` 和 `auto-state.json` 原先未完整进入经验池，已在本轮修复。
+- 新增 `redteam-experience` 适配：run 级结果与 step 级 attacker 工具事件分层，只有可重算 provenance 的 runtime/judge 才自动获得可信标签；`not_captured` 保持 unknown。
 - 自动路由可以提供确定性动作与 propensity，但不等于探索数据；matched-action replay 不能证明替代动作会更好。
 - 红队 HTTP lab、flag provenance 和独立 judge 是强证据来源，但当前覆盖和协议范围仍有限。
 

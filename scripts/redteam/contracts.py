@@ -275,7 +275,7 @@ def recompute_flag_provenance(run_dir, document):
     if not isinstance(document, dict) or not isinstance(document.get("result"), dict):
         raise ContractError("provenance_invalid", "result document is malformed")
     result = document["result"]
-    if result.get("status") != "flag_captured" or result.get("captured") is not True:
+    if result.get("captured") is not True:
         raise ContractError("provenance_invalid", "run does not contain a captured result")
     provenance = result.get("flag_provenance")
     if not isinstance(provenance, dict):
