@@ -216,6 +216,7 @@ Finding Ledger + refine/validation + verify/人工标签
 ```bash
 python3 -m audit_rsi experience-build --runs runs --output rsi/verification-experience.jsonl
 python3 -m audit_rsi label-sample --pool rsi/verification-experience.jsonl --output rsi/verification-label-sample.jsonl --limit 100
+python3 -m audit_rsi label-plan --pool rsi/verification-experience.jsonl --output rsi/verification-label-plan.jsonl --report rsi/verification-label-plan.json --limit 100
 # 人工填写 verdict/evidence_class 后合并，再训练和生成只读建议
 python3 -m audit_rsi label-merge --pool rsi/verification-experience.jsonl --labels rsi/verification-label-sample.jsonl --output rsi/verification-experience-labeled.jsonl
 python3 -m audit_rsi verify-train --pool rsi/verification-experience-labeled.jsonl --output rsi/verification-policy.json --holdout-project <project>
@@ -237,6 +238,8 @@ unknown 不等于 FP；无合法标注倾向、holdout、标签覆盖或支持�
 `harness-propose` 只允许白名单 editable surface，为每个提案生成稳定 `candidate_id`、目标失败、证据哈希、保留行为和验证要求；不会直接修改 harness。`harness-validate` 重算提案身份并调用 outcome flip gate，只有 accepted 才标记 validated，身份篡改、回归或证据不足均不能通过。候选提案和验证结果都可审计、可回放，仍需后续发布复核。
 
 经验构建同时读取 `verdict.json`、`verify-report.json` 和 `auto-state.json`：自动路由提供 `deterministic-auto-state` 动作及倾向，verify 提供 static/runtime 结果，不能把有结果但无动作的样本静默丢弃。runtime verify 与人工 curated 可自动获得确定标签来源；static verify 只进入 shadow 学习；judge 仍需独立标签复核，不自动获得 label propensity。
+
+`label-plan` 在普通分层抽样之外优先补齐完全缺少 trusted 的项目和动作，再考虑 top-up 覆盖；无动作记录不进入人工标注队列。每个任务保留 occurrence/semantic 身份、抽样原因、分层配额和 label propensity，并过滤敏感上下文。该计划只提高标注效率，不把 unknown 自动变成 trusted。
 
 agent 可以辅助做源码级静态标注，但必须使用 `evidence_class=static` 和 `adjudication.method=agent-static`，不能冒充 human/runtime/judge。只有 static 标签时 shadow 明确为 `static-only / no_trusted_utility_targets`，即使训练产生了不同建议，也不得视为已验证提升或生产候选。
 

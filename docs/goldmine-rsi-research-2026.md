@@ -62,6 +62,7 @@
 - 新增 `redteam-experience` 适配：run 级结果与 step 级 attacker 工具事件分层，只有可重算 provenance 的 runtime/judge 才自动获得可信标签；`not_captured` 保持 unknown。
 - 新增 `redteam-weakness`：按项目类型、攻击模型、失败类别和严重度形成确定性证据签名，输出支持度、成本和候选 editable surface；只做 Weakness Mining，不自动修改 harness。
 - `verify-flips` 现在带候选非回归门禁：默认配对覆盖 ≥0.8、至少一个 F→P、零 P→F；accepted 仍需候选复核，不自动发布。
+- 新增 `label-plan`：优先选择完全缺少 trusted 的项目和动作，过滤无动作记录，保留抽样倾向和安全上下文，用于更高效地补真实标签。
 - 新增 `harness-propose / harness-validate`：Weakness Mining 结果可生成带稳定 ID、证据哈希和保留行为的最小候选，身份篡改会被拒绝；候选仅在 flip gate 接受时标记 validated，仍然 `mutation=none`。
 - 自动路由可以提供确定性动作与 propensity，但不等于探索数据；matched-action replay 不能证明替代动作会更好。
 - 红队 HTTP lab、flag provenance 和独立 judge 是强证据来源，但当前覆盖和协议范围仍有限。

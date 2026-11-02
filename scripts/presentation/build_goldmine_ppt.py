@@ -271,7 +271,7 @@ def build():
         ("986", "occurrence 经验记录", COLORS["blue"]),
         ("6", "真实 static 动作样本（本轮前为 0）", COLORS["gold"]),
         ("0", "trusted support：生产继续拒绝", COLORS["red"]),
-    ], ["当前只能叫 shadow RSI，不能宣称生产自我进化。", "下一阶段重点：runtime / judge 标签、动作覆盖与红队 lab 扩展。"]))
+    ], ["当前只能叫 shadow RSI，不能宣称生产自我进化。", "label-plan 优先补 trusted 项目 / 动作，红队 lab 继续扩展。"]))
     slides.append(deck.cards(10, "2026 年研究地图：从自我反思走向受控闭环", [
         ("Self-Harness", "弱点聚类 → 最小 harness 修改 → held-out 非回归。", COLORS["gold"]),
         ("AgentDevel", "单版本线、可执行诊断、P→F / F→P flip 门禁。", COLORS["blue"]),

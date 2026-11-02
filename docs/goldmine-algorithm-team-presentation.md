@@ -76,7 +76,7 @@ RSI × 红队模型 × 可验证的算法闭环
 - 986 条 occurrence 经验记录。
 - 本轮前：可训练 verify 支持为 0；本轮后：6 条真实 static 动作样本。
 - `trusted_support = 0`：生产发布继续拒绝。
-- 红队 lab 覆盖与协议范围仍需扩大，runtime/judge 标签是下一阶段重点。
+- 红队 lab 覆盖与协议范围仍需扩大，runtime/judge 标签是下一阶段重点；`label-plan` 优先补齐缺失 trusted 的项目与动作。
 
 **这不是失败，而是门禁在正确工作。当前只能叫 shadow RSI，不能宣称生产自我进化。**
 

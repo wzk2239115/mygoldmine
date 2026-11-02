@@ -211,6 +211,88 @@ def stratified_sample(
     return selected
 
 
+def trusted_label_plan(
+    candidates: Iterable[Mapping[str, Any]],
+    sample_size: int,
+    seed: int = 0,
+) -> dict[str, Any]:
+    """Prioritize missing trusted projects and actions before top-up sampling."""
+    if sample_size < 0:
+        raise ValueError("sample_size must be non-negative")
+    items = list(candidates)
+    trusted_evidence = {"runtime", "judge", "human", "manual"}
+    trusted = [
+        item
+        for item in items
+        if str(item.get("outcome", {}).get("verdict", "unknown")) != "unknown"
+        and str(item.get("outcome", {}).get("evidence_class", "unknown")) in trusted_evidence
+    ]
+    trusted_projects = {str(item.get("project", "unknown")) for item in trusted}
+    trusted_actions = {str(item.get("action", "unknown")) for item in trusted}
+    projects = sorted({str(item.get("project", "unknown")) for item in items})
+    actions = sorted({str(item.get("action", "unknown")) for item in items if item.get("action")})
+    project_gaps = [project for project in projects if project not in trusted_projects]
+    action_gaps = [action for action in actions if action not in trusted_actions]
+
+    indexed: dict[tuple[str, str], list[tuple[int, Mapping[str, Any]]]] = defaultdict(list)
+    for index, candidate in enumerate(items):
+        action = str(candidate.get("action") or "")
+        outcome = candidate.get("outcome")
+        outcome = outcome if isinstance(outcome, Mapping) else {}
+        if not action or str(outcome.get("verdict", "unknown")) != "unknown":
+            continue
+        indexed[(str(candidate.get("project") or "unknown"), action)].append((index, candidate))
+    if sample_size == 0 or not indexed:
+        return {
+            "status": "insufficient",
+            "analysis": {
+                "trusted_support": len(trusted),
+                "project_gaps": project_gaps,
+                "action_gaps": action_gaps,
+                "selected_projects": [],
+                "selected_actions": [],
+            },
+            "tasks": [],
+        }
+
+    capacities = {key: len(members) for key, members in indexed.items()}
+    quotas = _allocate(capacities, min(sample_size, sum(capacities.values())))
+    severity_rank = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+    tasks = []
+    for stratum in sorted(indexed):
+        quota = quotas.get(stratum, 0)
+        if not quota:
+            continue
+        members = sorted(
+            indexed[stratum],
+            key=lambda pair: (
+                severity_rank.get(_severity(pair[1]), 5),
+                _random_key(_candidate_identity(pair[1], pair[0]), seed),
+            ),
+        )
+        size = len(members)
+        for _index, candidate in members[:quota]:
+            project, action = stratum
+            if project in project_gaps:
+                reason = "trusted-project-gap"
+            elif action in action_gaps:
+                reason = "trusted-action-gap"
+            else:
+                reason = "trusted-coverage-top-up"
+            tasks.append(_task(candidate, quota / size, reason, (*stratum, "", ""), size, quota))
+    return {
+        "status": "ok" if tasks else "insufficient",
+        "analysis": {
+            "trusted_support": len(trusted),
+            "project_gaps": project_gaps,
+            "action_gaps": action_gaps,
+            "selected_projects": sorted({str(task["project"]) for task in tasks}),
+            "selected_actions": sorted({str(task["action"]) for task in tasks}),
+        },
+        "tasks": tasks,
+    }
+
+
 def inverse_label_propensity(
     value: float | Mapping[str, Any], max_weight: float = DEFAULT_MAX_WEIGHT
 ) -> float:

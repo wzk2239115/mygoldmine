@@ -5,11 +5,13 @@ from pathlib import Path
 
 import pytest
 
+from audit_rsi.cli import main
 from audit_rsi.experience import ACTION_MAP, build_experience, outcome_credit
 from audit_rsi.labeling import (
     inverse_label_propensity,
     inverse_propensity_weights,
     stratified_sample,
+    trusted_label_plan,
 )
 
 
@@ -441,3 +443,45 @@ def test_sample_size_bounds_and_seed_change() -> None:
     assert stratified_sample(candidates, sample_size=5, seed=1) != stratified_sample(
         candidates, sample_size=5, seed=999
     )
+
+
+def test_trusted_label_plan_prioritizes_missing_projects_and_actions(tmp_path) -> None:
+    def candidate(project, action, verdict="unknown", evidence="none", severity="high"):
+        return {
+            "occurrence_id": f"{project}/r1/F-{action}",
+            "semantic_id": f"sem-{project}-{action}",
+            "project": project,
+            "run_id": "r1",
+            "commit": "abc",
+            "action": action,
+            "context": {"severity": severity, "title": "sensitive"},
+            "outcome": {"verdict": verdict, "evidence_class": evidence},
+        }
+
+    records = [
+        candidate("project-a", "verify", "tp", "human"),
+        candidate("project-b", "verify"),
+        candidate("project-c", "deep_read"),
+        candidate("project-d", "defer"),
+        candidate("project-e", None),
+    ]
+    plan = trusted_label_plan(records, sample_size=3, seed=7)
+    assert plan["status"] == "ok"
+    assert plan["analysis"]["selected_projects"] == ["project-b", "project-c", "project-d"]
+    assert {task["sampling_reason"] for task in plan["tasks"]} == {"trusted-project-gap"}
+    assert all(task["label_propensity"] == 1.0 for task in plan["tasks"])
+    assert all("title" not in task["context"] for task in plan["tasks"])
+    assert trusted_label_plan(records[:1], sample_size=3)["status"] == "insufficient"
+
+    pool = tmp_path / "pool.jsonl"
+    output = tmp_path / "plan.jsonl"
+    report = tmp_path / "report.json"
+    pool.write_text("".join(json.dumps(row) + "\n" for row in records))
+    assert main([
+        "label-plan", "--pool", str(pool), "--output", str(output),
+        "--report", str(report), "--limit", "3",
+    ]) == 0
+    assert len(output.read_text().splitlines()) == 3
+    assert json.loads(report.read_text())["analysis"]["selected_projects"] == [
+        "project-b", "project-c", "project-d"
+    ]

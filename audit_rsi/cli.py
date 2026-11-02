@@ -259,6 +259,26 @@ def cmd_label_sample(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_label_plan(args: argparse.Namespace) -> int:
+    from .labeling import trusted_label_plan
+    from .verification import read_experience, write_json, write_jsonl
+
+    records = read_experience(args.pool)
+    plan = trusted_label_plan(records, sample_size=args.limit, seed=args.seed)
+    write_jsonl(args.output, plan["tasks"])
+    if args.report:
+        write_json(args.report, {"analysis": plan["analysis"], "status": plan["status"]})
+    _emit(
+        {
+            "output": str(Path(args.output)),
+            **plan["analysis"],
+            "records": len(plan["tasks"]),
+        },
+        args.json,
+    )
+    return 0
+
+
 def cmd_label_merge(args: argparse.Namespace) -> int:
     from .verification import merge_labels, read_experience, write_jsonl
 
@@ -526,6 +546,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_label.add_argument("--seed", type=int, default=0)
     p_label.add_argument("--json", action="store_true")
     p_label.set_defaults(func=cmd_label_sample)
+
+    p_label_plan = sub.add_parser(
+        "label-plan", help="prioritize missing trusted projects and actions"
+    )
+    p_label_plan.add_argument(
+        "--pool", default=str(REPO_ROOT / "rsi" / "verification-experience.jsonl")
+    )
+    p_label_plan.add_argument(
+        "--output", default=str(REPO_ROOT / "rsi" / "verification-label-plan.jsonl")
+    )
+    p_label_plan.add_argument("--report", default="")
+    p_label_plan.add_argument("--limit", type=int, default=100)
+    p_label_plan.add_argument("--seed", type=int, default=0)
+    p_label_plan.add_argument("--json", action="store_true")
+    p_label_plan.set_defaults(func=cmd_label_plan)
 
     p_label_merge = sub.add_parser(
         "label-merge", help="merge reviewed labels into verification experience"
