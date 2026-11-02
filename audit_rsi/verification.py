@@ -721,11 +721,62 @@ def replay_policies(
     }
 
 
+def outcome_flip_gate(
+    report: Mapping[str, Any],
+    *,
+    min_coverage: float = 0.8,
+    max_pass_to_fail: int = 0,
+    min_fail_to_pass: int = 1,
+) -> dict[str, Any]:
+    """Apply a conservative, non-mutating candidate acceptance gate."""
+    if not 0 <= min_coverage <= 1:
+        raise ValueError("min_coverage must be between 0 and 1")
+    if max_pass_to_fail < 0 or min_fail_to_pass < 0:
+        raise ValueError("flip thresholds must be non-negative")
+    counts = _mapping(report.get("counts"))
+    coverage = _number(report.get("paired_coverage"), 0.0)
+    pass_to_fail = int(counts.get("pass_to_fail", 0) or 0)
+    fail_to_pass = int(counts.get("fail_to_pass", 0) or 0)
+    reasons = []
+    insufficient = False
+    if not int(report.get("paired_known_outcomes", 0) or 0):
+        reasons.append("no_paired_outcomes")
+        insufficient = True
+    if coverage < min_coverage:
+        reasons.append("insufficient_paired_coverage")
+        insufficient = True
+    if pass_to_fail > max_pass_to_fail:
+        reasons.append("pass_to_fail_regression")
+    if fail_to_pass < min_fail_to_pass:
+        reasons.append("insufficient_fail_to_pass_fix")
+    status = "insufficient" if insufficient else "rejected" if reasons else "accepted"
+    return {
+        "status": status,
+        "accepted": status == "accepted",
+        "reasons": reasons,
+        "thresholds": {
+            "min_coverage": min_coverage,
+            "max_pass_to_fail": max_pass_to_fail,
+            "min_fail_to_pass": min_fail_to_pass,
+        },
+        "metrics": {
+            "paired_coverage": coverage,
+            "pass_to_fail": pass_to_fail,
+            "fail_to_pass": fail_to_pass,
+        },
+        "mutation": "none",
+        "requires_candidate_review": True,
+    }
+
+
 def outcome_flip_report(
     baseline_records: Iterable[Mapping[str, Any]],
     candidate_records: Iterable[Mapping[str, Any]],
     *,
     holdout_project: str = "",
+    min_coverage: float = 0.8,
+    max_pass_to_fail: int = 0,
+    min_fail_to_pass: int = 1,
 ) -> dict[str, Any]:
     """Compare observed outcomes per semantic without claiming counterfactual effects."""
     baseline = deduplicate_semantics(
@@ -816,6 +867,16 @@ def outcome_flip_report(
         "counts": counts,
         "per_project": dict(sorted(per_project.items())),
         "transitions": transitions,
+        "gate": outcome_flip_gate(
+            {
+                "paired_known_outcomes": paired,
+                "paired_coverage": paired / len(common) if common else 0.0,
+                "counts": counts,
+            },
+            min_coverage=min_coverage,
+            max_pass_to_fail=max_pass_to_fail,
+            min_fail_to_pass=min_fail_to_pass,
+        ),
         "baseline_data_hash": data_hash(baseline),
         "candidate_data_hash": data_hash(candidate),
     }

@@ -262,7 +262,7 @@ def build():
         ("训练", "per-action utility", COLORS["green"]),
         ("Holdout", "跨项目验证", COLORS["red"]),
         ("Replay + Flips", "matched + outcome transitions", COLORS["blue"]),
-        ("统计门禁", "覆盖 / 支持 / 回归", COLORS["gold"]),
+        ("统计门禁", "coverage≥0.8 · fix≥1 · P→F=0", COLORS["gold"]),
         ("Shadow", "只读建议", COLORS["muted"]),
         ("受控发布", "不可变候选与回滚", COLORS["green"]),
     ]

@@ -352,6 +352,9 @@ def cmd_verify_flips(args: argparse.Namespace) -> int:
         baseline,
         candidate,
         holdout_project=args.holdout_project,
+        min_coverage=args.min_coverage,
+        max_pass_to_fail=args.max_pass_to_fail,
+        min_fail_to_pass=args.min_fail_to_pass,
     )
     write_json(args.output, payload)
     _emit(payload, args.json)
@@ -573,6 +576,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--output", default=str(REPO_ROOT / "rsi" / "verification-flips.json")
     )
     p_verify_flips.add_argument("--holdout-project", default="")
+    p_verify_flips.add_argument("--min-coverage", type=float, default=0.8)
+    p_verify_flips.add_argument("--max-pass-to-fail", type=int, default=0)
+    p_verify_flips.add_argument("--min-fail-to-pass", type=int, default=1)
     p_verify_flips.add_argument("--json", action="store_true")
     p_verify_flips.set_defaults(func=cmd_verify_flips)
 

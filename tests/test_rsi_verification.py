@@ -497,3 +497,39 @@ def test_outcome_flip_report_tracks_regressions_without_inventing_labels(tmp_pat
     written = json.loads(output_path.read_text())
     assert written["paired_known_outcomes"] == 3
     assert written["evaluation"].startswith("observed per-semantic")
+    assert written["gate"]["status"] == "insufficient"
+    assert set(written["gate"]["reasons"]) == {
+        "insufficient_paired_coverage",
+        "pass_to_fail_regression",
+    }
+    assert outcome_flip_report(baseline, [])["gate"]["status"] == "insufficient"
+
+    rejected = outcome_flip_report(baseline[:3], candidate[:3])
+    assert rejected["gate"]["status"] == "rejected"
+    assert rejected["gate"]["reasons"] == ["pass_to_fail_regression"]
+
+    accepted = outcome_flip_report(
+        baseline[:3],
+        [
+            _record("c-1", semantic_id="s-1", verdict="tp"),
+            _record("c-2", semantic_id="s-2", verdict="tp"),
+            _record("c-3", semantic_id="s-3", verdict="tp"),
+        ],
+    )
+    assert accepted["gate"] == {
+        "status": "accepted",
+        "accepted": True,
+        "reasons": [],
+        "thresholds": {
+            "min_coverage": 0.8,
+            "max_pass_to_fail": 0,
+            "min_fail_to_pass": 1,
+        },
+        "metrics": {
+            "paired_coverage": 1.0,
+            "pass_to_fail": 0,
+            "fail_to_pass": 1,
+        },
+        "mutation": "none",
+        "requires_candidate_review": True,
+    }
