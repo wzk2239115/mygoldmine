@@ -244,7 +244,7 @@ def build():
         ("受控发布", "非回归门禁", COLORS["green"]),
     ], "Finding Ledger 保留每次发现与证据血缘；每次挖掘都成为下一次更好的依据"))
     slides.append(deck.cards(3, "2026 年研究地图：从自我反思走向受控闭环", [
-        ("Self-Harness", "弱点聚类 → 最小 harness 修改 → held-out 非回归。", COLORS["gold"]),
+        ("Self-Harness", "例：model_timeout → 超时控制弱点 → 只改重试策略 → 留出项目查回归。\n脚本：audit_rsi/weakness.py、harness.py", COLORS["gold"]),
         ("AgentDevel", "单版本线、可执行诊断、P→F / F→P flip 门禁。", COLORS["blue"]),
         ("MASS", "多智能体工作流搜索，优质团队轨迹回流训练。", COLORS["green"]),
         ("HELIX", "模型–harness 共进化，verified siblings 与证据平面。", COLORS["gold"]),

@@ -8,7 +8,7 @@
 
 | 论文 | 核心机制 | 对 Goldmine 的直接启示 |
 |---|---|---|
-| [Self-Harness: Harnesses That Improve Themselves](https://arxiv.org/abs/2606.09498) | 归纳共性弱点 → 最小执行框架修改 → 在参与和未参与调参的项目上检查非回归 | 从红队和验证失败记录中归纳可复用弱点；每轮只修改事先声明的范围，候选不过门禁就不发布 |
+| [Self-Harness: Harnesses That Improve Themselves](https://arxiv.org/abs/2606.09498) | 归纳共性弱点 → 最小执行框架修改 → 在参与和未参与调参的项目上检查非回归 | 从红队和验证失败记录中归纳可复用弱点；每轮只修改事先声明的范围，候选不过门禁就不发布。例：`model_timeout` 聚为运行时控制弱点，对应 `audit_rsi/weakness.py`、`audit_rsi/harness.py` |
 | [AgentDevel: Reframing Self-Evolving LLM Agents as Release Engineering](https://arxiv.org/abs/2601.04620) | 单一版本线、可执行诊断、逐项检查“通过→失败”（P→F）和“失败→通过”（F→P） | 不只看平均收益；必须记录每个候选问题和项目的回归，保留不可变候选和回滚能力 |
 | [Recursive Self-Improvement through Multi-Agent Self-Supervision](https://arxiv.org/abs/2610.12176) | 多角色工作流搜索与自评估交替，优质团队操作记录回流训练 | 红队攻击者、目标服务执行框架和独立评判器的记录应按角色保留；可研究团队轨迹，但自评不能替代独立证据 |
 | [Model–Harness Co-evolution for Recursive Self-Improvement](https://arxiv.org/abs/2608.13951) | 构建、更新、重建执行框架，保留同一问题的不同验证结果和完整证据 | 同一候选问题的执行框架应保留成功、回归和近失样本；未来模型更新后要重建匹配的执行框架 |
