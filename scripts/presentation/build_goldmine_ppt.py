@@ -261,12 +261,12 @@ def build():
         ("标签 / 效用", "证据等级隔离", COLORS["gold"]),
         ("训练", "per-action utility", COLORS["green"]),
         ("Holdout", "跨项目验证", COLORS["red"]),
-        ("Replay", "matched-action only", COLORS["blue"]),
+        ("Replay + Flips", "matched + outcome transitions", COLORS["blue"]),
         ("统计门禁", "覆盖 / 支持 / 回归", COLORS["gold"]),
         ("Shadow", "只读建议", COLORS["muted"]),
         ("受控发布", "不可变候选与回滚", COLORS["green"]),
     ]
-    slides.append(deck.flow(8, "Goldmine 的 RSI 闭环", steps, "不宣称因果 uplift；证据不足时保持 shadow，不生产 promote"))
+    slides.append(deck.flow(8, "Goldmine 的 RSI 闭环", steps, "replay 与 outcome flips 都不宣称因果；证据不足时保持 shadow"))
     slides.append(deck.metrics(9, "真实现状：闭环已通，可信数据仍是瓶颈", [
         ("986", "occurrence 经验记录", COLORS["blue"]),
         ("6", "真实 static 动作样本（本轮前为 0）", COLORS["gold"]),

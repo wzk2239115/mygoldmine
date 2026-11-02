@@ -14,6 +14,7 @@ from audit_rsi.verification import (
     deduplicate_semantics,
     extract_features,
     merge_labels,
+    outcome_flip_report,
     read_experience,
     record_utility,
     replay_policies,
@@ -446,3 +447,53 @@ def test_cli_train_shadow_replay_workflow_is_byte_replayable(tmp_path: Path) -> 
     replay = json.loads(replay_path.read_text(encoding="utf-8"))
     assert replay["holdout_project"] == "project-b"
     assert replay["baseline"]["unique_semantics"] == 1
+
+
+def test_outcome_flip_report_tracks_regressions_without_inventing_labels(tmp_path):
+    baseline = [
+        _record("a-1", semantic_id="s-1", verdict="tp"),
+        _record("a-2", semantic_id="s-2", verdict="fp", evidence_class="static"),
+        _record("a-3", semantic_id="s-3", verdict="tp", evidence_class="static"),
+        _record("a-4", semantic_id="s-4", verdict="unknown"),
+        _record("a-5", semantic_id="s-5", verdict="tp"),
+    ]
+    candidate = [
+        _record("b-1", semantic_id="s-1", verdict="fp"),
+        _record("b-2", semantic_id="s-2", verdict="tp"),
+        _record("b-3", semantic_id="s-3", verdict="tp", evidence_class="static"),
+        _record("b-4", semantic_id="s-4", verdict="fp"),
+        _record("b-6", semantic_id="s-6", verdict="tp"),
+    ]
+    report = outcome_flip_report(baseline, candidate)
+    assert report["status"] == "ok"
+    assert report["common_semantics"] == 4
+    assert report["paired_known_outcomes"] == 3
+    assert report["counts"] == {
+        "fail_to_pass": 1,
+        "pass_to_fail": 1,
+        "stable_tp": 1,
+        "stable_non_tp": 0,
+        "unknown_transition": 1,
+    }
+    assert report["fail_to_pass_rate"] == 1.0
+    assert report["pass_to_fail_rate"] == 0.5
+    assert [row["transition"] for row in report["transitions"]] == [
+        "pass_to_fail",
+        "fail_to_pass",
+    ]
+    assert outcome_flip_report(baseline, [])["status"] == "insufficient"
+
+    baseline_path = tmp_path / "baseline.jsonl"
+    candidate_path = tmp_path / "candidate.jsonl"
+    output_path = tmp_path / "flips.json"
+    write_jsonl(baseline_path, baseline)
+    write_jsonl(candidate_path, candidate)
+    assert main([
+        "verify-flips",
+        "--baseline", str(baseline_path),
+        "--candidate", str(candidate_path),
+        "--output", str(output_path),
+    ]) == 0
+    written = json.loads(output_path.read_text())
+    assert written["paired_known_outcomes"] == 3
+    assert written["evaluation"].startswith("observed per-semantic")

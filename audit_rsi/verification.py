@@ -721,6 +721,106 @@ def replay_policies(
     }
 
 
+def outcome_flip_report(
+    baseline_records: Iterable[Mapping[str, Any]],
+    candidate_records: Iterable[Mapping[str, Any]],
+    *,
+    holdout_project: str = "",
+) -> dict[str, Any]:
+    """Compare observed outcomes per semantic without claiming counterfactual effects."""
+    baseline = deduplicate_semantics(
+        record
+        for record in baseline_records
+        if not holdout_project or str(record.get("project", "")) == holdout_project
+    )
+    candidate = deduplicate_semantics(
+        record
+        for record in candidate_records
+        if not holdout_project or str(record.get("project", "")) == holdout_project
+    )
+    baseline_by_semantic = {str(record["semantic_id"]): record for record in baseline}
+    candidate_by_semantic = {str(record["semantic_id"]): record for record in candidate}
+    common = sorted(set(baseline_by_semantic) & set(candidate_by_semantic))
+    counts = {
+        "fail_to_pass": 0,
+        "pass_to_fail": 0,
+        "stable_tp": 0,
+        "stable_non_tp": 0,
+        "unknown_transition": 0,
+    }
+    transitions = []
+    per_project: dict[str, dict[str, int]] = {}
+    baseline_pass = 0
+    baseline_non_pass = 0
+    for semantic in common:
+        before = baseline_by_semantic[semantic]
+        after = candidate_by_semantic[semantic]
+        before_verdict = _verdict(before)
+        after_verdict = _verdict(after)
+        if before_verdict == "unknown" or after_verdict == "unknown":
+            counts["unknown_transition"] += 1
+            continue
+        before_pass = before_verdict == "tp"
+        after_pass = after_verdict == "tp"
+        baseline_pass += int(before_pass)
+        baseline_non_pass += int(not before_pass)
+        project = str(before.get("project", ""))
+        project_counts = per_project.setdefault(project, dict.fromkeys(counts, 0))
+        if not before_pass and after_pass:
+            transition = "fail_to_pass"
+        elif before_pass and not after_pass:
+            transition = "pass_to_fail"
+        elif before_pass and after_pass:
+            transition = "stable_tp"
+        else:
+            transition = "stable_non_tp"
+        counts[transition] += 1
+        project_counts[transition] += 1
+        if transition in {"fail_to_pass", "pass_to_fail"}:
+            transitions.append(
+                {
+                    "semantic_id": semantic,
+                    "project": project,
+                    "transition": transition,
+                    "baseline_occurrence_id": str(before.get("occurrence_id", "")),
+                    "candidate_occurrence_id": str(after.get("occurrence_id", "")),
+                    "baseline_verdict": before_verdict,
+                    "candidate_verdict": after_verdict,
+                    "baseline_evidence_class": _evidence_class(before),
+                    "candidate_evidence_class": _evidence_class(after),
+                }
+            )
+    paired = sum(
+        counts[key]
+        for key in ("fail_to_pass", "pass_to_fail", "stable_tp", "stable_non_tp")
+    )
+    return {
+        "schema_version": 1,
+        "evaluation": (
+            "observed per-semantic outcome flips; "
+            "no counterfactual or causal attribution"
+        ),
+        "status": "ok" if paired else "insufficient",
+        "holdout_project": holdout_project,
+        "common_semantics": len(common),
+        "paired_known_outcomes": paired,
+        "paired_coverage": paired / len(common) if common else 0.0,
+        "baseline_pass": baseline_pass,
+        "baseline_non_pass": baseline_non_pass,
+        "fail_to_pass_rate": (
+            counts["fail_to_pass"] / baseline_non_pass if baseline_non_pass else None
+        ),
+        "pass_to_fail_rate": (
+            counts["pass_to_fail"] / baseline_pass if baseline_pass else None
+        ),
+        "counts": counts,
+        "per_project": dict(sorted(per_project.items())),
+        "transitions": transitions,
+        "baseline_data_hash": data_hash(baseline),
+        "candidate_data_hash": data_hash(candidate),
+    }
+
+
 def merge_labels(
     records: Iterable[Mapping[str, Any]],
     labels: Iterable[Mapping[str, Any]],

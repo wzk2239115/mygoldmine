@@ -343,6 +343,21 @@ def cmd_verify_replay(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verify_flips(args: argparse.Namespace) -> int:
+    from .verification import outcome_flip_report, read_experience, write_json
+
+    baseline = read_experience(args.baseline)
+    candidate = read_experience(args.candidate)
+    payload = outcome_flip_report(
+        baseline,
+        candidate,
+        holdout_project=args.holdout_project,
+    )
+    write_json(args.output, payload)
+    _emit(payload, args.json)
+    return 0
+
+
 def _common(sub: argparse.ArgumentParser, pool_default: str) -> None:
     sub.add_argument("--pool", default=pool_default)
     sub.add_argument("--out", default=str(REPO_ROOT / "rsi"))
@@ -516,6 +531,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_verify_replay.add_argument("--seed", type=int, default=0)
     p_verify_replay.add_argument("--json", action="store_true")
     p_verify_replay.set_defaults(func=cmd_verify_replay)
+
+    p_verify_flips = sub.add_parser(
+        "verify-flips", help="compare per-semantic observed outcome flips"
+    )
+    p_verify_flips.add_argument("--baseline", required=True)
+    p_verify_flips.add_argument("--candidate", required=True)
+    p_verify_flips.add_argument(
+        "--output", default=str(REPO_ROOT / "rsi" / "verification-flips.json")
+    )
+    p_verify_flips.add_argument("--holdout-project", default="")
+    p_verify_flips.add_argument("--json", action="store_true")
+    p_verify_flips.set_defaults(func=cmd_verify_flips)
 
     return parser
 

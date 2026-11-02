@@ -63,10 +63,11 @@ RSI × 红队模型 × 可验证的算法闭环
 
 ## 08 Goldmine 的 RSI 闭环
 
-轨迹 → 标签与效用 → 训练 → 跨项目 holdout → matched-action replay → 统计门禁 → shadow / 不可变候选 → 受控发布
+轨迹 → 标签与效用 → 训练 → 跨项目 holdout → matched-action replay + outcome flips → 统计门禁 → shadow / 不可变候选 → 受控发布
 
 - 学习 verify / deep_read / human_review 等动作效用，而不是模仿报告文本。
 - 自动路由的确定性 propensity 不代表探索，回放不宣称因果 uplift。
+- `verify-flips` 按 semantic 观测 F→P 修复与 P→F 回归，不冒充反事实评估。
 - 版本可审计、可回滚，失败候选不进入生产。
 
 ## 09 真实现状：闭环已通，可信数据仍是瓶颈

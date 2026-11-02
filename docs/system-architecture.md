@@ -220,9 +220,10 @@ python3 -m audit_rsi label-merge --pool rsi/verification-experience.jsonl --labe
 python3 -m audit_rsi verify-train --pool rsi/verification-experience-labeled.jsonl --output rsi/verification-policy.json --holdout-project <project>
 python3 -m audit_rsi verify-shadow --pool rsi/verification-experience-labeled.jsonl --train rsi/verification-policy.json --output ui/data/verification-shadow.json
 python3 -m audit_rsi verify-replay --pool rsi/verification-experience-labeled.jsonl --train rsi/verification-policy.json --holdout-project <project> --output rsi/verification-replay.json
+python3 -m audit_rsi verify-flips --baseline <baseline.jsonl> --candidate <candidate.jsonl> --holdout-project <project> --output rsi/verification-flips.json
 ```
 
-unknown 不等于 FP；无合法标注倾向、holdout、标签覆盖或支持度时只输出 insufficient/shadow，不生产 promote。回放只报告 matched-action realized utility，不宣称因果 uplift。版本发布复核统计 gate，失败候选仍可查询和回滚。
+unknown 不等于 FP；无合法标注倾向、holdout、标签覆盖或支持度时只输出 insufficient/shadow，不生产 promote。回放只报告 matched-action realized utility，不宣称因果 uplift。`verify-flips` 按 semantic 比较两个真实经验池的 F→P/P→F、稳定项、配对覆盖和 unknown 转移，用于观测非回归，不把不同 run 的结果解释成反事实或因果效果。版本发布复核统计 gate，失败候选仍可查询和回滚。
 
 经验构建同时读取 `verdict.json`、`verify-report.json` 和 `auto-state.json`：自动路由提供 `deterministic-auto-state` 动作及倾向，verify 提供 static/runtime 结果，不能把有结果但无动作的样本静默丢弃。runtime verify 与人工 curated 可自动获得确定标签来源；static verify 只进入 shadow 学习；judge 仍需独立标签复核，不自动获得 label propensity。
 
