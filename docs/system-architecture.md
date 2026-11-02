@@ -224,6 +224,8 @@ python3 -m audit_rsi verify-replay --pool rsi/verification-experience-labeled.js
 
 unknown 不等于 FP；无合法标注倾向、holdout、标签覆盖或支持度时只输出 insufficient/shadow，不生产 promote。回放只报告 matched-action realized utility，不宣称因果 uplift。版本发布复核统计 gate，失败候选仍可查询和回滚。
 
+经验构建同时读取 `verdict.json`、`verify-report.json` 和 `auto-state.json`：自动路由提供 `deterministic-auto-state` 动作及倾向，verify 提供 static/runtime 结果，不能把有结果但无动作的样本静默丢弃。runtime verify 与人工 curated 可自动获得确定标签来源；static verify 只进入 shadow 学习；judge 仍需独立标签复核，不自动获得 label propensity。
+
 agent 可以辅助做源码级静态标注，但必须使用 `evidence_class=static` 和 `adjudication.method=agent-static`，不能冒充 human/runtime/judge。只有 static 标签时 shadow 明确为 `static-only / no_trusted_utility_targets`，即使训练产生了不同建议，也不得视为已验证提升或生产候选。
 
 ## 10. 运行手册

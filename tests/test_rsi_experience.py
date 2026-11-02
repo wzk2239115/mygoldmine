@@ -225,8 +225,50 @@ def test_verify_runtime_evidence_is_not_downgraded_to_static(tmp_path: Path) -> 
     by_id = {record["occurrence_id"]: record for record in records}
     assert by_id["demo/r1/F-01"]["outcome"]["verdict"] == "runtime-confirmed"
     assert by_id["demo/r1/F-01"]["outcome"]["evidence_class"] == "runtime"
+    assert by_id["demo/r1/F-01"]["label_propensity"] == 1.0
+    assert by_id["demo/r1/F-01"]["source"]["label_assignment"] == "deterministic-runtime-verify"
     assert by_id["demo/r1/F-02"]["outcome"]["verdict"] == "fp"
     assert by_id["demo/r1/F-02"]["outcome"]["evidence_class"] == "runtime"
+    assert by_id["demo/r1/F-02"]["label_propensity"] == 1.0
+    assert by_id["demo/r2/F-01"]["label_propensity"] is None
+
+
+def test_verify_report_artifacts_feed_actionable_experience(tmp_path: Path) -> None:
+    paths = _artifacts(tmp_path)
+    report_path = paths["runs_root"] / "demo" / "r1" / "verify" / "verify-report.json"
+    report_path.write_text(json.dumps({
+        "method": "static-evidence",
+        "results": [
+            {"id": "F-01", "verification": {"status": "confirmed", "method": "runtime-harness"}},
+            {"id": "F-02", "verification": {"status": "confirmed", "method": "static-evidence"}},
+        ],
+    }))
+    by_id = {record["occurrence_id"]: record for record in build_experience(**paths)}
+    assert by_id["demo/r1/F-01"]["action"] == "verify"
+    assert by_id["demo/r1/F-01"]["outcome"]["verdict"] == "runtime-confirmed"
+    assert by_id["demo/r1/F-01"]["label_propensity"] == 1.0
+    assert by_id["demo/r1/F-02"]["outcome"]["verdict"] == "static-supported"
+    assert by_id["demo/r1/F-02"]["label_propensity"] == 1.0
+    assert by_id["demo/r1/F-02"]["source"]["label_assignment"] == "deterministic-static-verify"
+
+
+def test_auto_state_supplies_action_and_policy_without_refine_trace(tmp_path: Path) -> None:
+    paths = _artifacts(tmp_path)
+    paths["refine_path"].write_text("")
+    paths["auto_path"] = tmp_path / "auto-state.json"
+    paths["auto_path"].write_text(json.dumps({
+        "findings": {"demo/r1/F-01": {"status": "reproduce", "source": "verify"}}
+    }))
+    record = next(
+        item
+        for item in build_experience(**paths)
+        if item["occurrence_id"] == "demo/r1/F-01"
+    )
+    assert record["action"] == "verify"
+    assert record["action_propensity"] == 1.0
+    assert record["policy"] == "deterministic-auto-state"
+    assert record["source"]["trajectory"] == "auto"
+    assert record["label_propensity"] == 1.0
 
 
 def test_unknown_and_inconclusive_never_become_fp(tmp_path: Path) -> None:
@@ -288,6 +330,8 @@ def test_scoped_validation_matches_only_its_occurrence(tmp_path: Path) -> None:
     by_id = {record["occurrence_id"]: record for record in records}
     assert by_id["demo/r2/F-01"]["outcome"]["verdict"] == "judge-approved"
     assert by_id["demo/r2/F-01"]["outcome"]["evidence_class"] == "judge"
+    assert by_id["demo/r2/F-01"]["label_propensity"] is None
+    assert by_id["demo/r2/F-01"]["source"]["label_assignment"] == "review-required"
     assert by_id["demo/r1/F-01"]["outcome"]["verdict"] == "static-supported"
 
 

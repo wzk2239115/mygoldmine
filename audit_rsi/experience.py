@@ -202,6 +202,28 @@ def _load_verify(run_dir: Path) -> dict[str, dict[str, Any]]:
                     finding_id = finding.get("id")
             if finding_id:
                 result[_string(finding_id)] = item
+        for path in sorted(run_dir.glob("**/verify/**/verify-report.json")):
+            payload = _load_json(path, {})
+            if not isinstance(payload, Mapping):
+                continue
+            for entry in payload.get("results", []):
+                if not isinstance(entry, Mapping):
+                    continue
+                finding_id = entry.get("id") or entry.get("finding_id")
+                verification = entry.get("verification")
+                verification = verification if isinstance(verification, Mapping) else {}
+                if finding_id:
+                    result[_string(finding_id)] = {
+                        "verdict": verification.get("status") or entry.get("verdict"),
+                        "method": (
+                            verification.get("method")
+                            or entry.get("method")
+                            or payload.get("method")
+                        ),
+                        "evidence_class": (
+                            entry.get("evidence_class") or payload.get("evidence_class")
+                        ),
+                    }
     return result
 
 
@@ -301,6 +323,18 @@ def _better_outcome(current: dict[str, Any], candidate: dict[str, str]) -> dict[
     if rank[candidate["evidence_class"]] < rank[current["evidence_class"]]:
         return current
     return {**candidate, "reward_eligible": False}
+
+
+def _automatic_label_assignment(outcome: Mapping[str, Any]) -> tuple[float | None, str]:
+    if outcome.get("verdict") == "unknown":
+        return None, "unknown-outcome"
+    if outcome.get("origin") == "verify" and outcome.get("evidence_class") == "runtime":
+        return 1.0, "deterministic-runtime-verify"
+    if outcome.get("origin") == "verify" and outcome.get("evidence_class") == "static":
+        return 1.0, "deterministic-static-verify"
+    if outcome.get("origin") == "curated" and outcome.get("evidence_class") == "human":
+        return 1.0, "manual-curation"
+    return None, "review-required"
 
 
 def _entry_in_scope(
@@ -411,6 +445,7 @@ def write_experience(records: Iterable[Mapping[str, Any]], path: str | Path) -> 
 def build_experience(
     ledger_path: str | Path = REPO_ROOT / "ui" / "data" / "finding-ledger.json",
     refine_path: str | Path | None = REPO_ROOT / "rsi" / "trajectories" / "refine.jsonl",
+    auto_path: str | Path | None = REPO_ROOT / "ui" / "data" / "auto-state.json",
     validation_path: str | Path | None = REPO_ROOT / "rsi" / "trajectories" / "validation.jsonl",
     curated_path: str | Path | None = REPO_ROOT / "ui" / "data" / "curated.json",
     handoff_path: str | Path | None = REPO_ROOT / "docs" / "cve-handoff.json",
@@ -434,6 +469,9 @@ def build_experience(
     latest_refine: dict[tuple[str, str, str], Mapping[str, Any]] = {}
     for row in refine_rows:
         latest_refine[_occurrence_key(row)] = row
+    auto_payload = _load_json(auto_path, {})
+    auto_states = auto_payload.get("findings", {}) if isinstance(auto_payload, Mapping) else {}
+    auto_states = auto_states if isinstance(auto_states, Mapping) else {}
     validation_occurrence, validation_semantic = _validation_indexes(
         _load_jsonl(validation_path), occurrences
     )
@@ -457,7 +495,13 @@ def build_experience(
         run_id = _string(occurrence.get("run_id"))
         finding_id = _finding_id(occurrence)
         trajectory = latest_refine.get((project, run_id, finding_id))
-        decision = _string(trajectory.get("decision")).lower() if trajectory else ""
+        auto = auto_states.get(occurrence_id) or auto_states.get(semantic_id)
+        auto = auto if isinstance(auto, Mapping) else None
+        decision = (
+            _string(trajectory.get("decision")).lower()
+            if trajectory
+            else _string((auto or {}).get("status")).lower()
+        )
         explicit_action = bool(trajectory and "action" in trajectory)
         if explicit_action:
             requested_action = _string(trajectory.get("action"))
@@ -467,12 +511,16 @@ def build_experience(
         if trajectory and "action_propensity" in trajectory:
             propensity = _number(trajectory.get("action_propensity"))
             action_propensity = propensity if propensity is not None and propensity <= 1 else None
+        elif trajectory or auto:
+            action_propensity = 1.0 if action else None
         else:
-            action_propensity = 1.0 if action and not explicit_action else None
+            action_propensity = None
         if trajectory and "policy" in trajectory:
             policy = trajectory["policy"]
-        elif action and not explicit_action:
+        elif trajectory and action and not explicit_action:
             policy = "deterministic-legacy-refine"
+        elif auto and action:
+            policy = "deterministic-auto-state"
         else:
             policy = None
 
@@ -498,12 +546,14 @@ def build_experience(
         curated_entry = _curated_for(occurrence, curated, unscoped_ok)
         outcome = _better_outcome(outcome, _human_outcome(curated_entry))
 
+        label_propensity, label_assignment = _automatic_label_assignment(outcome)
         cost, observed_cost = _cost(trajectory)
         source = {
-            "trajectory": "refine" if trajectory else "ledger",
+            "trajectory": "refine" if trajectory else "auto" if auto else "ledger",
             "decision": decision or None,
             "outcome_sources": [outcome["origin"]] if outcome.get("origin") else [],
             "label_scope": outcome.get("label_scope"),
+            "label_assignment": label_assignment,
             "cost_estimated": len(observed_cost) != 4,
             "cost_observed": observed_cost,
             "semantic_occurrence_count": semantic_counts[semantic_id],
@@ -525,7 +575,7 @@ def build_experience(
                 "action": action,
                 "context": _context(occurrence, trajectory),
                 "action_propensity": action_propensity,
-                "label_propensity": None,
+                "label_propensity": label_propensity,
                 "outcome": outcome,
                 "cost": cost,
                 "policy": policy,
