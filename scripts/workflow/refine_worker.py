@@ -119,18 +119,18 @@ def classify(item, patch, value, dup):
     severity = item.get("severity") or "info"
     verify_verdict = base.finding_ledger.normalized_verdict(patch.get("verifyVerdict"))
     if patch.get("cveTier") in (1, 2):
-        return "reproduce", "自动精炼：CVE Tier 候选，进入去重/复现", ""
+        return "reproduce", "自动分类：CVE Tier 候选，进入去重/验证", ""
     if verify_verdict in base.finding_ledger.CONFIRMED_VERDICTS:
-        return "reproduce", "自动精炼：已有 confirmed verify 记录", ""
+        return "reproduce", "自动分类：已有 confirmed verify 记录", ""
     if dup and severity in {"critical", "high"}:
-        return "triage", "自动精炼：高危弱指纹疑似重复，保留人工分诊", ""
+        return "triage", "自动分类：高危弱指纹疑似重复，保留人工分诊", ""
     if dup:
-        return "archived", "自动精炼：与已有 finding 重复", dup
+        return "archived", "自动分类：与已有 finding 重复", dup
     if severity in {"critical", "high"}:
-        return "triage", "自动精炼：Critical/High 入队，等待人工分诊", ""
+        return "triage", "自动分类：Critical/High 入队，等待人工分诊", ""
     if value >= 40:
-        return "triage", "自动精炼：证据评分达到分诊门槛", ""
-    reason = "自动精炼：未达晋级门槛（低优先级/证据不足）"
+        return "triage", "自动分类：证据评分达到分诊门槛", ""
+    reason = "自动分类：未达晋级门槛（低优先级/证据不足）"
     return "archived", reason, ""
 
 

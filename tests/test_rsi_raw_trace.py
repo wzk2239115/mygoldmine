@@ -331,4 +331,4 @@ def test_refine_log_has_identity_action_and_provenance_without_changing_decision
     assert row["context"]["verification"] == row["features"]
     assert row["context"]["source_hash"] == row["source_hash"]
     assert row["features"]["verify_verdict"] == "confirmed"
-    assert row["reason"] == "自动精炼：已有 confirmed verify 记录"
+    assert row["reason"] == "自动分类：已有 confirmed verify 记录"

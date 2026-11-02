@@ -202,8 +202,8 @@ export default function Sidebar({ board, filters, setFilters, facets }) {
             {filters.hideInbox ? <Check size={12} aria-hidden="true" /> : null}
           </span>
           <span>
-            <strong>隐藏原始池</strong>
-            <small>已自动评分，未晋级的不占主视图</small>
+            <strong>隐藏未处理候选</strong>
+            <small>已自动评分、尚未进入下一阶段的不占主视图</small>
           </span>
         </button>
       </div>

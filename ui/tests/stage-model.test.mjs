@@ -43,6 +43,6 @@ test('every non-archived stage count matches its filtered list', () => {
 });
 
 test('stage metadata falls back safely', () => {
-  assert.equal(stageMeta('raw').label, '原矿');
+  assert.equal(stageMeta('raw').label, '未处理候选');
   assert.equal(stageMeta('unknown').id, 'raw');
 });

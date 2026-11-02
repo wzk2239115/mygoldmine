@@ -25,15 +25,15 @@ export default function RefineryStrip({ stats, stageStats = stats, activeStage, 
   const status = stageStats.status || {};
   const raw = stageCount(stageStats, 'raw');
   const stages = [
-    { id: 'raw', icon: Boxes, label: '原矿', value: raw, hint: `原始池 ${status.inbox || 0} · 已归档 ${status.archived || 0} 仅统计`, tone: 'muted' },
+    { id: 'raw', icon: Boxes, label: '未处理候选', value: raw, hint: `未处理候选（inbox） ${status.inbox || 0} · 已归档 ${status.archived || 0} 仅统计`, tone: 'muted' },
     { id: 'triage', icon: Filter, label: '分诊', value: status.triage || 0, hint: 'Critical/High 自动入队', tone: 'cool' },
-    { id: 'reproduce', icon: GitBranch, label: '复现', value: status.reproduce || 0, hint: '已有 verify 记录', tone: 'amber' },
+    { id: 'reproduce', icon: GitBranch, label: '待验证', value: status.reproduce || 0, hint: 'CVE Tier 候选或 confirmed verify；等待验证（尚未复现）', tone: 'amber' },
     { id: 'cve', icon: ShieldCheck, label: 'CVE 跟踪', value: status.cve || 0, hint: '去重、披露、CNA', tone: 'hot' },
     { id: 'review', icon: BadgeCheck, label: '待验收', value: stageStats.reviewReady || 0, hint: '红队 flag + judge + 图文报告', tone: 'green' },
     { id: 'closed', icon: Archive, label: '已关闭', value: status.closed || 0, hint: '误报、重复、已知 CVE 或设计限制', tone: 'muted' }
   ];
   return (
-    <section className={landing ? "refinery-strip is-landing" : "refinery-strip"} aria-label="精炼管线">
+    <section className={landing ? "refinery-strip is-landing" : "refinery-strip"} aria-label="自动分类管线">
       <img className="refinery-art" src="/refinery-hero.webp" alt="" aria-hidden="true" />
       <div className="refinery-shade" />
       <div className="refinery-track" aria-label="流程计数">

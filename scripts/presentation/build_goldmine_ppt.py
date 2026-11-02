@@ -216,7 +216,7 @@ class Deck:
 
     def flywheel(self, number):
         shapes, rels = [], []
-        self.header(shapes, "RSI 飞轮：经验怎样变成下一次更好的行动", number)
+        self.header(shapes, "RSI 学习流程：经验怎样变成下一次更好的行动", number)
         shapes.append(text_box(6, 0.58, 1.47, 12.0, 0.3, "RSI 就是“根据真实结果持续改进”，不是让模型随意改写自己", size=14, color=COLORS["muted"], bold=True))
         nodes = [
             (0.7, 1.95, "01 留下真实经历", "看到什么 · 做了什么 · 结果与成本", COLORS["blue"]),
@@ -239,9 +239,9 @@ class Deck:
             (2.15, 3.4, 0.45, 0.95, "upArrow"),
         ]):
             shapes.append(arrow(60 + index, x, y, w, h, direction, COLORS["gold"]))
-        shapes.append(text_box(70, 3.5, 3.55, 6.35, 0.7, "飞轮转动的条件：有真实经验 → 有可靠答案 → 通过独立考试\n任何一步证据不足，都只保留建议，不强行自动改进", size=14, color=COLORS["ink"], bold=True))
+        shapes.append(text_box(70, 3.5, 3.55, 6.35, 0.7, "学习流程持续的条件：有真实经验 → 有可靠答案 → 通过独立检查\n任何一步证据不足，都只保留建议，不强行自动改进", size=14, color=COLORS["ink"], bold=True))
         shapes.append(rect(80, 0.62, 6.25, 12.1, 0.55, COLORS["gold_light"], COLORS["gold"]))
-        shapes.append(text_box(81, 0.86, 6.4, 11.65, 0.28, "当前高等级可信标签为 0：第 06 步尚未开放；图中回流是目标工作方式，不是生产现状", size=13, color=COLORS["red"], bold=True))
+        shapes.append(text_box(81, 0.86, 6.4, 11.65, 0.28, "当前高等级可信标签为 0：第 06 步尚未开放；图中结果回写是目标工作方式，尚未接入，不是生产现状", size=13, color=COLORS["red"], bold=True))
         return slide_xml(shapes), rels
 
     def metrics(self, number, title, metrics, bullets):
@@ -300,13 +300,13 @@ def build():
         ("分析 Skill", "提供某类漏洞的检查清单；它提供视角，不替 Agent 宣布漏洞成立。", COLORS["green"]),
         ("报告 Skill", "统一报告字段和表达方式，只汇总已有发现，不补造证据。", COLORS["blue"]),
         ("沙箱脚本", "负责隔离、工作副本和环境复用；它不管漏洞判断是否专业。", COLORS["blue"]),
-        ("精炼 Worker", "负责合并身份、去重和路由；它不能替人工完成最终验收。", COLORS["gold"]),
+        ("自动分类 Worker", "负责合并身份、去重和路由；它不能替人工完成最终验收。", COLORS["gold"]),
         ("红队 Lab Skill", "规定隔离、随机标记和负控；不支持的执行方式必须明确停下。", COLORS["red"]),
     ], columns=3, footer="具体脚本与 Skill 路径统一放在末页；这里先听懂每个角色负责什么", body_size=15, title_size=17))
     slides.append(deck.cards(4, "2026 年研究地图：从自我反思走向受控闭环", [
         ("Self-Harness", "共性弱点 → 最小 harness 修改 → 留出项目非回归。\n下一页：为什么只改外部执行框架。", COLORS["gold"]),
         ("AgentDevel", "把 agent 当发布制品，逐项检查 P→F / F→P。\n第 6 页：为什么不能只看平均分。", COLORS["blue"]),
-        ("MASS", "多角色工作流搜索，优质团队轨迹回流训练。\n第 7 页：协作经验怎样变成训练数据。", COLORS["green"]),
+        ("MASS", "多角色工作流搜索，优质团队轨迹写回训练。\n第 7 页：协作经验怎样变成训练数据。", COLORS["green"]),
         ("HELIX", "模型–harness 共进化，保留 verified siblings。\n第 8 页：为什么执行框架决定能学到什么。", COLORS["gold"]),
         ("DiscoveryRSI", "假设信用、workflow replay 与 rediscovery。\n第 9 页：怎样让发现能力逐轮增强。", COLORS["blue"]),
     ], columns=3, footer="接下来五页逐篇速览；论文结果用于指导设计，不直接外推为 GoldMine 的生产效果"))
@@ -323,12 +323,12 @@ def build():
     ))
     slides.append(deck.hero(
         7, "MASS：让多角色协作轨迹成为训练经验",
-        ["问题：单个 agent 的探索路径有限，团队怎样分工也需要搜索", "方法：同一基座扮演多个角色，交替进行工作流搜索、自评估与训练", "结果：优质团队轨迹回流；论文在四个开放研究基准报告每输出 token 得分为基座 1.2–1.6 倍", "GoldMine：分离 attacker / victim / judge 轨迹；自评不能替代真实 flag 与独立 judge"],
+        ["问题：单个 agent 的探索路径有限，团队怎样分工也需要搜索", "方法：同一基座扮演多个角色，交替进行工作流搜索、自评估与训练", "结果：优质团队轨迹写回；论文在四个开放研究基准报告每输出 token 得分为基座 1.2–1.6 倍", "GoldMine：分离 attacker / victim / judge 轨迹；自评不能替代真实 flag 与独立 judge"],
         paper_art / "mass.webp", "多智能体自评可能强化共同盲点，独立证据必须留在闭环里",
     ))
     slides.append(deck.hero(
         8, "HELIX：模型与 Harness 共同进化",
-        ["核心观点：harness 不只决定今天怎么执行，也决定明天能留下什么经验", "方法：构建、更新、重建执行框架，使其与模型能力变化相匹配", "数据：保留 verified siblings——成功、回归、近失和替代方案；200 组配对样本形成 438 条学习记录", "GoldMine：保存配对结果与证据血缘；未来模型更新后重新评估并重建 harness"],
+        ["核心观点：harness 不只决定今天怎么执行，也决定明天能留下什么经验", "方法：构建、更新、重建执行框架，使其与模型能力变化相匹配", "数据：保留 verified siblings——成功、回归、近失和替代方案；200 组配对样本形成 438 条学习记录", "GoldMine：保存配对结果与证据来源链；未来模型更新后重新评估并重建 harness"],
         paper_art / "helix.webp", "不是只保留成功答案，而是保留可比较、可回放的完整证据平面",
     ))
     slides.append(deck.hero(
@@ -394,7 +394,7 @@ def build():
         ("0", "高等级可信标签：不能生产发布", COLORS["red"]),
         ("只读", "当前只给建议，不自动改变流程", COLORS["gold"]),
         ("未证明", "还没有跨项目的可靠提升证据", COLORS["blue"]),
-    ], ["先补真实运行、独立审核与人工标签，再讨论自动改进。", "留出项目是没参与训练的考试题；影子模式是只给建议、不动生产。"]))
+    ], ["先补真实运行、独立审核与人工标签，再讨论自动改进。", "留出项目是没参与训练的考试题；只读建议模式只给建议、不动生产。"]))
     slides.append(deck.cards(20, "GoldMine 怎样逐步增强，而不是一步跳到自动修改", [
         ("短期：补齐真实经验", "积累真实验证和人工结论，让每个动作都能学到可靠结果。", COLORS["green"], art / "cards" / "short-term.webp"),
         ("中期：验证最小改进", "从重复失败生成修改候选，逐项检查是否修复、是否改坏旧能力。", COLORS["gold"], art / "cards" / "mid-term.webp"),

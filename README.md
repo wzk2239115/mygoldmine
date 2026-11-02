@@ -112,14 +112,14 @@ bash scripts/ui/start.sh
 # http://127.0.0.1:8787
 ```
 
-- 六阶段：原矿 / 分诊 / 复现 / CVE 跟踪 / 待验收 / 已关闭。
+- 六阶段：未处理候选 / 分诊 / 待验证 / CVE 跟踪 / 待验收 / 已关闭。
 - 运行中的 run 会在看板顶部出现 LIVE 条：显示状态、耗时、最后一行日志；点开默认看 CCUI 对话，另有 **Agent 拓扑** tab 展示 orchestrator → 边界 agent → critic → verify 的 fan-out。运行视图不会自动重载 iframe；有新轨迹时只显示“有新内容 · 更新”按钮，避免阅读位置被刷新打断。
 - 卡片：严重度、TP/FP/DUP、CVE Tier、证据数；点击或键盘打开详情，在详情中修改状态与判定。
 - 详情：Brief / Evidence / Agent stream；可看原始报告、证据路径、`claude.rendered.log` 尾部。
 - 筛选：目标、严重度、判定、CVE-only、搜索；默认展示全部 finding，不再分精选/CVE/全部三档。
-- 跨 run 台账：`finding_ledger.py` 扫描全部完整有效报告，以 occurrence/semantic 双层身份保留历史独有 finding，并避免同 ID 异义串状态；运行中草稿不替代完整报告。
+- 多轮审计台账：`finding_ledger.py` 扫描全部完整有效报告，以 occurrence/semantic 双层身份保留历史独有 finding，并避免同 ID 异义串状态；运行中草稿不替代完整报告。
 - 自动流转：`scripts/workflow/build_state.py` 合并台账、verify、CVE handoff/adjudication，生成 `ui/data/auto-state.json`；人工状态仍优先，歧义旧 ID 不猜测继承。
-- 精炼漏斗：按 source hash 自动评分和重算，新 confirmed 证据可唤醒归档项；未达门槛的进“原始池”并默认隐藏，高危弱指纹不会直接归档。
+- 自动分类漏斗：按 source hash 自动评分和重算，新 confirmed 证据可触发已归档项重新评估；未达门槛的进入未处理候选（inbox）并默认隐藏，高危弱指纹不会直接归档。
 - 动态验收：红队 flag 必须有真实工具输出 provenance，judge 通过完整 schema 后才具备资格；进入人工待验收还要求图文报告和场景图。
 - 手工状态写入 `ui/data/state.json`，不改原始报告；人工复核种子在 `ui/data/curated.json`，自动路由缓存不提交。
 - 默认只监听 `127.0.0.1`，避免把未修复漏洞细节暴露到网络。
@@ -149,7 +149,7 @@ python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
 
 推荐再加 `VISUAL_AGENTIC=1`：由 `attack-scene-director` 读取 finding/verify/源码证据，先写 attacker/victim 分镜和 prompt，再调用 image2；失败时回退到模板批处理。
 
-看板首页提供轻量 **精炼管线**：原矿/分诊/复现/CVE 跟踪/待验收/已关闭实时计数，以及严重度和判定筛选；叙事插图只保留在项目地图与图文报告中。
+看板首页提供轻量 **自动分类管线**：未处理候选/分诊/待验证/CVE 跟踪/待验收/已关闭实时计数，以及严重度和判定筛选；叙事插图只保留在项目地图与图文报告中。
 
 UI 的 **项目地图** 视图读取 `visual-model.json`，可以点节点直接跳到 finding。
 360 平台已验证 `openai/gpt-image-2` 等图像模型；密钥从 opencode 配置读取，不落库。
@@ -482,7 +482,7 @@ knowledge/
 
 ## Verification-RSI 与可信回放
 
-RSI 当前优先优化已有 finding 的验证资源配置。经验数据保留 occurrence/semantic 身份、动作前特征、动作/标注倾向、证据等级和实际效用；支持分层标注、效用训练、baseline 回放、统计门禁和只读 shadow，不会把未验证策略直接用于生产审计。
+RSI 当前优先优化已有 finding 的验证资源配置。经验数据保留 occurrence/semantic 身份、动作前特征、动作/标注倾向、证据等级和实际效用；支持分层标注、效用训练、baseline 回放、统计门禁和只读建议（shadow），不会把未验证策略直接用于生产审计。当前只读建议模式已跑通，但训练支持 91 条全为 static，可用于动作训练的 trusted 样本为 0；回放状态为 insufficient，没有 flips 产物；发布和结果回写尚未接入 `audit_rsi` CLI。
 
 ```bash
 python3 -m audit_rsi experience-build --runs runs --output rsi/verification-experience.jsonl
@@ -490,7 +490,7 @@ python3 -m audit_rsi label-sample --pool rsi/verification-experience.jsonl --out
 # 人工标注后：label-merge → verify-train → verify-shadow / verify-replay
 ```
 
-数据或 holdout 不足时输出 `insufficient`，shadow 回退 baseline；回放不宣称因果 uplift。完整命令和轨迹契约见 `docs/system-architecture.md` 第 9 节。
+数据或 holdout 不足时输出 `insufficient`，只读建议回退 baseline；回放不宣称因果 uplift。完整命令和轨迹契约见 `docs/system-architecture.md` 第 9 节。
 
 ## 完整流水线：run.sh
 
@@ -593,7 +593,7 @@ python3 scripts/watch/watch.py brief
 ## 测试与报告质量
 
 ```bash
-# 前端单元测试：阶段计数、reviewReady 归属、原矿只展开 inbox
+# 前端单元测试：阶段计数、reviewReady 归属、未处理候选只展开 inbox
 cd ui && npm test
 
 # 系统测试：自启服务 + headless Chrome，验证流程计数、阶段切换和项目筛选联动
@@ -607,7 +607,7 @@ python3 scripts/mine/check_report.py --report runs/<project>/<run>/audit-report.
 ```
 
 `report_quality.py` 输出 `ui/data/report-quality.json` 和 `runs/report-quality.md`；
-系统语言为中文时，英文 `title` 会标记为 `titleLanguage` 缺失，不再静默进入分诊/复现。
+系统语言为中文时，英文 `title` 会标记为 `titleLanguage` 缺失，不再静默进入分诊/待验证。
 
 ## 目录结构
 

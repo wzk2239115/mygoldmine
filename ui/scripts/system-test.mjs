@@ -206,22 +206,22 @@ async function main() {
 
     await cdp.evaluate("document.querySelectorAll('.arch-zone-card')[4].click()");
     await sleep(150);
-    assert.equal(await cdp.evaluate("document.querySelector('.arch-zone-hero h2').innerText"), 'RSI 学习闭环');
-    assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-why').innerText"), /为什么能形成 RSI 学习闭环/);
+    assert.equal(await cdp.evaluate("document.querySelector('.arch-zone-hero h2').innerText"), 'RSI 学习流程（只读建议）');
+    assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-why').innerText"), /为什么能形成 RSI 学习流程/);
     const boundaryText = await cdp.evaluate("document.querySelector('.arch-rsi-boundary').innerText");
     assert.match(boundaryText, /只学习、只建议，不自动改生产/);
-    assert.match(boundaryText, /高等级可信标签：0/);
+    assert.match(boundaryText, /可用于动作训练的 trusted 样本：0/);
     assert.match(boundaryText, /不证明因果/);
     assert.match(boundaryText, /不自动修改/);
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.arch-rsi-step .arch-stage p')).fontSize"), '15px');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-loop .arch-stage').length"), 6);
     assert.deepEqual(await cdp.evaluate("[...document.querySelectorAll('.arch-rsi-loop .arch-stage h3')].map((node) => node.innerText)"), [
-      '真实轨迹', '可信标签', '效用学习', 'Holdout + Flips 评估', 'Shadow 建议', '受控执行回流'
+      '真实轨迹', '可信标签', '效用学习', 'Holdout + Flips 评估', '只读建议（shadow）', '结果回写（尚未接入）'
     ]);
     assert.equal(await cdp.evaluate("[...document.querySelectorAll('.arch-rsi-loop .arch-stage')].every((node) => node.tagName === 'BUTTON' && node.getAttribute('aria-label').includes('实现细节'))"), true);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-step > svg').length"), 4);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-loop-links span').length"), 2);
-    assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-loop-links').innerText"), /回流到 01/);
+    assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-loop-links').innerText"), /尚未接入/);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-node').length"), 2);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-track > svg').length"), 2);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-node > svg').length"), 1);
@@ -333,7 +333,7 @@ async function main() {
       await sleep(200);
     }
     const rawCard = await cdp.evaluate("[...document.querySelectorAll('.refinery-strip.is-landing .refinery-stage')].map(x => x.innerText)");
-    assert.match(rawCard[0], /原矿/);
+    assert.match(rawCard[0], /未处理候选/);
     assert.match(rawCard[0], new RegExp(String(inbox)));
     assert.doesNotMatch(rawCard[0], /723/);
 
@@ -341,7 +341,7 @@ async function main() {
     await sleep(500);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.stage-view').length"), 1);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-stage.is-active').length"), 1);
-    assert.match(await cdp.evaluate("document.querySelector('.refinery-stage.is-active').innerText"), /原矿/);
+    assert.match(await cdp.evaluate("document.querySelector('.refinery-stage.is-active').innerText"), /未处理候选/);
     assert.equal(Number(await cdp.evaluate("document.querySelector('.stage-count').innerText")), inbox);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.stage-view .finding-card').length"), inbox);
     if (inbox) {

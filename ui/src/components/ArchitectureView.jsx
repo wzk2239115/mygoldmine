@@ -66,7 +66,7 @@ const MINING_STAGES = [
     title: '发布到下游',
     icon: ShieldCheck,
     tone: 'green',
-    body: '只有完整有效报告才进入 Finding Ledger；随后接入 Phase 4 验证、视觉报告、自动状态和精炼，而不是直接推给人工。',
+    body: '只有完整有效报告才进入 Finding Ledger；随后接入 Phase 4 验证、视觉报告、自动状态和自动分类，而不是直接推给人工。',
     artifact: 'Finding Ledger → Phase 4 → refine'
   }
 ];
@@ -77,12 +77,12 @@ const STAGES = [
     title: '报告与台账',
     icon: FileCode2,
     tone: 'ink',
-    body: '只接收完整有效的审计报告；occurrence 定位单次观测，semantic 汇聚跨 run 的同一语义，草稿不会覆盖历史。',
+    body: '只接收完整有效的审计报告；occurrence 定位单次观测，semantic 汇聚多轮审计中的同一语义，草稿不会覆盖历史。',
     artifact: 'runs/*/*/audit-report.json → finding-ledger.json'
   },
   {
     code: '02',
-    title: '自动精炼',
+    title: '自动分类',
     icon: ScanSearch,
     tone: 'blue',
     body: '评分、去重、证据门槛和批量 worker。低价值项归档，不等同于安全；高价值项进入分诊。',
@@ -90,7 +90,7 @@ const STAGES = [
   },
   {
     code: '03',
-    title: '验证 / 复现',
+    title: '验证 / 待验证',
     icon: ShieldCheck,
     tone: 'amber',
     body: 'verify-agent 生成最小 harness，记录 confirmed / blocked / inconclusive，并保留证据与限制。',
@@ -137,8 +137,8 @@ const COMPONENTS = [
   },
   {
     icon: Workflow,
-    title: '精炼 worker',
-    body: '按 source hash 重算路由；confirmed 可唤醒归档，高危弱指纹只进入重复候选而不直接归档。',
+    title: '自动分类 worker',
+    body: '按 source hash 重算路由；confirmed 可让归档项重新进入队列，高危弱指纹只进入重复候选而不直接归档。',
     code: 'scripts/workflow/refine_worker.py'
   },
   {
@@ -179,7 +179,7 @@ const RSI_STAGES = [
     title: '真实轨迹',
     icon: Workflow,
     tone: 'blue',
-    body: '把真实验证与红队行动整理成带身份、动作前上下文、成本和血缘的经验，不从最终报告反推探索过程。',
+    body: '把真实验证与红队行动整理成带身份、动作前上下文、成本和证据来源链的经验，不从最终报告反推探索过程。',
     artifact: 'rsi/verification-experience.jsonl · redteam-experience.jsonl'
   },
   {
@@ -195,7 +195,7 @@ const RSI_STAGES = [
     title: '效用学习',
     icon: Sparkles,
     tone: 'violet',
-    body: '比较五种验证动作的收益与成本，学习怎样选择更划算，而不是模仿历史报告。',
+    body: '固定五动作词表；当前只有 deep_read 和 defer 有样本，比较收益与成本，而不是模仿历史报告。',
     artifact: 'verify / deep_read / human_review / duplicate_candidate / defer'
   },
   {
@@ -208,15 +208,15 @@ const RSI_STAGES = [
   },
   {
     code: '05',
-    title: 'Shadow 建议',
+    title: '只读建议（shadow）',
     icon: Bot,
     tone: 'violet',
-    body: '只给建议，不改流程。高等级可信标签为 0 时仍然只读，不能进入生产。',
+    body: '只给建议，不改流程。可用于动作训练的 trusted 样本为 0 时仍然只读，不能进入生产。',
     artifact: 'ui/data/verification-shadow.json'
   },
   {
     code: '06',
-    title: '受控执行回流',
+    title: '结果回写（尚未接入）',
     icon: ShieldCheck,
     tone: 'green',
     body: '候选通过独立考试与发布复核后才采用；采用后的真实结果再成为下一轮经验。',
@@ -249,8 +249,8 @@ const STAGE_SUMMARIES = {
   'Deadline 与恢复': '统一预算，复用成果续跑',
   '发布到下游': '完整报告才进入流水线',
   '报告与台账': '给每次发现建立稳定身份',
-  '自动精炼': '去重、评分、归档与分诊',
-  '验证 / 复现': '用最小 harness 验证候选',
+  '自动分类': '去重、评分、归档与分诊',
+  '验证 / 待验证': '用最小 harness 验证候选',
   'CVE 去重': '确认是否已知与受影响',
   '红队 lab': '隔离环境捕获真实 flag',
   'Judge / 验收': '独立审核后才交给人工',
@@ -258,14 +258,14 @@ const STAGE_SUMMARIES = {
   '可信标签': '分清 trusted、static 与 unknown',
   '效用学习': '按动作学习收益减去成本',
   'Holdout + Flips 评估': '独立对照与非回归观测',
-  'Shadow 建议': '只给建议，不改变生产状态',
-  '受控执行回流': '过门后执行，新结果再学习'
+  '只读建议（shadow）': '只给建议，不改变生产状态',
+  '结果回写（尚未接入）': '通过检查后执行；结果回写尚未接入'
 };
 
 const COMPONENT_SUMMARIES = {
-  'Finding Ledger': '跨 run 的发现身份与历史',
+  'Finding Ledger': '多轮审计的发现身份与历史',
   '状态编译器': '把证据编译为流程状态',
-  '精炼 worker': '持续执行自动路由',
+  '自动分类 worker': '持续执行自动路由',
   '持久化恢复': '复用成果，恢复中断',
   'Lab builder': '构建与校验隔离场景',
   'Red-team runner': '执行受限攻击并留痕',
@@ -289,9 +289,9 @@ const ZONES = [
   },
   {
     id: 'pipeline',
-    title: '精炼与验证',
+    title: '自动分类与验证',
     subtitle: '从原始 finding 到可验证候选',
-    description: '台账、自动精炼、verify 和 CVE 去重如何逐步收敛候选。',
+    description: '台账、自动分类、verify 和 CVE 去重如何逐步收敛候选。',
     image: '/architecture/refinery.webp',
     icon: ScanSearch,
     tone: 'amber',
@@ -313,16 +313,16 @@ const ZONES = [
     id: 'components',
     title: '核心组件',
     subtitle: '数据、状态、路由、恢复与表达',
-    description: '支撑整条流水线的台账、状态编译、精炼 worker、持久化恢复和视觉报告。',
+    description: '支撑整条流水线的台账、状态编译、自动分类 worker、持久化恢复和视觉报告。',
     image: '/architecture/components.webp',
     icon: Layers3,
     tone: 'ink',
     stages: [],
-    components: COMPONENTS.filter((item) => ['Finding Ledger', '状态编译器', '精炼 worker', '持久化恢复', '视觉报告'].includes(item.title))
+    components: COMPONENTS.filter((item) => ['Finding Ledger', '状态编译器', '自动分类 worker', '持久化恢复', '视觉报告'].includes(item.title))
   },
   {
     id: 'learning',
-    title: 'RSI 学习闭环',
+    title: 'RSI 学习流程（只读建议）',
     subtitle: '让每次验证成为下一次选择的经验',
     description: '从真实经历中学习怎样选择，再用独立考试管住改进；当前只给建议，不自动改变生产。',
     image: '/architecture/rsi-flywheel.webp',
@@ -380,29 +380,29 @@ bash run.sh --verify-only <run>`
   },
   '发布到下游': {
     input: '完整有效报告、环境镜像和现有历史台账',
-    output: 'Finding Ledger、Phase 4 验证、视觉产物、自动/精炼状态',
+    output: 'Finding Ledger、Phase 4 验证、视觉产物、自动状态与自动分类状态',
     source: 'run.sh · scripts/workflow/finding_ledger.py · build_state.py',
     checks: ['只有完整有效报告能替换最新发布状态。', 'Phase 4 验证与静态挖掘分离，env blocked 不伪装 ready。', 'UI 必须读取新台账与状态产物，不能只重新构建静态页面。'],
     failure: '报告无效不执行 Phase 4；环境缺失、verify blocked 或后端未加载新产物都保持明确状态。',
-    optimize: '检查发布后的服务重载、worker 存活和新数据唤醒，避免产物已推进而页面仍停留在旧流程。'
+    optimize: '检查发布后的服务重载、worker 存活和新数据触发重算，避免产物已推进而页面仍停留在旧流程。'
   },
   '报告与台账': {
     input: '所有 run 的报告、run-meta、原始 finding 与历史身份',
     output: 'schema v2 occurrence/semantic 台账和 latest_by_project',
     source: 'scripts/workflow/finding_ledger.py · ui/server/finding-ledger.mjs',
-    checks: ['occurrence 精确定位一次观测，semantic 汇聚跨 run 语义。', '历史独有 finding 保留，新 run 不会让它们消失。', '旧 project:id 只有语义唯一时才继承状态。'],
+    checks: ['occurrence 精确定位一次观测，semantic 汇聚多轮审计语义。', '历史独有 finding 保留，新 run 不会让它们消失。', '旧 project:id 只有语义唯一时才继承状态。'],
     failure: '运行中、失败或质量不合格草稿不覆盖最新完整报告；歧义旧 ID 不猜测合并。',
-    optimize: '调整语义指纹时重点回归同 ID 异义、跨 run 改路径、历史独有项和状态继承。'
+    optimize: '调整语义指纹时重点回归同 ID 异义、多轮审计改路径、历史独有项和状态继承。'
   },
-  '自动精炼': {
+  '自动分类': {
     input: '最新台账、verify/CVE 证据、人工状态和已有 refine source hash',
     output: 'triage/reproduce/archived 路由、队列统计和决策轨迹',
     source: 'scripts/workflow/refine_worker.py · refine_worker.sh',
-    checks: ['raw 或证据变化会改变 source hash 并触发重算。', 'confirmed 可唤醒归档，高危弱指纹不直接归档。', '人工状态始终高于自动路由，archived 不代表安全。'],
+    checks: ['raw 或证据变化会改变 source hash 并触发重算。', 'confirmed 可让归档项重新进入队列，高危弱指纹不直接归档。', '人工状态始终高于自动路由，archived 不代表安全。'],
     failure: 'lock 防止双实例；--loop 在空队列时等待并继续扫描，新数据到达后自动处理，pause/stop 保留明确控制语义。',
-    optimize: '优先检查 worker 存活、空队列后的唤醒、状态与当前 occurrence 的匹配，再调整评分阈值。'
+    optimize: '优先检查 worker 存活、空队列后的重新扫描、状态与当前 occurrence 的匹配，再调整评分阈值。'
   },
-  '验证 / 复现': {
+  '验证 / 待验证': {
     input: '候选 finding、对应源码 commit、环境镜像和验证预算',
     output: '最小 harness、confirmed/blocked/inconclusive 和证据分类',
     source: 'scripts/verify/auto_verify.sh · run_verify.sh',
@@ -442,11 +442,11 @@ bash run.sh --verify-only <run>`
     failure: '证据不合法或引用无法唯一解析时跳过，不继承给相似 finding。',
     optimize: '修改优先级或门禁时同步 UI 合并顺序、回归测试和架构说明。'
   },
-  '精炼 worker': {
+  '自动分类 worker': {
     input: '最新台账、证据 patch、source hash 和人工优先级',
     output: 'refine-state/queue 与 rsi/trajectories/refine.jsonl',
     source: 'scripts/workflow/refine_worker.py',
-    checks: ['每条决策可回放并携带策略版本。', '新证据可唤醒归档，低分归档不删除原报告。', '批处理与 lock 控制资源消耗和并发。'],
+    checks: ['每条决策可回放并携带策略版本。', '新证据可触发已归档项重新评估，低分归档不删除原报告。', '批处理与 lock 控制资源消耗和并发。'],
     failure: '异常或暂停不伪造完成；空队列后的持续监听是新数据自动推进的关键。',
     optimize: '先看路由是否执行及生效，再看评分策略；同时检查队列统计与 UI 当前台账是否一致。'
   },
@@ -460,11 +460,11 @@ bash run.sh --verify-only <run>`
   },
   '真实轨迹': {
     input: 'Finding Ledger、refine/verify 产物、真实 stream-json 与红队 run/step 事件',
-    output: '带 occurrence/semantic 身份、pre-action context、动作、倾向、成本、结果与血缘的经验池',
+    output: '带 occurrence/semantic 身份、pre-action context、动作、倾向、成本、结果与证据来源链的经验池',
     source: 'audit_rsi/experience.py · adapters/raw_trace.py · adapters/redteam.py',
     checks: ['只从真实动作与工具事件构建经验，不从最终报告反推探索路径。', '保留 Task/Agent 拓扑、实际成本与证据等级，未知 propensity 保持 null。', '红队 run 结果与 step 工具事件分开记录，不复制 flag 或原始攻击输出。'],
     failure: '篡改轨迹、not_captured 和未复核结果保持 unknown；缺失动作的记录不会凭空进入动作训练。',
-    optimize: '先检查轨迹血缘、身份和动作前特征是否完整，再增加样本；不要用报告文本补造行动历史。'
+    optimize: '先检查轨迹证据来源链、身份和动作前特征是否完整，再增加样本；不要用报告文本补造行动历史。'
   },
   '可信标签': {
     input: '经验池、分层抽样计划、runtime/judge/manual 审核结论与 label propensity',
@@ -490,21 +490,21 @@ bash run.sh --verify-only <run>`
     failure: '项目、标签覆盖或支持不足为 insufficient；出现 P→F 回归为 rejected，均不能生产 promote。',
     optimize: '先检查 holdout 隔离、配对覆盖与 worst slice，再比较效用；不能把不同 run 差异解释为因果提升。'
   },
-  'Shadow 建议': {
+  '只读建议（shadow）': {
     input: '经验池、训练策略、baseline 和 trusted_support / training.status',
-    output: 'recommendation-only 的 verification-shadow.json，逐条保留 baseline/candidate、分数和原因',
+    output: '只读建议（recommendation_only=true）的 verification-shadow.json，逐条保留 baseline/candidate、分数和原因',
     source: 'audit_rsi/verification.py: shadow_payload',
-    checks: ['所有建议都是 recommendation_only=true 且 state_change=none。', 'trusted_support=0 时继续 shadow，状态为 static-only，原因是 no_trusted_utility_targets。', '训练不足时回退 baseline；即使 static-only 产生不同建议，也不代表已验证提升。'],
+    checks: ['所有建议都是 recommendation_only=true（只读建议）且 state_change=none（不改变状态）。', 'trusted_support=0 时继续 shadow，状态为 static-only，原因是 no_trusted_utility_targets。', '训练不足时回退 baseline；即使 static-only 产生不同建议，也不代表已验证提升。'],
     failure: '无 trusted support 不生产 promote，不切换自动路由，也不宣称生产 RSI。',
     optimize: '先补独立 trusted 标签与评估证据，再比较建议质量；不要通过隐藏 static-only 状态制造就绪假象。'
   },
-  '受控执行回流': {
+  '结果回写（尚未接入）': {
     input: 'accepted 评估、不可变候选、产物哈希、发布复核和既有受控执行流程',
     output: '经复核的策略版本，以及执行后产生的新真实轨迹和下一轮经验',
     source: 'audit_rsi/release.py · rsi_version/store.py',
-    checks: ['只有 gate 与 evaluation 均 accepted 且无回归，候选才具备 promote 条件。', '发布复核重算候选完整性和 gate；shadow 建议自身不会调用执行或修改状态。', '回流数据必须来自受控执行后的真实结果，不能拿 replay 预测冒充新经验。'],
-    failure: '门禁不足、身份或哈希不一致均拒绝发布；当前 static-only/shadow 停在学习支路，不进入生产执行。',
-    optimize: '保持候选不可变、执行边界和轨迹血缘可审计；新增自动化前必须先实现明确的人工发布与控制点。'
+    checks: ['只有 gate 与 evaluation 均 accepted 且无回归，候选才具备 promote 条件。', '发布复核重算候选完整性和 gate；只读建议自身不会调用执行或修改状态。', '结果回写数据必须来自受控执行后的真实结果，不能拿 replay 预测冒充新经验。'],
+    failure: '门禁不足、身份或哈希不一致均拒绝发布；当前仅静态证据（static-only）/只读建议模式停在学习支路，不进入生产执行。',
+    optimize: '保持候选不可变、执行边界和轨迹证据来源链可审计；新增自动化前必须先实现明确的人工发布与控制点。'
   },
   '弱点聚类': {
     input: '红队 run 级经验、step 级非零返回码、失败分类、项目类型与成本',
@@ -528,7 +528,7 @@ bash run.sh --verify-only <run>`
     source: '.claude/skills/project-cartographer',
     checks: ['结构树与攻击路径来自结构化模型。', 'AI 插图明确标注非漏洞证据。', '视觉素材服务于人工理解，不能替代 trace/judge。'],
     failure: '图片生成失败保留 SVG 和文本报告，不阻塞安全结论，也不伪造验收素材。',
-    optimize: '优化信息层级和可读性时保持数据血缘，避免视觉叙事超出实际证据。'
+    optimize: '优化信息层级和可读性时保持证据来源链，避免视觉叙事超出实际证据。'
   }
 };
 
@@ -631,12 +631,12 @@ function RsiLearningLoop({ zone, onSelect }) {
       <section className="arch-rsi-why" aria-labelledby="arch-rsi-why-title">
         <div>
           <span className="arch-detail-group">WHY THIS CAN LEARN</span>
-          <h3 id="arch-rsi-why-title">为什么能形成 RSI 学习闭环</h3>
+          <h3 id="arch-rsi-why-title">为什么能形成 RSI 学习流程</h3>
           <p>每次验证都留下经验：当时看到什么、做了什么、结果是否可信、花费多少。系统据此学习怎样选择，再通过独立考试决定建议能否采用，而不是让模型直接改写自己。</p>
         </div>
         <aside className="arch-rsi-boundary" aria-label="当前 RSI 边界">
           <strong>当前：只学习、只建议，不自动改生产</strong>
-          <span>高等级可信标签：<code>0</code></span>
+          <span>可用于动作训练的 trusted 样本：<code>0</code></span>
           <span>回放只看真实结果，不证明因果</span>
           <span>执行框架只生成候选，不自动修改</span>
         </aside>
@@ -646,16 +646,16 @@ function RsiLearningLoop({ zone, onSelect }) {
         <header className="arch-rsi-section-head">
           <div>
             <span className="arch-detail-group">PRIMARY LOOP / 01—06</span>
-            <h3 id="arch-rsi-flywheel-title">验证策略飞轮</h3>
+            <h3 id="arch-rsi-flywheel-title">验证策略学习循环</h3>
           </div>
-          <p>沿箭头从真实经验到受控回流；点击任一步查看实现契约。</p>
+          <p>沿箭头从真实经验到结果回写（尚未接入）；点击任一步查看实现契约。</p>
         </header>
-        <div className="arch-rsi-loop" role="group" aria-label="六步 RSI 学习飞轮，按 01 到 06 执行，再回流到 01">
+        <div className="arch-rsi-loop" role="group" aria-label="六步 RSI 学习流程，按 01 到 06 展示；结果回写尚未接入">
           <div className="arch-rsi-loop-row">
             {zone.stages.slice(0, 3).map((stage, index) => renderStage(stage, index, 'right'))}
           </div>
           <div className="arch-rsi-loop-links" aria-hidden="true">
-            <span><ArrowUp size={20} /> 06 的真实结果回流到 01</span>
+            <span><ArrowUp size={20} /> 06 的真实结果回写（尚未接入）</span>
             <span>04 通过评估才进入建议 <ArrowDown size={20} /></span>
           </div>
           <div className="arch-rsi-loop-row is-reverse">
@@ -670,7 +670,7 @@ function RsiLearningLoop({ zone, onSelect }) {
             <span className="arch-detail-group">SECONDARY LOOP / RED-TEAM HARNESS</span>
             <h3 id="arch-rsi-branch-title">第二条学习支路：从重复失败到最小修改候选</h3>
           </div>
-          <p>主飞轮学习怎样选择；这条支路寻找执行器本身哪里经常出问题。</p>
+          <p>主流程学习怎样选择；这条支路寻找执行器本身哪里经常出问题。</p>
         </header>
         <div className="arch-rsi-branch-track" role="group" aria-label="红队轨迹经过弱点聚类形成 Harness 候选，再接受独立回放与发布复核">
           <div className="arch-rsi-branch-endpoint">

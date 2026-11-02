@@ -3,8 +3,8 @@ import { COLUMNS } from './constants.js';
 export const RAW_STAGE = {
   id: 'raw',
   code: 'RAW',
-  label: '原矿',
-  hint: '原始池；已归档只计入顶部统计，不在这里展开'
+  label: '未处理候选',
+  hint: '未处理候选（inbox）；已归档只计入顶部统计，不在这里展开'
 };
 
 export function stageMeta(stage) {

@@ -31,10 +31,10 @@ export default function StatsStrip({ stats, projects }) {
           hint="所有最新报告中的原始 finding；不是已确认漏洞数"
         />
         <Metric
-          label="原始池"
+          label="未处理候选"
           value={status.inbox || 0}
           suffix={`已归档 ${status.archived || 0}`}
-          hint="尚未晋级；后台精炼 worker 会把未达门槛的 finding 归档并从这里移走"
+          hint="尚未进入下一阶段；后台自动分类 worker 会把未达门槛的候选问题归档并从这里移走"
         />
         <Metric
           label="分诊中"
@@ -43,10 +43,10 @@ export default function StatsStrip({ stats, projects }) {
           hint="Critical/High 自动入队，等待人工判断可达性与设计意图"
         />
         <Metric
-          label="复现中"
+          label="待验证"
           value={status.reproduce || 0}
           tone="amber"
-          hint="已有 verify 记录，等待版本映射或最小 PoC"
+          hint="CVE Tier 候选或 confirmed verify；等待验证（尚未复现）"
         />
         <Metric
           label="CVE 跟踪"

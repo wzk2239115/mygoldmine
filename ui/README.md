@@ -55,20 +55,20 @@ npm run smoke
 - `ui/data/curated.json` 保存人工复核种子；旧 `project:finding-id` 只有语义唯一时才继承，歧义状态不会套到不同 finding。
 - `ui/data/auto-state.json` 合并台账、verify 和 CVE 产物，生成自动路由及 review 资格；红队 review 会重算确定性 flag provenance。
 - `ui/data/state.json` 保存手工改动，优先使用 occurrence_id，旧 API 仍可回退到 project:id。
-- `scripts/workflow/refine_worker.py` 按 source hash 重算原始池，新证据可唤醒归档；轨迹写入 `rsi/trajectories/refine.jsonl`。
+- `scripts/workflow/refine_worker.py` 按 source hash 重算未处理候选，新证据可触发已归档项重新评估；轨迹写入 `rsi/trajectories/refine.jsonl`。
 - 优先级：`state.json` > `curated.json` > `refine-state.json` > `auto-state.json` > 默认 inbox。手工变更不修改原始报告。
 
 ## 列与判定
 
 | 列 | 含义 |
 |---|---|
-| 收件箱 | 未进入流程 |
+| 未处理候选 | 未进入流程 |
 | 分诊 | Critical / High 自动入队；人工判断可达性、重复、设计意图 |
-| 复现 | 已有 verify 记录；补版本映射、环境验证、最小 PoC |
+| 待验证 | CVE Tier 候选或 confirmed verify；等待验证（尚未复现），补版本映射、环境验证或最小 PoC |
 | CVE 跟踪 | 先查 NVD/GHSA/项目公告去重，再披露/CNA |
 | 已关闭 | 误报、重复、已知 CVE、设计限制 |
 
-自动分诊只代表“值得先看”，不等于漏洞成立；`auto` 徽标表示该状态来自产物而不是人工。`原始池` 是自动评分后未达到晋级门槛的 finding，默认隐藏，不是待办。
+自动分诊只代表“值得先看”，不等于漏洞成立；`auto` 徽标表示该状态来自产物而不是人工。`未处理候选`（`inbox`）是自动评分后未达到进入下一阶段条件的候选问题，默认隐藏，不是待办。
 
 `verdict`：`TP` 代码级成立、`FP` 误报、`DUP` 重复、`UNCLEAR` 待定。
 
@@ -78,12 +78,12 @@ npm run smoke
 - **Live mining**：运行中的 run 在看板顶部显示 LIVE 条（状态、耗时、最后一行日志）；点开进入实时日志抽屉，运行状态每 4 秒轮询，报告生成后看板自动重载。
 - **Persistent sandbox**：每个 run 可用 `scripts/env/sandbox.sh` 复用同一工作副本继续 shell 探索和离线 verify；架构页“隔离工作副本”详情提供对应命令。
 - **Table**：按严重度/目标排序，适合批量分诊。
-- **系统架构**：左侧轨道书图标进入三级架构浏览器。第一级以漫画系统地图展示 5 个区域；点击区域进入中层阶段/组件图，再点击节点查看输入输出、设计契约、实现入口、失败语义和优化检查点。“RSI 学习闭环”用带方向与回流箭头的六步飞轮解释真实轨迹、可信标签、效用学习、holdout+flips、shadow 和受控执行，并展示红队“弱点聚类 → Harness 候选”第二支路；页面明确 `trusted_support=0` 时继续 static-only shadow、replay 非因果、harness 不自动修改，当前不是生产 RSI。漫画由 360 平台的 Seedream 生成，只承担叙事，准确结构以可点击节点为准。同步维护要求见根目录 `AGENTS.md`。
+- **系统架构**：左侧轨道书图标进入三级架构浏览器。第一级以漫画系统地图展示 5 个区域；点击区域进入中层阶段/组件图，再点击节点查看输入输出、设计契约、实现入口、失败语义和优化检查点。“RSI 学习流程”用带方向与结果回写箭头的六步流程解释真实轨迹、标签与证据等级、效用学习、holdout+flips、只读建议（shadow）和结果回写，并展示红队“失败分组 → Harness 候选”第二支路；页面明确 `trusted_support=0` 时继续仅静态证据的只读建议、replay 非因果、harness 不自动修改，结果回写尚未接入，当前不是生产 RSI。漫画由 360 平台的 Seedream 生成，只承担叙事，准确结构以可点击节点为准。同步维护要求见根目录 `AGENTS.md`。
 - **Detail drawer**：Brief / Evidence / Agent stream。
   - Brief：改状态、判定、CVE Tier、CVE 状态、关联 CVE、审计备注。
   - Evidence：复制证据路径、打开 `audit-report.md` / `.json`、查看原始 finding JSON。
   - Agent stream：读取 `claude.rendered.log` 尾部，可自动刷新、复制 `run.sh --verify-only` 命令。
-- **Filter**：目标、严重度、判定、CVE-only、待验收、搜索；默认隐藏原始池，只显示已精炼流程。
+- **Filter**：目标、严重度、判定、CVE-only、待验收、搜索；默认隐藏未处理候选，只显示已自动分类流程。
 - **待验收**：只显示通过红队 flag 验证、judge 审核和图文报告门槛的 case；人工在这里做最终验收。
 - 深色/浅色主题；状态与筛选保存在浏览器 localStorage。
 
@@ -104,7 +104,7 @@ npm run smoke
 ## 设计说明
 
 - 交互参考 `siteboon/claudecodeui` 的 workspace shell、侧栏、详情面板和 agent session 组织方式；**没有 vendoring 它的代码**（其许可证为 AGPL-3.0-or-later）。
-- 视觉采用中性浅色工作区：白色内容面、浅灰侧栏、细边框和柔和圆角；颜色主要用于严重度、判定、错误和运行状态，深色主题使用中性炭灰。左侧品牌图标为混元 3D 生成的黄金铲子；首页精炼管线保留 3D 工厂主视觉，进入具体流程后切换为轻量计数面板。
+- 视觉采用中性浅色工作区：白色内容面、浅灰侧栏、细边框和柔和圆角；颜色主要用于严重度、判定、错误和运行状态，深色主题使用中性炭灰。左侧品牌图标为混元 3D 生成的黄金铲子；首页自动分类管线保留 3D 工厂主视觉，进入具体流程后切换为轻量计数面板。
 - 报告是静态分析结果，UI 会明确标注“未运行时验证”。CVE 结论以人工复核和 `docs/cve-handoff.json` 为准。
 
 ## 重置

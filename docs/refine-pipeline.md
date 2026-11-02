@@ -1,15 +1,15 @@
-# 精炼漏斗与自动处理队列
+# 自动分类漏斗与自动处理队列
 
-目标不是把 956 条 finding 全部送进 verify，而是先用低成本策略把明显不值得人工看的条目筛掉，只把少数候选送进复现、CVE 去重和人工验收。
+目标不是把 956 条 finding 全部送进 verify，而是先用低成本策略把明显不值得人工看的条目筛掉，只把少数候选送进待验证、CVE 去重和人工验收。
 
 ```text
 原始 finding
   -> 自动评分 / 去重 / 证据门槛
   -> 未达门槛：archived（归档，不占主视图）
   -> 达标：triage（分诊）
-  -> 有 verify：reproduce（复现）
+  -> confirmed verify 或 CVE Tier：reproduce（待验证）
   -> CVE 候选：cve（去重/跟踪）
-  -> 精品：review（待验收）
+  -> 通过全部自动条件：review（待验收）
   -> 人工最终验收（CVE 去重之后、披露之前）
 ```
 
@@ -34,7 +34,7 @@ bash scripts/workflow/refine_worker.sh once
 
 - `archived`：低优先级、证据不足、重复项；不是“已确认漏洞”。
 - `triage`：Critical、High、评分达到阈值。
-- `reproduce`：已有 verify 记录或 CVE Tier 候选。
+- `reproduce`（待验证）：confirmed verify 记录或 CVE Tier 候选；不表示已经复现。
 - `review`：必须经过红队捕获 flag、独立 judge 审核通过，并且图文报告已生成，才进入人工验收。
 - 人工状态仍然优先于自动状态。
 
@@ -53,4 +53,4 @@ rsi/trajectories/refine.jsonl
 3. 调整阈值和排序策略，减少漏报和无效复现。
 4. 把新策略回放到历史轨迹，再更新 worker。
 
-轨迹是自动化的“经验层”；不是漏洞证据，也不会直接改写 finding 的严重度。
+轨迹是自动化的经验记录；不是漏洞证据，也不会直接改写 finding 的严重度。

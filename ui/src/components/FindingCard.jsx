@@ -50,7 +50,7 @@ export default function FindingCard({ finding, onOpen, onDragStart, onDragEnd })
           </span>
         ) : null}
         {finding.reviewReady ? (
-          <span className="card-review" title={finding.reviewReason || '已精炼，等待人工验收'}>
+          <span className="card-review" title={finding.reviewReason || '已自动分类，等待人工验收'}>
             待验收
           </span>
         ) : null}

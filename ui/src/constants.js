@@ -2,22 +2,22 @@ export const COLUMNS = [
   {
     id: 'inbox',
     code: 'INBOX',
-    label: '收件箱',
-    hint: '未进入流程的新 finding',
+    label: '未处理候选',
+    hint: '未进入流程的候选问题',
     tone: 'neutral'
   },
   {
     id: 'triage',
     code: 'TRIAGE',
     label: '分诊',
-    hint: 'Critical/High 自动入队，等待人工判定',
+    hint: 'Critical/High 自动进入初筛队列，等待人工判定',
     tone: 'cool'
   },
   {
     id: 'reproduce',
     code: 'REPRODUCE',
-    label: '复现',
-    hint: '已有 verify 记录；补充版本映射与最小 PoC',
+    label: '待验证',
+    hint: 'CVE Tier 候选或 confirmed verify；等待验证（尚未复现）',
     tone: 'amber'
   },
   {
