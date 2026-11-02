@@ -197,17 +197,35 @@ lab 由 `redteam-lab-builder` 按 finding 生成到 `labs/<project>/<finding-id>
 
 插图必须标注“AI 插图，非漏洞证据”。视觉素材不能替代 trace 和 judge。
 
-## 9. RSI 回路
+## 9. RSI 学习闭环
 
-当前优先落地 Verification-RSI，而不是把最终报告回放包装成在线发现能力：
+当前实现是 Verification-RSI 的 **shadow 学习闭环**，不是已经接管生产审计的 RSI。它能够学习，是因为真实验证会留下动作前上下文、动作、结果、成本和血缘；策略学习验证动作的效用，独立 holdout 与非回归门禁控制候选能否进入受控执行，而不是让模型直接改写自己或把最终报告回放包装成在线发现能力。
+
+主飞轮保持以下六步，架构页按相同顺序提供可点击实现详情：
 
 ```text
-Finding Ledger + refine/validation + verify/人工标签
-  → verification-experience.jsonl（身份、pre-action context、倾向、效用和血缘）
-  → 分层抽样/人工标签合并
-  → 强正则效用模型 + baseline 对照
-  → 统计门禁 → shadow → 不可变候选版本
+01 真实轨迹（verification/redteam experience）
+  → 02 可信标签（runtime / judge / manual；static 不冒充 trusted）
+  → 03 效用学习（五种动作分别做 ridge utility regression）
+  → 04 holdout + matched-action replay + observed outcome flips
+  → 05 shadow 建议（recommendation_only，state_change=none）
+  → 06 受控执行回流（accepted 候选经发布复核后才可进入既有流程）
+  └──────────────── 新真实结果回到 01
 ```
+
+第 06 步是受控发布路径，不是 shadow 的自动升级。`trusted_support=0` 时仍停留在第 05 步，以 `static-only / no_trusted_utility_targets` 继续生成只读建议，不生产 promote，也不宣称生产 RSI。回放只描述 matched-action realized utility，flips 只描述真实经验池之间的观测变化，两者都不是因果评估。
+
+红队 harness 形成第二条学习支路，与验证动作效用学习分开：
+
+```text
+红队真实 run/step 轨迹
+  → 确定性弱点聚类（失败类别、支持度、成本、editable surface）
+  → 白名单 harness proposal（稳定 candidate_id，mutation=none）
+  → 独立 paired outcome flips + 候选/发布复核
+  → 受控变更后的新红队轨迹
+```
+
+这条支路只生成候选证据与提案，不自动修改 harness；`validated` 也不等于已经发布。
 
 `audit_rsi/adapters/raw_trace.py` 另行把真实 Claude stream-json 转为 action 轨迹，保留 Task/Agent 父子拓扑、实际结果和成本；未知 propensity 保持 null。最终报告重建树只用于旧回放，不能证明未探索分支的发现效果。
 
@@ -294,4 +312,4 @@ python3 scripts/redteam/batch.py
 
 根目录 `AGENTS.md` 定义了同步契约。模块、数据流、finding 身份、状态门禁、API、恢复机制、安全边界或 RSI 发布关系变化时，同一轮修改必须核对本文和 `ui/src/components/ArchitectureView.jsx`；用户入口变化还要核对 README。局部且不改变行为的修复不需要机械更新，但不能保留已知过时描述。
 
-架构页是面向使用者的三级实现摘要：第一级用整体漫画地图展示挖掘工厂、精炼与验证、红队与验收、核心组件、学习与视觉五个区域；第二级只展示该区域的中层阶段和组件；第三级才展示输入输出、设计契约、实现入口、失败语义和优化检查点。漫画由 360 平台的 `bytedance/doubao-seedream-5.0-pro` 生成，仅用于叙事，不代替准确的节点关系或安全证据。本文是面向开发人员的完整契约，两者都不能把计划、静态标签或 shadow 描述成已验证、已发布的生产能力。修改模块职责或契约时，也要同步对应中层节点和实现详情，不能只改视觉或标题。
+架构页是面向使用者的三级实现摘要：第一级用整体漫画地图展示挖掘工厂、精炼与验证、红队与验收、核心组件、RSI 学习闭环五个区域；第二级展示该区域的中层阶段和组件，其中 RSI 区域先用“为什么能学习”与当前 shadow 边界建立整体认识，再用带方向箭头和回流连接的六步飞轮展示主闭环，并单独画出“红队轨迹 → 弱点聚类 → Harness 候选 → 独立评估”的第二支路；第三级才展示输入输出、设计契约、实现入口、失败语义和优化检查点。漫画由 360 平台的 `bytedance/doubao-seedream-5.0-pro` 生成，仅用于叙事，不代替准确的节点关系或安全证据。本文是面向开发人员的完整契约，两者都不能把计划、静态标签或 shadow 描述成已验证、已发布的生产能力。修改模块职责或契约时，也要同步对应中层节点和实现详情，不能只改视觉或标题。

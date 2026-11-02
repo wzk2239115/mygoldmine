@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import {
+  ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowUp,
   BadgeCheck,
   Bot,
   Boxes,
@@ -164,16 +166,78 @@ const COMPONENTS = [
     code: 'scripts/redteam/judge.py'
   },
   {
-    icon: ScanSearch,
-    title: 'Verification-RSI',
-    body: '学习验证动作的效用而非模仿历史；trusted 标签、holdout 和统计门禁不足时只允许 shadow。',
-    code: 'audit_rsi/verification.py · evaluation.py · release.py'
-  },
-  {
     icon: Sparkles,
     title: '视觉报告',
     body: '结构树、覆盖树、攻击路径、attacker/victim 步骤和叙事插图；插图不充当漏洞证据。',
     code: '.claude/skills/project-cartographer'
+  }
+];
+
+const RSI_STAGES = [
+  {
+    code: '01',
+    title: '真实轨迹',
+    icon: Workflow,
+    tone: 'blue',
+    body: '把真实验证与红队行动整理成带身份、动作前上下文、成本和血缘的经验，不从最终报告反推探索过程。',
+    artifact: 'rsi/verification-experience.jsonl · redteam-experience.jsonl'
+  },
+  {
+    code: '02',
+    title: '可信标签',
+    icon: BadgeCheck,
+    tone: 'green',
+    body: '分层抽样并合并 runtime、judge、manual 证据；static 只能辅助 shadow，unknown 不会被当成误报。',
+    artifact: 'rsi/verification-label-plan.jsonl → labeled.jsonl'
+  },
+  {
+    code: '03',
+    title: '效用学习',
+    icon: Sparkles,
+    tone: 'violet',
+    body: '对五种验证动作分别训练 ridge 效用模型，学习收益与成本，而不是模仿历史动作或最终报告。',
+    artifact: 'verify / deep_read / human_review / duplicate_candidate / defer'
+  },
+  {
+    code: '04',
+    title: 'Holdout + Flips 评估',
+    icon: ScanSearch,
+    tone: 'amber',
+    body: '按项目留出 holdout，对照 baseline 回放并观测 semantic outcome flips；只评估真实已发生结果，不做因果宣称。',
+    artifact: 'verification-replay.json · verification-flips.json · statistical gate'
+  },
+  {
+    code: '05',
+    title: 'Shadow 建议',
+    icon: Bot,
+    tone: 'violet',
+    body: '生成 recommendation-only 建议且 state_change=none；trusted_support=0 时仍以 static-only 继续 shadow，不进入生产。',
+    artifact: 'ui/data/verification-shadow.json'
+  },
+  {
+    code: '06',
+    title: '受控执行回流',
+    icon: ShieldCheck,
+    tone: 'green',
+    body: '只有通过统计与发布复核的候选才可进入既有受控流程；执行产生的新真实结果再回流，shadow 本身不触发执行。',
+    artifact: '不可变候选 → 发布复核 → 新轨迹'
+  }
+];
+
+const RSI_BRANCH_COMPONENTS = [
+  {
+    icon: ScanSearch,
+    title: '弱点聚类',
+    tone: 'hot',
+    body: '按项目类型、攻击模型、失败类别和严重度确定性聚类，定位高支持度的 harness 失败表面。',
+    code: 'audit_rsi/weakness.py → rsi/redteam-weakness.json'
+  },
+  {
+    icon: FileCode2,
+    title: 'Harness 候选',
+    tone: 'amber',
+    body: '只为白名单 editable surface 生成带稳定身份的证据提案；经 flips 验证后仍需复核，绝不自动修改 harness。',
+    code: 'audit_rsi/harness.py → rsi/harness-candidates.json'
   }
 ];
 
@@ -189,7 +253,13 @@ const STAGE_SUMMARIES = {
   '验证 / 复现': '用最小 harness 验证候选',
   'CVE 去重': '确认是否已知与受影响',
   '红队 lab': '隔离环境捕获真实 flag',
-  'Judge / 验收': '独立审核后才交给人工'
+  'Judge / 验收': '独立审核后才交给人工',
+  '真实轨迹': '记录动作、上下文、结果与成本',
+  '可信标签': '分清 trusted、static 与 unknown',
+  '效用学习': '按动作学习收益减去成本',
+  'Holdout + Flips 评估': '独立对照与非回归观测',
+  'Shadow 建议': '只给建议，不改变生产状态',
+  '受控执行回流': '过门后执行，新结果再学习'
 };
 
 const COMPONENT_SUMMARIES = {
@@ -200,7 +270,8 @@ const COMPONENT_SUMMARIES = {
   'Lab builder': '构建与校验隔离场景',
   'Red-team runner': '执行受限攻击并留痕',
   'Independent judge': '独立审核证据与作弊',
-  'Verification-RSI': '从可信标签学习验证策略',
+  '弱点聚类': '从真实失败中定位改进表面',
+  'Harness 候选': '白名单提案，不直接改代码',
   '视觉报告': '把证据变成易懂图文'
 };
 
@@ -241,24 +312,24 @@ const ZONES = [
   {
     id: 'components',
     title: '核心组件',
-    subtitle: '数据、状态、路由与恢复',
-    description: '支撑整条流水线的台账、状态编译、精炼 worker 和持久化恢复。',
+    subtitle: '数据、状态、路由、恢复与表达',
+    description: '支撑整条流水线的台账、状态编译、精炼 worker、持久化恢复和视觉报告。',
     image: '/architecture/components.webp',
     icon: Layers3,
     tone: 'ink',
     stages: [],
-    components: COMPONENTS.filter((item) => ['Finding Ledger', '状态编译器', '精炼 worker', '持久化恢复'].includes(item.title))
+    components: COMPONENTS.filter((item) => ['Finding Ledger', '状态编译器', '精炼 worker', '持久化恢复', '视觉报告'].includes(item.title))
   },
   {
     id: 'learning',
-    title: '学习与视觉',
-    subtitle: '让经验可学习，让证据易理解',
-    description: 'Verification-RSI 的严格发布门，以及服务人类理解的视觉报告。',
+    title: 'RSI 学习闭环',
+    subtitle: '真实经验驱动建议，门禁控制回流',
+    description: '把验证与红队经验变成可评估的效用策略；当前只运行 shadow 学习，不把建议称作生产 RSI。',
     image: '/architecture/learning.webp',
     icon: Sparkles,
     tone: 'violet',
-    stages: [],
-    components: COMPONENTS.filter((item) => ['Verification-RSI', '视觉报告'].includes(item.title))
+    stages: RSI_STAGES,
+    components: RSI_BRANCH_COMPONENTS
   }
 ];
 
@@ -387,13 +458,69 @@ bash run.sh --verify-only <run>`
     failure: '工具失败、超时或未捕获都保留真实结果，不生成替代性成功叙述。',
     optimize: '增强协议能力时同步工具权限、网络隔离、trace 合同和 judge 校验。'
   },
-  'Verification-RSI': {
-    input: '动作前上下文、真实轨迹、trusted labels、成本和验证结果',
-    output: '效用策略、holdout 回放、统计门禁、shadow 或不可变候选',
-    source: 'audit_rsi/verification.py · evaluation.py · release.py',
-    checks: ['学习验证动作效用，不模仿最终报告。', 'static 标签不能冒充 human/runtime/judge 真值。', '支持不足只输出 shadow，不宣称因果 uplift。'],
-    failure: '无 trusted support、holdout 或统计显著性时拒绝生产发布。',
-    optimize: '优先补独立 trusted 标签与覆盖，再评估模型；不要通过放松门禁制造提升。'
+  '真实轨迹': {
+    input: 'Finding Ledger、refine/verify 产物、真实 stream-json 与红队 run/step 事件',
+    output: '带 occurrence/semantic 身份、pre-action context、动作、倾向、成本、结果与血缘的经验池',
+    source: 'audit_rsi/experience.py · adapters/raw_trace.py · adapters/redteam.py',
+    checks: ['只从真实动作与工具事件构建经验，不从最终报告反推探索路径。', '保留 Task/Agent 拓扑、实际成本与证据等级，未知 propensity 保持 null。', '红队 run 结果与 step 工具事件分开记录，不复制 flag 或原始攻击输出。'],
+    failure: '篡改轨迹、not_captured 和未复核结果保持 unknown；缺失动作的记录不会凭空进入动作训练。',
+    optimize: '先检查轨迹血缘、身份和动作前特征是否完整，再增加样本；不要用报告文本补造行动历史。'
+  },
+  '可信标签': {
+    input: '经验池、分层抽样计划、runtime/judge/manual 审核结论与 label propensity',
+    output: '合并后的 verification-experience-labeled.jsonl 和可审计标签覆盖',
+    source: 'audit_rsi/labeling.py · verification.py: merge_labels',
+    checks: ['trusted 只包括 runtime、judge、manual；static 标签不能冒充这三类证据。', 'agent-static 必须保留 evidence_class=static 与 adjudication.method=agent-static。', 'unknown 不等于 FP，标签合并不能改变 occurrence/semantic 身份和动作倾向。'],
+    failure: '缺失或非法 label propensity 的样本不进入可信效用训练；只有 static 时 trusted_support 仍为 0。',
+    optimize: '优先补齐完全缺少 trusted 的项目和动作覆盖，不用放宽证据等级来提高支持度。'
+  },
+  '效用学习': {
+    input: '去重后的训练语义、动作前特征、已知结果、实际成本与合法标注倾向',
+    output: 'verification-policy.json：五个动作各自的 ridge 效用权重与支持度统计',
+    source: 'audit_rsi/verification.py: train_policy / _solve_ridge',
+    checks: ['ACTIONS 固定为 verify、deep_read、human_review、duplicate_candidate、defer。', '每个动作分别回归 realized utility，奖励扣除 agent/token/review 等成本。', '按 evidence class 和 bounded propensity 加权，不模仿最终报告或历史动作频率。'],
+    failure: '没有已知效用目标时 training.status=insufficient；static-only 可训练但不构成 trusted 生产证据。',
+    optimize: '检查各动作支持度、trusted_support、目标分布和成本口径，不用单一总分掩盖动作覆盖空洞。'
+  },
+  'Holdout + Flips 评估': {
+    input: '独立项目 holdout、候选与 baseline 真实经验池、训练策略和统计门禁配置',
+    output: 'matched-action replay、per-semantic outcome flips、accepted/insufficient/rejected 评估',
+    source: 'audit_rsi/verification.py: replay_policies / outcome_flip_report · evaluation.py · release.py',
+    checks: ['replay 只比较策略与日志动作相同时的 realized utility，明确不是 causal OPE。', 'flips 只观测两个真实经验池的 F→P/P→F 与稳定项，不构造反事实。', '候选默认要求 paired_coverage≥0.8、至少一个 F→P 且零 P→F，发布还需 accepted statistical gate。'],
+    failure: '项目、标签覆盖或支持不足为 insufficient；出现 P→F 回归为 rejected，均不能生产 promote。',
+    optimize: '先检查 holdout 隔离、配对覆盖与 worst slice，再比较效用；不能把不同 run 差异解释为因果提升。'
+  },
+  'Shadow 建议': {
+    input: '经验池、训练策略、baseline 和 trusted_support / training.status',
+    output: 'recommendation-only 的 verification-shadow.json，逐条保留 baseline/candidate、分数和原因',
+    source: 'audit_rsi/verification.py: shadow_payload',
+    checks: ['所有建议都是 recommendation_only=true 且 state_change=none。', 'trusted_support=0 时继续 shadow，状态为 static-only，原因是 no_trusted_utility_targets。', '训练不足时回退 baseline；即使 static-only 产生不同建议，也不代表已验证提升。'],
+    failure: '无 trusted support 不生产 promote，不切换自动路由，也不宣称生产 RSI。',
+    optimize: '先补独立 trusted 标签与评估证据，再比较建议质量；不要通过隐藏 static-only 状态制造就绪假象。'
+  },
+  '受控执行回流': {
+    input: 'accepted 评估、不可变候选、产物哈希、发布复核和既有受控执行流程',
+    output: '经复核的策略版本，以及执行后产生的新真实轨迹和下一轮经验',
+    source: 'audit_rsi/release.py · rsi_version/store.py',
+    checks: ['只有 gate 与 evaluation 均 accepted 且无回归，候选才具备 promote 条件。', '发布复核重算候选完整性和 gate；shadow 建议自身不会调用执行或修改状态。', '回流数据必须来自受控执行后的真实结果，不能拿 replay 预测冒充新经验。'],
+    failure: '门禁不足、身份或哈希不一致均拒绝发布；当前 static-only/shadow 停在学习支路，不进入生产执行。',
+    optimize: '保持候选不可变、执行边界和轨迹血缘可审计；新增自动化前必须先实现明确的人工发布与控制点。'
+  },
+  '弱点聚类': {
+    input: '红队 run 级经验、step 级非零返回码、失败分类、项目类型与成本',
+    output: '按支持度排序的 deterministic weakness groups、平均成本和候选 editable surface',
+    source: 'audit_rsi/weakness.py → rsi/redteam-weakness.json',
+    checks: ['按项目类型、攻击模型、失败类别、严重度和 surface 确定性聚类。', '区分 model_timeout、lab_unhealthy、not_captured、工具失败与结构化输出失败。', '只输出 candidate_only 证据包，mutation=none，不作因果归因。'],
+    failure: '没有失败分组时为 insufficient；unknown 或 not_captured 不会被转换成可信漏洞奖励。',
+    optimize: '检查 occurrence 与 event 支持度是否混淆、失败分类是否准确，以及聚类是否指向真实可改进表面。'
+  },
+  'Harness 候选': {
+    input: '非变更型 weakness report、白名单 editable surface 和配对 outcome flips',
+    output: '稳定 candidate_id 的 proposal-only 候选及 validated/insufficient/rejected 验证结果',
+    source: 'audit_rsi/harness.py → rsi/harness-candidates.json · harness-validated.json',
+    checks: ['proposal 只能指向 ALLOWED_SURFACES，保留所有无关行为并记录证据哈希。', 'harness-validate 重算候选身份并应用 paired outcome flip gate。', '全程 mutation=none，不自动修改 harness；validated 仍需后续候选与发布复核。'],
+    failure: '非白名单 surface、身份篡改、覆盖不足或 P→F 回归均不能通过验证。',
+    optimize: '先提高配对证据和失败复现质量，再评估提案；不能把生成提案当成已经修复 harness。'
   },
   '视觉报告': {
     input: '审计报告、结构/覆盖/攻击模型和红队步骤',
@@ -490,6 +617,84 @@ function ComponentCard({ component, onSelect }) {
   );
 }
 
+function RsiLearningLoop({ zone, onSelect }) {
+  const renderStage = (stage, index, direction) => (
+    <div className="arch-rsi-step" key={stage.code}>
+      <Stage stage={stage} onSelect={() => onSelect({ ...stage, group: zone.title })} />
+      {index < 2 ? direction === 'right'
+        ? <ArrowRight size={24} aria-hidden="true" />
+        : <ArrowLeft size={24} aria-hidden="true" /> : null}
+    </div>
+  );
+  return (
+    <>
+      <section className="arch-rsi-why" aria-labelledby="arch-rsi-why-title">
+        <div>
+          <span className="arch-detail-group">WHY THIS CAN LEARN</span>
+          <h3 id="arch-rsi-why-title">为什么能形成 RSI 学习闭环</h3>
+          <p>每次验证都留下可学习的经验：动作前看到什么、做了什么、结果是否可信、花费多少。模型学习的是验证动作的效用，独立评估决定建议能否受控回流，而不是让模型直接改写自己。</p>
+        </div>
+        <aside className="arch-rsi-boundary" aria-label="当前 RSI 边界">
+          <strong>当前：shadow 学习，不是生产 RSI</strong>
+          <span><code>trusted_support=0</code> → 继续 static-only shadow</span>
+          <span>Replay → matched-action 观测，非因果</span>
+          <span>Harness → 只产候选，不自动修改</span>
+        </aside>
+      </section>
+
+      <section className="arch-rsi-flywheel" aria-labelledby="arch-rsi-flywheel-title">
+        <header className="arch-rsi-section-head">
+          <div>
+            <span className="arch-detail-group">PRIMARY LOOP / 01—06</span>
+            <h3 id="arch-rsi-flywheel-title">验证策略飞轮</h3>
+          </div>
+          <p>沿箭头从真实经验到受控回流；点击任一步查看实现契约。</p>
+        </header>
+        <div className="arch-rsi-loop" role="group" aria-label="六步 RSI 学习飞轮，按 01 到 06 执行，再回流到 01">
+          <div className="arch-rsi-loop-row">
+            {zone.stages.slice(0, 3).map((stage, index) => renderStage(stage, index, 'right'))}
+          </div>
+          <div className="arch-rsi-loop-links" aria-hidden="true">
+            <span><ArrowUp size={20} /> 06 的真实结果回流到 01</span>
+            <span>04 通过评估才进入建议 <ArrowDown size={20} /></span>
+          </div>
+          <div className="arch-rsi-loop-row is-reverse">
+            {zone.stages.slice(3).map((stage, index) => renderStage(stage, index, 'left'))}
+          </div>
+        </div>
+      </section>
+
+      <section className="arch-rsi-branch" aria-labelledby="arch-rsi-branch-title">
+        <header className="arch-rsi-section-head">
+          <div>
+            <span className="arch-detail-group">SECONDARY LOOP / RED-TEAM HARNESS</span>
+            <h3 id="arch-rsi-branch-title">第二条学习支路：从失败到 Harness 候选</h3>
+          </div>
+          <p>主飞轮优化验证动作；这条支路定位执行器自身的失败模式。</p>
+        </header>
+        <div className="arch-rsi-branch-track" role="group" aria-label="红队轨迹经过弱点聚类形成 Harness 候选，再接受独立回放与发布复核">
+          <div className="arch-rsi-branch-endpoint">
+            <Bot size={23} aria-hidden="true" />
+            <div><strong>红队真实轨迹</strong><span>失败类别 · 工具事件 · 成本</span></div>
+          </div>
+          <ArrowRight size={23} aria-hidden="true" />
+          {zone.components.map((component, index) => (
+            <div className="arch-rsi-branch-node" key={component.title}>
+              <ComponentCard component={component} onSelect={() => onSelect({ ...component, group: zone.title })} />
+              {index === 0 ? <ArrowRight size={23} aria-hidden="true" /> : null}
+            </div>
+          ))}
+          <ArrowRight size={23} aria-hidden="true" />
+          <div className="arch-rsi-branch-endpoint is-gate">
+            <ShieldCheck size={23} aria-hidden="true" />
+            <div><strong>独立回放 + Flips</strong><span>候选复核后受控回流，mutation=none</span></div>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+}
+
 function ArchitectureZone({ zone, onBack, onSelect }) {
   return (
     <section className="arch-zone" aria-labelledby="arch-zone-title">
@@ -505,22 +710,26 @@ function ArchitectureZone({ zone, onBack, onSelect }) {
           <span className="arch-zone-hint">选择阶段或组件，继续查看实现细节</span>
         </div>
       </header>
-      {zone.stages.length ? (
-        <div className="arch-zone-stages" aria-label={`${zone.title}阶段`}>
-          {zone.stages.map((stage) => (
-            <div className="arch-stage-wrap" key={stage.code}>
-              <Stage stage={stage} onSelect={() => onSelect({ ...stage, group: zone.title })} />
+      {zone.id === 'learning' ? <RsiLearningLoop zone={zone} onSelect={onSelect} /> : (
+        <>
+          {zone.stages.length ? (
+            <div className="arch-zone-stages" aria-label={`${zone.title}阶段`}>
+              {zone.stages.map((stage) => (
+                <div className="arch-stage-wrap" key={stage.code}>
+                  <Stage stage={stage} onSelect={() => onSelect({ ...stage, group: zone.title })} />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : null}
-      {zone.components.length ? (
-        <div className="arch-component-list arch-zone-components" aria-label={`${zone.title}组件`}>
-          {zone.components.map((component) => (
-            <ComponentCard key={component.title} component={component} onSelect={() => onSelect({ ...component, group: zone.title })} />
-          ))}
-        </div>
-      ) : null}
+          ) : null}
+          {zone.components.length ? (
+            <div className="arch-component-list arch-zone-components" aria-label={`${zone.title}组件`}>
+              {zone.components.map((component) => (
+                <ComponentCard key={component.title} component={component} onSelect={() => onSelect({ ...component, group: zone.title })} />
+              ))}
+            </div>
+          ) : null}
+        </>
+      )}
       <p className="arch-visual-note">AI 漫画插图用于辅助理解；准确结构以这些可点击节点和实现详情为准。</p>
     </section>
   );

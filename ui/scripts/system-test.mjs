@@ -165,8 +165,7 @@ async function main() {
       [0, 6, 0],
       [1, 4, 0],
       [2, 2, 3],
-      [3, 0, 4],
-      [4, 0, 2]
+      [3, 0, 5]
     ]) {
       await cdp.evaluate(`document.querySelectorAll('.arch-zone-card')[${zoneIndex}].click()`);
       await sleep(150);
@@ -202,6 +201,68 @@ async function main() {
       await sleep(100);
       assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card').length"), 5);
     }
+
+    await cdp.evaluate("document.querySelectorAll('.arch-zone-card')[4].click()");
+    await sleep(150);
+    assert.equal(await cdp.evaluate("document.querySelector('.arch-zone-hero h2').innerText"), 'RSI 学习闭环');
+    assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-why').innerText"), /为什么能形成 RSI 学习闭环/);
+    const boundaryText = await cdp.evaluate("document.querySelector('.arch-rsi-boundary').innerText");
+    assert.match(boundaryText, /shadow 学习，不是生产 RSI/);
+    assert.match(boundaryText, /trusted_support=0/);
+    assert.match(boundaryText, /非因果/);
+    assert.match(boundaryText, /不自动修改/);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-loop .arch-stage').length"), 6);
+    assert.deepEqual(await cdp.evaluate("[...document.querySelectorAll('.arch-rsi-loop .arch-stage h3')].map((node) => node.innerText)"), [
+      '真实轨迹', '可信标签', '效用学习', 'Holdout + Flips 评估', 'Shadow 建议', '受控执行回流'
+    ]);
+    assert.equal(await cdp.evaluate("[...document.querySelectorAll('.arch-rsi-loop .arch-stage')].every((node) => node.tagName === 'BUTTON' && node.getAttribute('aria-label').includes('实现细节'))"), true);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-step > svg').length"), 4);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-loop-links span').length"), 2);
+    assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-loop-links').innerText"), /回流到 01/);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-node').length"), 2);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-track > svg').length"), 2);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-node > svg').length"), 1);
+
+    for (let index = 0; index < 6; index += 1) {
+      await cdp.evaluate(`document.querySelectorAll('.arch-rsi-loop .arch-stage')[${index}].click()`);
+      await sleep(100);
+      assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-detail-card').length"), 4);
+      const detailText = await cdp.evaluate("document.querySelector('.arch-detail').innerText");
+      assert.match(detailText, /输入/);
+      assert.match(detailText, /输出/);
+      assert.match(detailText, /失败语义/);
+      assert.doesNotMatch(detailText, /undefined/);
+      if (index === 2) {
+        assert.match(detailText, /ridge/);
+        assert.match(detailText, /verify、deep_read、human_review、duplicate_candidate、defer/);
+      }
+      if (index === 3) {
+        assert.match(detailText, /不是 causal OPE/);
+        assert.match(detailText, /不构造反事实/);
+      }
+      if (index === 4) {
+        assert.match(detailText, /trusted_support=0/);
+        assert.match(detailText, /static-only/);
+        assert.match(detailText, /不生产 promote/);
+      }
+      await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
+      await sleep(100);
+    }
+
+    for (let index = 0; index < 2; index += 1) {
+      await cdp.evaluate(`document.querySelectorAll('.arch-rsi-branch-node .arch-component')[${index}].click()`);
+      await sleep(100);
+      const detailText = await cdp.evaluate("document.querySelector('.arch-detail').innerText");
+      assert.match(detailText, /mutation=none/);
+      assert.doesNotMatch(detailText, /undefined/);
+      if (index === 0) assert.match(detailText, /确定性聚类/);
+      if (index === 1) assert.match(detailText, /不自动修改 harness/);
+      await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
+      await sleep(100);
+    }
+    await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
+    await sleep(100);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card').length"), 5);
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"待验收\"]').click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '待验收');

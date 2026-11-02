@@ -75,6 +75,14 @@ def line(shape_id, x, y, w, color="D99A17"):
     return rect(shape_id, x, y, w, 0.035, color, radius=False)
 
 
+def arrow(shape_id, x, y, w, h, direction, fill):
+    return f'''<p:sp>
+      <p:nvSpPr><p:cNvPr id="{shape_id}" name="Arrow {shape_id}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+      <p:spPr><a:xfrm><a:off x="{emu(x)}" y="{emu(y)}"/><a:ext cx="{emu(w)}" cy="{emu(h)}"/></a:xfrm><a:prstGeom prst="{direction}"><a:avLst/></a:prstGeom>{color_xml(fill)}<a:ln><a:noFill/></a:ln></p:spPr>
+      <p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang="zh-CN"/></a:p></p:txBody>
+    </p:sp>'''
+
+
 def picture(shape_id, rel_id, name, x, y, w, h):
     return f'''<p:pic>
       <p:nvPicPr><p:cNvPr id="{shape_id}" name="{escape(name)}"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr>
@@ -170,12 +178,12 @@ class Deck:
             shapes.append(text_box(22, 8.28, 5.72, 4.15, 0.55, note, size=12, color=COLORS["red"], bold=True))
         return slide_xml(shapes), rels
 
-    def cards(self, number, title, cards, columns=3, footer=None):
+    def cards(self, number, title, cards, columns=3, footer=None, body_size=15, title_size=18):
         shapes, rels = [], []
         self.header(shapes, title, number)
         rows = (len(cards) + columns - 1) // columns
         card_w = (12.23 - (columns - 1) * 0.22) / columns
-        card_h = 4.95 / rows - (rows - 1) * 0.2
+        card_h = (4.95 - (rows - 1) * 0.2) / rows
         for index, (head, body, accent, *image) in enumerate(cards):
             row, col = divmod(index, columns)
             x = 0.55 + col * (card_w + 0.22)
@@ -184,12 +192,42 @@ class Deck:
             shapes.append(rect(21 + index * 4, x, y, 0.06, card_h, accent, radius=False))
             if image:
                 self.add_image(shapes, rels, image[0], x + 0.22, y + 0.18, card_w - 0.44, 1.45)
-            title_y = y + 1.72 if image else y + 0.25
-            body_y = y + 2.3 if image else y + 0.88
-            shapes.append(text_box(22 + index * 4, x + 0.25, title_y, card_w - 0.48, 0.5, head, size=18, color=accent, bold=True))
-            shapes.append(text_box(23 + index * 4, x + 0.25, body_y, card_w - 0.48, y + card_h - body_y - 0.18, body, size=15, color=COLORS["ink"]))
+            title_y = y + 1.72 if image else y + (0.14 if rows >= 3 else 0.2)
+            body_y = y + 2.3 if image else y + (0.62 if rows >= 3 else 0.78)
+            shapes.append(text_box(22 + index * 4, x + 0.25, title_y, card_w - 0.48, 0.5, head, size=title_size, color=accent, bold=True))
+            shapes.append(text_box(23 + index * 4, x + 0.25, body_y, card_w - 0.48, y + card_h - body_y - 0.14, body, size=body_size, color=COLORS["ink"]))
         if footer:
             shapes.append(text_box(90, 0.62, 6.75, 12.0, 0.35, footer, size=13, color=COLORS["muted"], bold=True))
+        return slide_xml(shapes), rels
+
+    def flywheel(self, number):
+        shapes, rels = [], []
+        self.header(shapes, "RSI 飞轮：证据推动受控改进，再产生新轨迹", number)
+        shapes.append(text_box(6, 0.58, 1.47, 12.0, 0.3, "RSI = Recursive Self-Improvement（递归自我改进）；不是让模型无约束改自己", size=13, color=COLORS["muted"], bold=True))
+        nodes = [
+            (0.7, 1.95, "01 真实轨迹", "动作前上下文 · 动作 · 成本 · 结果", COLORS["blue"]),
+            (4.99, 1.95, "02 可信标签", "runtime / judge / manual；static 分离", COLORS["gold"]),
+            (9.28, 1.95, "03 效用学习", "逐动作岭回归，学习 realized utility", COLORS["green"]),
+            (9.28, 4.7, "04 非回归评估", "留出项目 + 逐 finding outcome flips", COLORS["red"]),
+            (4.99, 4.7, "05 Shadow 建议", "只读比较候选与基线，不改状态", COLORS["muted"]),
+            (0.7, 4.7, "06 受控执行", "accepted 候选复核后执行，留下新轨迹", COLORS["green"]),
+        ]
+        for index, (x, y, head, body, accent) in enumerate(nodes):
+            shapes.append(rect(20 + index * 3, x, y, 3.35, 1.25, COLORS["white"], accent))
+            shapes.append(text_box(21 + index * 3, x + 0.2, y + 0.2, 2.95, 0.35, head, size=16, color=accent, bold=True))
+            shapes.append(text_box(22 + index * 3, x + 0.2, y + 0.7, 2.95, 0.38, body, size=11, color=COLORS["ink"], bold=True))
+        for index, (x, y, w, h, direction) in enumerate([
+            (4.2, 2.36, 0.55, 0.42, "rightArrow"),
+            (8.49, 2.36, 0.55, 0.42, "rightArrow"),
+            (10.73, 3.4, 0.45, 0.95, "downArrow"),
+            (8.49, 5.11, 0.55, 0.42, "leftArrow"),
+            (4.2, 5.11, 0.55, 0.42, "leftArrow"),
+            (2.15, 3.4, 0.45, 0.95, "upArrow"),
+        ]):
+            shapes.append(arrow(60 + index, x, y, w, h, direction, COLORS["gold"]))
+        shapes.append(text_box(70, 3.5, 3.55, 6.35, 0.7, "怎样转起来：真实执行供数据 → 可信评估放行 → 受控执行回流\n任何证据门不满足，都停在 shadow，而不是强行闭环", size=14, color=COLORS["ink"], bold=True))
+        shapes.append(rect(80, 0.62, 6.25, 12.1, 0.55, COLORS["gold_light"], COLORS["gold"]))
+        shapes.append(text_box(81, 0.86, 6.4, 11.65, 0.28, "当前 trusted_support=0：第 06 步未对 Verification-RSI 开放；图中回流是目标工作方式，不是生产现状", size=12, color=COLORS["red"], bold=True))
         return slide_xml(shapes), rels
 
     def metrics(self, number, title, metrics, bullets):
@@ -235,15 +273,23 @@ def build():
         ["发现 · 验证 · 学习 · 非回归发布", "算法团队 / 2026-11"],
         art / "overview.webp",
     ))
-    slides.append(deck.flow(2, "GoldMine：从源码到可信证据", [
-        ("目标源码", "只读输入", COLORS["blue"]),
-        ("静态候选", "研究假设", COLORS["gold"]),
-        ("持久沙箱验证", "复用工作副本", COLORS["green"]),
-        ("红队证明", "真实 flag + judge", COLORS["red"]),
-        ("经验学习", "轨迹与效用", COLORS["blue"]),
-        ("受控发布", "非回归门禁", COLORS["green"]),
-    ], "Finding Ledger 保留每次发现与证据血缘；每次挖掘都成为下一次更好的依据"))
-    slides.append(deck.cards(3, "2026 年研究地图：从自我反思走向受控闭环", [
+    slides.append(deck.cards(2, "GoldMine：从源码到可信证据｜谁在执行", [
+        ("01 目标与沙箱｜脚本", "选项目、建独立 run；源码只读，工作副本可写。\n入口：run.sh / sandbox.sh\n产物：run-meta.json、sandbox.json", COLORS["blue"]),
+        ("02 画像与初筛｜agent + Skill", "orchestrator 选择分析路线；Jev 只负责召回。\n入口：mine_one.sh / quick-scan.py\n产物：project-profile、jev-*.json", COLORS["gold"]),
+        ("03 深读与报告｜agent + Skill", "按边界分析，critic 去重，report-generator 汇总。\n入口：security-orchestrator\n产物：normalized findings、audit-report", COLORS["green"]),
+        ("04 台账与精炼｜脚本 + worker", "合并身份与证据，自动分诊；归档不是安全结论。\n入口：finding_ledger.py / refine_worker.py\n产物：ledger、auto-state、refine-state", COLORS["blue"]),
+        ("05 漏洞验证｜agent + 脚本", "verify-agent 写最小 harness，脚本执行并保留状态。\n入口：run_verify.sh / auto_verify.sh\n产物：verify-report.json", COLORS["gold"]),
+        ("06 红队与验收｜Skill + agent + judge", "隔离 lab 捕获真实 flag，独立 judge 复核。\n入口：redteam-lab-builder / agent.py / judge.py\n产物：scenario、trace、judge、图文报告", COLORS["red"]),
+    ], columns=3, footer="Skill 定义方法与约束，agent 做源码判断，脚本/worker 负责可重复执行；静态 finding 不是已成立漏洞", body_size=12, title_size=16))
+    slides.append(deck.cards(3, "六阶段执行契约：Skill 内定义什么，产物落在哪里", [
+        ("01 目标 / 沙箱 · 脚本", "做：选目标、独立 run、持久工作副本\n入口：run.sh；scripts/env/sandbox.sh\n产物：sandbox.json、run-meta.json", COLORS["blue"]),
+        ("02 画像 / 初筛 · agent + Skill", "做：画像选 track；Jev 缩小深读范围\nSkill：profiler=类型/入口/边界/技能推荐；Jev=只召回\n产物：project-profile.json、jev-*.json", COLORS["gold"]),
+        ("03 深读 / 报告 · 子 agent", "做：boundary 深读 → critic 去重 → 报告\nSkill：analyzer 提供分析镜头；report-generator 只汇总\n产物：findings.normalized.json、audit-report.md/json", COLORS["green"]),
+        ("04 台账 / 精炼 · 脚本 + worker", "做：双层身份、状态合并、自动路由\n入口：finding_ledger.py / build_state.py / refine_worker.py\n产物：finding-ledger、auto-state、refine-state/queue", COLORS["blue"]),
+        ("05 验证 · verify-agent + 脚本", "做：最小非武器化 harness；无效 confirmed 自动降级\n入口：scripts/verify/run_verify.sh、auto_verify.sh\n产物：verify-report；confirmed/rejected/inconclusive/blocked", COLORS["gold"]),
+        ("06 红队 / 验收 · Skill + agent", "做：lab → 真实捕获 → judge → 人工验收\nSkill：lab-builder 管隔离/flag/负控；非 HTTP 执行 blocked\n产物：scenario、trace、judge.json、图文报告", COLORS["red"]),
+    ], columns=2, footer="主编排：.claude/agents/security-orchestrator.md；运行入口：scripts/mine/mine_one.sh；完整有效报告才进入 Finding Ledger", body_size=11, title_size=15))
+    slides.append(deck.cards(4, "2026 年研究地图：从自我反思走向受控闭环", [
         ("Self-Harness", "例：model_timeout → 超时控制弱点 → 只改重试策略 → 留出项目查回归。\n脚本：audit_rsi/weakness.py、harness.py", COLORS["gold"]),
         ("AgentDevel", "单版本线、可执行诊断、P→F / F→P flip 门禁。", COLORS["blue"]),
         ("MASS", "多智能体工作流搜索，优质团队轨迹回流训练。", COLORS["green"]),
@@ -251,27 +297,35 @@ def build():
         ("DiscoveryRSI", "假设信用、workflow replay 与 rediscovery。", COLORS["blue"]),
         ("RSI 综述", "1,250 篇论文：验证层级、闭环程度与崩溃风险。", COLORS["red"]),
     ], columns=3, footer="论文结果用于指导设计，不直接外推为 Goldmine 的生产效果"))
-    slides.append(deck.cards(4, "为什么需要算法团队", [
-        ("算法团队", "轨迹建模、策略与奖励、验证器、效用学习、跨项目泛化、RSI 发布门禁。", COLORS["gold"], art / "cards" / "algorithm.webp"),
+    slides.append(deck.cards(5, "为什么需要算法团队", [
+        ("算法团队", "把轨迹变成可学习的数据，把奖励变成可计算的效用，再用验证器与发布门禁约束改进。", COLORS["gold"], art / "cards" / "algorithm.webp"),
         ("开发团队", "容器、API、UI、任务调度、可靠性与工程交付，让系统稳定可运行。", COLORS["blue"], art / "cards" / "development.webp"),
         ("安全团队", "威胁情报、漏洞先验、规则、人工裁决与披露规范，让判断足够专业。", COLORS["red"], art / "cards" / "security.webp"),
-    ], footer="协作分工，不是能力高低；缺少算法闭环，系统只能重复固定规则。"))
+    ], footer="协作分工，不是能力高低；下一页把算法团队的六项机制逐一落到本项目"))
+    slides.append(deck.cards(6, "算法团队六项机制：通俗解释 + GoldMine 实例", [
+        ("01 轨迹建模", "通俗：记住“当时知道什么、做了什么、花了多少、结果如何”。\n例：verification-experience 保存动作前上下文、动作、propensity、成本与证据血缘。", COLORS["blue"]),
+        ("02 策略与奖励", "通俗：规定可选动作，以及什么结果值得、什么成本要扣。\n例：在 verify / deep_read / defer 等动作间打分；可信 TP 得奖励，误晋级与 agent/token/复核成本扣分。", COLORS["gold"]),
+        ("03 验证器", "通俗：不靠模型自评，检查证据是否真的支持结论。\n例：flag provenance + judge 验证红队；holdout replay 与逐 finding flips 检查候选是否非回归。", COLORS["red"]),
+        ("04 效用学习", "通俗：从历史样本估计每个动作的实际净收益，而非只追成功率。\n例：verification.py 按动作分别做岭回归；unknown 不得奖励，证据等级影响样本权重。", COLORS["green"]),
+        ("05 跨项目泛化", "通俗：不能只在背过的项目上有效，要拿没参与训练的项目考试。\n例：holdout_project 留出整个项目；当前 codex 回放 support 不足，不能宣称泛化提升。", COLORS["blue"]),
+        ("06 RSI 发布门禁", "通俗：改进先当候选，证明有修复且无回归后才可能发布。\n例：配对覆盖≥0.8、F→P≥1、P→F=0；shadow 只读，proposal 不直接改 harness。", COLORS["red"]),
+    ], columns=3, footer="这些机制对应真实代码与数据契约；当前证据不足时输出 insufficient / shadow，而不是自动发布", body_size=12, title_size=16))
     slides.append(deck.hero(
-        5, "挖掘：先得到可追溯候选，而不是直接宣布漏洞",
+        7, "挖掘：先得到可追溯候选，而不是直接宣布漏洞",
         ["每个 run 独立，原始源码只读，工作副本可写", "持久沙箱复用依赖、工作区与产物，可继续 shell / verify", "Jev 只做召回；报告增量落盘并过质量门"],
         art / "mining.webp", "静态 finding 是研究假设，不是已成立漏洞",
     ))
-    slides.append(deck.cards(6, "红队模型：不是单个“攻击模型”", [
+    slides.append(deck.cards(8, "红队模型：不是单个“攻击模型”", [
         ("Attacker", "在受限容器中探索允许的攻击路径；模型策略与工具 harness 共同决定行为。", COLORS["red"], art / "cards" / "attacker.webp"),
         ("Victim + Lab", "真实服务、随机 flag、内部网络；scenario 绑定 finding 与源码 hash。", COLORS["gold"], art / "cards" / "victim-lab.webp"),
         ("Independent judge", "审核目标漏洞、证据、作弊风险与可复现性；HTTP 之外明确 blocked。", COLORS["blue"], art / "cards" / "judge.webp"),
     ], footer="红队能力 = 模型策略 + 执行 harness + 隔离 lab + 独立 judge + 可回放轨迹"))
     slides.append(deck.hero(
-        7, "红队证据链：系统必须证明“确实发生了”",
+        9, "红队证据链：系统必须证明“确实发生了”",
         ["attacker 无宿主、无 Docker socket、无 flag 直读路径", "flag 只能来自真实工具输出，最终回答不是证据", "judge schema + 确定性 flag provenance 双重校验", "flag + approved + 图文报告，才进入人工验收"],
         art / "redteam.webp", "不是“模型说攻破了”，而是证据链支持这个结论",
     ))
-    slides.append(deck.flow(8, "实例：DeepSeek Harness `.env → Git 配置注入`", [
+    slides.append(deck.flow(10, "实例：DeepSeek Harness `.env → Git 配置注入`", [
         ("恶意仓库 .env", "不可信配置", COLORS["red"]),
         ("启动加载", "Git 变量未过滤", COLORS["gold"]),
         ("turn/start", "自动 git add --all", COLORS["blue"]),
@@ -281,56 +335,54 @@ def build():
         ("自动触发", "workspace-changes / snapshotTree", COLORS["gold"]),
         ("学习价值", "配置信任边界 + 运行时证据 + 候选修复", COLORS["green"]),
     ]))
-    slides.append(deck.cards(9, "从轨迹到经验：RSI 的数据基础", [
+    slides.append(deck.cards(11, "从轨迹到经验：RSI 的数据基础", [
         ("身份与上下文", "occurrence / semantic 双层身份；保存动作前上下文，避免未来信息泄漏。", COLORS["blue"], art / "cards" / "identity-context.webp"),
         ("动作与成本", "策略、propensity、agent/token/time 成本；确定性路由不被冒充为探索。", COLORS["gold"], art / "cards" / "action-cost.webp"),
         ("结果与证据", "static < runtime < judge < manual；来源 hash 与标签范围可审计。", COLORS["green"], art / "cards" / "evidence-outcome.webp"),
     ], footer="verify / auto-state 已接入；redteam-experience 分离 run 结果与 attacker step，并复核 provenance"))
-    steps = [
-        ("轨迹", "真实动作与成本", COLORS["blue"]),
-        ("标签 / 效用", "证据等级隔离", COLORS["gold"]),
-        ("训练", "per-action utility", COLORS["green"]),
-        ("Holdout", "留出项目验证", COLORS["red"]),
-        ("Replay + Flips", "matched + outcome transitions", COLORS["blue"]),
-        ("统计门禁", "coverage≥0.8 · fix≥1 · P→F=0", COLORS["gold"]),
-        ("Shadow", "影子建议，不改生产", COLORS["muted"]),
-        ("受控发布", "不可变候选与回滚", COLORS["green"]),
-    ]
-    slides.append(deck.flow(10, "Goldmine 的 RSI 闭环", steps, "Holdout=留出验证项目；Shadow=只给建议不改生产；证据不足不放行"))
-    slides.append(deck.metrics(11, "真实现状：闭环已通，可信数据仍是瓶颈", [
-        ("986", "occurrence 经验记录", COLORS["blue"]),
-        ("6", "真实 static 动作样本（本轮前为 0）", COLORS["gold"]),
-        ("0", "trusted support：生产继续拒绝", COLORS["red"]),
-    ], ["Shadow（影子模式）只给建议，不自动改生产，不是生产 RSI。", "Holdout（留出验证项目）用于检验跨项目泛化。"]))
-    slides.append(deck.cards(12, "对 Goldmine 的技术选择", [
+    slides.append(deck.flywheel(12))
+    slides.append(deck.cards(13, "每一块究竟怎样 RSI：已通、仍缺与禁止事项", [
+        ("经验与标签｜experience.py / labeling.py", "怎样：轨迹 → 分层抽样/人工合并 → 可信训练样本\n已通：身份、上下文、成本与证据等级；仍缺 trusted 标签\n禁止：unknown 当 FP；static 冒充 runtime/judge/manual", COLORS["blue"]),
+        ("效用学习｜verification.py", "怎样：按已执行动作分别拟合 realized utility\n已通：奖励、成本、证据权重与基线；仍缺可信动作覆盖\n禁止：把静态样本的不同建议称为已验证提升", COLORS["gold"]),
+        ("评估｜verify-replay / verify-flips", "怎样：留出项目比较基线/候选，再按 semantic 看结果翻转\n已通：matched-action 与 P→F/F→P；仍缺足够配对可信结果\n禁止：把 replay 当因果 OPE 或反事实 uplift", COLORS["red"]),
+        ("Shadow｜verification.py: shadow_payload", "怎样：输出候选动作、基线、分数与原因，供离线比较\n已通：recommendation_only=true、state_change=none\n禁止：自动改 finding 状态；把 shadow 写成生产 RSI", COLORS["muted"]),
+        ("弱点与提案｜weakness.py / harness.py", "怎样：确定性聚类失败 → 白名单 surface 候选 → flip 验证\n已通：candidate_id、证据 hash、mutation=none；仍缺实际修改\n禁止：proposal 直接改 harness；聚类当因果归因", COLORS["gold"]),
+        ("候选与发布｜release.py / rsi_version", "怎样：不可变候选 → 完整性复核 + accepted gate → 受控发布\n已通：版本、证据、拒绝与回滚存储；当前无可信发布依据\n禁止：证据不足 promote；绕过候选复核", COLORS["green"]),
+    ], columns=2, footer="RSI 的自我改进对象是验证策略与受限 harness 候选，不是无约束修改模型或生产系统", body_size=11, title_size=14))
+    slides.append(deck.metrics(14, "真实现状：离线链路可运行，可信数据仍未闭环", [
+        ("static-only", "当前证据状态：只有 static 训练支持", COLORS["gold"]),
+        ("insufficient", "codex 留出回放：候选与基线均无有效 support", COLORS["blue"]),
+        ("0", "trusted_support：不能称为生产 RSI", COLORS["red"]),
+    ], ["Shadow（影子模式）只给建议，不自动改生产；当前 reason=no_trusted_utility_targets。", "Replay 仅报告 matched-action realized utility；Holdout（留出验证项目）用于检验跨项目泛化。"]))
+    slides.append(deck.cards(15, "对 Goldmine 的技术选择", [
         ("短期", "真实标签、动作覆盖、逐 finding 非回归、跨项目 holdout；先让 shadow 学到真实经验。", COLORS["green"], art / "cards" / "short-term.webp"),
         ("中期", "weakness → harness-propose → flip 验证，保留 verified siblings 与可回滚证据。", COLORS["gold"], art / "cards" / "mid-term.webp"),
         ("长期", "证据充分后研究模型更新，并针对新能力画像重建匹配的 harness。", COLORS["red"], art / "cards" / "long-term.webp"),
     ], footer="选择有边界的 harness RSI，不做无约束自我修改"))
-    slides.append(deck.cards(13, "算法团队的五个工作包", [
+    slides.append(deck.cards(16, "算法团队的五个工作包", [
         ("01 数据与身份", "轨迹、标签、成本、血缘与语义防泄漏。", COLORS["blue"]),
         ("02 策略与奖励", "动作效用、成本约束、探索与基线。", COLORS["gold"]),
         ("03 红队环境", "场景生成、执行协议、真实 flag 与失败分类。", COLORS["red"]),
         ("04 评估器", "judge、provenance、验证层级与人类复核接口。", COLORS["green"]),
         ("05 发布科学", "holdout、flip gate、bootstrap、版本与回滚。", COLORS["blue"]),
     ], columns=3, footer="开发团队与安全团队是这些工作包的共同交付伙伴"))
-    slides.append(deck.cards(14, "建议的 90 天验收指标", [
+    slides.append(deck.cards(17, "建议的 90 天验收指标", [
         ("Trusted 数据", "至少 3 个独立项目；runtime / judge 样本持续增长。", COLORS["green"]),
         ("动作覆盖", "100+ 动作标签，覆盖 verify / deep_read / human_review。", COLORS["gold"]),
         ("发布证据", "跨项目 holdout、逐 finding P→F/F→P、基线对照。", COLORS["blue"]),
         ("红队扩展", "真实新协议执行器，不用 HTTP 包装冒充支持。", COLORS["red"]),
     ], columns=2, footer="这些是建议目标，不是当前完成度；门禁不满足时继续保持 shadow"))
     slides.append(deck.hero(
-        15, "让每一次挖掘，都成为下一次更好的证据",
+        18, "让每一次挖掘，都成为下一次更好的证据",
         ["对分析人员：更少重复搭建，更清晰的证据与趣味化表达", "对算法团队：可学习、可评估、可比较的策略闭环", "对组织：每次成功与失败都沉淀为安全研究资产"],
         art / "learning.webp", "GoldMine = 安全研究 × 算法学习 × 工程化证据链",
     ))
-    slides.append(deck.cards(16, "论文与实现依据", [
+    slides.append(deck.cards(19, "论文与实现依据", [
         ("Self-Harness / AgentDevel", "arxiv.org/abs/2606.09498\narxiv.org/abs/2601.04620", COLORS["gold"]),
         ("MASS / HELIX", "arxiv.org/abs/2610.12176\narxiv.org/abs/2608.13951", COLORS["blue"]),
         ("DiscoveryRSI / 综述", "arxiv.org/abs/2610.23839\narxiv.org/abs/2607.07663", COLORS["green"]),
-        ("实现", "audit_rsi/ · scripts/redteam/\nscripts/mine/ · scripts/env/sandbox.sh\ndocs/system-architecture.md", COLORS["muted"]),
-    ], columns=2, footer="研究笔记：docs/goldmine-rsi-research-2026.md"))
+        ("实现", "audit_rsi/ · scripts/redteam/\nscripts/mine/ · scripts/env/sandbox.sh\n.claude/agents/ · .claude/skills/", COLORS["muted"]),
+    ], columns=2, footer="研究笔记：docs/goldmine-rsi-research-2026.md；实现契约：docs/system-architecture.md"))
 
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     content_types = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',

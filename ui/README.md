@@ -78,7 +78,7 @@ npm run smoke
 - **Live mining**：运行中的 run 在看板顶部显示 LIVE 条（状态、耗时、最后一行日志）；点开进入实时日志抽屉，运行状态每 4 秒轮询，报告生成后看板自动重载。
 - **Persistent sandbox**：每个 run 可用 `scripts/env/sandbox.sh` 复用同一工作副本继续 shell 探索和离线 verify；架构页“隔离工作副本”详情提供对应命令。
 - **Table**：按严重度/目标排序，适合批量分诊。
-- **系统架构**：左侧轨道书图标进入三级架构浏览器。第一级以漫画系统地图展示 5 个区域；点击区域进入中层阶段/组件图；再点击才查看输入输出、设计契约、实现入口、失败语义和优化检查点。漫画由 360 平台的 Seedream 生成，只承担叙事，准确结构以可点击节点为准。同步维护要求见根目录 `AGENTS.md`。
+- **系统架构**：左侧轨道书图标进入三级架构浏览器。第一级以漫画系统地图展示 5 个区域；点击区域进入中层阶段/组件图，再点击节点查看输入输出、设计契约、实现入口、失败语义和优化检查点。“RSI 学习闭环”用带方向与回流箭头的六步飞轮解释真实轨迹、可信标签、效用学习、holdout+flips、shadow 和受控执行，并展示红队“弱点聚类 → Harness 候选”第二支路；页面明确 `trusted_support=0` 时继续 static-only shadow、replay 非因果、harness 不自动修改，当前不是生产 RSI。漫画由 360 平台的 Seedream 生成，只承担叙事，准确结构以可点击节点为准。同步维护要求见根目录 `AGENTS.md`。
 - **Detail drawer**：Brief / Evidence / Agent stream。
   - Brief：改状态、判定、CVE Tier、CVE 状态、关联 CVE、审计备注。
   - Evidence：复制证据路径、打开 `audit-report.md` / `.json`、查看原始 finding JSON。
