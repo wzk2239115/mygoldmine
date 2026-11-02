@@ -160,6 +160,8 @@ async function main() {
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-stage, .arch-component').length"), 0);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-overview img').length"), 6);
     assert.ok(await cdp.evaluate("[...document.querySelectorAll('.arch-overview img')].every(img => img.complete && img.naturalWidth > 0)"));
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card')[4].querySelector('img').getAttribute('src')"), '/architecture/rsi-flywheel.webp');
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card')[4].querySelector('img').naturalWidth"), 1536);
     assert.match(await cdp.evaluate("document.querySelector('.arch-overview').innerText"), /从一座矿，到一份可信证据/);
     for (const [zoneIndex, stageCount, componentCount] of [
       [0, 6, 0],

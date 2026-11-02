@@ -325,7 +325,7 @@ const ZONES = [
     title: 'RSI 学习闭环',
     subtitle: '真实经验驱动建议，门禁控制回流',
     description: '把验证与红队经验变成可评估的效用策略；当前只运行 shadow 学习，不把建议称作生产 RSI。',
-    image: '/architecture/learning.webp',
+    image: '/architecture/rsi-flywheel.webp',
     icon: Sparkles,
     tone: 'violet',
     stages: RSI_STAGES,
