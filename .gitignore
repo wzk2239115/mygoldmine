@@ -17,11 +17,14 @@ logs/
 
 rsi/artifacts/
 rsi/learning/
+rsi/labeling/
 rsi/policy/
 rsi/worlds/
 rsi/trace_pool.json
 rsi/plan.json
 rsi/plan.md
+rsi/verification-*.json
+rsi/verification-*.jsonl
 integrations/skillopt_env_build/configs/env_build.generated.yaml
 
 # Phase 0 env build logs
@@ -31,8 +34,12 @@ env/*/*.tmp.*
 # Findings board UI
 ui/node_modules/
 ui/dist/
+ui/public/logos/
 ui/data/state.json
 ui/data/.state.*.tmp
+ui/data/finding-ledger.json
+ui/data/report-quality.json
+ui/data/verification-shadow.json
 
 # Catalog batch artifacts
 catalog/manifest.json
