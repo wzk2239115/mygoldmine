@@ -187,7 +187,7 @@ const RSI_STAGES = [
     title: '可信标签',
     icon: BadgeCheck,
     tone: 'green',
-    body: '分层抽样并合并 runtime、judge、manual 证据；static 只能辅助 shadow，unknown 不会被当成误报。',
+    body: '把实际运行、独立审核和人工结论作为高等级答案；静态分析只辅助学习，不知道就保留未知。',
     artifact: 'rsi/verification-label-plan.jsonl → labeled.jsonl'
   },
   {
@@ -195,7 +195,7 @@ const RSI_STAGES = [
     title: '效用学习',
     icon: Sparkles,
     tone: 'violet',
-    body: '对五种验证动作分别训练 ridge 效用模型，学习收益与成本，而不是模仿历史动作或最终报告。',
+    body: '比较五种验证动作的收益与成本，学习怎样选择更划算，而不是模仿历史报告。',
     artifact: 'verify / deep_read / human_review / duplicate_candidate / defer'
   },
   {
@@ -203,7 +203,7 @@ const RSI_STAGES = [
     title: 'Holdout + Flips 评估',
     icon: ScanSearch,
     tone: 'amber',
-    body: '按项目留出 holdout，对照 baseline 回放并观测 semantic outcome flips；只评估真实已发生结果，不做因果宣称。',
+    body: '拿没参与训练的项目考试，逐项检查修好了什么、改坏了什么；回放不等于因果证明。',
     artifact: 'verification-replay.json · verification-flips.json · statistical gate'
   },
   {
@@ -211,7 +211,7 @@ const RSI_STAGES = [
     title: 'Shadow 建议',
     icon: Bot,
     tone: 'violet',
-    body: '生成 recommendation-only 建议且 state_change=none；trusted_support=0 时仍以 static-only 继续 shadow，不进入生产。',
+    body: '只给建议，不改流程。高等级可信标签为 0 时仍然只读，不能进入生产。',
     artifact: 'ui/data/verification-shadow.json'
   },
   {
@@ -219,7 +219,7 @@ const RSI_STAGES = [
     title: '受控执行回流',
     icon: ShieldCheck,
     tone: 'green',
-    body: '只有通过统计与发布复核的候选才可进入既有受控流程；执行产生的新真实结果再回流，shadow 本身不触发执行。',
+    body: '候选通过独立考试与发布复核后才采用；采用后的真实结果再成为下一轮经验。',
     artifact: '不可变候选 → 发布复核 → 新轨迹'
   }
 ];
@@ -323,8 +323,8 @@ const ZONES = [
   {
     id: 'learning',
     title: 'RSI 学习闭环',
-    subtitle: '真实经验驱动建议，门禁控制回流',
-    description: '把验证与红队经验变成可评估的效用策略；当前只运行 shadow 学习，不把建议称作生产 RSI。',
+    subtitle: '让每次验证成为下一次选择的经验',
+    description: '从真实经历中学习怎样选择，再用独立考试管住改进；当前只给建议，不自动改变生产。',
     image: '/architecture/rsi-flywheel.webp',
     icon: Sparkles,
     tone: 'violet',
@@ -632,13 +632,13 @@ function RsiLearningLoop({ zone, onSelect }) {
         <div>
           <span className="arch-detail-group">WHY THIS CAN LEARN</span>
           <h3 id="arch-rsi-why-title">为什么能形成 RSI 学习闭环</h3>
-          <p>每次验证都留下可学习的经验：动作前看到什么、做了什么、结果是否可信、花费多少。模型学习的是验证动作的效用，独立评估决定建议能否受控回流，而不是让模型直接改写自己。</p>
+          <p>每次验证都留下经验：当时看到什么、做了什么、结果是否可信、花费多少。系统据此学习怎样选择，再通过独立考试决定建议能否采用，而不是让模型直接改写自己。</p>
         </div>
         <aside className="arch-rsi-boundary" aria-label="当前 RSI 边界">
-          <strong>当前：shadow 学习，不是生产 RSI</strong>
-          <span><code>trusted_support=0</code> → 继续 static-only shadow</span>
-          <span>Replay → matched-action 观测，非因果</span>
-          <span>Harness → 只产候选，不自动修改</span>
+          <strong>当前：只学习、只建议，不自动改生产</strong>
+          <span>高等级可信标签：<code>0</code></span>
+          <span>回放只看真实结果，不证明因果</span>
+          <span>执行框架只生成候选，不自动修改</span>
         </aside>
       </section>
 
@@ -668,9 +668,9 @@ function RsiLearningLoop({ zone, onSelect }) {
         <header className="arch-rsi-section-head">
           <div>
             <span className="arch-detail-group">SECONDARY LOOP / RED-TEAM HARNESS</span>
-            <h3 id="arch-rsi-branch-title">第二条学习支路：从失败到 Harness 候选</h3>
+            <h3 id="arch-rsi-branch-title">第二条学习支路：从重复失败到最小修改候选</h3>
           </div>
-          <p>主飞轮优化验证动作；这条支路定位执行器自身的失败模式。</p>
+          <p>主飞轮学习怎样选择；这条支路寻找执行器本身哪里经常出问题。</p>
         </header>
         <div className="arch-rsi-branch-track" role="group" aria-label="红队轨迹经过弱点聚类形成 Harness 候选，再接受独立回放与发布复核">
           <div className="arch-rsi-branch-endpoint">
@@ -687,7 +687,7 @@ function RsiLearningLoop({ zone, onSelect }) {
           <ArrowRight size={23} aria-hidden="true" />
           <div className="arch-rsi-branch-endpoint is-gate">
             <ShieldCheck size={23} aria-hidden="true" />
-            <div><strong>独立回放 + Flips</strong><span>候选复核后受控回流，mutation=none</span></div>
+            <div><strong>独立考试与回归检查</strong><span>复核后才采用；这里不会自动改代码</span></div>
           </div>
         </div>
       </section>

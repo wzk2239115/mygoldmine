@@ -5078,17 +5078,17 @@ body {
 }
 
 .arch-zone-stages .arch-stage h3 {
-  font-size: 20px;
+  font-size: 21px;
 }
 
 .arch-zone-stages .arch-stage p {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.65;
 }
 
 .arch-zone-stages .arch-stage-cta,
 .arch-zone-components .arch-stage-cta {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .arch-zone-components {
@@ -5105,11 +5105,11 @@ body {
 }
 
 .arch-zone-components .arch-component h3 {
-  font-size: 17px;
+  font-size: 19px;
 }
 
 .arch-zone-components .arch-component p {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.65;
 }
 
@@ -5135,7 +5135,7 @@ body {
 .arch-rsi-section-head p {
   margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.75;
 }
 
@@ -5152,18 +5152,18 @@ body {
 
 .arch-rsi-boundary strong {
   margin-bottom: 3px;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .arch-rsi-boundary span {
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
 .arch-rsi-boundary code {
   color: var(--red);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -5219,7 +5219,7 @@ body {
 }
 
 .arch-rsi-step .arch-stage {
-  min-height: 174px;
+  min-height: 190px;
   padding: 17px;
   background: var(--paper-2);
   border: 1px solid var(--line);
@@ -5228,12 +5228,12 @@ body {
 }
 
 .arch-rsi-step .arch-stage h3 {
-  font-size: 19px;
+  font-size: 20px;
 }
 
 .arch-rsi-step .arch-stage p,
 .arch-rsi-step .arch-stage-cta {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -5252,7 +5252,7 @@ body {
   gap: 20px;
   padding: 9px 4px;
   color: var(--violet);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -5282,7 +5282,7 @@ body {
 
 .arch-rsi-branch-track .arch-component {
   width: 100%;
-  min-height: 148px;
+  min-height: 160px;
   align-items: flex-start;
   padding: 17px;
   background: var(--paper-3);
@@ -5291,12 +5291,12 @@ body {
 }
 
 .arch-rsi-branch-track .arch-component h3 {
-  font-size: 18px;
+  font-size: 19px;
 }
 
 .arch-rsi-branch-track .arch-component p,
 .arch-rsi-branch-track .arch-stage-cta {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
 }
 

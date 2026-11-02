@@ -209,10 +209,11 @@ async function main() {
     assert.equal(await cdp.evaluate("document.querySelector('.arch-zone-hero h2').innerText"), 'RSI 学习闭环');
     assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-why').innerText"), /为什么能形成 RSI 学习闭环/);
     const boundaryText = await cdp.evaluate("document.querySelector('.arch-rsi-boundary').innerText");
-    assert.match(boundaryText, /shadow 学习，不是生产 RSI/);
-    assert.match(boundaryText, /trusted_support=0/);
-    assert.match(boundaryText, /非因果/);
+    assert.match(boundaryText, /只学习、只建议，不自动改生产/);
+    assert.match(boundaryText, /高等级可信标签：0/);
+    assert.match(boundaryText, /不证明因果/);
     assert.match(boundaryText, /不自动修改/);
+    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.arch-rsi-step .arch-stage p')).fontSize"), '15px');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-loop .arch-stage').length"), 6);
     assert.deepEqual(await cdp.evaluate("[...document.querySelectorAll('.arch-rsi-loop .arch-stage h3')].map((node) => node.innerText)"), [
       '真实轨迹', '可信标签', '效用学习', 'Holdout + Flips 评估', 'Shadow 建议', '受控执行回流'
