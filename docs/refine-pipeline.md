@@ -24,7 +24,7 @@ bash scripts/workflow/refine_worker.sh stop
 bash scripts/workflow/refine_worker.sh once
 ```
 
-- 默认每批 20 条，间隔 5 秒；`REFINE_BATCH`、`REFINE_INTERVAL` 可调。
+- 默认每批 20 条，间隔 5 秒；`REFINE_BATCH`、`REFINE_INTERVAL` 可调。`--loop` 在空队列时等待并继续扫描，不会退出；新 finding 到达后可自动进入处理。
 - 运行状态写入 `ui/data/refine-queue.json`，决策写入 `ui/data/refine-state.json`。
 - `scripts/ui/start.sh` 默认启动 worker；`REFINE_WORKER=0` 可关闭。
 - `mine_one_docker.sh` 每次审计结束会补跑一个批次。

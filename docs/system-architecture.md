@@ -163,6 +163,7 @@ state.json（人工） > curated.json（人工种子） > refine-state.json（wo
 - 弱指纹只标记 duplicate_candidate；High/Critical 不凭弱指纹直接归档。
 - CVE Tier、verify confirmed → reproduce；Critical/High → triage；其他低分项 → archived。
 - 所有决策可回放；archived 不删除原始报告。
+- `--loop` 在空队列时 sleep 并继续扫描，不会因暂时 pending=0 退出；新 run 和新证据能持续进入经验链。
 
 ## 6. 动态验收 lab 契约
 

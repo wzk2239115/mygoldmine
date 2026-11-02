@@ -329,7 +329,7 @@ def main():
                 file=sys.stderr,
             )
 
-        if not args.loop or remaining == 0:
+        if not args.loop:
             break
         time.sleep(max(1, args.interval))
 

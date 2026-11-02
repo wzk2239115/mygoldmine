@@ -328,7 +328,7 @@ bash run.sh --verify-only <run>`
     output: 'triage/reproduce/archived 路由、队列统计和决策轨迹',
     source: 'scripts/workflow/refine_worker.py · refine_worker.sh',
     checks: ['raw 或证据变化会改变 source hash 并触发重算。', 'confirmed 可唤醒归档，高危弱指纹不直接归档。', '人工状态始终高于自动路由，archived 不代表安全。'],
-    failure: 'lock 防止双实例；队列暂时清空后仍需能发现新数据，不能把一次性退出当作常驻成功。',
+    failure: 'lock 防止双实例；--loop 在空队列时等待并继续扫描，新数据到达后自动处理，pause/stop 保留明确控制语义。',
     optimize: '优先检查 worker 存活、空队列后的唤醒、状态与当前 occurrence 的匹配，再调整评分阈值。'
   },
   '验证 / 复现': {

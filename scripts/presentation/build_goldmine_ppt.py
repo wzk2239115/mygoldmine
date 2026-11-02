@@ -266,7 +266,7 @@ def build():
         ("Shadow", "只读建议", COLORS["muted"]),
         ("受控发布", "不可变候选与回滚", COLORS["green"]),
     ]
-    slides.append(deck.flow(8, "Goldmine 的 RSI 闭环", steps, "replay 与 outcome flips 都不宣称因果；证据不足时保持 shadow"))
+    slides.append(deck.flow(8, "Goldmine 的 RSI 闭环", steps, "worker 常驻接收新证据；replay / flips 不宣称因果，证据不足保持 shadow"))
     slides.append(deck.metrics(9, "真实现状：闭环已通，可信数据仍是瓶颈", [
         ("986", "occurrence 经验记录", COLORS["blue"]),
         ("6", "真实 static 动作样本（本轮前为 0）", COLORS["gold"]),
