@@ -178,6 +178,20 @@ class Deck:
             shapes.append(text_box(22, 8.28, 5.72, 4.15, 0.55, note, size=12, color=COLORS["red"], bold=True))
         return slide_xml(shapes), rels
 
+    def visual_steps(self, number, title, steps, footer):
+        shapes, rels = [], []
+        self.header(shapes, title, number)
+        for index, (head, body, accent, image) in enumerate(steps):
+            x = 0.55 + index * 3.12
+            shapes.append(rect(20 + index * 4, x, 1.65, 2.82, 4.95, COLORS["white"], COLORS["line"]))
+            self.add_image(shapes, rels, image, x + 0.14, 1.82, 2.54, 2.05)
+            shapes.append(text_box(21 + index * 4, x + 0.2, 4.03, 2.42, 0.55, head, size=17, color=accent, bold=True))
+            shapes.append(text_box(22 + index * 4, x + 0.2, 4.72, 2.42, 1.5, body, size=13, color=COLORS["ink"], bold=True))
+            if index < len(steps) - 1:
+                shapes.append(text_box(23 + index * 4, x + 2.82, 3.0, 0.3, 0.4, "→", size=22, color=COLORS["gold"], bold=True))
+        shapes.append(text_box(90, 0.62, 6.82, 12.0, 0.35, footer, size=14, color=COLORS["muted"], bold=True))
+        return slide_xml(shapes), rels
+
     def cards(self, number, title, cards, columns=3, footer=None, body_size=15, title_size=18):
         shapes, rels = [], []
         self.header(shapes, title, number)
@@ -345,11 +359,13 @@ def build():
         ("Victim + Lab", "真实服务、随机 flag、内部网络；scenario 绑定 finding 与源码 hash。", COLORS["gold"], art / "cards" / "victim-lab.webp"),
         ("Independent judge", "审核目标漏洞、证据、作弊风险与可复现性；HTTP 之外明确 blocked。", COLORS["blue"], art / "cards" / "judge.webp"),
     ], footer="红队能力 = 模型策略 + 执行 harness + 隔离 lab + 独立 judge + 可回放轨迹"))
-    slides.append(deck.hero(
-        14, "红队证据链：系统必须证明“确实发生了”",
-        ["attacker 无宿主、无 Docker socket、无 flag 直读路径", "flag 只能来自真实工具输出，最终回答不是证据", "judge schema + 确定性 flag provenance 双重校验", "flag + approved + 图文报告，才进入人工验收"],
-        art / "redteam.webp", "不是“模型说攻破了”，而是证据链支持这个结论",
-    ))
+    evidence_art = ROOT / "docs" / "visuals" / "redteam-evidence"
+    slides.append(deck.visual_steps(14, "红队证据链：凭什么相信攻击真的成功？", [
+        ("01 先把攻击者关好", "攻击者只能接触实验目标，不能控制宿主机，也碰不到预先藏好的标记。", COLORS["red"], evidence_art / "01-isolation.webp"),
+        ("02 只认真实操作拿到的标记", "flag 是预先藏好的随机标记；只有它出现在真实工具输出里才算，“我成功了”不算。", COLORS["gold"], evidence_art / "02-real-output.webp"),
+        ("03 换一个人独立复核", "另一个审查员检查：打的是不是目标漏洞、标记从哪里来、有没有偷看或作弊。", COLORS["blue"], evidence_art / "03-independent-review.webp"),
+        ("04 证据齐全才交给人", "真实标记、审查通过、图文报告，三项齐全，才进入人工验收。", COLORS["green"], evidence_art / "04-human-acceptance.webp"),
+    ], "一句话：不听攻击者自己怎么说，只复查它做了什么、留下了什么证据"))
     slides.append(deck.flow(15, "实例：DeepSeek Harness `.env → Git 配置注入`", [
         ("恶意仓库 .env", "不可信配置", COLORS["red"]),
         ("启动加载", "Git 变量未过滤", COLORS["gold"]),
