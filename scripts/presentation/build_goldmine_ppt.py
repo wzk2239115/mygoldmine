@@ -290,19 +290,44 @@ def build():
         ("06 红队 / 验收 · Skill + agent", "做：lab → 真实捕获 → judge → 人工验收\nSkill：lab-builder 管隔离/flag/负控；非 HTTP 执行 blocked\n产物：scenario、trace、judge.json、图文报告", COLORS["red"]),
     ], columns=2, footer="主编排：.claude/agents/security-orchestrator.md；运行入口：scripts/mine/mine_one.sh；完整有效报告才进入 Finding Ledger", body_size=11, title_size=15))
     slides.append(deck.cards(4, "2026 年研究地图：从自我反思走向受控闭环", [
-        ("Self-Harness", "例：model_timeout → 超时控制弱点 → 只改重试策略 → 留出项目查回归。\n脚本：audit_rsi/weakness.py、harness.py", COLORS["gold"]),
-        ("AgentDevel", "单版本线、可执行诊断、P→F / F→P flip 门禁。", COLORS["blue"]),
-        ("MASS", "多智能体工作流搜索，优质团队轨迹回流训练。", COLORS["green"]),
-        ("HELIX", "模型–harness 共进化，verified siblings 与证据平面。", COLORS["gold"]),
-        ("DiscoveryRSI", "假设信用、workflow replay 与 rediscovery。", COLORS["blue"]),
-        ("RSI 综述", "1,250 篇论文：验证层级、闭环程度与崩溃风险。", COLORS["red"]),
-    ], columns=3, footer="论文结果用于指导设计，不直接外推为 Goldmine 的生产效果"))
-    slides.append(deck.cards(5, "为什么需要算法团队", [
+        ("Self-Harness", "共性弱点 → 最小 harness 修改 → 留出项目非回归。\n下一页：为什么只改外部执行框架。", COLORS["gold"]),
+        ("AgentDevel", "把 agent 当发布制品，逐项检查 P→F / F→P。\n第 6 页：为什么不能只看平均分。", COLORS["blue"]),
+        ("MASS", "多角色工作流搜索，优质团队轨迹回流训练。\n第 7 页：协作经验怎样变成训练数据。", COLORS["green"]),
+        ("HELIX", "模型–harness 共进化，保留 verified siblings。\n第 8 页：为什么执行框架决定能学到什么。", COLORS["gold"]),
+        ("DiscoveryRSI", "假设信用、workflow replay 与 rediscovery。\n第 9 页：怎样让发现能力逐轮增强。", COLORS["blue"]),
+    ], columns=3, footer="接下来五页逐篇速览；论文结果用于指导设计，不直接外推为 GoldMine 的生产效果"))
+    paper_art = ROOT / "docs" / "visuals" / "rsi-papers"
+    slides.append(deck.hero(
+        5, "Self-Harness：针对共性弱点，最小修改执行框架",
+        ["问题：同一模型反复出现同类失败，人工逐项补丁难以复用", "方法：固定基座模型与评估器，从轨迹归纳弱点，只改外部 harness", "验证：参与和未参与调参的项目都检查非回归；论文报告三组留出通过率提升", "GoldMine：model_timeout → 重试控制候选；weakness.py + harness.py"],
+        paper_art / "self-harness.webp", "论文数值属于 Terminal-Bench 设定，不能外推为 GoldMine 的提升",
+    ))
+    slides.append(deck.hero(
+        6, "AgentDevel：把自我演进做成发布工程",
+        ["问题：平均分变高，可能掩盖原本通过的 case 被改坏", "方法：单一版本线，每轮只产生一个发布候选（RC），配套可执行诊断", "门禁：逐项比较 P→F 回归与 F→P 修复；论文消融中 P→F 从 3.1% 升至 14.8%（移除门禁）", "GoldMine：按 semantic 做 flips，不可变候选保留证据、拒绝与回滚"],
+        paper_art / "agentdevel.webp", "发布的基本单位是带证据的候选版本，不是一句“模型变好了”",
+    ))
+    slides.append(deck.hero(
+        7, "MASS：让多角色协作轨迹成为训练经验",
+        ["问题：单个 agent 的探索路径有限，团队怎样分工也需要搜索", "方法：同一基座扮演多个角色，交替进行工作流搜索、自评估与训练", "结果：优质团队轨迹回流；论文在四个开放研究基准报告每输出 token 得分为基座 1.2–1.6 倍", "GoldMine：分离 attacker / victim / judge 轨迹；自评不能替代真实 flag 与独立 judge"],
+        paper_art / "mass.webp", "多智能体自评可能强化共同盲点，独立证据必须留在闭环里",
+    ))
+    slides.append(deck.hero(
+        8, "HELIX：模型与 Harness 共同进化",
+        ["核心观点：harness 不只决定今天怎么执行，也决定明天能留下什么经验", "方法：构建、更新、重建执行框架，使其与模型能力变化相匹配", "数据：保留 verified siblings——成功、回归、近失和替代方案；200 组配对样本形成 438 条学习记录", "GoldMine：保存配对结果与证据血缘；未来模型更新后重新评估并重建 harness"],
+        paper_art / "helix.webp", "不是只保留成功答案，而是保留可比较、可回放的完整证据平面",
+    ))
+    slides.append(deck.hero(
+        9, "DiscoveryRSI：让有价值的假设逐轮涌现",
+        ["问题：发现系统不能只积累标签，还要知道哪些假设值得继续探索", "方法：假设树记录替代解释，结合贡献评估、workflow replay 与再次发现", "结果：两轮后论文假设质量评分 4.86 → 5.39，并有初步专家评估", "GoldMine：finding 应保存根因、调查决策、替代解释和可证伪证据，再研究假设信用"],
+        paper_art / "discoveryrsi.webp", "论文面向生命科学发现，不能把分数直接解释为漏洞发现效果",
+    ))
+    slides.append(deck.cards(10, "为什么需要算法团队", [
         ("算法团队", "把轨迹变成可学习的数据，把奖励变成可计算的效用，再用验证器与发布门禁约束改进。", COLORS["gold"], art / "cards" / "algorithm.webp"),
         ("开发团队", "容器、API、UI、任务调度、可靠性与工程交付，让系统稳定可运行。", COLORS["blue"], art / "cards" / "development.webp"),
         ("安全团队", "威胁情报、漏洞先验、规则、人工裁决与披露规范，让判断足够专业。", COLORS["red"], art / "cards" / "security.webp"),
     ], footer="协作分工，不是能力高低；下一页把算法团队的六项机制逐一落到本项目"))
-    slides.append(deck.cards(6, "算法团队六项机制：通俗解释 + GoldMine 实例", [
+    slides.append(deck.cards(11, "算法团队六项机制：通俗解释 + GoldMine 实例", [
         ("01 轨迹建模", "通俗：记住“当时知道什么、做了什么、花了多少、结果如何”。\n例：verification-experience 保存动作前上下文、动作、propensity、成本与证据血缘。", COLORS["blue"]),
         ("02 策略与奖励", "通俗：规定可选动作，以及什么结果值得、什么成本要扣。\n例：在 verify / deep_read / defer 等动作间打分；可信 TP 得奖励，误晋级与 agent/token/复核成本扣分。", COLORS["gold"]),
         ("03 验证器", "通俗：不靠模型自评，检查证据是否真的支持结论。\n例：flag provenance + judge 验证红队；holdout replay 与逐 finding flips 检查候选是否非回归。", COLORS["red"]),
@@ -311,21 +336,21 @@ def build():
         ("06 RSI 发布门禁", "通俗：改进先当候选，证明有修复且无回归后才可能发布。\n例：配对覆盖≥0.8、F→P≥1、P→F=0；shadow 只读，proposal 不直接改 harness。", COLORS["red"]),
     ], columns=3, footer="这些机制对应真实代码与数据契约；当前证据不足时输出 insufficient / shadow，而不是自动发布", body_size=12, title_size=16))
     slides.append(deck.hero(
-        7, "挖掘：先得到可追溯候选，而不是直接宣布漏洞",
+        12, "挖掘：先得到可追溯候选，而不是直接宣布漏洞",
         ["每个 run 独立，原始源码只读，工作副本可写", "持久沙箱复用依赖、工作区与产物，可继续 shell / verify", "Jev 只做召回；报告增量落盘并过质量门"],
         art / "mining.webp", "静态 finding 是研究假设，不是已成立漏洞",
     ))
-    slides.append(deck.cards(8, "红队模型：不是单个“攻击模型”", [
+    slides.append(deck.cards(13, "红队模型：不是单个“攻击模型”", [
         ("Attacker", "在受限容器中探索允许的攻击路径；模型策略与工具 harness 共同决定行为。", COLORS["red"], art / "cards" / "attacker.webp"),
         ("Victim + Lab", "真实服务、随机 flag、内部网络；scenario 绑定 finding 与源码 hash。", COLORS["gold"], art / "cards" / "victim-lab.webp"),
         ("Independent judge", "审核目标漏洞、证据、作弊风险与可复现性；HTTP 之外明确 blocked。", COLORS["blue"], art / "cards" / "judge.webp"),
     ], footer="红队能力 = 模型策略 + 执行 harness + 隔离 lab + 独立 judge + 可回放轨迹"))
     slides.append(deck.hero(
-        9, "红队证据链：系统必须证明“确实发生了”",
+        14, "红队证据链：系统必须证明“确实发生了”",
         ["attacker 无宿主、无 Docker socket、无 flag 直读路径", "flag 只能来自真实工具输出，最终回答不是证据", "judge schema + 确定性 flag provenance 双重校验", "flag + approved + 图文报告，才进入人工验收"],
         art / "redteam.webp", "不是“模型说攻破了”，而是证据链支持这个结论",
     ))
-    slides.append(deck.flow(10, "实例：DeepSeek Harness `.env → Git 配置注入`", [
+    slides.append(deck.flow(15, "实例：DeepSeek Harness `.env → Git 配置注入`", [
         ("恶意仓库 .env", "不可信配置", COLORS["red"]),
         ("启动加载", "Git 变量未过滤", COLORS["gold"]),
         ("turn/start", "自动 git add --all", COLORS["blue"]),
@@ -335,13 +360,13 @@ def build():
         ("自动触发", "workspace-changes / snapshotTree", COLORS["gold"]),
         ("学习价值", "配置信任边界 + 运行时证据 + 候选修复", COLORS["green"]),
     ]))
-    slides.append(deck.cards(11, "从轨迹到经验：RSI 的数据基础", [
+    slides.append(deck.cards(16, "从轨迹到经验：RSI 的数据基础", [
         ("身份与上下文", "occurrence / semantic 双层身份；保存动作前上下文，避免未来信息泄漏。", COLORS["blue"], art / "cards" / "identity-context.webp"),
         ("动作与成本", "策略、propensity、agent/token/time 成本；确定性路由不被冒充为探索。", COLORS["gold"], art / "cards" / "action-cost.webp"),
         ("结果与证据", "static < runtime < judge < manual；来源 hash 与标签范围可审计。", COLORS["green"], art / "cards" / "evidence-outcome.webp"),
     ], footer="verify / auto-state 已接入；redteam-experience 分离 run 结果与 attacker step，并复核 provenance"))
-    slides.append(deck.flywheel(12))
-    slides.append(deck.cards(13, "每一块究竟怎样 RSI：已通、仍缺与禁止事项", [
+    slides.append(deck.flywheel(17))
+    slides.append(deck.cards(18, "每一块究竟怎样 RSI：已通、仍缺与禁止事项", [
         ("经验与标签｜experience.py / labeling.py", "怎样：轨迹 → 分层抽样/人工合并 → 可信训练样本\n已通：身份、上下文、成本与证据等级；仍缺 trusted 标签\n禁止：unknown 当 FP；static 冒充 runtime/judge/manual", COLORS["blue"]),
         ("效用学习｜verification.py", "怎样：按已执行动作分别拟合 realized utility\n已通：奖励、成本、证据权重与基线；仍缺可信动作覆盖\n禁止：把静态样本的不同建议称为已验证提升", COLORS["gold"]),
         ("评估｜verify-replay / verify-flips", "怎样：留出项目比较基线/候选，再按 semantic 看结果翻转\n已通：matched-action 与 P→F/F→P；仍缺足够配对可信结果\n禁止：把 replay 当因果 OPE 或反事实 uplift", COLORS["red"]),
@@ -349,35 +374,35 @@ def build():
         ("弱点与提案｜weakness.py / harness.py", "怎样：确定性聚类失败 → 白名单 surface 候选 → flip 验证\n已通：candidate_id、证据 hash、mutation=none；仍缺实际修改\n禁止：proposal 直接改 harness；聚类当因果归因", COLORS["gold"]),
         ("候选与发布｜release.py / rsi_version", "怎样：不可变候选 → 完整性复核 + accepted gate → 受控发布\n已通：版本、证据、拒绝与回滚存储；当前无可信发布依据\n禁止：证据不足 promote；绕过候选复核", COLORS["green"]),
     ], columns=2, footer="RSI 的自我改进对象是验证策略与受限 harness 候选，不是无约束修改模型或生产系统", body_size=11, title_size=14))
-    slides.append(deck.metrics(14, "真实现状：离线链路可运行，可信数据仍未闭环", [
+    slides.append(deck.metrics(19, "真实现状：离线链路可运行，可信数据仍未闭环", [
         ("static-only", "当前证据状态：只有 static 训练支持", COLORS["gold"]),
         ("insufficient", "codex 留出回放：候选与基线均无有效 support", COLORS["blue"]),
         ("0", "trusted_support：不能称为生产 RSI", COLORS["red"]),
     ], ["Shadow（影子模式）只给建议，不自动改生产；当前 reason=no_trusted_utility_targets。", "Replay 仅报告 matched-action realized utility；Holdout（留出验证项目）用于检验跨项目泛化。"]))
-    slides.append(deck.cards(15, "对 Goldmine 的技术选择", [
+    slides.append(deck.cards(20, "对 Goldmine 的技术选择", [
         ("短期", "真实标签、动作覆盖、逐 finding 非回归、跨项目 holdout；先让 shadow 学到真实经验。", COLORS["green"], art / "cards" / "short-term.webp"),
         ("中期", "weakness → harness-propose → flip 验证，保留 verified siblings 与可回滚证据。", COLORS["gold"], art / "cards" / "mid-term.webp"),
         ("长期", "证据充分后研究模型更新，并针对新能力画像重建匹配的 harness。", COLORS["red"], art / "cards" / "long-term.webp"),
     ], footer="选择有边界的 harness RSI，不做无约束自我修改"))
-    slides.append(deck.cards(16, "算法团队的五个工作包", [
+    slides.append(deck.cards(21, "算法团队的五个工作包", [
         ("01 数据与身份", "轨迹、标签、成本、血缘与语义防泄漏。", COLORS["blue"]),
         ("02 策略与奖励", "动作效用、成本约束、探索与基线。", COLORS["gold"]),
         ("03 红队环境", "场景生成、执行协议、真实 flag 与失败分类。", COLORS["red"]),
         ("04 评估器", "judge、provenance、验证层级与人类复核接口。", COLORS["green"]),
         ("05 发布科学", "holdout、flip gate、bootstrap、版本与回滚。", COLORS["blue"]),
     ], columns=3, footer="开发团队与安全团队是这些工作包的共同交付伙伴"))
-    slides.append(deck.cards(17, "建议的 90 天验收指标", [
+    slides.append(deck.cards(22, "建议的 90 天验收指标", [
         ("Trusted 数据", "至少 3 个独立项目；runtime / judge 样本持续增长。", COLORS["green"]),
         ("动作覆盖", "100+ 动作标签，覆盖 verify / deep_read / human_review。", COLORS["gold"]),
         ("发布证据", "跨项目 holdout、逐 finding P→F/F→P、基线对照。", COLORS["blue"]),
         ("红队扩展", "真实新协议执行器，不用 HTTP 包装冒充支持。", COLORS["red"]),
     ], columns=2, footer="这些是建议目标，不是当前完成度；门禁不满足时继续保持 shadow"))
     slides.append(deck.hero(
-        18, "让每一次挖掘，都成为下一次更好的证据",
+        23, "让每一次挖掘，都成为下一次更好的证据",
         ["对分析人员：更少重复搭建，更清晰的证据与趣味化表达", "对算法团队：可学习、可评估、可比较的策略闭环", "对组织：每次成功与失败都沉淀为安全研究资产"],
         art / "learning.webp", "GoldMine = 安全研究 × 算法学习 × 工程化证据链",
     ))
-    slides.append(deck.cards(19, "论文与实现依据", [
+    slides.append(deck.cards(24, "论文与实现依据", [
         ("Self-Harness / AgentDevel", "arxiv.org/abs/2606.09498\narxiv.org/abs/2601.04620", COLORS["gold"]),
         ("MASS / HELIX", "arxiv.org/abs/2610.12176\narxiv.org/abs/2608.13951", COLORS["blue"]),
         ("DiscoveryRSI / 综述", "arxiv.org/abs/2610.23839\narxiv.org/abs/2607.07663", COLORS["green"]),
