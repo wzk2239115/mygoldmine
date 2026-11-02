@@ -393,6 +393,29 @@ def cmd_redteam_weakness(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_harness_propose(args: argparse.Namespace) -> int:
+    from .harness import propose_harness_candidates
+    from .verification import write_json
+
+    weakness = json.loads(Path(args.weakness).read_text(encoding="utf-8"))
+    candidates = propose_harness_candidates(weakness, limit=args.limit)
+    write_json(args.output, candidates)
+    _emit({"output": str(Path(args.output)), "candidates": len(candidates)}, args.json)
+    return 0
+
+
+def cmd_harness_validate(args: argparse.Namespace) -> int:
+    from .harness import validate_harness_candidate
+    from .verification import write_json
+
+    candidate = json.loads(Path(args.candidate).read_text(encoding="utf-8"))
+    flips = json.loads(Path(args.flips).read_text(encoding="utf-8"))
+    payload = validate_harness_candidate(candidate, flips)
+    write_json(args.output, payload)
+    _emit(payload, args.json)
+    return 0
+
+
 def _common(sub: argparse.ArgumentParser, pool_default: str) -> None:
     sub.add_argument("--pool", default=pool_default)
     sub.add_argument("--out", default=str(REPO_ROOT / "rsi"))
@@ -602,6 +625,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_redteam_weakness.add_argument("--json", action="store_true")
     p_redteam_weakness.set_defaults(func=cmd_redteam_weakness)
+
+    p_harness_propose = sub.add_parser(
+        "harness-propose", help="create bounded, non-mutating harness candidates"
+    )
+    p_harness_propose.add_argument("--weakness", required=True)
+    p_harness_propose.add_argument("--output", required=True)
+    p_harness_propose.add_argument("--limit", type=int, default=3)
+    p_harness_propose.add_argument("--json", action="store_true")
+    p_harness_propose.set_defaults(func=cmd_harness_propose)
+
+    p_harness_validate = sub.add_parser(
+        "harness-validate", help="validate a harness candidate against outcome flips"
+    )
+    p_harness_validate.add_argument("--candidate", required=True)
+    p_harness_validate.add_argument("--flips", required=True)
+    p_harness_validate.add_argument("--output", required=True)
+    p_harness_validate.add_argument("--json", action="store_true")
+    p_harness_validate.set_defaults(func=cmd_harness_validate)
 
     return parser
 

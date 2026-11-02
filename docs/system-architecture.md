@@ -223,6 +223,8 @@ python3 -m audit_rsi verify-replay --pool rsi/verification-experience-labeled.js
 python3 -m audit_rsi verify-flips --baseline <baseline.jsonl> --candidate <candidate.jsonl> --holdout-project <project> --output rsi/verification-flips.json
 python3 -m audit_rsi redteam-experience --runs runs/redteam --output rsi/redteam-experience.jsonl --steps-output rsi/redteam-steps.jsonl
 python3 -m audit_rsi redteam-weakness --runs runs/redteam --output rsi/redteam-weakness.json
+python3 -m audit_rsi harness-propose --weakness rsi/redteam-weakness.json --output rsi/harness-candidates.json --limit 3
+python3 -m audit_rsi harness-validate --candidate <candidate.json> --flips rsi/verification-flips.json --output rsi/harness-validated.json
 ```
 
 unknown 不等于 FP；无合法标注倾向、holdout、标签覆盖或支持度时只输出 insufficient/shadow，不生产 promote。回放只报告 matched-action realized utility，不宣称因果 uplift。`verify-flips` 按 semantic 比较两个真实经验池的 F→P/P→F、稳定项、配对覆盖和 unknown 转移，用于观测非回归，不把不同 run 的结果解释成反事实或因果效果。候选门禁默认要求 `paired_coverage>=0.8`、至少一个 F→P 且零 P→F；覆盖不足为 insufficient，有修复但出现回归为 rejected，满足条件才为 accepted。`mutation=none`，accepted 仍需候选复核和既有发布门禁。版本发布复核统计 gate，失败候选仍可查询和回滚。
@@ -230,6 +232,8 @@ unknown 不等于 FP；无合法标注倾向、holdout、标签覆盖或支持�
 `redteam-experience` 将 run 级结果与 step 级 attacker 工具事件分开：记录角色、动作、成本、返回码、输出哈希、失败分类和 evidence class，不复制原始攻击命令、输出正文或 flag。只有确定性 provenance 可重算的捕获才自动成为 runtime 标签；judge approved 还要求审核状态与重算结果一致。`not_captured`、篡改轨迹和未复核结果保持 unknown，不成为 FP 或可信奖励。
 
 `redteam-weakness` 对这些轨迹做确定性 Weakness Mining：按项目类型、攻击模型、失败类别、严重度聚类，输出 occurrence 支持度、事件支持度、平均成本和候选 editable surface。`model_timeout`、`lab_unhealthy`、`not_captured`、工具失败和结构化输出失败映射到不同 harness 表面。该产物只是候选证据包，`mutation=none`，候选修改仍须独立回放与非回归门禁。
+
+`harness-propose` 只允许白名单 editable surface，为每个提案生成稳定 `candidate_id`、目标失败、证据哈希、保留行为和验证要求；不会直接修改 harness。`harness-validate` 重算提案身份并调用 outcome flip gate，只有 accepted 才标记 validated，身份篡改、回归或证据不足均不能通过。候选提案和验证结果都可审计、可回放，仍需后续发布复核。
 
 经验构建同时读取 `verdict.json`、`verify-report.json` 和 `auto-state.json`：自动路由提供 `deterministic-auto-state` 动作及倾向，verify 提供 static/runtime 结果，不能把有结果但无动作的样本静默丢弃。runtime verify 与人工 curated 可自动获得确定标签来源；static verify 只进入 shadow 学习；judge 仍需独立标签复核，不自动获得 label propensity。
 
