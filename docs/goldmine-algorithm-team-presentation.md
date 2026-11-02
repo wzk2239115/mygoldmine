@@ -94,7 +94,7 @@ RSI × 红队模型 × 可验证的算法闭环
 
 短期：真实标签、动作覆盖、逐 finding 非回归、跨项目 holdout。
 
-中期：失败聚类、最小候选 harness、verified siblings、多角色红队轨迹、项目级统计验收。
+中期：用 `redteam-weakness` 做确定性失败聚类，再生成最小候选 harness、verified siblings、多角色红队轨迹和项目级统计验收。
 
 长期：在证据充分后研究模型更新，并为新模型重建匹配的 harness。
 

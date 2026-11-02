@@ -378,6 +378,18 @@ def cmd_redteam_experience(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_redteam_weakness(args: argparse.Namespace) -> int:
+    from .adapters.redteam import scan_redteam_runs
+    from .verification import write_json
+    from .weakness import mine_redteam_weaknesses
+
+    records, steps = scan_redteam_runs(args.runs)
+    payload = mine_redteam_weaknesses(records, steps)
+    write_json(args.output, payload)
+    _emit(payload, args.json)
+    return 0
+
+
 def _common(sub: argparse.ArgumentParser, pool_default: str) -> None:
     sub.add_argument("--pool", default=pool_default)
     sub.add_argument("--out", default=str(REPO_ROOT / "rsi"))
@@ -574,6 +586,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_redteam_experience.add_argument("--steps-output", default="")
     p_redteam_experience.add_argument("--json", action="store_true")
     p_redteam_experience.set_defaults(func=cmd_redteam_experience)
+
+    p_redteam_weakness = sub.add_parser(
+        "redteam-weakness", help="mine verifier-grounded red-team failure signatures"
+    )
+    p_redteam_weakness.add_argument("--runs", default=str(REPO_ROOT / "runs" / "redteam"))
+    p_redteam_weakness.add_argument(
+        "--output", default=str(REPO_ROOT / "rsi" / "redteam-weakness.json")
+    )
+    p_redteam_weakness.add_argument("--json", action="store_true")
+    p_redteam_weakness.set_defaults(func=cmd_redteam_weakness)
 
     return parser
 

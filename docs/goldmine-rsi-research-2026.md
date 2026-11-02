@@ -60,6 +60,7 @@
 - `trusted_support=0`，生产发布仍被拒绝；不能声称生产 RSI 或因果 uplift。
 - `verify-report.json` 和 `auto-state.json` 原先未完整进入经验池，已在本轮修复。
 - 新增 `redteam-experience` 适配：run 级结果与 step 级 attacker 工具事件分层，只有可重算 provenance 的 runtime/judge 才自动获得可信标签；`not_captured` 保持 unknown。
+- 新增 `redteam-weakness`：按项目类型、攻击模型、失败类别和严重度形成确定性证据签名，输出支持度、成本和候选 editable surface；只做 Weakness Mining，不自动修改 harness。
 - 自动路由可以提供确定性动作与 propensity，但不等于探索数据；matched-action replay 不能证明替代动作会更好。
 - 红队 HTTP lab、flag provenance 和独立 judge 是强证据来源，但当前覆盖和协议范围仍有限。
 

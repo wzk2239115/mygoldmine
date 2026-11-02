@@ -282,7 +282,7 @@ def build():
     ], columns=3, footer="论文结果用于指导设计，不直接外推为 Goldmine 的生产效果"))
     slides.append(deck.cards(11, "对 Goldmine 的技术选择", [
         ("短期", "真实标签、动作覆盖、逐 finding 非回归、跨项目 holdout；先让 shadow 学到真实经验。", COLORS["green"]),
-        ("中期", "失败聚类、最小候选 harness、verified siblings、多角色红队轨迹与项目级统计验收。", COLORS["gold"]),
+        ("中期", "redteam-weakness 失败聚类、最小候选 harness、verified siblings 与统计验收。", COLORS["gold"]),
         ("长期", "证据充分后研究模型更新，并针对新能力画像重建匹配的 harness。", COLORS["red"]),
     ], footer="选择有边界的 harness RSI，不做无约束自我修改"))
     slides.append(deck.cards(12, "算法团队的五个工作包", [
