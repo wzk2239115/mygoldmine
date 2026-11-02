@@ -176,14 +176,18 @@ class Deck:
         rows = (len(cards) + columns - 1) // columns
         card_w = (12.23 - (columns - 1) * 0.22) / columns
         card_h = 4.95 / rows - (rows - 1) * 0.2
-        for index, (head, body, accent) in enumerate(cards):
+        for index, (head, body, accent, *image) in enumerate(cards):
             row, col = divmod(index, columns)
             x = 0.55 + col * (card_w + 0.22)
             y = 1.65 + row * (card_h + 0.2)
             shapes.append(rect(20 + index * 4, x, y, card_w, card_h, COLORS["white"], COLORS["line"]))
             shapes.append(rect(21 + index * 4, x, y, 0.06, card_h, accent, radius=False))
-            shapes.append(text_box(22 + index * 4, x + 0.25, y + 0.25, card_w - 0.48, 0.5, head, size=18, color=accent, bold=True))
-            shapes.append(text_box(23 + index * 4, x + 0.25, y + 0.88, card_w - 0.48, card_h - 1.08, body, size=15, color=COLORS["ink"]))
+            if image:
+                self.add_image(shapes, rels, image[0], x + 0.22, y + 0.18, card_w - 0.44, 1.45)
+            title_y = y + 1.72 if image else y + 0.25
+            body_y = y + 2.3 if image else y + 0.88
+            shapes.append(text_box(22 + index * 4, x + 0.25, title_y, card_w - 0.48, 0.5, head, size=18, color=accent, bold=True))
+            shapes.append(text_box(23 + index * 4, x + 0.25, body_y, card_w - 0.48, y + card_h - body_y - 0.18, body, size=15, color=COLORS["ink"]))
         if footer:
             shapes.append(text_box(90, 0.62, 6.75, 12.0, 0.35, footer, size=13, color=COLORS["muted"], bold=True))
         return slide_xml(shapes), rels
@@ -231,48 +235,7 @@ def build():
         ["目标源码 → 静态候选 → 持久沙箱验证", "红队证明 → 经验学习 → 受控发布", "Finding Ledger 保留每次发现与证据血缘"],
         art / "overview.webp", "核心：每次挖掘都能成为下一次更好的依据",
     ))
-    slides.append(deck.cards(3, "为什么需要算法团队", [
-        ("算法团队", "轨迹建模、策略与奖励、验证器、效用学习、跨项目泛化、RSI 发布门禁。", COLORS["gold"]),
-        ("开发团队", "容器、API、UI、任务调度、可靠性与工程交付，让系统稳定可运行。", COLORS["blue"]),
-        ("安全团队", "威胁情报、漏洞先验、规则、人工裁决与披露规范，让判断足够专业。", COLORS["red"]),
-    ], footer="协作分工，不是能力高低；缺少算法闭环，系统只能重复固定规则。"))
-    slides.append(deck.hero(
-        4, "挖掘：先得到可追溯候选，而不是直接宣布漏洞",
-        ["每个 run 独立，原始源码只读，工作副本可写", "持久沙箱复用依赖、工作区与产物，可继续 shell / verify", "Jev 只做召回；报告增量落盘并过质量门"],
-        art / "mining.webp", "静态 finding 是研究假设，不是已成立漏洞",
-    ))
-    slides.append(deck.cards(5, "红队模型：不是单个“攻击模型”", [
-        ("Attacker", "在受限容器中探索允许的攻击路径；模型策略与工具 harness 共同决定行为。", COLORS["red"]),
-        ("Victim + Lab", "真实服务、随机 flag、内部网络；scenario 绑定 finding 与源码 hash。", COLORS["gold"]),
-        ("Independent judge", "审核目标漏洞、证据、作弊风险与可复现性；HTTP 之外明确 blocked。", COLORS["blue"]),
-    ], footer="红队能力 = 模型策略 + 执行 harness + 隔离 lab + 独立 judge + 可回放轨迹"))
-    slides.append(deck.hero(
-        6, "红队证据链：系统必须证明“确实发生了”",
-        ["attacker 无宿主、无 Docker socket、无 flag 直读路径", "flag 只能来自真实工具输出，最终回答不是证据", "judge schema + 确定性 flag provenance 双重校验", "flag + approved + 图文报告，才进入人工验收"],
-        art / "redteam.webp", "不是“模型说攻破了”，而是证据链支持这个结论",
-    ))
-    slides.append(deck.cards(7, "从轨迹到经验：RSI 的数据基础", [
-        ("身份与上下文", "occurrence / semantic 双层身份；保存动作前上下文，避免未来信息泄漏。", COLORS["blue"]),
-        ("动作与成本", "策略、propensity、agent/token/time 成本；确定性路由不被冒充为探索。", COLORS["gold"]),
-        ("结果与证据", "static < runtime < judge < manual；来源 hash 与标签范围可审计。", COLORS["green"]),
-    ], footer="verify / auto-state 已接入；redteam-experience 分离 run 结果与 attacker step，并复核 provenance"))
-    steps = [
-        ("轨迹", "真实动作与成本", COLORS["blue"]),
-        ("标签 / 效用", "证据等级隔离", COLORS["gold"]),
-        ("训练", "per-action utility", COLORS["green"]),
-        ("Holdout", "跨项目验证", COLORS["red"]),
-        ("Replay + Flips", "matched + outcome transitions", COLORS["blue"]),
-        ("统计门禁", "coverage≥0.8 · fix≥1 · P→F=0", COLORS["gold"]),
-        ("Shadow", "只读建议", COLORS["muted"]),
-        ("受控发布", "不可变候选与回滚", COLORS["green"]),
-    ]
-    slides.append(deck.flow(8, "Goldmine 的 RSI 闭环", steps, "worker 常驻接收新证据；replay / flips 不宣称因果，证据不足保持 shadow"))
-    slides.append(deck.metrics(9, "真实现状：闭环已通，可信数据仍是瓶颈", [
-        ("986", "occurrence 经验记录", COLORS["blue"]),
-        ("6", "真实 static 动作样本（本轮前为 0）", COLORS["gold"]),
-        ("0", "trusted support：生产继续拒绝", COLORS["red"]),
-    ], ["当前只能叫 shadow RSI，不能宣称生产自我进化。", "label-plan 优先补 trusted 项目 / 动作，红队 lab 继续扩展。"]))
-    slides.append(deck.cards(10, "2026 年研究地图：从自我反思走向受控闭环", [
+    slides.append(deck.cards(3, "2026 年研究地图：从自我反思走向受控闭环", [
         ("Self-Harness", "弱点聚类 → 最小 harness 修改 → held-out 非回归。", COLORS["gold"]),
         ("AgentDevel", "单版本线、可执行诊断、P→F / F→P flip 门禁。", COLORS["blue"]),
         ("MASS", "多智能体工作流搜索，优质团队轨迹回流训练。", COLORS["green"]),
@@ -280,10 +243,51 @@ def build():
         ("DiscoveryRSI", "假设信用、workflow replay 与 rediscovery。", COLORS["blue"]),
         ("RSI 综述", "1,250 篇论文：验证层级、闭环程度与崩溃风险。", COLORS["red"]),
     ], columns=3, footer="论文结果用于指导设计，不直接外推为 Goldmine 的生产效果"))
+    slides.append(deck.cards(4, "为什么需要算法团队", [
+        ("算法团队", "轨迹建模、策略与奖励、验证器、效用学习、跨项目泛化、RSI 发布门禁。", COLORS["gold"], art / "cards" / "algorithm.webp"),
+        ("开发团队", "容器、API、UI、任务调度、可靠性与工程交付，让系统稳定可运行。", COLORS["blue"], art / "cards" / "development.webp"),
+        ("安全团队", "威胁情报、漏洞先验、规则、人工裁决与披露规范，让判断足够专业。", COLORS["red"], art / "cards" / "security.webp"),
+    ], footer="协作分工，不是能力高低；缺少算法闭环，系统只能重复固定规则。"))
+    slides.append(deck.hero(
+        5, "挖掘：先得到可追溯候选，而不是直接宣布漏洞",
+        ["每个 run 独立，原始源码只读，工作副本可写", "持久沙箱复用依赖、工作区与产物，可继续 shell / verify", "Jev 只做召回；报告增量落盘并过质量门"],
+        art / "mining.webp", "静态 finding 是研究假设，不是已成立漏洞",
+    ))
+    slides.append(deck.cards(6, "红队模型：不是单个“攻击模型”", [
+        ("Attacker", "在受限容器中探索允许的攻击路径；模型策略与工具 harness 共同决定行为。", COLORS["red"], art / "cards" / "attacker.webp"),
+        ("Victim + Lab", "真实服务、随机 flag、内部网络；scenario 绑定 finding 与源码 hash。", COLORS["gold"], art / "cards" / "victim-lab.webp"),
+        ("Independent judge", "审核目标漏洞、证据、作弊风险与可复现性；HTTP 之外明确 blocked。", COLORS["blue"], art / "cards" / "judge.webp"),
+    ], footer="红队能力 = 模型策略 + 执行 harness + 隔离 lab + 独立 judge + 可回放轨迹"))
+    slides.append(deck.hero(
+        7, "红队证据链：系统必须证明“确实发生了”",
+        ["attacker 无宿主、无 Docker socket、无 flag 直读路径", "flag 只能来自真实工具输出，最终回答不是证据", "judge schema + 确定性 flag provenance 双重校验", "flag + approved + 图文报告，才进入人工验收"],
+        art / "redteam.webp", "不是“模型说攻破了”，而是证据链支持这个结论",
+    ))
+    slides.append(deck.cards(8, "从轨迹到经验：RSI 的数据基础", [
+        ("身份与上下文", "occurrence / semantic 双层身份；保存动作前上下文，避免未来信息泄漏。", COLORS["blue"], art / "cards" / "identity-context.webp"),
+        ("动作与成本", "策略、propensity、agent/token/time 成本；确定性路由不被冒充为探索。", COLORS["gold"], art / "cards" / "action-cost.webp"),
+        ("结果与证据", "static < runtime < judge < manual；来源 hash 与标签范围可审计。", COLORS["green"], art / "cards" / "evidence-outcome.webp"),
+    ], footer="verify / auto-state 已接入；redteam-experience 分离 run 结果与 attacker step，并复核 provenance"))
+    steps = [
+        ("轨迹", "真实动作与成本", COLORS["blue"]),
+        ("标签 / 效用", "证据等级隔离", COLORS["gold"]),
+        ("训练", "per-action utility", COLORS["green"]),
+        ("Holdout", "留出项目验证", COLORS["red"]),
+        ("Replay + Flips", "matched + outcome transitions", COLORS["blue"]),
+        ("统计门禁", "coverage≥0.8 · fix≥1 · P→F=0", COLORS["gold"]),
+        ("Shadow", "影子建议，不改生产", COLORS["muted"]),
+        ("受控发布", "不可变候选与回滚", COLORS["green"]),
+    ]
+    slides.append(deck.flow(9, "Goldmine 的 RSI 闭环", steps, "Holdout=留出验证项目；Shadow=只给建议不改生产；证据不足不放行"))
+    slides.append(deck.metrics(10, "真实现状：闭环已通，可信数据仍是瓶颈", [
+        ("986", "occurrence 经验记录", COLORS["blue"]),
+        ("6", "真实 static 动作样本（本轮前为 0）", COLORS["gold"]),
+        ("0", "trusted support：生产继续拒绝", COLORS["red"]),
+    ], ["Shadow（影子模式）只给建议，不自动改生产，不是生产 RSI。", "Holdout（留出验证项目）用于检验跨项目泛化。"]))
     slides.append(deck.cards(11, "对 Goldmine 的技术选择", [
-        ("短期", "真实标签、动作覆盖、逐 finding 非回归、跨项目 holdout；先让 shadow 学到真实经验。", COLORS["green"]),
-        ("中期", "weakness → harness-propose → flip 验证，保留 verified siblings 与可回滚证据。", COLORS["gold"]),
-        ("长期", "证据充分后研究模型更新，并针对新能力画像重建匹配的 harness。", COLORS["red"]),
+        ("短期", "真实标签、动作覆盖、逐 finding 非回归、跨项目 holdout；先让 shadow 学到真实经验。", COLORS["green"], art / "cards" / "short-term.webp"),
+        ("中期", "weakness → harness-propose → flip 验证，保留 verified siblings 与可回滚证据。", COLORS["gold"], art / "cards" / "mid-term.webp"),
+        ("长期", "证据充分后研究模型更新，并针对新能力画像重建匹配的 harness。", COLORS["red"], art / "cards" / "long-term.webp"),
     ], footer="选择有边界的 harness RSI，不做无约束自我修改"))
     slides.append(deck.cards(12, "算法团队的五个工作包", [
         ("01 数据与身份", "轨迹、标签、成本、血缘与语义防泄漏。", COLORS["blue"]),
