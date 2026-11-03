@@ -34,7 +34,7 @@ usage() {
 默认值:
   MODEL=360-proxy/deepseek/deepseek-v4.1-flash
   MAX_PARALLEL=5
-  TIMEOUT=21600 秒（6 小时/项目）
+  TIMEOUT=86400 秒（24 小时/项目）
   RUNS_ROOT=<repo>/runs
   STATE_DIR=<runs-root>/.orchestrator
   EXECUTOR=<repo>/scripts/mine/mine_one_docker.sh
@@ -43,7 +43,7 @@ usage() {
   --model MODEL          模型 ID（默认 $MODEL 或 360-proxy/deepseek/deepseek-v4.1-flash）
   --agent AGENT          审计智能体（默认 security-orchestrator）
   --max-parallel N       最大并发项目数（默认 5）
-  --timeout SECONDS      单项目超时秒数（默认 21600）
+  --timeout SECONDS      单项目超时秒数（默认 86400）
   --retries N            失败重试次数（默认 1；超时不重试）
   --min-free-gb N        启动所需磁盘余量 GB（默认 20）
   --outer-grace SECONDS  编排层超时宽限（默认 60）
@@ -86,7 +86,7 @@ if [ ! -f "$REPO_ROOT/.claude/agents/${AGENT}.md" ] && [ "$AGENT" != "security-o
     AGENT="security-orchestrator"
 fi
 MAX_PARALLEL="${MAX_PARALLEL:-5}"
-PROJECT_TIMEOUT="${TIMEOUT:-21600}"
+PROJECT_TIMEOUT="${TIMEOUT:-86400}"
 MAX_RETRIES="${MAX_RETRIES:-1}"
 MIN_FREE_GB="${MIN_FREE_GB:-20}"
 OUTER_GRACE="${OUTER_GRACE:-60}"

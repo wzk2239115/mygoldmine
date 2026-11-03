@@ -26,7 +26,7 @@ usage() {
   --build                镜像不存在时自动 docker build
   --run-dir DIR          宿主产物目录（默认 runs/<project>/<utc-ts>）
   --target DIR           宿主目标源码目录
-  --timeout SECONDS      墙钟超时（默认 21600）
+  --timeout SECONDS      墙钟超时（默认 86400）
   --model MODEL          模型（可写 360-proxy/deepseek/deepseek-v4.1-flash，
                          容器内会转成 deepseek/deepseek-v4.1-flash）
   --agent AGENT          Claude Code agent（默认 security-orchestrator）
@@ -50,7 +50,7 @@ BUILD=0
 NETWORK_MODE="${DOCKER_NETWORK:-bridge}"
 RUN_DIR="${RUN_DIR:-}"
 TARGET_DIR="${TARGET_DIR:-${WORK_DIR:-}}"
-TIMEOUT="${TIMEOUT:-21600}"
+TIMEOUT="${TIMEOUT:-86400}"
 MODEL="${MODEL:-360-proxy/deepseek/deepseek-v4.1-flash}"
 AGENT="${AGENT:-security-orchestrator}"
 PROJECT="${PROJECT:-}"

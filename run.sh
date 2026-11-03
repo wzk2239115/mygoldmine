@@ -28,7 +28,7 @@ usage() {
   bash run.sh --stop   <产物目录>
 
 选项:
-  --timeout SECONDS   单次批量审计的实际运行时间上限（默认 21600 秒，即 6 小时）
+  --timeout SECONDS   单次批量审计的实际运行时间上限（默认 86400 秒，即 24 小时）
   --model MODEL       模型（默认 360-proxy/deepseek/deepseek-v4.1-flash）
   --agent AGENT       Claude Code 智能体（默认 security-orchestrator）
   --run-dir DIR       自定义产物目录（默认 runs/<project>/<UTC 时间>）
@@ -83,7 +83,7 @@ EOF
 MODE="start"
 TARGET=""
 RUN_DIR=""
-TIMEOUT="${TIMEOUT:-21600}"
+TIMEOUT="${TIMEOUT:-86400}"
 MODEL="${MODEL:-360-proxy/deepseek/deepseek-v4.1-flash}"
 AGENT="${AGENT:-security-orchestrator}"
 IMAGE="${MYGOLDMINE_IMAGE:-mygoldmine:dev}"

@@ -29,7 +29,7 @@ usage() {
   --run-dir DIR          产物目录（默认 $RUN_DIR 或 ./runs/<project>/<utc-ts>）
   --target DIR           目标工作副本（默认 $TARGET_DIR 或 $WORK_DIR）
   --prompt FILE          提示词文件（默认 $PROMPT_FILE；缺省时自动生成到 /tmp）
-  --timeout SECONDS      墙钟超时（默认 $TIMEOUT 或 21600）
+  --timeout SECONDS      墙钟超时（默认 $TIMEOUT 或 86400）
   --model MODEL          模型 ID（默认 $MODEL 或 360-proxy/deepseek/deepseek-v4.1-flash）
   --agent AGENT          审计智能体（默认 $AGENT 或 security-orchestrator）
   --project NAME         项目名（默认目标目录 basename）
@@ -66,7 +66,7 @@ DRY_RUN=0
 RUN_DIR="${RUN_DIR:-}"
 TARGET_DIR="${TARGET_DIR:-${WORK_DIR:-}}"
 PROMPT_FILE="${PROMPT_FILE:-}"
-TIMEOUT="${TIMEOUT:-21600}"
+TIMEOUT="${TIMEOUT:-86400}"
 MODEL="${MODEL:-360-proxy/deepseek/deepseek-v4.1-flash}"
 AGENT="${AGENT:-security-orchestrator}"
 PROJECT="${PROJECT:-}"

@@ -20,7 +20,7 @@ usage() {
 环境变量:
   TARGET_DIR  目标源码目录（只读挂载，默认 /target）
   RUN_DIR     产物目录（可写挂载，默认 /runs/<project>/<utc-ts>）
-  TIMEOUT     单项目墙钟超时秒数（默认 21600）
+  TIMEOUT     单项目墙钟超时秒数（默认 86400）
   MODEL       模型 ID（默认 360-proxy/deepseek/deepseek-v4.1-flash）
   AGENT       审计智能体（默认 security-orchestrator）
   WORK_DIR    可写工作副本（默认 /workspace/repo）
@@ -56,7 +56,7 @@ done
 MYGOLDMINE_HOME="${MYGOLDMINE_HOME:-/opt/mygoldmine}"
 TARGET_DIR="${TARGET_DIR:-/target}"
 WORK_DIR="${WORK_DIR:-/workspace/repo}"
-TIMEOUT="${TIMEOUT:-21600}"
+TIMEOUT="${TIMEOUT:-86400}"
 MODEL="${MODEL:-360-proxy/deepseek/deepseek-v4.1-flash}"
 AGENT="${AGENT:-security-orchestrator}"
 

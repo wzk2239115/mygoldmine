@@ -158,8 +158,8 @@ python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
 
 ## 整夜并行批量审计（第 3 阶段）
 
-在 Docker 外由宿主机脚本编排：克隆目标源码 → 5 个项目并行 → 每个项目不超过 6 小时 → 产出可读过程日志与报告。
-默认模型 `360-proxy/deepseek/deepseek-v4.1-flash`，默认并发 5，超时 21600 秒。
+在 Docker 外由宿主机脚本编排：克隆目标源码 → 5 个项目并行 → 每个项目不超过 24 小时 → 产出可读过程日志与报告。
+默认模型 `360-proxy/deepseek/deepseek-v4.1-flash`，默认并发 5，超时 86400 秒。
 
 ### 今晚怎么跑
 
@@ -550,7 +550,7 @@ bash run.sh --verify-only <run>
 bash run.sh <source> --skip-env --skip-verify --skip-visual --skip-redteam --skip-mining-repair  # 只进行批量审计
 bash run.sh <source> --mine-only                # 等价于上面
 bash run.sh <source> --skip-mining-repair       # 完成红蓝验证，但跳过经验与修复候选生成
-bash run.sh <source> --env-mode full --timeout 21600
+bash run.sh <source> --env-mode full --timeout 86400
 bash run.sh <source> --env-agent on --env-agent-rounds 2 --env-agent-timeout 2400
 bash run.sh <source> --env-agent off          # 明确关闭智能体，只运行确定性备用方案
 bash run.sh <source> --verify-max 10 --verify-severity critical,high

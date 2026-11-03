@@ -34,7 +34,7 @@ usage() {
 
 编排参数:
   --max-parallel N       最大并发项目数（默认 $MAX_PARALLEL 或 5）
-  --timeout SECONDS      单项目墙钟超时（默认 $TIMEOUT 或 21600）
+  --timeout SECONDS      单项目墙钟超时（默认 $TIMEOUT 或 86400）
   --retries N            失败后重试次数（默认 $MAX_RETRIES 或 1；超时不重试）
   --outer-grace SECONDS  编排层超时相对项目的宽限（默认 $OUTER_GRACE 或 60）
   --min-free-gb N        启动所需磁盘余量 GB（默认 $MIN_FREE_GB 或 20）
@@ -78,7 +78,7 @@ WORKER=0
 FORCE=0
 PROJECTS_FILTER=""
 MAX_PARALLEL="${MAX_PARALLEL:-5}"
-PROJECT_TIMEOUT="${TIMEOUT:-21600}"
+PROJECT_TIMEOUT="${TIMEOUT:-86400}"
 MAX_RETRIES="${MAX_RETRIES:-1}"
 OUTER_GRACE="${OUTER_GRACE:-60}"
 MIN_FREE_GB="${MIN_FREE_GB:-20}"
