@@ -1,3 +1,4 @@
+import { createCcuiService } from './ccui-service.mjs';
 import { projectLogo } from './project-logo.mjs';
 import { removeProjectRecords } from './project-removal.mjs';
 import { discoverRunNames } from './run-directories.mjs';
@@ -1006,6 +1007,8 @@ async function ccuiReachable(force = false) {
   }
 }
 
+const ccuiService = createCcuiService({repoRoot:REPO_ROOT,home:CCUI_HOME,url:CCUI_URL,health:ccuiReachable});
+
 const indexedCcuiSessions = new Map();
 async function indexCcuiSession(session) {
   const key = `${session.sessionId}:${session.importedAt}`;
@@ -1444,7 +1447,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && pathname === '/api/ccui') {
-      const reachable = await ccuiReachable(true);
+      const reachable = await ccuiService.ensure();
       sendJson(res, 200, { url: CCUI_URL, embedPrefix: CCUI_PREFIX, home: CCUI_HOME, reachable });
       return;
     }
@@ -1476,7 +1479,7 @@ const server = http.createServer(async (req, res) => {
       const node = url.searchParams.get('node') || 'orchestrator';
       const traceId = url.searchParams.get('trace') || '';
       const outcome = await ensureCcuiSession(run, { force, node, traceId });
-      const reachable = await ccuiReachable();
+      const reachable = await ccuiService.ensure();
       if (!outcome.available) {
         sendJson(res, 200, {
           available: false,

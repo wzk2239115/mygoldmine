@@ -133,7 +133,7 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
       {chrome ? <div className="ccui-toolbar">
         <span className="ccui-title">
           {showFrame
-            ? `Claude Code UI · ${session.messages || 0} 条消息${importedLabel ? ` · 导入于 ${importedLabel}` : ''}`
+            ? `Claude Code · ${session.messages || 0} 条消息`
             : 'Claude Code UI'}
         </span>
         <div className="ccui-actions">
@@ -154,7 +154,7 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
 
       {loading ? (
         <div className="ccui-state">
-          <Loader2 size={16} className="traj-spin" aria-hidden="true" /> 正在导入 CC 会话…
+          <Loader2 size={16} className="traj-spin" aria-hidden="true" /> 正在准备执行轨迹…
         </div>
       ) : null}
 
@@ -177,13 +177,8 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
 
       {!loading && !error && session?.available && !session.reachable ? (
         <div className="ccui-state">
-          <p>
-            <ServerOff size={15} aria-hidden="true" /> CloudCLI 服务未启动（127.0.0.1:3001）
-          </p>
-          <p className="ccui-hint">在仓库根目录执行下面的命令启动，然后重试：</p>
-          <code className="ccui-command">
-            <Terminal size={13} aria-hidden="true" /> bash scripts/ccui/start.sh
-          </code>
+          <p><ServerOff size={15} aria-hidden="true" /> 执行轨迹服务暂不可用</p>
+          <p className="ccui-hint">可点击重试，或查看原始执行记录。</p>
           <div className="ccui-state-actions">
             <button type="button" className="traj-button" onClick={() => load(false)}>
               <RefreshCw size={15} aria-hidden="true" />
