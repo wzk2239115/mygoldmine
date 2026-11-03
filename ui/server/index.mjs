@@ -8,7 +8,7 @@ import { reportQuality } from './report-quality.mjs';
 import { summarizeRecovery } from './recovery-status.mjs';
 import { parseAgentTopology } from './agent-topology.mjs';
 import { buildAgenticPipeline } from './agentic-pipeline.mjs';
-import { resolveAgenticTrace } from './agentic-traces.mjs';
+import { resolveAgenticTrace, traceSessionPath } from './agentic-traces.mjs';
 import { browseServerDirectory, normalizeProjectId, createGithubCommitLister, createGithubBranchLister, createProjectImporter } from './project-import.mjs';
 import { isLedgerV2, isVerified, latestOccurrences, stateForFinding } from './finding-ledger.mjs';
 import net from 'node:net';
@@ -1072,10 +1072,7 @@ async function ensureCcuiSession(run, { force = false, node = 'orchestrator', tr
       trace: { id: trace.id, label: trace.label, kind: trace.kind }
     };
   }
-  const safeTraceId = trace.id.replace(/[^A-Za-z0-9._-]/g, '_');
-  const sidecarPath = node === 'orchestrator'
-    ? path.join(run.runDir, 'ccui-session.json')
-    : path.join(run.runDir, 'ccui-sessions', `${node}-${safeTraceId}.json`);
+  const sidecarPath = traceSessionPath(run.runDir, node, trace.id);
   const sidecar = readJson(sidecarPath, null);
   const rawStat = fs.statSync(trace.path);
   const sidecarFresh =

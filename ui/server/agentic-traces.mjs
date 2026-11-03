@@ -106,3 +106,11 @@ export function resolveAgenticTrace(run, node, traceId = '') {
   if (traceId) return traces.find((trace) => trace.id === traceId) || null;
   return traces.length === 1 ? traces[0] : null;
 }
+
+export function traceSessionPath(runDir, node, traceId) {
+  const safe = value => value.replace(/[^A-Za-z0-9._-]/g, '_');
+  const metadata = `${runDir}.meta`;
+  return node === 'orchestrator'
+    ? path.join(metadata, 'ccui-session.json')
+    : path.join(metadata, 'ccui-sessions', `${safe(node)}-${safe(traceId)}.json`);
+}

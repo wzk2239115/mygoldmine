@@ -131,7 +131,7 @@ def convert_run(
     agent_name: str = "",
 ) -> tuple[str, Path] | None:
     raw_path = raw_path or run_dir / "raw.jsonl"
-    sidecar_path = sidecar_path or run_dir / "ccui-session.json"
+    sidecar_path = sidecar_path or run_dir.with_name(run_dir.name + ".meta") / "ccui-session.json"
     meta = {
         **_load_json(run_dir.with_name(run_dir.name + ".meta") / "status.json", {}),
         **_load_json(run_dir / "run-meta.json", {}),

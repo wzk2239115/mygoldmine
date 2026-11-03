@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { listAgenticTraces, resolveAgenticTrace } from '../server/agentic-traces.mjs';
+import { listAgenticTraces, resolveAgenticTrace, traceSessionPath } from '../server/agentic-traces.mjs';
 
 function write(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -52,4 +52,16 @@ test('没有主会话时展示启动失败日志，有会话后优先显示会�
   assert.equal(resolveAgenticTrace(run,'orchestrator').kind,'text');
   write(path.join(run.runDir,'raw.jsonl'),claude);
   assert.equal(resolveAgenticTrace(run,'orchestrator').id,'main');
+});
+
+
+test('各节点轨迹缓存不占用审计输出目录', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'trace-cache-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const run=path.join(root,'not-started');
+  fs.mkdirSync(run);
+  for(const node of ['orchestrator','environment','verify','learner']) write(traceSessionPath(run,node,'round-1'),'{}');
+  assert.deepEqual(fs.readdirSync(run),[]);
+  assert.ok(fs.existsSync(`${run}.meta/ccui-session.json`));
+  assert.ok(fs.existsSync(`${run}.meta/ccui-sessions/environment-round-1.json`));
 });

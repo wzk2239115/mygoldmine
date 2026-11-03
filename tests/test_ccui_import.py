@@ -90,7 +90,7 @@ def test_convert_run_writes_claude_session(tmp_path: Path) -> None:
     history = (home / ".claude" / "history.jsonl").read_text()
     assert session_id in history
 
-    sidecar_path = run / "ccui-session.json"
+    sidecar_path = run.with_name(run.name + ".meta") / "ccui-session.json"
     assert sidecar_path.is_file()
     sidecar = json.loads(sidecar_path.read_text())
     assert sidecar["sessionId"] == session_id
@@ -186,7 +186,7 @@ def test_subagent_prompt_is_not_flattened_into_human_conversation(tmp_path: Path
     assert all(row["isSidechain"] and row["agentId"] == "agent-config" for row in child_rows)
     assert child_rows[1]["parentUuid"] == "child-prompt"
     assert json.loads(children.with_suffix(".meta.json").read_text())["toolUseId"] == "call-agent"
-    sidecar = json.loads((run / "ccui-session.json").read_text())
+    sidecar = json.loads((run.with_name(run.name + ".meta") / "ccui-session.json").read_text())
     assert sidecar["subagents"] == 1 and sidecar["subagentMessages"] == 2
     assert "child-prompt" in (run / "raw.jsonl").read_text()
 
@@ -246,7 +246,7 @@ def test_convert_run_accepts_node_trace_and_sidecar(tmp_path: Path) -> None:
     run = _run(tmp_path)
     raw = run / "environment-builder.log"
     raw.write_text((run / "raw.jsonl").read_text(encoding="utf-8"), encoding="utf-8")
-    sidecar = run / "ccui-sessions/environment.json"
+    sidecar = run.with_name(run.name + ".meta") / "ccui-sessions/environment.json"
     result = ccui.convert_run(
         run,
         tmp_path / "home",
@@ -261,3 +261,14 @@ def test_convert_run_accepts_node_trace_and_sidecar(tmp_path: Path) -> None:
     assert payload["title"].endswith(" · 环境构建第 1 轮")
     assert payload["sessionId"] == "sess-demo"
     assert Path(payload["sessionFile"]).is_file()
+
+
+def test_environment_trace_import_does_not_create_audit_output_directory(tmp_path: Path) -> None:
+    source = _run(tmp_path)
+    raw = source / "raw.jsonl"
+    run = tmp_path / "runs/demo/not-started"
+    sidecar = run.with_name(run.name + ".meta") / "ccui-sessions/environment.json"
+    result = ccui.convert_run(run, tmp_path / "home", "demo", raw_path=raw, sidecar_path=sidecar, agent_name="environment-builder")
+    assert result is not None
+    assert sidecar.is_file()
+    assert not run.exists()
