@@ -64,7 +64,11 @@ function redteamTrace(run, node) {
 
 export function listAgenticTraces(run, node) {
   if (node === 'orchestrator') {
-    return [makeTrace(node, 'main', '安全审计主会话', path.join(run.runDir, 'raw.jsonl'), 'claude')].filter(Boolean);
+    const main = makeTrace(node, 'main', '安全审计主会话', path.join(run.runDir, 'raw.jsonl'), 'claude');
+    if (main?.size) return [main];
+    const startup = makeTrace(node, 'startup', '审计启动日志', `${run.runDir}.meta/wrapper.log`);
+    return startup ? [{ ...startup, kind: 'text' }] : [];
+
   }
   if (node === 'environment') {
     const meta = `${run.runDir}.meta`;

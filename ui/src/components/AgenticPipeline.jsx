@@ -10,7 +10,9 @@ const STATUS_LABELS = {
   blocked: '受阻',
   failed: '失败',
   running: '运行中',
-  pending: '未开始',
+  pending: '等待',
+  stopped: '已中断',
+  not_started: '未执行',
   skipped: '已跳过'
 };
 
@@ -18,7 +20,7 @@ function StatusIcon({ status }) {
   if (status === 'running') return <Loader2 size={14} className="is-spinning" aria-hidden="true" />;
   if (status === 'completed') return <CheckCircle2 size={14} aria-hidden="true" />;
   if (status === 'degraded' || status === 'blocked' || status === 'failed') return <AlertTriangle size={14} aria-hidden="true" />;
-  if (status === 'skipped') return <MinusCircle size={14} aria-hidden="true" />;
+  if (status === 'stopped' || status === 'not_started' || status === 'skipped') return <MinusCircle size={14} aria-hidden="true" />;
   return <CircleDashed size={14} aria-hidden="true" />;
 }
 
@@ -62,7 +64,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
       <header className="agentic-pipeline-head">
         <div>
           <span className="agentic-pipeline-title"><Workflow size={16} aria-hidden="true" />正式执行链</span>
-          <p>{projectName || project || '尚未选择项目'} · 点击节点查看对应的只读执行轨迹</p>
+          <p>{projectName || project || '尚未选择项目'} · {data?.notice || (data?.activeNode ? `当前：${data.nodes.find(node => node.id === data.activeNode)?.title || '处理中'}` : '点击节点查看执行记录')}</p>
         </div>
         <div className="agentic-pipeline-summary">
           {data ? `${data.summary.completed}/${data.summary.total} 完成` : '等待运行状态'}
@@ -80,7 +82,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
               className={cx('agentic-node', `is-${node.status}`)}
               data-node-id={node.id}
               key={node.id}
-              title={`${node.artifact || node.agent} · 点击查看执行轨迹`}
+              title={`${node.title}：${node.detail} · 点击查看执行轨迹`}
               aria-label={`查看${node.title}执行轨迹，${node.traces?.length || 0} 条记录`}
               onClick={() => setSelectedNode(node)}
             >

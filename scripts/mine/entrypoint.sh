@@ -242,10 +242,14 @@ if [ -n "$(ls -A "$RUN_DIR" 2>/dev/null || true)" ]; then
     die "RUN_DIR 非空，拒绝覆盖: $RUN_DIR" 6
 fi
 
-if [ "$TARGET_REAL" != "$(realpath -m "$WORK_DIR")" ]; then
+if [ "${WORKSPACE_PREPARED:-0}" = "1" ]; then
+    [ -d "$WORK_DIR" ] && [ -f "$WORK_DIR.mygoldmine-ready" ] \
+        || die "沙箱工作副本未完成准备，拒绝启动审计" 5
+    log "复用已准备的沙箱工作副本: $WORK_DIR"
+elif [ "$TARGET_REAL" != "$(realpath -m "$WORK_DIR")" ]; then
     mkdir -p "$WORK_DIR"
     log "复制目标源码到可写工作副本: $TARGET_DIR -> $WORK_DIR"
-    find "$WORK_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
+    find "$WORK_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
     cp -a "$TARGET_DIR/." "$WORK_DIR/"
 fi
 

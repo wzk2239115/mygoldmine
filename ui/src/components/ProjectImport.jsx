@@ -1,5 +1,6 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useRef, useState } from 'react';
-import { ArrowUp, FolderOpen, Github, Home, Plus, RefreshCw, X } from 'lucide-react';
+import { ArrowUp, ChevronRight, Search, FolderOpen, Github, Home, Info, Plus, RefreshCw, X } from 'lucide-react';
 import { api } from '../api.js';
 import { cx } from '../utils.js';
 
@@ -8,14 +9,15 @@ export default function ProjectImport({ onImported }) {
   const [kind, setKind] = useState('github');
   const [source, setSource] = useState('');
   const [project, setProject] = useState('');
-  const [branch, setBranch] = useState('');
-  const [branches, setBranches] = useState([]);
-  const [branchesLoading, setBranchesLoading] = useState(false);
-  const [branchesLoadingMore, setBranchesLoadingMore] = useState(false);
-  const [branchesError, setBranchesError] = useState('');
-  const [branchTotal, setBranchTotal] = useState(0);
-  const [branchesHasMore, setBranchesHasMore] = useState(false);
-  const [branchReload, setBranchReload] = useState(0);
+  const [commit, setCommit] = useState('');
+  const [commits, setCommits] = useState([]);
+  const [commitsLoading, setCommitsLoading] = useState(false);
+  const [commitsLoadingMore, setCommitsLoadingMore] = useState(false);
+  const [commitsError, setCommitsError] = useState('');
+  const [commitsHasMore, setCommitsHasMore] = useState(false);
+  const [commitReload, setCommitReload] = useState(0);
+  const sourceByKind = useRef({ github: '', local: '' });
+  const [pickerQuery, setPickerQuery] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerPath, setPickerPath] = useState('');
   const [pickerParent, setPickerParent] = useState('');
@@ -25,66 +27,78 @@ export default function ProjectImport({ onImported }) {
   const [pickerHasMore, setPickerHasMore] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const branchRequest = useRef(0);
+  const [importInfo, setImportInfo] = useState([]);
+  const [elapsed, setElapsed] = useState(0);
+  const infoEnd = useRef(null);
+  useEffect(() => {
+    if (!busy) return undefined;
+    const started = Date.now();
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [busy]);
+  useEffect(() => {
+    const log = infoEnd.current?.parentElement;
+    if (log) log.scrollTop = log.scrollHeight;
+  }, [importInfo]);
+  const importController = useRef(null);
+  const commitRequest = useRef(0);
   const directoryRequest = useRef(0);
 
   useEffect(() => {
-    const requestId = ++branchRequest.current;
-    setBranches([]);
-    setBranch('');
-    setBranchTotal(0);
-    setBranchesHasMore(false);
-    setBranchesError('');
-    setBranchesLoading(false);
-    setBranchesLoadingMore(false);
+    const requestId = ++commitRequest.current;
+    setCommits([]);
+    setCommit('');
+    setCommitsHasMore(false);
+    setCommitsError('');
+    setCommitsLoading(false);
+    setCommitsLoadingMore(false);
     const validGithub = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+(?:\.git)?\/?$/.test(source.trim());
     if (!open || kind !== 'github' || !validGithub) return undefined;
     let cancelled = false;
     const timer = window.setTimeout(async () => {
-      setBranchesLoading(true);
+      setCommitsLoading(true);
       try {
-        const payload = await api.githubBranches(source.trim(), { offset: 0, limit: 10 });
-        if (cancelled || requestId !== branchRequest.current) return;
-        setBranches(payload.branches || []);
-        setBranchTotal(payload.total || 0);
-        setBranchesHasMore(Boolean(payload.hasMore));
-        setBranch(payload.defaultBranch || payload.latestBranch || '');
+        const payload = await api.githubCommits(source.trim(), { page: 1, limit: 10 });
+        if (cancelled || requestId !== commitRequest.current) return;
+        setCommits(payload.commits || []);
+            setCommitsHasMore(Boolean(payload.hasMore));
+        setCommit(payload.commits?.[0]?.sha || '');
       } catch (loadError) {
-        if (!cancelled && requestId === branchRequest.current) setBranchesError(loadError.message);
+        if (!cancelled && requestId === commitRequest.current) setCommitsError(loadError.message);
       } finally {
-        if (!cancelled && requestId === branchRequest.current) setBranchesLoading(false);
+        if (!cancelled && requestId === commitRequest.current) setCommitsLoading(false);
       }
-    }, branchReload ? 0 : 700);
+    }, commitReload ? 0 : 150);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [open, kind, source, branchReload]);
+  }, [open, kind, source, commitReload]);
 
-  const loadMoreBranches = async () => {
-    const requestId = branchRequest.current;
-    const offset = branches.length;
-    setBranchesLoadingMore(true);
-    setBranchesError('');
+  const loadMoreCommits = async () => {
+    const requestId = commitRequest.current;
+    const offset = commits.length;
+    setCommitsLoadingMore(true);
+    setCommitsError('');
     try {
-      const payload = await api.githubBranches(source.trim(), { offset, limit: 10 });
-      if (requestId !== branchRequest.current) return;
-      setBranches((current) => {
-        const existing = new Set(current.map((item) => item.name));
-        return [...current, ...(payload.branches || []).filter((item) => !existing.has(item.name))];
+      const payload = await api.githubCommits(source.trim(), { page: Math.floor(offset / 10) + 1, limit: 10 });
+      if (requestId !== commitRequest.current) return;
+      setCommits((current) => {
+        const existing = new Set(current.map((item) => item.sha));
+        return [...current, ...(payload.commits || []).filter((item) => !existing.has(item.sha))];
       });
-      setBranchTotal(payload.total || 0);
-      setBranchesHasMore(Boolean(payload.hasMore));
+        setCommitsHasMore(Boolean(payload.hasMore));
     } catch (loadError) {
-      if (requestId === branchRequest.current) setBranchesError(loadError.message);
+      if (requestId === commitRequest.current) setCommitsError(loadError.message);
     } finally {
-      if (requestId === branchRequest.current) setBranchesLoadingMore(false);
+      if (requestId === commitRequest.current) setCommitsLoadingMore(false);
     }
   };
 
   const loadDirectory = async (directory = '') => {
     const requestId = ++directoryRequest.current;
     setPickerOpen(true);
+    setPickerQuery('');
     setPickerLoading(true);
     setPickerError('');
     setPickerEntries([]);
@@ -102,8 +116,22 @@ export default function ProjectImport({ onImported }) {
     }
   };
 
+  const changeKind = (nextKind) => {
+    if (nextKind === kind) return;
+    sourceByKind.current[kind] = source;
+    const nextSource = sourceByKind.current[nextKind];
+    setKind(nextKind);
+    setSource(nextSource);
+    setError('');
+    setImportInfo([]);
+    directoryRequest.current += 1;
+    setPickerOpen(false);
+    if (nextKind === 'local') loadDirectory(nextSource.startsWith('/') ? nextSource : '');
+  };
+  const visibleDirectories = pickerEntries.filter((entry) => entry.name.toLocaleLowerCase().includes(pickerQuery.trim().toLocaleLowerCase()));
+
   const close = () => {
-    if (busy) return;
+    if (busy) { importController.current?.abort(); return; }
     directoryRequest.current += 1;
     setPickerOpen(false);
     setOpen(false);
@@ -112,17 +140,22 @@ export default function ProjectImport({ onImported }) {
 
   const submit = async (event) => {
     event.preventDefault();
+    importController.current = new AbortController();
     setBusy(true);
+    setElapsed(0);
+    setImportInfo([]);
     setError('');
     try {
-      const result = await api.importProject({ kind, source, project, branch });
+      const result = await api.importWithProgress({ kind, source, project, commit: kind === 'github' ? commit : '' }, (item) => {
+        setImportInfo((current) => [...current, item].slice(-150));
+      }, importController.current.signal);
       setOpen(false);
       setSource('');
       setProject('');
-      setBranch('');
+      setCommit('');
       await onImported(result);
     } catch (submitError) {
-      setError(submitError.message);
+      setError(importController.current?.signal.aborted ? '已请求取消导入，服务器正在停止任务并清理本次新建内容。' : submitError.message);
     } finally {
       setBusy(false);
     }
@@ -139,25 +172,26 @@ export default function ProjectImport({ onImported }) {
       >
         <Plus size={15} aria-hidden="true" />
       </button>
-      {open ? (
+      {open ? createPortal(
         <>
           <button type="button" className="project-import-backdrop" aria-label="关闭项目导入" onClick={close} />
           <section className="project-import-dialog" role="dialog" aria-modal="true" aria-labelledby="project-import-title">
             <header className="project-import-head">
               <div>
                 <h2 id="project-import-title">导入审计项目</h2>
-                <p>导入后立即启动环境构建、挖掘、蓝队验证、红队验证和挖掘修复学习。</p>
+                <p>导入后立即启动环境构建、安全审计、蓝队验证、红队验证和经验学习。</p>
               </div>
-              <button type="button" className="icon-button is-small" aria-label="关闭项目导入" disabled={busy} onClick={close}>
+              <button type="button" className="icon-button is-small" aria-label="关闭项目导入" onClick={close}>
                 <X size={16} aria-hidden="true" />
               </button>
             </header>
             <form onSubmit={submit}>
+              <div className="project-import-body">
               <div className="project-import-types" role="group" aria-label="项目来源">
-                <button type="button" className={cx(kind === 'github' && 'is-active')} aria-pressed={kind === 'github'} disabled={busy} onClick={() => { setKind('github'); setError(''); }}>
+                <button type="button" className={cx(kind === 'github' && 'is-active')} aria-pressed={kind === 'github'} disabled={busy} onClick={() => changeKind('github')}>
                   <Github size={16} aria-hidden="true" />GitHub 仓库
                 </button>
-                <button type="button" className={cx(kind === 'local' && 'is-active')} aria-pressed={kind === 'local'} disabled={busy} onClick={() => { setKind('local'); setError(''); }}>
+                <button type="button" className={cx(kind === 'local' && 'is-active')} aria-pressed={kind === 'local'} disabled={busy} onClick={() => changeKind('local')}>
                   <FolderOpen size={16} aria-hidden="true" />本地目录
                 </button>
               </div>
@@ -167,6 +201,8 @@ export default function ProjectImport({ onImported }) {
                   <input
                     id="project-import-source"
                     required
+                    pattern={kind === 'local' ? '/.*' : undefined}
+                    title={kind === 'local' ? '请输入服务器上的绝对路径，例如 /home/wzk/project' : undefined}
                     autoFocus
                     disabled={busy}
                     value={source}
@@ -181,6 +217,7 @@ export default function ProjectImport({ onImported }) {
                   ) : null}
                 </div>
               </div>
+              {kind === 'local' ? <p className="directory-server-hint">浏览的是服务器上的目录，可直接填写路径或在下方选择。</p> : null}
               {kind === 'local' && pickerOpen ? (
                 <section className="directory-browser" aria-label="服务器目录选择器">
                   <header className="directory-browser-head">
@@ -189,7 +226,13 @@ export default function ProjectImport({ onImported }) {
                       <X size={14} aria-hidden="true" />
                     </button>
                   </header>
-                  <div className="directory-browser-current" title={pickerPath}>{pickerPath || '正在读取…'}</div>
+                  <nav className="directory-breadcrumbs" aria-label="当前目录路径" title={pickerPath}>
+                    <button type="button" disabled={pickerLoading} onClick={() => loadDirectory('/')}>/</button>
+                    {pickerPath.split('/').filter(Boolean).map((part, index, parts) => <span key={index}>
+                      <ChevronRight size={11} aria-hidden="true" />
+                      <button type="button" disabled={pickerLoading} onClick={() => loadDirectory('/' + parts.slice(0, index + 1).join('/'))}>{part}</button>
+                    </span>)}
+                  </nav>
                   <div className="directory-browser-nav">
                     <button type="button" className="button is-small" disabled={pickerLoading || !pickerParent} onClick={() => loadDirectory(pickerParent)}>
                       <ArrowUp size={13} aria-hidden="true" />上一级
@@ -198,20 +241,22 @@ export default function ProjectImport({ onImported }) {
                       <Home size={13} aria-hidden="true" />主目录
                     </button>
                   </div>
+                  <label className="directory-search"><Search size={14} aria-hidden="true" /><input aria-label="筛选当前目录中的子目录" placeholder="筛选当前目录中的子目录…" value={pickerQuery} disabled={pickerLoading} onChange={(event) => setPickerQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault(); }} /></label>
                   <div className="directory-browser-list" aria-busy={pickerLoading}>
                     {pickerLoading ? <p className="directory-browser-empty">正在读取目录…</p> : null}
                     {pickerError ? <p className="directory-browser-error" role="alert">{pickerError}</p> : null}
-                    {!pickerLoading && !pickerError && !pickerEntries.length ? <p className="directory-browser-empty">当前目录没有可见子目录，可以直接选择当前目录。</p> : null}
-                    {!pickerLoading && !pickerError ? pickerEntries.map((entry) => (
-                      <button type="button" className="directory-browser-entry" key={entry.path} onClick={() => loadDirectory(entry.path)}>
-                        <FolderOpen size={15} aria-hidden="true" /><span>{entry.name}</span>
+                    {!pickerLoading && !pickerError && !visibleDirectories.length ? <p className="directory-browser-empty">{pickerQuery ? '没有匹配的子目录，请调整筛选。' : '没有可见子目录，可以选择当前目录。'}</p> : null}
+                    {!pickerLoading && !pickerError ? visibleDirectories.map((entry) => (
+                      <button type="button" className="directory-browser-entry" title={entry.path} key={entry.path} onClick={() => loadDirectory(entry.path)}>
+                        <FolderOpen size={15} aria-hidden="true" /><span>{entry.name}</span><ChevronRight size={13} aria-hidden="true" />
                       </button>
                     )) : null}
                   </div>
                   {pickerHasMore ? <p className="directory-browser-more">仅显示前 300 个子目录，其他目录可在路径输入框中直接填写。</p> : null}
                   <footer className="directory-browser-actions">
+                    <span className="directory-selection-path" title={pickerPath}>{pickerPath || '尚未选择目录'}</span>
                     <button type="button" className="button is-primary is-small" disabled={pickerLoading || !pickerPath} onClick={() => { setSource(pickerPath); setPickerOpen(false); }}>
-                      选择当前目录
+                      使用此目录
                     </button>
                   </footer>
                 </section>
@@ -229,69 +274,53 @@ export default function ProjectImport({ onImported }) {
               </label>
               {kind === 'github' ? (
                 <div className="project-import-field">
-                  <label htmlFor="project-import-branch">分支</label>
+                  <label htmlFor="project-import-commit">提交版本</label>
                   <div className="project-import-branch-row">
-                    {branches.length ? (
-                      <select id="project-import-branch" aria-label="GitHub 分支" disabled={busy} value={branch} onChange={(event) => setBranch(event.target.value)}>
-                        {branch && !branches.some((item) => item.name === branch) ? <option value={branch}>{branch}（默认）</option> : null}
-                        {branches.map((item) => {
-                          const labels = [];
-                          if (item.isDefault) labels.push('默认');
-                          if (item.isLatest) labels.push('本页最新');
-                          return <option key={item.name} value={item.name}>{item.name}{labels.length ? `（${labels.join('、')}）` : ''}</option>;
-                        })}
-                      </select>
-                    ) : (
-                      <input
-                        id="project-import-branch"
-                        disabled={busy || branchesLoading}
-                        value={branch}
-                        onChange={(event) => setBranch(event.target.value)}
-                        placeholder={branchesLoading ? '正在读取远程分支…' : '使用默认分支，也可以手动填写'}
-                        aria-label="GitHub 分支"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      className="icon-button is-small"
-                      title="重新读取远程分支"
-                      aria-label="重新读取远程分支"
-                      disabled={busy || branchesLoading || !source.trim()}
-                      onClick={() => setBranchReload((value) => value + 1)}
-                    >
-                      <RefreshCw size={14} className={cx(branchesLoading && 'is-spinning')} aria-hidden="true" />
+                    <select id="project-import-commit" aria-label="提交版本" disabled={busy || commitsLoading || !commits.length} value={commit} onChange={(event) => setCommit(event.target.value)}>
+                      {!commits.length ? <option value="">{commitsLoading ? '正在读取提交版本…' : '输入仓库地址后读取提交版本'}</option> : null}
+                      {commits.map((item, index) => <option key={item.sha} value={item.sha}>
+                        {item.sha.slice(0, 8)} · {item.committedAt ? new Date(item.committedAt).toLocaleString('zh-CN', { hour12: false }) : ''} · {item.message}{index === 0 ? '（最新）' : ''}
+                      </option>)}
+                    </select>
+                    <button type="button" className="icon-button is-small" title="刷新提交版本" aria-label="刷新提交版本" disabled={busy || commitsLoading || !source.trim()} onClick={() => setCommitReload((value) => value + 1)}>
+                      <RefreshCw size={14} className={cx(commitsLoading && 'is-spinning')} aria-hidden="true" />
                     </button>
                   </div>
-                  {branches.length ? (
-                    <div className="project-branch-pagination">
-                      <small>已显示 {branches.length} / {branchTotal} 条，每页按提交时间排序。</small>
-                      {branchesHasMore ? (
-                        <button type="button" className="button is-small" disabled={busy || branchesLoadingMore} onClick={loadMoreBranches}>
-                          <RefreshCw size={12} className={cx(branchesLoadingMore && 'is-spinning')} aria-hidden="true" />
-                          {branchesLoadingMore ? '正在加载…' : `加载更多（第 ${branches.length + 1}–${Math.min(branches.length + 10, branchTotal)} 条）`}
-                        </button>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {branchesError ? <small className="project-import-branch-error" role="alert">自动读取失败：{branchesError}；{branches.length ? '可重试' : '可手动填写分支'}。</small> : null}
+                  {commits.length ? <div className="project-branch-pagination">
+                    <small>已显示 {commits.length} 条提交，按提交历史分页；默认选择最新版本。</small>
+                    {commitsHasMore ? <button type="button" className="button is-small" disabled={busy || commitsLoadingMore} onClick={loadMoreCommits}>{commitsLoadingMore ? '正在加载…' : '加载更多提交'}</button> : null}
+                  </div> : null}
+                  {commitsError ? <small className="project-import-branch-error" role="alert">读取提交版本失败：{commitsError}，请重试。</small> : null}
                 </div>
               ) : null}
               <p className="project-import-note">
                 {kind === 'github'
-                  ? '仅克隆公开 GitHub 仓库，不收集访问令牌。已有目录不会被强制更新。'
+                  ? '仅下载所选公开提交版本，不收集访问令牌。已有完整源码不会被覆盖，未完成下载会备份后重试。'
                   : '直接审计服务器当前目录，不复制源码，也不切换分支。'}
               </p>
               {error ? <div className="project-import-error" role="alert">{error}</div> : null}
+
+              {busy || importInfo.length ? (
+                <section className="project-import-progress" aria-label="导入进度" aria-busy={busy}>
+                  <header><Info size={15} aria-hidden="true" /><strong>{error ? '导入未完成' : busy ? '正在导入' : '导入状态'}</strong><span>已用时 {elapsed} 秒</span></header>
+                  <div className="project-import-log" role="log" aria-live="polite" aria-relevant="additions">
+                    {importInfo.map((item, index) => <div key={index}><time>{new Date(item.at).toLocaleTimeString('zh-CN', { hour12: false })}</time><pre>{item.message.replace(/\x1b\[[0-9;]*m/g, '').replace(/\r/g, '\n')}</pre></div>)}
+                    {error ? <p role="alert">{error}</p> : null}
+                    <div ref={infoEnd} />
+                  </div>
+                </section>
+              ) : null}
+              </div>
               <footer className="project-import-actions">
-                <button type="button" className="button" disabled={busy} onClick={close}>取消</button>
-                <button type="submit" className="button is-primary" disabled={busy} aria-busy={busy}>
+                <button type="button" className="button" onClick={close}>取消</button>
+                <button type="submit" className="button is-primary" disabled={busy || pickerLoading || (kind === 'github' ? (commitsLoading || !commit) : !source.startsWith('/'))} aria-busy={busy}>
                   <RefreshCw size={14} className={cx(busy && 'is-spinning')} aria-hidden="true" />
                   {busy ? '正在导入并启动…' : '导入并启动完整审计'}
                 </button>
               </footer>
             </form>
           </section>
-        </>
+        </>, document.body
       ) : null}
     </>
   );

@@ -1,3 +1,33 @@
+async function importWithProgress(payload, onProgress, signal) {
+  const response = await fetch('/api/targets/import-stream', {
+    method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+  });
+  if (!response.ok) throw new Error(`导入请求失败（HTTP ${response.status}）`);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let pending = '';
+  let result;
+  const consume = (line) => {
+    if (!line.trim()) return;
+    const item = JSON.parse(line);
+    if (item.type === 'info') onProgress(item);
+    if (item.type === 'error') throw new Error(item.message);
+    if (item.type === 'result') result = item.result;
+  };
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      pending += decoder.decode(value, { stream: !done });
+      const lines = pending.split('\n');
+      pending = lines.pop();
+      lines.forEach(consume);
+      if (done) { consume(pending); break; }
+    }
+  } finally { reader.releaseLock(); }
+  if (!result) throw new Error('导入状态连接已中断，请先查看项目列表和运行状态，确认后再重试。');
+  return result;
+}
+
 async function request(url, options = {}) {
   const response = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
@@ -17,8 +47,12 @@ async function request(url, options = {}) {
 }
 
 export const api = {
+  importWithProgress,
+  restartProject: (project) => request(`/api/targets/${encodeURIComponent(project)}/restart`, { method: 'POST' }),
+  removeProject: (project) => request(`/api/targets/${encodeURIComponent(project)}`, { method: 'DELETE' }),
   board: () => request('/api/board'),
   serverDirectories: (directory = '') => request(`/api/targets/browse${directory ? `?path=${encodeURIComponent(directory)}` : ''}`),
+  githubCommits: (source, { page = 1, limit = 10 } = {}) => request('/api/targets/github-commits', { method: 'POST', body: JSON.stringify({ source, page, limit }) }),
   githubBranches: (source, { offset = 0, limit = 10 } = {}) => request('/api/targets/github-branches', {
     method: 'POST',
     body: JSON.stringify({ source, offset, limit })

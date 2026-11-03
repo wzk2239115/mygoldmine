@@ -517,6 +517,19 @@ export default function App() {
         filters={filters}
         setFilters={setFilters}
         facets={facetStats}
+        onRestart={async (project) => {
+          await api.restartProject(project.id);
+          setFilters((current) => ({ ...current, project: project.id }));
+          setView('board');
+          await loadBoard(true);
+          showToast(`${project.name} 新一轮审计已启动`);
+        }}
+        onRemove={async (project) => {
+          await api.removeProject(project.id);
+          setFilters((current) => ({ ...current, project: current.project === project.id ? 'all' : current.project }));
+          await loadBoard(true);
+          showToast(`${project.name} 已删除`);
+        }}
         onImported={async (result) => {
           setFilters((current) => ({ ...current, project: result.project }));
           showToast(`${result.name} 已导入，完整审计已启动`);

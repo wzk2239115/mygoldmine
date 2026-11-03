@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { FileText, MessageSquare, X } from 'lucide-react';
 import { api } from '../api.js';
@@ -36,7 +37,7 @@ export default function AgenticTraceDrawer({ project, runId, node, traces, live,
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <>
       <div className="drawer-backdrop" onClick={onClose} />
       <aside className="detail-drawer agentic-trace-drawer" role="dialog" aria-modal="true" aria-label={`${node.title}轨迹`}>
@@ -70,16 +71,17 @@ export default function AgenticTraceDrawer({ project, runId, node, traces, live,
               trace={selected.id}
               live={live}
               tall
-              chrome={false}
+              chrome
             />
           ) : selected ? (
             <section className="agentic-text-trace" aria-label={`${selected.label}文本轨迹`}>
               <div className="agentic-text-trace-head">
                 <FileText size={15} aria-hidden="true" />
                 <strong>{selected.label}</strong>
-                <span>{selected.kind === 'execution' ? '红队结构化执行轨迹' : '旧格式文本日志'}</span>
+                <span>{selected.kind === 'execution' ? '红队结构化执行轨迹' : '执行日志'}</span>
               </div>
               {error ? <div className="inline-error" role="alert">{error}</div> : null}
+              {selected.id === 'startup' ? <p className="agentic-startup-reason">{node.detail}。这是本次历史运行的启动日志。</p> : null}
               <pre>{text ? text.lines.join('\n') : '正在读取轨迹…'}</pre>
             </section>
           ) : (
@@ -91,6 +93,6 @@ export default function AgenticTraceDrawer({ project, runId, node, traces, live,
           )}
         </div>
       </aside>
-    </>
+    </>, document.body
   );
 }

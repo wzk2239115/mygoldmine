@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
 import build_state as base  # noqa: E402
+from pipeline_stage import record_stage  # noqa: E402
 from contracts import (  # noqa: E402
     ContractError,
     classify_agent_failure,
@@ -97,6 +98,7 @@ def main():
             if not preferred_path.exists() and args.build_labs and not args.dry_run:
                 build_attempted = True
                 try:
+                    record_stage("redteam-lab", str(candidate_id))
                     builder = subprocess.run(
                         [sys.executable, str(ROOT / "scripts" / "redteam" / "build_lab.py"),
                          "--project", project, "--finding", str(finding_path)],
@@ -151,6 +153,7 @@ def main():
                 entry["run_dir"] = str(run_dir)
                 agent_timed_out = False
                 try:
+                    record_stage("redteam-agent", str(candidate_id))
                     completed = subprocess.run(
                         agent, capture_output=True, text=True, cwd=ROOT,
                         timeout=args.agent_timeout,
@@ -167,6 +170,7 @@ def main():
                     })
                 if not agent_timed_out and entry["agent_returncode"] == 0:
                     try:
+                        record_stage("judge", str(candidate_id))
                         judge = subprocess.run(
                             [sys.executable, str(ROOT / "scripts" / "redteam" / "judge.py"),
                              "--run-dir", str(run_dir), "--timeout", str(args.judge_timeout)],

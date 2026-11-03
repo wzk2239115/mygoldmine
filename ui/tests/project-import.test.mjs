@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
   browseServerDirectory,
   createGithubBranchLister,
+  createGithubCommitLister,
   createProjectImporter,
   normalizeProjectId,
   parseProjectImport
@@ -65,20 +66,24 @@ test('本地导入登记当前目录并调用完整审计主流程', async () =>
 test('GitHub 导入浅克隆指定分支并启动完整审计', async () => {
   const { repoRoot } = await fixture();
   const calls = [];
-  const execute = async (command, args) => {
+  const execute = async (command, args, options) => {
     calls.push([command, args]);
+    if (args[0] === 'clone') options.onOutput('Receiving objects: 50%');
     if (args[0] === 'clone') return { code: 0, stdout: '', stderr: '' };
     if (args.includes('HEAD') && args.includes('--abbrev-ref')) return { code: 0, stdout: 'release\n', stderr: '' };
     if (args.includes('HEAD')) return { code: 0, stdout: 'def456\n', stderr: '' };
     return { code: 0, stdout: '', stderr: '' };
   };
   const importer = createProjectImporter({ repoRoot, execute });
+  const progress = [];
   const result = await importer.import({
     kind: 'github', source: 'https://github.com/acme/repo', project: 'repo-release', branch: 'release'
-  });
+  }, (message) => progress.push(message));
+  assert.ok(progress.some((message) => message.includes('50%')));
+  assert.ok(progress.at(-1).includes('启动完整审计'));
   const clone = calls.find(([, args]) => args[0] === 'clone');
   assert.deepEqual(clone[1], [
-    'clone', '--depth', '1', '--single-branch', '--branch', 'release', '--',
+    'clone', '--progress', '--depth', '1', '--single-branch', '--branch', 'release', '--',
     'https://github.com/acme/repo.git', path.join(repoRoot, 'targets', 'repo-release')
   ]);
   assert.equal(result.branch, 'release');
@@ -223,4 +228,119 @@ test('服务器目录浏览只列出可见子目录并支持返回上一级', as
   assert.deepEqual(result.directories.map((entry) => entry.name), ['alpha', 'beta', 'local-source', 'ui']);
   await assert.rejects(browseServerDirectory('relative/path'), /绝对路径/);
   await fsp.rm(repoRoot, { recursive: true, force: true });
+});
+
+test('取消克隆会清理新目录且不会启动审计', async () => {
+  const {repoRoot} = await fixture();
+  const controller = new AbortController();
+  let started = false;
+  const importer = createProjectImporter({repoRoot, execute: async (command,args,options) => {
+    if (command === 'bash') started = true;
+    if (args[0] === 'clone') {
+      await fsp.mkdir(args.at(-1), {recursive:true});
+      controller.abort();
+    }
+    return {code:0,stdout:'',stderr:''};
+  }});
+  await assert.rejects(importer.import({kind:'github',source:'https://github.com/acme/cancelled'},()=>{},controller.signal), /导入已取消/);
+  await assert.rejects(fsp.stat(path.join(repoRoot,'targets','cancelled')), {code:'ENOENT'});
+  assert.equal(started,false);
+  await fsp.rm(repoRoot,{recursive:true,force:true});
+});
+
+test('取消启动会停止对应审计并撤回登记，保留本地源码', async () => {
+  const {repoRoot,source} = await fixture();
+  const controller = new AbortController();
+  let stopped=false;
+  const importer = createProjectImporter({repoRoot,execute:async(command,args)=>{
+    if(command==='bash' && args.includes('--stop')) stopped=true;
+    else if(command==='bash') {
+      const dir=args.at(-1);
+      await fsp.mkdir(`${dir}.meta`,{recursive:true});
+      controller.abort();
+    }
+    return {code:0,stdout:'main',stderr:''};
+  }});
+  await assert.rejects(importer.import({kind:'local',source},()=>{},controller.signal), /导入已取消/);
+  assert.equal(stopped,true);
+  assert.ok((await fsp.stat(source)).isDirectory());
+  const projects=JSON.parse(await fsp.readFile(path.join(repoRoot,'ui/data/projects.json'),'utf8'));
+  assert.equal(projects.projects['local-source'],undefined);
+  await fsp.rm(repoRoot,{recursive:true,force:true});
+});
+
+test('已取消的排队请求不会执行任何命令', async () => {
+  const {repoRoot,source} = await fixture();
+  const controller=new AbortController(); controller.abort();
+  const importer=createProjectImporter({repoRoot,execute:()=>{throw Error('不应执行');}});
+  await assert.rejects(importer.import({kind:'local',source},()=>{},controller.signal), /导入已取消/);
+  await fsp.rm(repoRoot,{recursive:true,force:true});
+});
+
+test('提交历史直接分页读取且缓存，无需下载 Git 仓库', async () => {
+  let calls=0;
+  const lister=createGithubCommitLister({request:async(url)=>{
+    calls++; assert.match(url,/commits\?per_page=10&page=1/);
+    return {payload:[{sha:'a'.repeat(40),commit:{message:'修复问题\n详情',committer:{date:'2026-11-03T01:00:00Z'}}}],links:{next:'next'}};
+  }});
+  const results=await Promise.all([lister.list('https://github.com/acme/repo'),lister.list('https://github.com/acme/repo')]);
+  assert.equal(calls,1); assert.equal(results[0].hasMore,true); assert.equal(results[0].commits[0].message,'修复问题');
+  await lister.list('https://github.com/acme/repo'); assert.equal(calls,1);
+});
+
+test('未完成仓库备份后按所选提交重新下载并核对版本', async () => {
+  const {repoRoot}=await fixture();
+  const target=path.join(repoRoot,'targets','repo');
+  await fsp.mkdir(path.join(target,'.git'),{recursive:true});
+  const sha='a'.repeat(40); let fetched=false; const calls=[];
+  const importer=createProjectImporter({repoRoot,execute:async(command,args)=>{
+    calls.push(args);
+    if(args.includes('fetch')) { fetched=true; assert.equal(args.at(-1),sha); }
+    if(args.includes('origin') && args.includes('get-url')) return {code:0,stdout:'https://github.com/acme/repo.git',stderr:''};
+    if(args.includes('rev-parse')) return {code:fetched?0:1,stdout:fetched?sha:'',stderr:''};
+    return {code:0,stdout:'',stderr:''};
+  }});
+  const result=await importer.import({kind:'github',source:'https://github.com/acme/repo',commit:sha});
+  assert.equal(result.commit,sha); assert.ok(calls.some(args=>args.includes('--detach')));
+  const backups=await fsp.readdir(path.join(repoRoot,'backups','incomplete-imports'));
+  assert.equal(backups.length,1);
+  await fsp.rm(repoRoot,{recursive:true,force:true});
+});
+
+test('重新审计复用登记源码，新建运行并保留历史和项目元数据', async (t) => {
+  const {repoRoot,source}=await fixture();t.after(()=>fsp.rm(repoRoot,{recursive:true,force:true}));
+  await fsp.writeFile(path.join(source,'README.md'),'source');
+  await fsp.mkdir(path.join(repoRoot,'targets'),{recursive:true});
+  const manifest=JSON.stringify({projects:{demo:{path:source,commit:'abc',action:'imported-github'}}});
+  await fsp.writeFile(path.join(repoRoot,'targets/manifest.json'),manifest);
+  const old=path.join(repoRoot,'runs/demo/old.meta/status.json');
+  await fsp.mkdir(path.dirname(old),{recursive:true});await fsp.writeFile(old,'old');
+  const calls=[];
+  const importer=createProjectImporter({repoRoot,now:()=>new Date('2026-11-03T12:00:00Z'),execute:async(command,args)=>{calls.push({command,args});return {code:0};}});
+  const result=await importer.restart('demo');
+  assert.equal(result.runId,'20261103T120000Z');
+  assert.deepEqual(calls,[{command:'bash',args:[path.join(repoRoot,'run.sh'),source,'--project','demo','--run-dir',result.runDir]}]);
+  assert.equal(await fsp.readFile(old,'utf8'),'old');
+  assert.equal(await fsp.readFile(path.join(repoRoot,'targets/manifest.json'),'utf8'),manifest);
+});
+
+test('并发重新审计请求串行检查，已有任务时不重复启动', async (t) => {
+  const {repoRoot,source}=await fixture();t.after(()=>fsp.rm(repoRoot,{recursive:true,force:true}));
+  await fsp.writeFile(path.join(source,'README.md'),'source');await fsp.mkdir(path.join(repoRoot,'targets'),{recursive:true});
+  await fsp.writeFile(path.join(repoRoot,'targets/manifest.json'),JSON.stringify({projects:{demo:{path:source}}}));
+  let live=false;let starts=0;
+  const importer=createProjectImporter({repoRoot,isProjectLive:()=>live,execute:async()=>{starts++;live=true;return {code:0};}});
+  const results=await Promise.allSettled([importer.restart('demo'),importer.restart('demo')]);
+  assert.equal(results[0].status,'fulfilled');assert.equal(results[1].reason.status,409);assert.equal(starts,1);
+});
+
+test('重新审计拒绝缺失源码，启动失败返回真实错误', async (t) => {
+  const {repoRoot,source}=await fixture();t.after(()=>fsp.rm(repoRoot,{recursive:true,force:true}));
+  await fsp.mkdir(path.join(repoRoot,'targets'),{recursive:true});
+  await fsp.writeFile(path.join(repoRoot,'targets/manifest.json'),JSON.stringify({projects:{demo:{path:source}}}));
+  const importer=createProjectImporter({repoRoot,execute:async()=>({code:1,stderr:'启动错误'})});
+  await assert.rejects(importer.restart('missing'),/没有找到/);
+  await assert.rejects(importer.restart('demo'),/不存在或为空/);
+  await fsp.writeFile(path.join(source,'README.md'),'source');
+  await assert.rejects(importer.restart('demo'),/启动错误/);
 });

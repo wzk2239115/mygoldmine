@@ -16,6 +16,24 @@
   border-bottom: 1px solid var(--line-strong);
 }
 
+.map-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  margin: 0 0 2px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.map-back:hover {
+  color: var(--ink);
+}
+
 .map-title h2 {
   margin: 2px 0 1px;
   font-size: 22px;
@@ -62,6 +80,88 @@
 .map-mode-switch button.is-active {
   color: var(--paper-2);
   background: var(--ink);
+}
+
+.map-projects {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px;
+  padding: 14px 0 20px;
+  overflow-y: auto;
+}
+
+.map-project-card {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px;
+  color: var(--ink);
+  text-align: left;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.map-project-card:hover,
+.map-project-card:focus-visible {
+  background: var(--paper-3);
+  border-color: var(--line-strong);
+  transform: translateY(-1px);
+}
+
+.map-project-card:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.map-project-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.map-project-copy strong,
+.map-project-copy span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.map-project-copy strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.map-project-copy span {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 8px;
+}
+
+.map-project-findings {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 1;
+  text-align: right;
+}
+
+.map-project-findings small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 7px;
+  text-transform: uppercase;
 }
 
 .map-body {
@@ -467,5 +567,29 @@
   .map-detail {
     display: block;
     overflow: visible;
+  }
+}
+
+@media (max-width: 1400px) {
+  .map-projects {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .map-projects {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .map-projects {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .map-projects {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -324,10 +324,10 @@ if [ "$MODE" = "supervise" ]; then
     ENV_AGENT_REASON="unknown"
     VERIFY_SUMMARY=""
     VERIFY_COUNTS="{}"
-    VERIFY_AGENT_STATUS="skipped"
-    VISUAL_STATUS="skipped"
+    VERIFY_AGENT_STATUS="pending"
+    VISUAL_STATUS="pending"
     VISUAL_SUMMARY=""
-    REDTEAM_STATUS="skipped"
+    REDTEAM_STATUS="pending"
     REDTEAM_SUMMARY=""
     REVIEW_READY=0
     PIPELINE_DEGRADED=0
@@ -377,6 +377,10 @@ if [ "$MODE" = "supervise" ]; then
               exit_code:$exit_code}' > "$META/status.json"
     }
 
+    set_stage() {
+        PIPELINE_STAGE_FILE="$META/pipeline-stage.json" python3 "$REPO_ROOT/scripts/workflow/pipeline_stage.py" "$1"
+    }
+    set_stage environment
     write_status "starting" -1
 
     if [ "$SKIP_ENV" -eq 0 ]; then
@@ -416,6 +420,7 @@ if [ "$MODE" = "supervise" ]; then
             log "WARN: 持久沙箱创建失败，回退到一次性批量审计容器"
         fi
     fi
+    set_stage orchestrator
     write_status "running" -1
     log "监督进程启动：项目=$PROJECT 产物目录=$RUN_DIR"
 
@@ -519,6 +524,7 @@ PYRECOVERY
 
     if [ "$REPORTS_COMPLETE" -eq 1 ] && [ "$SKIP_VISUAL" -eq 0 ]; then
         log "图文报告：生成报告与攻击场景图（最多 $SCENE_MAX 张）..."
+        set_stage visual
         bash "$REPO_ROOT/scripts/mine/visual_report.sh" \
             --project "$PROJECT" --run-dir "$RUN_DIR" --max "$SCENE_MAX" \
             --timeout "$VISUAL_TIMEOUT" --agent-timeout "$VISUAL_AGENT_TIMEOUT" \
@@ -541,6 +547,7 @@ PYRECOVERY
     if [ "$SKIP_VERIFY" -eq 0 ] && [ -n "$ENV_IMAGE" ] && [ "$REPORTS_COMPLETE" -eq 1 ] && [ "$ENV_STATUS" != "blocked" ]; then
         if docker image inspect "$ENV_IMAGE" >/dev/null 2>&1; then
             log "第 4 阶段：验证候选问题（最多 $VERIFY_MAX 条，严重度 $VERIFY_SEVERITY）..."
+            set_stage verify
             bash "$REPO_ROOT/scripts/verify/phase4_verify_agent.sh" \
                 --project "$PROJECT" --run-dir "$RUN_DIR" \
                 --image "$ENV_IMAGE" --source "$TARGET" \
@@ -579,7 +586,8 @@ PYRECOVERY
 
     if [ "$SKIP_REDTEAM" -eq 0 ] && [ -n "$ENV_IMAGE" ] && [ "$REPORTS_COMPLETE" -eq 1 ] && [ "$ENV_STATUS" != "blocked" ]; then
         log "第 5 阶段：红队批量验证与独立审核（最多 $REDTEAM_MAX 条，模型 $REDTEAM_MODEL）..."
-        bash "$REPO_ROOT/scripts/redteam/phase5_redteam.sh" \
+        set_stage redteam-lab
+        PIPELINE_STAGE_FILE="$META/pipeline-stage.json" bash "$REPO_ROOT/scripts/redteam/phase5_redteam.sh" \
             --project "$PROJECT" --run-dir "$RUN_DIR" \
             --max "$REDTEAM_MAX" --severity "$VERIFY_SEVERITY" \
             --model "$REDTEAM_MODEL" --base-url "$REDTEAM_BASE_URL" --api-key "$REDTEAM_API_KEY" \
@@ -618,6 +626,7 @@ PYRECOVERY
 
     if [ "$SKIP_MINING_REPAIR" -eq 0 ] && [ "$REPORTS_COMPLETE" -eq 1 ] && [ -f "$REPO_ROOT/scripts/rsi/post_validation.sh" ]; then
         log "第 6 阶段：构建红蓝经验并生成挖掘修复候选..."
+        set_stage learner
         bash "$REPO_ROOT/scripts/rsi/post_validation.sh" \
             --project "$PROJECT" --run-dir "$RUN_DIR" > "$META/mining-repair.log" 2>&1
         LRC=$?

@@ -42,3 +42,14 @@ test('节点轨迹按真实调用定位并区分 Claude、文本和红队执行'
   assert.equal(resolveAgenticTrace(run, 'learner').kind, 'claude');
   assert.equal(listAgenticTraces(run, 'missing').length, 0);
 });
+
+test('没有主会话时展示启动失败日志，有会话后优先显示会话', (t) => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'startup-trace-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const run={runDir:path.join(root,'run')};
+  write(`${run.runDir}.meta/wrapper.log`,'cp: cannot create directory: File exists\n');
+  assert.equal(resolveAgenticTrace(run,'orchestrator').id,'startup');
+  assert.equal(resolveAgenticTrace(run,'orchestrator').kind,'text');
+  write(path.join(run.runDir,'raw.jsonl'),claude);
+  assert.equal(resolveAgenticTrace(run,'orchestrator').id,'main');
+});

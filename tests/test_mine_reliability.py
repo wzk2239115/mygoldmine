@@ -290,6 +290,7 @@ def make_supervisor_engine(tmp_path):
     agent.parent.mkdir(parents=True)
     agent.write_text("fixture")
     shutil.copy2(ROOT / "run.sh", engine / "run.sh")
+    shutil.copy2(ROOT / "scripts/env/phase0_env.sh", engine / "scripts/env/phase0_env.sh")
     shutil.copy2(ROOT / "scripts/mine/check_report.py", mine / "check_report.py")
     shutil.copy2(
         ROOT / "scripts/workflow/report_quality.py", engine / "scripts/workflow/report_quality.py"
@@ -343,7 +344,21 @@ mkdir -p "$root/env/$project"
 printf '{"image":"fake-image","env_status":"ready"}\n' > "$root/env/$project/env-manifest.json"
 """
     )
-    (engine / "scripts/verify/auto_verify.sh").write_text(
+    (engine / "scripts/mine/visual_report.sh").write_text(
+        """#!/usr/bin/env bash
+while [ "$#" -gt 0 ]; do
+ case "$1" in
+  --run-dir) run="$2"; shift;;
+ esac
+ shift
+done
+mkdir -p "$run/visual-rendered"
+echo '# Visual' > "$run/visual-rendered/report-illustrated.md"
+echo '{"status":"ready","scene_status":"ready"}' > "$run/visual-rendered/visual-summary.json"
+echo '# Visual summary' > "$run/visual-rendered/visual-summary.md"
+"""
+    )
+    (engine / "scripts/verify/phase4_verify_agent.sh").write_text(
         """#!/usr/bin/env bash
 while [ "$#" -gt 0 ]; do
  case "$1" in
@@ -358,6 +373,27 @@ echo '# Verified' > "$output/summary.md"
 echo '{"counts":{}}' > "$output/summary.json"
 """
     )
+    (engine / "scripts/redteam").mkdir(parents=True)
+    (engine / "scripts/redteam/phase5_redteam.sh").write_text(
+        """#!/usr/bin/env bash
+while [ "$#" -gt 0 ]; do
+ case "$1" in
+  --run-dir) run="$2"; shift;;
+  --output) output="$2"; shift;;
+ esac
+ shift
+done
+mkdir -p "$output"
+echo '{"status":"completed","counts":{}}' > "$output/summary.json"
+echo '# Redteam' > "$output/summary.md"
+"""
+    )
+    for script in [
+        engine / "scripts/mine/visual_report.sh",
+        engine / "scripts/verify/phase4_verify_agent.sh",
+        engine / "scripts/redteam/phase5_redteam.sh",
+    ]:
+        script.chmod(0o755)
     binary = tmp_path / "docker-bin"
     binary.mkdir()
     docker = binary / "docker"
@@ -408,6 +444,10 @@ def test_successful_recovery_returns_to_phase4(tmp_path):
     recovered = json.loads(Path(str(run) + "-recovery.meta/status.json").read_text())
     assert original["state"] == "timeout" and original["exit_code"] == 125
     assert recovered["state"] == "success"
+    assert recovered["visual_status"] == "ready"
+    assert recovered["verify_agent_status"] == "completed"
+    assert recovered["redteam_status"] == "completed"
+    assert recovered["review_ready"] == 0
 
 
 def test_quality_failure_does_not_auto_verify(tmp_path):
@@ -470,7 +510,7 @@ def run_batch(tmp_path, manifest, executor, mode):
             "--timeout",
             "10",
         ],
-        env={**os.environ, "BATCH_MODE": mode},
+        env={**os.environ, "BATCH_MODE": mode, "SKIP_MINING_REPAIR": "1"},
         capture_output=True,
         text=True,
         timeout=10,

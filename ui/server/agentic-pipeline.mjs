@@ -30,7 +30,9 @@ function environmentNode(run, status, phase) {
   if (phase) {
     const finalStatus = phase.final?.status || 'blocked';
     const agentStatus = phase.agent?.status || '';
-    const detail = `智能体：${agentStatus || '未知'} · 环境：${finalStatus}`;
+    const labels = { ready: '就绪', partial: '部分可用', blocked: '受阻', failed: '失败' };
+    const detail = `智能体：${labels[agentStatus] || agentStatus || '未知'} · 环境：${labels[finalStatus] || finalStatus}`;
+    if (finalStatus === 'partial') return makeNode(id, title, agent, 'degraded', detail, artifact);
     if (usableEnvironment(finalStatus) && usableEnvironment(agentStatus)) {
       return makeNode(id, title, agent, 'completed', detail, artifact);
     }
@@ -39,6 +41,7 @@ function environmentNode(run, status, phase) {
     }
     return makeNode(id, title, agent, 'blocked', detail, artifact);
   }
+  if (status.env_status === 'partial') return makeNode(id, title, agent, 'degraded', '环境部分可用');
   if (usableEnvironment(status.env_status)) {
     return makeNode(id, title, agent, 'completed', `环境：${status.env_status}`);
   }
@@ -60,7 +63,18 @@ function orchestratorNode(run, report) {
     return makeNode('orchestrator', title, agent, 'completed', `审计报告已生成 · ${count} 条候选`, run.reportPath || '');
   }
   if (['failed', 'timeout', 'stopped'].includes(run.state)) {
-    return makeNode('orchestrator', title, agent, 'failed', `审计运行状态：${run.state}`, run.logPath || '');
+    const labels = { failed: '审计运行失败', timeout: '审计运行超时', stopped: '审计已停止' };
+    const raw = path.join(run.runDir, 'raw.jsonl');
+    const startup = path.join(`${run.runDir}.meta`, 'wrapper.log');
+    if ((!exists(raw) || fs.statSync(raw).size === 0) && exists(startup)) {
+      const fd = fs.openSync(startup, 'r');
+      const size = fs.fstatSync(fd).size;
+      const buffer = Buffer.alloc(Math.min(size, 8192));
+      try { fs.readSync(fd, buffer, 0, buffer.length, Math.max(0, size - buffer.length)); } finally { fs.closeSync(fd); }
+      const copyFailed = /cp: cannot create/.test(buffer.toString());
+      return makeNode('orchestrator', title, agent, 'failed', copyFailed ? '启动前源码复制失败，审计智能体未启动' : '启动阶段退出，审计智能体尚未生成会话；查看启动日志了解原因', startup);
+    }
+    return makeNode('orchestrator', title, agent, 'failed', labels[run.state], run.logPath || '');
   }
   return makeNode('orchestrator', title, agent, 'pending', '等待环境就绪');
 }
@@ -221,11 +235,72 @@ export function buildAgenticPipeline(run) {
       updatedAt: trace.updatedAt
     }));
   }
+  // The supervisor owns progression; total-run liveness is not node liveness.
+  const recordedStage = readJson(path.join(`${run.runDir}.meta`, 'pipeline-stage.json'));
+  let active = recordedStage?.node;
+  const interrupted = !run.isLive && ['stopped', 'failed', 'timeout'].includes(run.state);
+  const environmentStarted = exists(`${run.runDir}.meta/env-phase0.log`) || nodes[0].traces.length > 0;
+  if (!active && (run.isLive || (interrupted && environmentStarted))) {
+    // Compatibility for runs started before stage recording was added.
+    if (learnerLog) active = 'learner';
+    else if (exists(`${run.runDir}.meta/redteam.log`)) active = 'redteam-lab';
+    else if (exists(`${run.runDir}.meta/verify.log`)) active = 'verify';
+    else if (exists(`${run.runDir}.meta/visual-report.log`)) active = 'visual';
+    else if (phase || usableEnvironment(status.env_status) || status.env_agent_status === 'skipped_env' || exists(path.join(run.runDir, 'raw.jsonl'))) active = 'orchestrator';
+    else active = 'environment';
+  }
+  const activeIndex = nodes.findIndex(node => node.id === active);
+  if (run.isLive && activeIndex >= 0) {
+    const descriptions = {
+      environment: '正在构建环境并准备源码', orchestrator: '正在执行安全审计',
+      visual: '正在生成攻击场景', verify: '正在验证候选问题',
+      'redteam-lab': '正在构建红队场景', 'redteam-agent': '正在执行红队验证',
+      judge: '正在独立审核', learner: '正在处理审计经验'
+    };
+    nodes.forEach((node, index) => {
+      if (index > activeIndex) {
+        node.status = 'pending';
+        node.detail = `等待${nodes[index - 1].title}`;
+      } else if (index === activeIndex) {
+        node.status = 'running';
+        node.detail = descriptions[node.id] + (recordedStage?.candidate ? ` · 候选 ${recordedStage.candidate}` : '');
+      } else if (node.id === 'orchestrator' && report) {
+        node.status = 'completed';
+        node.detail = `审计报告已生成 · ${Array.isArray(report.findings) ? report.findings.length : 0} 条候选`;
+      } else if (['redteam-lab', 'redteam-agent', 'judge'].includes(node.id) && !redteam && activeIndex >= 4 && activeIndex <= 6) {
+        node.status = 'pending';
+        node.detail = '红队批次处理中，等待最终汇总';
+      } else if (node.status === 'running') {
+        node.status = 'pending';
+        node.detail = '本阶段已结束，等待结果记录';
+      } else if (node.status === 'pending' && !node.traces.length) {
+        node.status = 'skipped';
+        node.detail = '本阶段未执行，已进入后续阶段';
+      }
+    });
+  }
+  let notice = '';
+  if (interrupted && activeIndex >= 0) {
+    const current = nodes[activeIndex];
+    if (['pending', 'running'].includes(current.status)) {
+      current.status = 'stopped';
+      current.detail = '任务已中断，本阶段未完成；可查看已有执行记录';
+    }
+    for (const node of nodes.slice(activeIndex + 1)) {
+      if (!node.traces.length && ['pending', 'running', 'skipped', 'failed'].includes(node.status)) {
+        node.status = 'not_started';
+        node.detail = `${current.title}阶段中断，本阶段未执行`;
+      }
+    }
+    notice = `任务在${current.title}阶段中断，后续阶段未执行`;
+  }
   return {
+    notice,
     project: run.project,
     projectName: run.projectName,
     runId: run.runId,
     state: run.state,
+    activeNode: run.isLive && activeIndex >= 0 ? active : null,
     nodes,
     summary: {
       total: nodes.length,

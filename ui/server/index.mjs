@@ -1,10 +1,13 @@
+import { projectLogo } from './project-logo.mjs';
+import { removeProjectRecords } from './project-removal.mjs';
+import { discoverRunNames } from './run-directories.mjs';
 import http from 'node:http';
 import { reportQuality } from './report-quality.mjs';
 import { summarizeRecovery } from './recovery-status.mjs';
 import { parseAgentTopology } from './agent-topology.mjs';
 import { buildAgenticPipeline } from './agentic-pipeline.mjs';
 import { resolveAgenticTrace } from './agentic-traces.mjs';
-import { browseServerDirectory, createGithubBranchLister, createProjectImporter } from './project-import.mjs';
+import { browseServerDirectory, normalizeProjectId, createGithubCommitLister, createGithubBranchLister, createProjectImporter } from './project-import.mjs';
 import { isLedgerV2, isVerified, latestOccurrences, stateForFinding } from './finding-ledger.mjs';
 import net from 'node:net';
 import fs from 'node:fs';
@@ -80,7 +83,7 @@ function projectInfo(project) {
     direction: meta.direction || '',
     icon: meta.icon || 'layers',
     tone: meta.tone || 'ink',
-    logo: meta.logo || '',
+    logo: projectLogo(REPO_ROOT, project, meta.logo),
     url: meta.url || '',
     auditId: meta.audit_id || ''
   };
@@ -617,10 +620,9 @@ function discoverRuns({ withFindings = true } = {}) {
     if (EXCLUDED_PROJECTS.has(projectEntry.name)) continue;
     const project = projectEntry.name;
     const projectDir = path.join(RUNS_ROOT, project);
-    const runEntries = fs.readdirSync(projectDir, { withFileTypes: true });
+    const runEntries = discoverRunNames(projectDir).map(name => ({ name }));
 
     for (const runEntry of runEntries) {
-      if (!runEntry.isDirectory() || runEntry.name.startsWith('.')) continue;
       const runDir = path.join(projectDir, runEntry.name);
       const reportPath = path.join(runDir, 'audit-report.json');
       const reportMdPath = path.join(runDir, 'audit-report.md');
@@ -923,10 +925,11 @@ function buildLive() {
   return { generatedAt: new Date().toISOString(), liveRuns, projects };
 }
 
+const githubCommitLister = createGithubCommitLister();
 const projectImporter = createProjectImporter({
   repoRoot: REPO_ROOT,
   isProjectLive: (project) => buildLive().liveRuns.some((run) => run.project === project),
-  onImported: (project, metadata) => { PROJECT_META[project] = metadata; }
+  onImported: (project, metadata) => { if (metadata) PROJECT_META[project] = metadata; else delete PROJECT_META[project]; }
 });
 const githubBranchLister = createGithubBranchLister();
 
@@ -1001,6 +1004,26 @@ async function ccuiReachable(force = false) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+const indexedCcuiSessions = new Map();
+async function indexCcuiSession(session) {
+  const key = `${session.sessionId}:${session.importedAt}`;
+  if (indexedCcuiSessions.has(key)) return indexedCcuiSessions.get(key);
+  const pending = new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [path.join(REPO_ROOT, 'scripts/ccui/index_trace.mjs'), session.sessionFile], {
+      env: { ...process.env, HOME: CCUI_HOME, DATABASE_PATH: path.join(CCUI_HOME, '.cloudcli/auth.db') },
+      stdio: ['ignore', 'ignore', 'pipe']
+    });
+    let error = '';
+    const timer = setTimeout(() => child.kill('SIGKILL'), 15000);
+    child.stderr.on('data', chunk => { error = `${error}${chunk}`.slice(-1000); });
+    child.on('error', cause => { clearTimeout(timer); reject(cause); });
+    child.on('close', code => { clearTimeout(timer); code === 0 ? resolve() : reject(new Error(`轨迹会话登记失败：${error}`)); });
+  }).catch(error => { indexedCcuiSessions.delete(key); throw error; });
+  if (indexedCcuiSessions.size >= 100) indexedCcuiSessions.delete(indexedCcuiSessions.keys().next().value);
+  indexedCcuiSessions.set(key, pending);
+  return pending;
 }
 
 const ccuiImports = new Map();
@@ -1269,9 +1292,35 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    const restartTarget = pathname.match(/^\/api\/targets\/([^/]+)\/restart$/);
+    if (req.method === 'POST' && restartTarget) {
+      const project = normalizeProjectId(restartTarget[1]);
+      if (!discoverRuns({withFindings:false}).some(run => run.project === project)) return sendError(res,404,'项目不存在');
+      sendJson(res,201,await projectImporter.restart(project));
+      return;
+    }
+
+    const removedTarget = pathname.match(/^\/api\/targets\/([^/]+)$/);
+    if (req.method === 'DELETE' && removedTarget) {
+      const project = normalizeProjectId(decodeURIComponent(removedTarget[1]));
+      const runs = discoverRuns({ withFindings: false });
+      if (runs.some(run => run.project === project && run.isLive)) return sendError(res, 409, '项目仍在审计中，请先停止审计后再删除');
+      if (!runs.some(run => run.project === project)) return sendError(res, 404, '项目不存在');
+      removeProjectRecords(REPO_ROOT, project);
+      delete PROJECT_META[project];
+      sendJson(res, 200, { ok: true, project });
+      return;
+    }
+
     if (req.method === 'GET' && pathname === '/api/targets/browse') {
       const result = await browseServerDirectory(url.searchParams.get('path') || '');
       sendJson(res, 200, result);
+      return;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/targets/github-commits') {
+      const body = await readBody(req);
+      sendJson(res, 200, await githubCommitLister.list(body.source, { page: body.page, limit: body.limit }));
       return;
     }
 
@@ -1279,6 +1328,28 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       const result = await githubBranchLister.list(body.source, { offset: body.offset, limit: body.limit });
       sendJson(res, 200, result);
+      return;
+    }
+
+    if (req.method === 'POST' && pathname === '/api/targets/import-stream') {
+      const body = await readBody(req);
+      res.writeHead(200, { 'Content-Type': 'application/x-ndjson; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no' });
+      res.flushHeaders();
+      const controller = new AbortController();
+      const cancel = () => controller.abort();
+      res.on('close', cancel);
+      const send = (payload) => { if (!res.destroyed) res.write(JSON.stringify(payload) + '\n'); };
+      const heartbeat = setInterval(() => send({ type: 'heartbeat' }), 10000);
+      try {
+        const result = await projectImporter.import(body, (message) => send({ type: 'info', message, at: new Date().toISOString() }), controller.signal);
+        send({ type: 'result', result });
+      } catch (error) {
+        send({ type: 'error', message: error.message });
+      } finally {
+        clearInterval(heartbeat);
+        res.off('close', cancel);
+        res.end();
+      }
       return;
     }
 
@@ -1418,6 +1489,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const session = outcome.session;
+      if (reachable) await indexCcuiSession(session);
       sendJson(res, 200, {
         available: true,
         reachable,

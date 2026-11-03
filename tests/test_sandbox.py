@@ -128,3 +128,63 @@ def test_sandbox_start_preserves_source_boundary_and_writes_no_credentials(tmp_p
     state = json.loads((tmp_path / "run.meta/sandbox.json").read_text())
     assert state["container"].startswith("mygoldmine-sandbox-demo-")
     assert state["image"] == "demo:image"
+
+
+def test_prepared_entrypoint_preserves_workspace_edits(tmp_path):
+    source = tmp_path / 'source'
+    work = tmp_path / 'work'
+    home = tmp_path / 'framework'
+    bin_dir = tmp_path / 'bin'
+    for directory in [source, work, home / 'scripts/mine', home / '.claude', bin_dir]:
+        directory.mkdir(parents=True)
+    (source / 'code.txt').write_text('original')
+    (work / 'code.txt').write_text('edited by audit')
+    (work / 'evidence.txt').write_text('preserve evidence')
+    Path(f'{work}.mygoldmine-ready').touch()
+    executor = home / 'scripts/mine/mine_one.sh'
+    executor.write_text('#!/bin/bash\nexit 0\n')
+    executor.chmod(0o755)
+    claude = bin_dir / 'claude'
+    claude.write_text('#!/bin/bash\nexit 91\n')
+    claude.chmod(0o755)
+    env = {**os.environ, 'MYGOLDMINE_HOME': str(home), 'TARGET_DIR': str(source),
+           'WORK_DIR': str(work), 'RUN_DIR': str(tmp_path / 'run'),
+           'WORKSPACE_PREPARED': '1', 'ANTHROPIC_AUTH_TOKEN': 'test-only',
+           'ALLOW_DOCKER_SOCKET': '1',
+           'PATH': f"{bin_dir}:{os.environ['PATH']}"}
+    result = subprocess.run(['bash', str(ROOT / 'scripts/mine/entrypoint.sh')], env=env, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert (work / 'code.txt').read_text() == 'edited by audit'
+    assert (work / 'evidence.txt').exists()
+    assert (source / 'code.txt').read_text() == 'original'
+
+
+def test_start_rejects_unprepared_existing_sandbox(tmp_path):
+    env, log = fake_docker(tmp_path)
+    docker = tmp_path / 'bin/docker'
+    script = docker.read_text().replace('  exec)\n', '  exec)\n    if [[ "$*" == *"test -f /workspace/repo.mygoldmine-ready"* ]]; then exit 1; fi\n')
+    docker.write_text(script)
+    source = tmp_path / 'source'
+    source.mkdir()
+    result = subprocess.run(['bash', str(SANDBOX), 'start', '--project', 'demo',
+                             '--run-dir', str(tmp_path / 'run'), '--source', str(source), '--image', 'demo:image'],
+                            env=env, capture_output=True, text=True)
+    assert result.returncode == 5, result.stderr
+    assert '未完成准备' in result.stderr
+    assert not (tmp_path / 'run.meta/sandbox.json').exists()
+    assert 'cp -a' not in log.read_text()
+
+
+def test_failed_copy_does_not_publish_ready_state(tmp_path):
+    env, log = fake_docker(tmp_path, state='')
+    docker = tmp_path / 'bin/docker'
+    docker.write_text(docker.read_text().replace('  exec)\n', '  exec)\n    if [[ "$*" == *"cp -a /target/."* ]]; then exit 1; fi\n'))
+    source = tmp_path / 'source'
+    source.mkdir()
+    result = subprocess.run(['bash', str(SANDBOX), 'start', '--project', 'demo',
+                             '--run-dir', str(tmp_path / 'run'), '--source', str(source), '--image', 'demo:image'],
+                            env=env, capture_output=True, text=True)
+    assert result.returncode == 5, result.stderr
+    assert '源码复制失败' in result.stderr
+    assert not (tmp_path / 'run.meta/sandbox.json').exists()
+    assert 'stop --time 20' in log.read_text()

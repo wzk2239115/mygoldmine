@@ -1,4 +1,6 @@
-import { Check, Filter, RotateCcw, Target } from 'lucide-react';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Check, Filter, RotateCcw, Target, Trash2, X } from 'lucide-react';
 import { SEVERITIES, VERDICTS } from '../constants.js';
 import { cx } from '../utils.js';
 import ProjectMark from './ProjectMark.jsx';
@@ -8,7 +10,26 @@ function CountPill({ value }) {
   return <span className="filter-count">{value}</span>;
 }
 
-export default function Sidebar({ board, filters, setFilters, facets, onImported }) {
+export default function Sidebar({ board, filters, setFilters, facets, onImported, onRemove, onRestart }) {
+  const [restartBusy, setRestartBusy] = useState('');
+  const [restartError, setRestartError] = useState(null);
+  const restart = async (project) => {
+    if (restartBusy) return;
+    setRestartBusy(project.id); setRestartError(null);
+    try { await onRestart(project); }
+    catch (error) { setRestartError({project:project.id,message:error.message}); }
+    finally { setRestartBusy(''); }
+  };
+  const [removing, setRemoving] = useState(null);
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [removeError, setRemoveError] = useState('');
+  const confirmRemove = async () => {
+    setRemoveBusy(true);
+    setRemoveError('');
+    try { await onRemove(removing); setRemoving(null); }
+    catch (error) { setRemoveError(error.message); }
+    finally { setRemoveBusy(false); }
+  };
   const projects = board?.projects || [];
   const stats = board?.stats;
   const active = Boolean(
@@ -44,6 +65,16 @@ export default function Sidebar({ board, filters, setFilters, facets, onImported
   };
 
   return (
+    <>
+    {removing ? createPortal(<>
+      <button type="button" className="project-import-backdrop" aria-label="关闭删除确认" disabled={removeBusy} onClick={() => setRemoving(null)} />
+      <section className="project-import-dialog project-remove-dialog" role="dialog" aria-modal="true" aria-labelledby="project-remove-title">
+        <header className="project-import-head"><h2 id="project-remove-title">删除项目 {removing.name}？</h2><button type="button" className="icon-button" aria-label="关闭删除确认" disabled={removeBusy} onClick={() => setRemoving(null)}><X size={16} /></button></header>
+        <p>将删除项目登记、候选问题及审计运行记录，无法撤销。源码目录保留。</p>
+        {removeError ? <p className="project-import-error" role="alert">{removeError}</p> : null}
+        <footer className="project-import-actions"><button type="button" className="button" disabled={removeBusy} onClick={() => setRemoving(null)}>取消</button><button type="button" className="button project-remove-confirm" disabled={removeBusy} onClick={confirmRemove}>{removeBusy ? '正在删除…' : '删除项目'}</button></footer>
+      </section>
+    </>, document.body) : null}
     <aside className="sidebar" id="finding-filters" aria-label="筛选与目标">
       <div className="sidebar-head">
         <div>
@@ -95,9 +126,10 @@ export default function Sidebar({ board, filters, setFilters, facets, onImported
           </span>
           <span className="project-total">{stats?.total ?? 0}</span>
         </button>
+        {!removing && removeError ? <p className="project-import-error" role="alert">{removeError}</p> : null}
         {projects.map((project) => (
+          <div className="project-row-wrap" key={project.id}>
           <button
-            key={project.id}
             type="button"
             className={cx('project-row', filters.project === project.id && 'is-active')}
             aria-pressed={filters.project === project.id}
@@ -118,6 +150,12 @@ export default function Sidebar({ board, filters, setFilters, facets, onImported
             </span>
             <span className="project-total">{project.curatedCount || 0}</span>
           </button>
+          <div className="project-row-actions">
+          <button type="button" className="project-restart" aria-label={`重新审计 ${project.name}`} title="使用当前源码重新运行完整审计，保留历史记录" disabled={project.isLive || Boolean(restartBusy)} onClick={() => restart(project)}><RotateCcw size={13} aria-hidden="true" />{restartBusy === project.id ? '正在启动…' : project.isLive ? '审计进行中' : '重新审计'}</button>
+          <button type="button" className="project-remove icon-button is-small" title={project.isLive ? '审计进行中，停止后可删除' : `删除项目 ${project.name}`} aria-label={`删除项目 ${project.name}`} disabled={project.isLive || Boolean(restartBusy)} onClick={() => { setRemoveError(''); setRemoving(project); }}><Trash2 size={14} aria-hidden="true" /></button>
+          </div>
+          {restartError?.project === project.id ? <p className="project-import-error" role="alert">{restartError.message}</p> : null}
+          </div>
         ))}
       </div>
 
@@ -222,5 +260,6 @@ export default function Sidebar({ board, filters, setFilters, facets, onImported
         </div>
       </div>
     </aside>
+    </>
   );
 }

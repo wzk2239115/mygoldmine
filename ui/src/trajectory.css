@@ -1176,3 +1176,19 @@ body.drawer-resizing .detail-drawer {
     grid-template-columns: 1fr;
   }
 }
+
+.agentic-trace-drawer { z-index: 1001; }
+.agentic-trace-drawer > .drawer-head { padding: 14px 20px 12px; }
+.agentic-trace-drawer .drawer-head h2 { margin: 5px 0; font-size: 22px; }
+.agentic-trace-drawer .drawer-kicker { font-size: 11px; color: var(--muted); }
+.agentic-trace-drawer .agentic-trace-subtitle { margin: 6px 0 0; font-size: 11px; }
+.agentic-trace-drawer .agentic-trace-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+.agentic-trace-body > .ccui-embed { display: flex; flex: 1; min-width: 0; min-height: 0; height: 100%; padding: 0; border: 0; gap: 0; }
+.agentic-trace-body .ccui-toolbar { flex: none; padding: 8px 12px; }
+.agentic-trace-body .ccui-frame-wrap { position: relative; flex: 1; min-height: 0; border: 0; border-radius: 0; }
+.agentic-trace-body .ccui-frame { position: absolute; inset: 0; width: 100%; height: 100%; }
+.agentic-trace-body .agentic-text-trace { width: 100%; overflow: auto; }
+
+.agentic-startup-reason { padding: 12px 14px; margin: 12px 0; border-left: 3px solid var(--red); background: var(--paper-2); color: var(--ink); font-size: 13px; line-height: 1.6; }
+.agentic-trace-body .agentic-trace-empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 32px; }
+.agentic-trace-body .agentic-trace-empty p { margin: 0; max-width: 480px; line-height: 1.7; }

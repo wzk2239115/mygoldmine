@@ -105,6 +105,73 @@ test('没有产物时不会把总运行状态伪装成八节点完成', (t) => {
   assert.equal(result.summary.total, 8);
   assert.equal(result.summary.completed, 0);
   assert.equal(result.nodes[0].status, 'running');
-  assert.equal(result.nodes[1].status, 'running');
+  assert.equal(result.nodes[1].status, 'pending');
   assert.ok(result.nodes.slice(2).every((node) => node.status === 'pending'));
+});
+
+test('部分可用的环境不能显示完整完成', (t) => {
+  const {runDir,run}=fixture(t);
+  writeJson(`${runDir}.meta/env-phase.json`,{agent:{status:'partial'},final:{status:'partial'}});
+  const node=buildAgenticPipeline(run).nodes.find(item=>item.id==='environment');
+  assert.equal(node.status,'degraded');
+  assert.match(node.detail,/部分可用/);
+});
+
+test('源码复制失败标明启动前失败，保留启动日志入口', (t) => {
+  const {runDir,run}=fixture(t);
+  fs.writeFileSync(`${runDir}.meta/wrapper.log`,'cp: cannot create directory: File exists\n');
+  Object.assign(run,{state:'failed',isLive:false});
+  const node=buildAgenticPipeline(run).nodes.find(item=>item.id==='orchestrator');
+  assert.match(node.detail,/源码复制失败/);
+  assert.equal(node.traces[0].id,'startup');
+});
+
+test('环境构建期间下游等待，忽略旧版预填的跳过状态', (t) => {
+  const {runDir,run}=fixture(t);
+  Object.assign(run,{state:'starting',visualStatus:'skipped',verifyAgentStatus:'skipped',redteamStatus:'skipped'});
+  const result=buildAgenticPipeline(run);
+  assert.equal(result.activeNode,'environment');
+  assert.deepEqual(result.nodes.filter(n=>n.status==='running').map(n=>n.id),['environment']);
+  assert.ok(result.nodes.slice(1).every(n=>n.status==='pending'));
+  assert.match(result.nodes[1].detail,/等待环境构建/);
+});
+
+test('当前阶段推进后审计显示完成，不会持续运行到后续阶段', (t) => {
+  const {runDir,run}=fixture(t);
+  writeJson(`${runDir}.meta/env-phase.json`,{agent:{status:'ready'},final:{status:'ready'}});
+  const report=path.join(runDir,'audit-report.json');writeJson(report,{findings:[]});
+  Object.assign(run,{hasReport:true,reportPath:report,visualStatus:'skipped',verifyAgentStatus:'skipped',redteamStatus:'skipped'});
+  writeJson(`${runDir}.meta/pipeline-stage.json`,{node:'visual'});
+  let result=buildAgenticPipeline(run);
+  assert.equal(result.nodes[1].status,'completed');
+  assert.deepEqual(result.nodes.filter(n=>n.status==='running').map(n=>n.id),['visual']);
+  assert.ok(result.nodes.slice(3).every(n=>n.status==='pending'));
+  writeJson(`${runDir}.meta/pipeline-stage.json`,{node:'judge',candidate:'F-1'});
+  result=buildAgenticPipeline(run);
+  assert.deepEqual(result.nodes.filter(n=>n.status==='running').map(n=>n.id),['judge']);
+  assert.match(result.nodes[6].detail,/F-1/);
+  assert.equal(result.nodes[7].status,'pending');
+});
+
+
+test('环境构建中断的旧任务不会误报审计失败或后续已跳过', (t) => {
+  const {runDir,run}=fixture(t);
+  Object.assign(run,{state:'stopped',isLive:false,visualStatus:'skipped',verifyAgentStatus:'skipped',redteamStatus:'skipped'});
+  fs.writeFileSync(`${runDir}.meta/env-phase0.log`,'环境构建开始');
+  const result=buildAgenticPipeline(run);
+  assert.equal(result.activeNode,null);
+  assert.equal(result.nodes[0].status,'stopped');
+  assert.ok(result.nodes.slice(1).every(n=>n.status==='not_started'));
+  assert.match(result.notice,/环境构建阶段中断/);
+});
+
+test('审计阶段中断保留环境完成结果，后续不再显示等待', (t) => {
+  const {runDir,run}=fixture(t);
+  Object.assign(run,{state:'timeout',isLive:false});
+  writeJson(`${runDir}.meta/pipeline-stage.json`,{node:'orchestrator'});
+  writeJson(`${runDir}.meta/env-phase.json`,{agent:{status:'ready'},final:{status:'ready'}});
+  const result=buildAgenticPipeline(run);
+  assert.equal(result.nodes[0].status,'completed');
+  assert.equal(result.nodes[1].status,'failed');
+  assert.ok(result.nodes.slice(2).every(n=>n.status==='not_started'));
 });

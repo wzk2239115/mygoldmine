@@ -21,7 +21,7 @@ usage() {
 
 选项:
   --project NAME    项目名（必填）
-  --run-dir DIR    对应挖掘 run；沙箱按 run 隔离并复用
+  --run-dir DIR    对应一次批量审计运行；沙箱按每次运行隔离并复用
   --source DIR     原始源码；start 时默认读 env-manifest.json
   --image IMAGE    环境镜像；start 时默认读 env-manifest.json
   --network MODE   start/connect 的网络（默认 bridge）
@@ -64,6 +64,10 @@ require_running() {
 }
 
 start() {
+    mkdir -p "$META"
+    # Serialize creation and readiness checks for callers of the same run.
+    exec 9>"$META/sandbox-start.lock"
+    flock -x 9 || die "无法锁定沙箱初始化" 5
     if [ -z "$SOURCE" ] && [ -f "$MANIFEST" ]; then SOURCE="$(jq -r '.source // empty' "$MANIFEST")"; fi
     if [ -z "$IMAGE" ] && [ -f "$MANIFEST" ]; then IMAGE="$(jq -r '.image // empty' "$MANIFEST")"; fi
     [ -n "$SOURCE" ] && [ -d "$SOURCE" ] || die "源码目录无效: ${SOURCE:-<empty>}" 3
@@ -71,9 +75,11 @@ start() {
     SOURCE="$(realpath -e "$SOURCE")"
     docker image inspect "$IMAGE" >/dev/null 2>&1 || die "镜像不存在: $IMAGE" 4
 
-    local state
+    local state created=0
     state="$(container_state)"
     if [ "$state" = "running" ]; then
+        docker exec "$NAME" test -f /workspace/repo.mygoldmine-ready \
+            || die "沙箱工作副本未完成准备，请使用新的运行目录重建沙箱" 5
         printf '%s\n' "$NAME"
         return 0
     fi
@@ -81,6 +87,7 @@ start() {
         docker start "$NAME" >/dev/null || die "无法启动已有沙箱: $NAME" 5
     else
         mkdir -p "$RUN_DIR" "$META"
+        created=1
         docker run -d --name "$NAME" \
             --network "$NETWORK" \
             --cap-drop ALL --security-opt no-new-privileges \
@@ -95,15 +102,31 @@ start() {
             -e RUN_DIR="$RUN_DIR" -e PROJECT="$PROJECT" \
             --workdir /workspace/repo \
             --entrypoint /bin/bash \
-            "$IMAGE" -lc 'cp -a /target/. /workspace/repo/ && exec tail -f /dev/null' >/dev/null \
+            "$IMAGE" -lc 'exec tail -f /dev/null' >/dev/null \
             || die "沙箱创建失败: $NAME" 5
+    fi
+    if [ "$created" = "1" ]; then
+        log "正在准备沙箱源码工作副本"
+        if ! docker exec "$NAME" /bin/bash -lc '
+            set -euo pipefail
+            mkdir -p /workspace/repo
+            find /workspace/repo -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+            cp -a /target/. /workspace/repo/
+            touch /workspace/repo.mygoldmine-ready
+        '; then
+            docker stop --time 20 "$NAME" >/dev/null 2>&1 || true
+            die "沙箱源码复制失败，未启动审计；请使用新的运行目录重试" 5
+        fi
+    else
+        docker exec "$NAME" test -f /workspace/repo.mygoldmine-ready \
+            || die "已有沙箱工作副本未完成准备，请使用新的运行目录重建沙箱" 5
     fi
     mkdir -p "$META"
     jq -n \
         --arg schema_version "1" --arg project "$PROJECT" --arg run_dir "$RUN_DIR" \
         --arg container "$NAME" --arg image "$IMAGE" --arg source "$SOURCE" \
         --arg created_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        '{schema_version:$schema_version,project:$project,run_dir:$run_dir,container:$container,image:$image,source:$source,created_at:$created_at}' \
+        '{schema_version:$schema_version,project:$project,run_dir:$run_dir,container:$container,image:$image,source:$source,workspace_ready:true,created_at:$created_at}' \
         > "$STATE"
     printf '%s\n' "$NAME"
 }

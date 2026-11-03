@@ -1,3 +1,4 @@
+import { projectLogo } from './project-logo.mjs';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
@@ -78,12 +79,16 @@ export function parseProjectImport(body = {}) {
   if (branch.startsWith('-') || /[\x00-\x20\x7f]/.test(branch)) {
     throw new ProjectImportError('分支名称无效');
   }
-  return { kind, project, branch, localPath, ...(source || {}) };
+  const commit = text(body.commit, 40).toLowerCase();
+  if (commit && (kind !== 'github' || !/^[a-f0-9]{40}$/.test(commit))) throw new ProjectImportError('提交版本必须是完整的 40 位提交编号');
+  return { kind, project, branch, ...(commit ? { commit } : {}), localPath, ...(source || {}) };
 }
 
-function executeProcess(command, args, { cwd, timeout = 600000, env = process.env, maxOutput = 65536 } = {}) {
+export function executeProcess(command, args, { cwd, timeout = 600000, idleTimeout = 0, env = process.env, maxOutput = 65536, onOutput = () => {}, signal } = {}) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new ProjectImportError('导入已取消', 499));
     const child = spawn(command, args, {
+      detached: true,
       cwd,
       env: { ...env, GIT_TERMINAL_PROMPT: '0' },
       stdio: ['ignore', 'pipe', 'pipe']
@@ -91,25 +96,39 @@ function executeProcess(command, args, { cwd, timeout = 600000, env = process.en
     let stdout = '';
     let stderr = '';
     let settled = false;
+    let timedOut = false;
+    const terminate = () => { try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); } };
+    const abort = () => terminate();
+    signal?.addEventListener('abort', abort, { once: true });
+    if (signal?.aborted) abort();
     const append = (current, chunk) => `${current}${chunk}`.slice(-maxOutput);
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      child.kill('SIGKILL');
-      reject(new ProjectImportError('操作超时，请检查网络、目录和审计服务日志', 504));
-    }, timeout);
-    child.stdout.on('data', (chunk) => { stdout = append(stdout, chunk); });
-    child.stderr.on('data', (chunk) => { stderr = append(stderr, chunk); });
+    const expire = () => { if (!settled) { timedOut = true; terminate(); } };
+    const timer = timeout > 0 ? setTimeout(expire, timeout) : null;
+    let idleTimer;
+    const touch = () => {
+      if (!idleTimeout || settled) return;
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(expire, idleTimeout);
+    };
+    touch();
+    child.stdout.on('data', (chunk) => { touch(); stdout = append(stdout, chunk); onOutput(String(chunk)); });
+    child.stderr.on('data', (chunk) => { touch(); stderr = append(stderr, chunk); onOutput(String(chunk)); });
     child.on('error', (error) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(idleTimer);
+      signal?.removeEventListener('abort', abort);
       reject(new ProjectImportError(`无法启动 ${command}：${error.message}`, 500));
     });
     child.on('close', (code) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(idleTimer);
+      signal?.removeEventListener('abort', abort);
+      if (signal?.aborted) return reject(new ProjectImportError('导入已取消', 499));
+      if (timedOut) return reject(new ProjectImportError(idleTimeout ? '连续 3 分钟没有收到下载输出，已停止本次下载；请检查网络后重试' : '操作超时，请检查网络、目录和审计服务日志', 504));
       resolve({ code, stdout, stderr });
     });
   });
@@ -168,15 +187,32 @@ export function createProjectImporter({
   const manifestFile = path.join(targetsRoot, 'manifest.json');
   let queue = Promise.resolve();
 
-  async function importAndStart(input) {
+  async function importAndStart(input, progress, signal) {
+    const check = () => { if (signal?.aborted) throw new ProjectImportError('导入已取消', 499); };
+    check();
+    const originalExecute = execute;
+    const run = async (command, args, options = {}) => {
+      check();
+      const result = await originalExecute(command, args, { ...options, signal });
+      check();
+      return result;
+    };
+    progress("正在检查项目参数与运行状态");
     const request = parseProjectImport(input);
     if (await isProjectLive(request.project)) {
       throw new ProjectImportError('该项目已有正在运行的审计，请先等待完成或停止当前运行', 409);
     }
 
+    let createdTarget = false;
+    let registered = false;
+    let auditRunDir;
+    const oldProject = readJson(projectsFile).projects?.[request.project];
+    const oldManifest = readJson(manifestFile).projects?.[request.project];
     let target = request.localPath;
+    try {
     let sourceUrl = request.url || '';
     if (request.kind === 'local') {
+      progress('正在检查本地源码目录');
       try {
         target = await fsp.realpath(request.localPath);
         const stat = await fsp.stat(target);
@@ -184,28 +220,59 @@ export function createProjectImporter({
       } catch {
         throw new ProjectImportError('本地目录不存在或不可读取');
       }
-      sourceUrl = sanitizedRemote(await gitValue(execute, target, ['remote', 'get-url', 'origin']));
+      sourceUrl = sanitizedRemote(await gitValue(run, target, ['remote', 'get-url', 'origin']));
     } else {
       target = path.join(targetsRoot, request.project);
       await fsp.mkdir(targetsRoot, { recursive: true });
-      const exists = fs.existsSync(target);
+      let exists = fs.existsSync(target);
       if (exists) {
-        const origin = await gitValue(execute, target, ['remote', 'get-url', 'origin']);
+        const head = await gitValue(run, target, ['rev-parse', '--verify', 'HEAD']);
+        const entries = await fsp.readdir(target);
+        const origin = await gitValue(run, target, ['remote', 'get-url', 'origin']);
+        const sameOrigin = origin.replace(/\.git$/i, '') === request.source.replace(/\.git$/i, '');
+        if (!head && (entries.length === 0 || (entries.every(name => name === '.git') && sameOrigin))) {
+          const backup = path.join(repoRoot, 'backups', 'incomplete-imports', `${request.project}-${Date.now()}`);
+          await fsp.mkdir(path.dirname(backup), { recursive: true });
+          await fsp.rename(target, backup);
+          progress('发现上次未完成的下载，已保留备份，正在重新下载');
+          exists = false;
+        }
+      }
+      if (exists) {
+        progress('正在检查已有仓库，保留当前内容');
+        const origin = await gitValue(run, target, ['remote', 'get-url', 'origin']);
         if (!origin) throw new ProjectImportError('目标目录已存在但不是 Git 仓库，请换一个项目标识', 409);
         if (origin.replace(/\.git$/i, '') !== request.source.replace(/\.git$/i, '')) {
           throw new ProjectImportError('该项目标识已对应另一个仓库，请换一个项目标识', 409);
         }
-        if (request.branch) {
+        const existingCommit = await gitValue(run, target, ['rev-parse', '--verify', 'HEAD']);
+        if (!existingCommit) throw new ProjectImportError('现有目录没有有效提交且包含其他内容，请检查目录或更换项目标识', 409);
+        if (request.commit && request.commit !== existingCommit) throw new ProjectImportError('现有目录属于另一个提交版本，请使用另一个项目标识以保留已有源码', 409);
+        if (request.branch && !request.commit) {
           throw new ProjectImportError('该仓库已经导入，不会切换或覆盖现有分支；新分支请使用另一个项目标识', 409);
         }
       } else {
-        const args = ['clone', '--depth', '1', '--single-branch'];
-        if (request.branch) args.push('--branch', request.branch);
-        args.push('--', request.source, target);
-        const cloned = await execute('git', args, { cwd: repoRoot, timeout: 600000 });
-        if (cloned.code !== 0) {
-          await fsp.rm(target, { recursive: true, force: true });
-          throw processError(cloned, 'GitHub 仓库克隆失败');
+        progress('正在下载仓库' + (request.commit ? `，提交：${request.commit.slice(0, 8)}` : request.branch ? `，分支：${request.branch}` : '，使用默认分支'));
+        createdTarget = true;
+        if (request.commit) {
+          await fsp.mkdir(target, { recursive: true });
+          for (const args of [
+            ['init', target],
+            ['-C', target, 'remote', 'add', 'origin', request.source],
+            ['-C', target, 'fetch', '--progress', '--depth', '1', 'origin', request.commit],
+            ['-C', target, 'checkout', '--detach', request.commit]
+          ]) {
+            const result = await run('git', args, { cwd: repoRoot, timeout: args.includes('fetch') || args[0] === 'clone' ? 0 : 45000, idleTimeout: args.includes('fetch') || args[0] === 'clone' ? 180000 : 0, onOutput: progress });
+            if (result.code !== 0) throw processError(result, '下载所选提交版本失败');
+          }
+          const actual = await gitValue(run, target, ['rev-parse', '--verify', 'HEAD']);
+          if (actual !== request.commit) throw new ProjectImportError('下载后的提交版本与所选版本不一致', 502);
+        } else {
+          const args = ['clone', '--progress', '--depth', '1', '--single-branch'];
+          if (request.branch) args.push('--branch', request.branch);
+          args.push('--', request.source, target);
+          const cloned = await run('git', args, { cwd: repoRoot, timeout: args.includes('fetch') || args[0] === 'clone' ? 0 : 45000, idleTimeout: args.includes('fetch') || args[0] === 'clone' ? 180000 : 0, onOutput: progress });
+          if (cloned.code !== 0) throw processError(cloned, 'GitHub 仓库克隆失败');
         }
       }
     }
@@ -213,13 +280,14 @@ export function createProjectImporter({
     if (await isProjectLive(request.project)) {
       throw new ProjectImportError('该项目已有正在运行的审计，请先等待完成或停止当前运行', 409);
     }
+    progress('源码已就绪，正在读取版本信息并登记项目');
     const [commit, currentBranch] = await Promise.all([
-      gitValue(execute, target, ['rev-parse', 'HEAD']),
-      gitValue(execute, target, ['rev-parse', '--abbrev-ref', 'HEAD'])
+      gitValue(run, target, ['rev-parse', 'HEAD']),
+      gitValue(run, target, ['rev-parse', '--abbrev-ref', 'HEAD'])
     ]);
     const timestamp = now().toISOString();
     const auditRunId = runId(now);
-    const auditRunDir = path.join(repoRoot, 'runs', request.project, auditRunId);
+    auditRunDir = path.join(repoRoot, 'runs', request.project, auditRunId);
     if (fs.existsSync(`${auditRunDir}.meta`) || fs.existsSync(auditRunDir)) {
       throw new ProjectImportError('审计目录已存在，请稍后重试', 409);
     }
@@ -232,9 +300,12 @@ export function createProjectImporter({
       ...(projects[request.project] || {}),
       name: projects[request.project]?.name || request.project,
       url: sourceUrl,
+      logo: projectLogo(repoRoot, request.project, projects[request.project]?.logo),
       icon: projects[request.project]?.icon || 'layers',
       tone: projects[request.project]?.tone || 'ink'
     };
+    check();
+    registered = true;
     projects[request.project] = metadata;
     await writeJson(projectsFile, { schema_version: 1, projects });
 
@@ -254,11 +325,13 @@ export function createProjectImporter({
     await writeJson(manifestFile, manifest);
     onImported(request.project, metadata);
 
-    const started = await execute('bash', [
+    check();
+    progress('项目已登记，正在启动完整审计');
+    const started = await run('bash', [
       path.join(repoRoot, 'run.sh'), target,
       '--project', request.project,
       '--run-dir', auditRunDir
-    ], { cwd: repoRoot, timeout: 45000 });
+    ], { cwd: repoRoot, timeout: 45000, onOutput: progress });
     if (started.code !== 0) throw processError(started, '项目已导入，但完整审计启动失败');
 
     return {
@@ -274,11 +347,56 @@ export function createProjectImporter({
       runDir: auditRunDir,
       pipeline: 'full'
     };
+    } catch (error) {
+      if (createdTarget && !registered) await fsp.rm(target, { recursive: true, force: true });
+      if (signal?.aborted) {
+        if (auditRunDir && fs.existsSync(`${auditRunDir}.meta`)) {
+          const stopped = await originalExecute('bash', [path.join(repoRoot, 'run.sh'), '--stop', auditRunDir], { cwd: repoRoot, timeout: 60000 });
+          if (stopped.code !== 0) throw processError(stopped, '取消启动时停止审计失败');
+        }
+        if (registered) {
+          for (const [file, previous] of [[projectsFile, oldProject], [manifestFile, oldManifest]]) {
+            const payload = readJson(file);
+            payload.projects ||= {};
+            if (previous === undefined) delete payload.projects[request.project];
+            else payload.projects[request.project] = previous;
+            await writeJson(file, payload);
+          }
+          onImported(request.project, oldProject || null);
+        }
+        if (createdTarget) await fsp.rm(target, { recursive: true, force: true });
+        throw new ProjectImportError('导入已取消', 499);
+      }
+      throw error;
+    }
   }
 
+  async function restartProject(value) {
+    const project = normalizeProjectId(value);
+    if (await isProjectLive(project)) throw new ProjectImportError('该项目正在审计中，请勿重复启动', 409);
+    const registered = readJson(manifestFile).projects?.[project];
+    if (!registered?.path) throw new ProjectImportError('没有找到项目源码登记，请重新导入', 404);
+    const target = registered.path;
+    if (!path.isAbsolute(target)) throw new ProjectImportError('项目源码路径无效，请重新导入');
+    try {
+      if (!(await fsp.stat(target)).isDirectory() || !(await fsp.readdir(target)).some(name => name !== '.git')) throw new Error('empty');
+    } catch { throw new ProjectImportError('项目源码目录不存在或为空，请重新导入'); }
+    const id = runId(now);
+    const directory = path.join(repoRoot, 'runs', project, id);
+    if (fs.existsSync(directory) || fs.existsSync(`${directory}.meta`)) throw new ProjectImportError('请稍后重试，避免重复启动', 409);
+    const result = await execute('bash', [path.join(repoRoot, 'run.sh'), target, '--project', project, '--run-dir', directory], {cwd:repoRoot, timeout:45000});
+    if (result.code !== 0) throw processError(result, '审计启动失败');
+    return {ok:true,project,name:readJson(projectsFile).projects?.[project]?.name || project,runId:id,runDir:directory,pipeline:'full'};
+  }
   return {
-    import(input) {
-      const result = queue.then(() => importAndStart(input));
+    restart(project) {
+      const result = queue.then(() => restartProject(project));
+      queue = result.catch(() => {});
+      return result;
+    },
+    import(input, progress = () => {}, signal) {
+      progress('请求已接收，正在等待导入队列');
+      const result = queue.then(() => importAndStart(input, progress, signal));
       queue = result.catch(() => {});
       return result;
     }
@@ -467,4 +585,25 @@ export async function browseServerDirectory(requestedPath = '') {
     directories: visible.map((name) => ({ name, path: path.join(current, name) })),
     hasMore: names.length > visible.length
   };
+}
+
+export function createGithubCommitLister({ request = githubRequest, now = () => Date.now(), ttlMs = 60000 } = {}) {
+  const cache = new Map();
+  const inflight = new Map();
+  return { list(source, { page = 1, limit = 10 } = {}) {
+    const repo = githubSource(source);
+    page = Math.max(1, Math.floor(Number(page) || 1));
+    limit = Math.min(30, Math.max(1, Math.floor(Number(limit) || 10)));
+    const key = `${repo.source}:${page}:${limit}`;
+    if (cache.has(key) && now() - cache.get(key).at < ttlMs) return Promise.resolve(cache.get(key).payload);
+    if (inflight.has(key)) return inflight.get(key);
+    const pending = request(`https://api.github.com/repos/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}/commits?per_page=${limit}&page=${page}`).then(({ payload, links }) => {
+      if (!Array.isArray(payload)) throw new ProjectImportError('提交记录响应格式无效', 502);
+      const result = { commits: payload.map(item => ({ sha: item.sha, message: item.commit?.message?.split('\n')[0] || '', committedAt: item.commit?.committer?.date || '', author: item.commit?.author?.name || '' })), page, hasMore: Boolean(links?.next) };
+      cache.set(key, { at: now(), payload: result });
+      return result;
+    }).finally(() => inflight.delete(key));
+    inflight.set(key, pending);
+    return pending;
+  }};
 }

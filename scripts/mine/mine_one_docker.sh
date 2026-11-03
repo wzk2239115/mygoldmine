@@ -270,7 +270,7 @@ if [ -n "$SANDBOX_CONTAINER" ]; then
     log "进入持久沙箱: project=$PROJECT container=$SANDBOX_CONTAINER timeout=${TIMEOUT}s model=$CLAUDE_MODEL"
     docker exec --workdir /workspace/repo \
         -e MYGOLDMINE_HOME=/opt/mygoldmine \
-        -e TARGET_DIR=/target -e WORK_DIR=/workspace/repo \
+        -e TARGET_DIR=/target -e WORK_DIR=/workspace/repo -e WORKSPACE_PREPARED=1 \
         -e RUN_DIR="$RUN_DIR" -e PROJECT="$PROJECT" \
         -e TIMEOUT="$TIMEOUT" -e AUDIT_IDLE_TIMEOUT="${AUDIT_IDLE_TIMEOUT:-180}" \
         -e MODEL="$CLAUDE_MODEL" -e AGENT="$AGENT" \
