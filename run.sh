@@ -46,6 +46,9 @@ usage() {
   --verify-severity L 验证的严重度（默认 critical,high）
   --verify-parallel N 保留兼容：验证智能体当前串行执行
   --verify-agent-timeout SEC  每条候选问题的验证智能体超时（默认 900 秒）
+  --env-model MODEL           环境构建模型（默认同审计）
+  --visual-model MODEL        场景设计模型（默认同蓝队）
+  --judge-model MODEL         独立审核模型（默认同蓝队）
   --verify-model MODEL        验证智能体模型（默认同 --model）
   --skip-visual       跳过图文报告和攻击场景图生成
   --visual-max N      最多生成多少张攻击场景图（默认 5）
@@ -99,7 +102,7 @@ VERIFY_MAX=10
 VERIFY_SEVERITY="critical,high"
 VERIFY_PARALLEL=2
 VERIFY_AGENT_TIMEOUT="${VERIFY_AGENT_TIMEOUT:-900}"
-VERIFY_MODEL="${VERIFY_MODEL:-$MODEL}"
+VERIFY_MODEL="${VERIFY_MODEL:-}"
 SKIP_VISUAL=0
 VISUAL_MAX="${VISUAL_MAX:-5}"
 VISUAL_TIMEOUT="${VISUAL_TIMEOUT:-300}"
@@ -113,11 +116,9 @@ REDTEAM_BUILD_TIMEOUT="${REDTEAM_BUILD_TIMEOUT:-1260}"
 REDTEAM_AGENT_TIMEOUT="${REDTEAM_AGENT_TIMEOUT:-900}"
 REDTEAM_JUDGE_TIMEOUT="${REDTEAM_JUDGE_TIMEOUT:-360}"
 SKIP_MINING_REPAIR=0
-AGENT_MODEL="$VERIFY_MODEL"
-case "$AGENT_MODEL" in
-    360-proxy/*) AGENT_MODEL="${AGENT_MODEL#360-proxy/}" ;;
-    opencode/*) AGENT_MODEL="${AGENT_MODEL#opencode/}" ;;
-esac
+ENV_MODEL="${ENV_MODEL:-}"
+VISUAL_MODEL="${VISUAL_MODEL:-}"
+JUDGE_MODEL="${JUDGE_MODEL:-}"
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -126,6 +127,9 @@ while [ "$#" -gt 0 ]; do
         --stop)   MODE="stop";   [ "$#" -ge 2 ] || die "--stop 需要产物目录" 3;   RUN_DIR="$2"; shift ;;
         --timeout) [ "$#" -ge 2 ] || die "--timeout 需要参数" 3; TIMEOUT="$2"; shift ;;
         --target)  [ "$#" -ge 2 ] || die "--target 需要参数" 3;  TARGET="$2"; shift ;;
+        --env-model) [ "$#" -ge 2 ] || die "--env-model 需要参数" 3; ENV_MODEL="$2"; shift ;;
+        --visual-model) [ "$#" -ge 2 ] || die "--visual-model 需要参数" 3; VISUAL_MODEL="$2"; shift ;;
+        --judge-model) [ "$#" -ge 2 ] || die "--judge-model 需要参数" 3; JUDGE_MODEL="$2"; shift ;;
         --model)   [ "$#" -ge 2 ] || die "--model 需要参数" 3;   MODEL="$2"; shift ;;
         --agent)   [ "$#" -ge 2 ] || die "--agent 需要参数" 3;   AGENT="$2"; shift ;;
         --run-dir) [ "$#" -ge 2 ] || die "--run-dir 需要参数" 3; RUN_DIR="$2"; shift ;;
@@ -169,6 +173,16 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
+VERIFY_MODEL="${VERIFY_MODEL:-$MODEL}"
+ENV_MODEL="${ENV_MODEL:-$MODEL}"
+VISUAL_MODEL="${VISUAL_MODEL:-$VERIFY_MODEL}"
+JUDGE_MODEL="${JUDGE_MODEL:-$VERIFY_MODEL}"
+for _model_var in VISUAL_MODEL JUDGE_MODEL; do
+    _value="${!_model_var}"
+    case "$_value" in 360-proxy/*) _value="${_value#360-proxy/}" ;; opencode/*) _value="${_value#opencode/}" ;; esac
+    printf -v "$_model_var" '%s' "$_value"
+done
+
 case "$ENV_AGENT" in auto|on|off) ;; *) die "--env-agent 必须是 auto|on|off: $ENV_AGENT" 3 ;; esac
 [[ "$ENV_AGENT_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || die "--env-agent-timeout 必须是正整数: $ENV_AGENT_TIMEOUT" 3
 [[ "$ENV_AGENT_ROUNDS" =~ ^[1-9][0-9]*$ ]] || die "--env-agent-rounds 必须是正整数: $ENV_AGENT_ROUNDS" 3
@@ -205,7 +219,7 @@ if [ "$MODE" = "verify" ]; then
         bash "$REPO_ROOT/scripts/mine/visual_report.sh" \
             --project "$PROJECT" --run-dir "$RUN_DIR" --max "$SCENE_MAX" \
             --timeout "$VISUAL_TIMEOUT" --agent-timeout "$VISUAL_AGENT_TIMEOUT" \
-            --claude-bin "${CLAUDE_BIN:-claude}" --model "$AGENT_MODEL"
+            --claude-bin "${CLAUDE_BIN:-claude}" --model "$VISUAL_MODEL"
     fi
     bash "$REPO_ROOT/scripts/verify/phase4_verify_agent.sh" \
         --project "$PROJECT" --run-dir "$RUN_DIR" --image "$IMAGE" --source "$SOURCE" \
@@ -346,6 +360,8 @@ if [ "$MODE" = "supervise" ]; then
             --arg branch "$target_branch" \
             --arg run_dir "$RUN_DIR" \
             --arg model "$MODEL" \
+            --arg env_model "$ENV_MODEL" --arg visual_model "$VISUAL_MODEL" \
+            --arg verify_model "$VERIFY_MODEL" --arg redteam_model "$REDTEAM_MODEL" --arg judge_model "$JUDGE_MODEL" \
             --arg agent "$AGENT" \
             --arg image "$IMAGE" \
             --arg env_image "$ENV_IMAGE" \
@@ -366,7 +382,9 @@ if [ "$MODE" = "supervise" ]; then
             --argjson timeout "$TIMEOUT" \
             --argjson exit_code "$rc" \
             '{state:$state, project:$project, target:$target, commit:$commit, branch:$branch,
-              run_dir:$run_dir, model:$model, agent:$agent, image:$image, env_image:$env_image,
+              run_dir:$run_dir, model:$model,
+              stage_models:{audit:$model,environment:$env_model,visual:$visual_model,verify:$verify_model,redteam:$redteam_model,judge:$judge_model},
+              agent:$agent, image:$image, env_image:$env_image,
               env_status:$env_status, env_agent_status:$env_agent_status,
               env_agent_reason:$env_agent_reason, verify_summary:$verify_summary,
               verify_agent_status:$verify_agent_status, verify_counts:$verify_counts,
@@ -390,7 +408,7 @@ if [ "$MODE" = "supervise" ]; then
             --agent "$ENV_AGENT" --agent-timeout "$ENV_AGENT_TIMEOUT" \
             --agent-rounds "$ENV_AGENT_ROUNDS" --build-timeout "$ENV_BUILD_TIMEOUT" \
             --base-image "$IMAGE" \
-            --model "$MODEL" --claude-bin "${CLAUDE_BIN:-claude}" \
+            --model "$ENV_MODEL" --claude-bin "${CLAUDE_BIN:-claude}" \
             > "$META/env-phase0.log" 2>&1
         ENV_RC=$?
         ENV_MANIFEST="$REPO_ROOT/env/$PROJECT/env-manifest.json"
@@ -528,7 +546,7 @@ PYRECOVERY
         bash "$REPO_ROOT/scripts/mine/visual_report.sh" \
             --project "$PROJECT" --run-dir "$RUN_DIR" --max "$SCENE_MAX" \
             --timeout "$VISUAL_TIMEOUT" --agent-timeout "$VISUAL_AGENT_TIMEOUT" \
-            --claude-bin "${CLAUDE_BIN:-claude}" --model "$AGENT_MODEL" \
+            --claude-bin "${CLAUDE_BIN:-claude}" --model "$VISUAL_MODEL" \
             > "$META/visual-report.log" 2>&1
         VSRC=$?
         VISUAL_SUMMARY="$RUN_DIR/visual-rendered/visual-summary.md"
@@ -593,7 +611,7 @@ PYRECOVERY
             --model "$REDTEAM_MODEL" --base-url "$REDTEAM_BASE_URL" --api-key "$REDTEAM_API_KEY" \
             --build-timeout "$REDTEAM_BUILD_TIMEOUT" --agent-timeout "$REDTEAM_AGENT_TIMEOUT" \
             --judge-timeout "$REDTEAM_JUDGE_TIMEOUT" \
-            --judge-claude "${CLAUDE_BIN:-claude}" --judge-claude-model "$AGENT_MODEL" \
+            --judge-claude "${CLAUDE_BIN:-claude}" --judge-claude-model "$JUDGE_MODEL" \
             --output "$RUN_DIR/redteam" \
             > "$META/redteam.log" 2>&1
         RRC=$?
@@ -703,6 +721,7 @@ chmod +x "$MINER" "$RENDERER" 2>/dev/null || true
 sup_args=(
     --target "$TARGET" --project "$PROJECT" --run-dir "$RUN_DIR"
     --timeout "$TIMEOUT" --model "$MODEL" --agent "$AGENT" --image "$IMAGE"
+    --env-model "$ENV_MODEL" --visual-model "$VISUAL_MODEL" --judge-model "$JUDGE_MODEL"
     --env-mode "$ENV_MODE" --env-agent "$ENV_AGENT"
     --env-agent-timeout "$ENV_AGENT_TIMEOUT" --env-agent-rounds "$ENV_AGENT_ROUNDS"
     --env-timeout "$ENV_BUILD_TIMEOUT" --verify-max "$VERIFY_MAX"

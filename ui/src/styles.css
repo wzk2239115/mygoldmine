@@ -7487,3 +7487,15 @@ body > .project-import-dialog .project-import-body { flex: 1 1 auto; }
 .project-restart { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; background: transparent; font: inherit; font-size: 11px; padding: 5px 8px; cursor: pointer; }
 .project-restart:hover { color: var(--blue); border-color: var(--blue); }
 .project-restart:disabled { opacity: .5; cursor: not-allowed; }
+
+.model-settings-dialog .project-import-head { display: flex; align-items: flex-start; justify-content: space-between; }
+.model-settings-dialog .project-import-head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+.model-settings-note { margin: 0 0 20px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; font-size: 12px; color: var(--muted); line-height: 1.6; }
+.model-settings-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px 16px; }
+.model-settings-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.model-settings-field strong { font-size: 13px; }
+.model-settings-field input { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 8px; padding: 11px; background: var(--bg); color: var(--text); font: inherit; font-size: 12px; }
+.model-settings-field span, .model-settings-help { color: var(--muted); font-size: 11px; line-height: 1.6; }
+.model-settings-help { margin: 20px 0 0; }
+.model-settings-saved { color: var(--green); font-size: 12px; }
+@media(max-width:540px) { .model-settings-grid {grid-template-columns:1fr;} }

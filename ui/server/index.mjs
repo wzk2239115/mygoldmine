@@ -1,3 +1,4 @@
+import { createModelSettings } from './model-settings.mjs';
 import { createCcuiService } from './ccui-service.mjs';
 import { projectLogo } from './project-logo.mjs';
 import { removeProjectRecords } from './project-removal.mjs';
@@ -926,9 +927,11 @@ function buildLive() {
   return { generatedAt: new Date().toISOString(), liveRuns, projects };
 }
 
+const modelSettings = createModelSettings({repoRoot:REPO_ROOT});
 const githubCommitLister = createGithubCommitLister();
 const projectImporter = createProjectImporter({
   repoRoot: REPO_ROOT,
+  getModelArgs: () => modelSettings.args(),
   isProjectLive: (project) => buildLive().liveRuns.some((run) => run.project === project),
   onImported: (project, metadata) => { if (metadata) PROJECT_META[project] = metadata; else delete PROJECT_META[project]; }
 });
@@ -1361,6 +1364,13 @@ const server = http.createServer(async (req, res) => {
       const result = await projectImporter.import(body);
       sendJson(res, 201, result);
       return;
+    }
+
+    if (pathname === '/api/stage-models' && req.method === 'GET') {
+      sendJson(res,200,modelSettings.get());return;
+    }
+    if (pathname === '/api/stage-models' && req.method === 'POST') {
+      const body=await readBody(req);sendJson(res,200,modelSettings.save(body.models));return;
     }
 
     if (req.method === 'GET' && pathname === '/api/language') {

@@ -1,3 +1,4 @@
+import ModelSettings from './components/ModelSettings.jsx';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, BadgeCheck, BookOpen, ChevronLeft, ChevronRight, Database, GitBranch, LayoutGrid, List, Radar, RefreshCw, Settings, ShieldAlert } from 'lucide-react';
 import { api } from './api.js';
@@ -95,6 +96,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFiltersState] = useState(loadFilters);
+  const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
   const [view, setViewState] = useState(() => localStorage.getItem('vul-ai-view') || 'board');
   const [activeStage, setActiveStageState] = useState('');
   const [theme, setTheme] = useState(() => localStorage.getItem('vul-ai-theme') || 'light');
@@ -458,6 +460,7 @@ export default function App() {
         </div>
       </nav>
 
+      {modelSettingsOpen ? <ModelSettings onClose={() => setModelSettingsOpen(false)} /> : null}
       {settingsOpen ? (
         <>
           <button type="button" className="settings-backdrop" aria-label={t('settings.title')} onClick={() => setSettingsOpen(false)} />
@@ -466,6 +469,7 @@ export default function App() {
               <strong>{t('settings.title')}</strong>
               <span>{t('settings.languageHint')}</span>
             </div>
+            <div className="settings-row"><span>阶段模型</span><button type="button" className="button" onClick={() => {setSettingsOpen(false);setModelSettingsOpen(true);}}>配置模型</button></div>
             <label className="settings-row">
               <span>{t('language.label')}</span>
               <select value={language} onChange={(event) => setLanguage(event.target.value)}>

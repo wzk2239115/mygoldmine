@@ -344,3 +344,14 @@ test('重新审计拒绝缺失源码，启动失败返回真实错误', async (t
   await fsp.writeFile(path.join(source,'README.md'),'source');
   await assert.rejects(importer.restart('demo'),/启动错误/);
 });
+
+test('新导入和重新审计均读取启动时的阶段模型配置', async (t) => {
+ const {repoRoot,source}=await fixture();t.after(()=>fsp.rm(repoRoot,{recursive:true,force:true}));
+ await fsp.writeFile(path.join(source,'README.md'),'source');
+ let model='first';let time=0;const launches=[];
+ const importer=createProjectImporter({repoRoot,now:()=>new Date(Date.UTC(2026,10,3,12,0,time++)),getModelArgs:()=>['--model',model,'--verify-model',`blue-${model}`,'--redteam-model',`red-${model}`],execute:async(command,args)=>{if(command==='bash')launches.push(args);return {code:0,stdout:'',stderr:''};}});
+ await importer.import({kind:'local',source,project:'demo'});
+ model='second';await importer.restart('demo');
+ assert.deepEqual(launches[0].slice(-6),['--model','first','--verify-model','blue-first','--redteam-model','red-first']);
+ assert.deepEqual(launches[1].slice(-6),['--model','second','--verify-model','blue-second','--redteam-model','red-second']);
+});

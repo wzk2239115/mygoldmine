@@ -48,6 +48,8 @@ async function request(url, options = {}) {
 
 export const api = {
   importWithProgress,
+  modelSettings: () => request('/api/stage-models'),
+  saveModelSettings: (models) => request('/api/stage-models', {method:'POST',body:JSON.stringify({models})}),
   restartProject: (project) => request(`/api/targets/${encodeURIComponent(project)}/restart`, { method: 'POST' }),
   removeProject: (project) => request(`/api/targets/${encodeURIComponent(project)}`, { method: 'DELETE' }),
   board: () => request('/api/board'),

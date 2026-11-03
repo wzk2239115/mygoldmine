@@ -180,6 +180,7 @@ export function createProjectImporter({
   execute = executeProcess,
   now = () => new Date(),
   isProjectLive = () => false,
+  getModelArgs = () => [],
   onImported = () => {}
 }) {
   const targetsRoot = path.join(repoRoot, 'targets');
@@ -330,7 +331,7 @@ export function createProjectImporter({
     const started = await run('bash', [
       path.join(repoRoot, 'run.sh'), target,
       '--project', request.project,
-      '--run-dir', auditRunDir
+      '--run-dir', auditRunDir, ...getModelArgs()
     ], { cwd: repoRoot, timeout: 45000, onOutput: progress });
     if (started.code !== 0) throw processError(started, '项目已导入，但完整审计启动失败');
 
@@ -384,7 +385,7 @@ export function createProjectImporter({
     const id = runId(now);
     const directory = path.join(repoRoot, 'runs', project, id);
     if (fs.existsSync(directory) || fs.existsSync(`${directory}.meta`)) throw new ProjectImportError('请稍后重试，避免重复启动', 409);
-    const result = await execute('bash', [path.join(repoRoot, 'run.sh'), target, '--project', project, '--run-dir', directory], {cwd:repoRoot, timeout:45000});
+    const result = await execute('bash', [path.join(repoRoot, 'run.sh'), target, '--project', project, '--run-dir', directory, ...getModelArgs()], {cwd:repoRoot, timeout:45000});
     if (result.code !== 0) throw processError(result, '审计启动失败');
     return {ok:true,project,name:readJson(projectsFile).projects?.[project]?.name || project,runId:id,runDir:directory,pipeline:'full'};
   }

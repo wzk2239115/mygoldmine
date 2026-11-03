@@ -80,3 +80,6 @@ ui/data/refine-worker.pid
 
 rsi/trajectories/
 backups/
+
+# Local stage model preferences
+/config/stage-models.json
