@@ -25,3 +25,10 @@ test('拒绝无效模型且保留已保存值',t=>{
  assert.throws(()=>settings.save({audit:'demo'}));
  assert.deepEqual(settings.get().models,models);
 });
+
+test('红队默认跟随审计，保存空值后仍跟随审计的新选择',t=>{
+ const settings=createModelSettings({repoRoot:fixture(t),env:{}});
+ const models=settings.get().models;assert.equal(models.redteam,'');
+ settings.save({...models,audit:'provider/new-audit'});
+ const args=settings.args();assert.equal(args[args.indexOf('--redteam-model')+1],'provider/new-audit');
+});

@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
 import build_state as base  # noqa: E402
+from model_config import DEFAULT_MODEL  # noqa: E402
 from pipeline_stage import record_stage  # noqa: E402
 from contracts import (  # noqa: E402
     ContractError,
@@ -38,15 +39,18 @@ def output_tail(value, limit):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidates", default=str(CANDIDATES))
-    parser.add_argument("--model", default="flint")
-    parser.add_argument("--base-url", default="http://100.81.81.75:8081/v1")
-    parser.add_argument("--api-key", default="local")
+    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--base-url", default="")
+    parser.add_argument("--api-key", default="")
     parser.add_argument("--max-steps", type=int, default=12)
     parser.add_argument("--max-tokens", type=int, default=1200)
     parser.add_argument("--build-labs", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--build-timeout", type=int, default=1260)
     parser.add_argument("--agent-timeout", type=int, default=900)
     parser.add_argument("--judge-timeout", type=int, default=360)
+    parser.add_argument("--judge-claude", default="claude")
+    parser.add_argument("--judge-claude-model", default="")
+    parser.add_argument("--out-dir", default="")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     if min(args.build_timeout, args.agent_timeout, args.judge_timeout) <= 0:
@@ -56,7 +60,7 @@ def main():
     ledger = base.finding_ledger.build_ledger()
     latest = base.latest_findings(ledger)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    batch_dir = BATCH_ROOT / stamp
+    batch_dir = Path(args.out_dir).resolve() if args.out_dir else BATCH_ROOT / stamp
     batch_dir.mkdir(parents=True, exist_ok=True)
     summary = []
     for index, candidate in enumerate(candidates, 1):
@@ -169,11 +173,17 @@ def main():
                         "stderr": output_tail(exc.stderr, 1000),
                     })
                 if not agent_timed_out and entry["agent_returncode"] == 0:
+                    judge_command = [
+                        sys.executable, str(ROOT / "scripts" / "redteam" / "judge.py"),
+                        "--run-dir", str(run_dir), "--timeout", str(args.judge_timeout),
+                        "--claude", args.judge_claude,
+                    ]
+                    if args.judge_claude_model:
+                        judge_command += ["--claude-model", args.judge_claude_model]
                     try:
                         record_stage("judge", str(candidate_id))
                         judge = subprocess.run(
-                            [sys.executable, str(ROOT / "scripts" / "redteam" / "judge.py"),
-                             "--run-dir", str(run_dir), "--timeout", str(args.judge_timeout)],
+                            judge_command,
                             capture_output=True, text=True, cwd=ROOT, timeout=args.judge_timeout,
                         )
                         entry["judge_returncode"] = judge.returncode

@@ -3,7 +3,7 @@ import {createPortal} from 'react-dom';
 import {X,Save,Loader2} from 'lucide-react';
 import {api} from '../api.js';
 
-const ROLES=[['audit','安全审计','负责代码分析与候选问题发现'],['verify','蓝队验证','负责候选问题验证'],['redteam','红队验证','使用已配置的红队模型服务'],['environment','环境构建','负责依赖检查与环境准备'],['visual','攻击场景设计','负责场景分析与图文报告'],['judge','独立审核','负责审核红队验证证据']];
+const ROLES=[['audit','安全审计','负责代码分析与候选问题发现'],['verify','蓝队验证','负责候选问题验证'],['redteam','红队验证','负责隔离环境中的验证执行'],['environment','环境构建','负责依赖检查与环境准备'],['visual','攻击场景设计','负责场景分析与图文报告'],['judge','独立审核','负责审核红队验证证据']];
 export default function ModelSettings({onClose}) {
   const [models,setModels]=useState(null);
   const [choices,setChoices]=useState([]);
@@ -29,9 +29,8 @@ export default function ModelSettings({onClose}) {
       <div className="project-import-body">
         <p className="model-settings-note">保存后用于新导入和重新审计的任务，当前任务不受影响。</p>
         {!models && !error ? <p>正在读取模型配置…</p> : null}
-        {models ? <div className="model-settings-grid">{ROLES.map(([role,label,hint])=><label className="model-settings-field" key={role}><strong>{label}</strong><input aria-label={`${label}模型`} list={role==='redteam'?'redteam-model-choices':'stage-model-choices'} value={models[role]} required={role==='audit'||role==='redteam'} maxLength={200} disabled={busy} placeholder="跟随安全审计模型" onChange={event=>{setModels({...models,[role]:event.target.value});setSaved(false);}}/><span>{hint}</span></label>)}</div> : null}
-        <datalist id="stage-model-choices">{choices.filter(model=>model!==models?.redteam).map(model=><option key={model} value={model}/>)}</datalist>
-        <datalist id="redteam-model-choices"><option value={models?.redteam || 'flint'}/></datalist>
+        {models ? <div className="model-settings-grid">{ROLES.map(([role,label,hint])=><label className="model-settings-field" key={role}><strong>{label}</strong><input aria-label={`${label}模型`} list="stage-model-choices" value={models[role]} required={role==='audit'} maxLength={200} disabled={busy} placeholder="跟随安全审计模型" onChange={event=>{setModels({...models,[role]:event.target.value});setSaved(false);}}/><span>{hint}</span></label>)}</div> : null}
+        <datalist id="stage-model-choices">{choices.map(model=><option key={model} value={model}/>)}</datalist>
         <p className="model-settings-help">可选择已有模型或输入名称；留空的阶段跟随安全审计模型。模型需在对应服务中可用。</p>
         {error ? <p className="project-import-error" role="alert">{error}{!models ? <button type="button" className="button" onClick={load}>重试</button>:null}</p>:null}
         {saved ? <p className="model-settings-saved" role="status">已保存，下次启动审计时生效。</p>:null}

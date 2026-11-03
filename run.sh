@@ -56,7 +56,7 @@ usage() {
   --visual-agent-timeout SEC 智能体辅助场景生成超时（默认 900 秒）
   --skip-redteam      跳过第 5 阶段红队验证和独立审核
   --redteam-max N     最多进入红队验证的候选问题数（默认 5）
-  --redteam-model M   红队攻击模型（默认 flint）
+  --redteam-model M   红队攻击模型（默认同审计）
   --redteam-base-url URL    红队模型服务
   --redteam-api-key KEY     红队模型密钥
   --redteam-build-timeout SEC  隔离验证环境构建超时（默认 1260 秒）
@@ -109,9 +109,9 @@ VISUAL_TIMEOUT="${VISUAL_TIMEOUT:-300}"
 VISUAL_AGENT_TIMEOUT="${VISUAL_AGENT_TIMEOUT:-900}"
 SKIP_REDTEAM=0
 REDTEAM_MAX="${REDTEAM_MAX:-5}"
-REDTEAM_MODEL="${REDTEAM_MODEL:-flint}"
-REDTEAM_BASE_URL="${REDTEAM_BASE_URL:-http://100.81.81.75:8081/v1}"
-REDTEAM_API_KEY="${REDTEAM_API_KEY:-local}"
+REDTEAM_MODEL="${REDTEAM_MODEL:-}"
+REDTEAM_BASE_URL="${REDTEAM_BASE_URL:-}"
+REDTEAM_API_KEY="${REDTEAM_API_KEY:-}"
 REDTEAM_BUILD_TIMEOUT="${REDTEAM_BUILD_TIMEOUT:-1260}"
 REDTEAM_AGENT_TIMEOUT="${REDTEAM_AGENT_TIMEOUT:-900}"
 REDTEAM_JUDGE_TIMEOUT="${REDTEAM_JUDGE_TIMEOUT:-360}"
@@ -173,6 +173,7 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
+REDTEAM_MODEL="${REDTEAM_MODEL:-$MODEL}"
 VERIFY_MODEL="${VERIFY_MODEL:-$MODEL}"
 ENV_MODEL="${ENV_MODEL:-$MODEL}"
 VISUAL_MODEL="${VISUAL_MODEL:-$VERIFY_MODEL}"

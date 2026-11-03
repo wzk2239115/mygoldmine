@@ -11,6 +11,7 @@ from openai import OpenAI
 
 from contracts import ContractError, finding_id, sha256_bytes, validate_scenario
 from lab import Lab, LabError
+from model_config import DEFAULT_MODEL, resolve_model
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -88,6 +89,10 @@ def load_scenario(path, finding, finding_bytes, project):
 
 
 def run(options):
+    try:
+        options.model, options.base_url, options.api_key = resolve_model(options.model, options.base_url, options.api_key)
+    except ValueError as exc:
+        raise ContractError("blocked_model_config", str(exc)) from exc
     finding_bytes = Path(options.finding).read_bytes()
     finding = json.loads(finding_bytes.decode("utf-8"))
     scenario = load_scenario(options.scenario, finding, finding_bytes, options.project) if options.scenario else None
@@ -256,9 +261,9 @@ def main():
     parser.add_argument("--attacker-image", default="curlimages/curl:latest")
     parser.add_argument("--target-url", default="http://victim:8000")
     parser.add_argument("--health-path", default="/health")
-    parser.add_argument("--model", default=os.environ.get("REDTEAM_MODEL", "flint"))
-    parser.add_argument("--base-url", default=os.environ.get("REDTEAM_BASE_URL", "http://100.81.81.75:8081/v1"))
-    parser.add_argument("--api-key", default=os.environ.get("REDTEAM_API_KEY", "local"))
+    parser.add_argument("--model", default=os.environ.get("REDTEAM_MODEL") or os.environ.get("MODEL", DEFAULT_MODEL))
+    parser.add_argument("--base-url", default=os.environ.get("REDTEAM_BASE_URL", ""))
+    parser.add_argument("--api-key", default=os.environ.get("REDTEAM_API_KEY", ""))
     parser.add_argument("--max-steps", type=int, default=10)
     parser.add_argument("--max-tokens", type=int, default=800)
     parser.add_argument("--tool-timeout", type=int, default=30)
