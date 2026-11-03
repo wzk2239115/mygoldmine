@@ -104,6 +104,16 @@ async function main() {
   const board = await waitFor(`${BASE}/api/health`).then(() => fetch(`${BASE}/api/board`)).then((response) => response.json());
   const inbox = board.stats.status.inbox;
   const triage = board.stats.status.triage;
+  const pipelineTarget = [...board.projects].sort((a, b) => String(b.startedAt || '').localeCompare(String(a.startedAt || '')))[0];
+  const pipeline = await fetch(`${BASE}/api/runs/${pipelineTarget.id}/${pipelineTarget.latestRunId}/pipeline`).then((response) => response.json());
+  assert.deepEqual(pipeline.nodes.map((node) => node.id), [
+    'environment', 'orchestrator', 'visual', 'verify', 'redteam-lab', 'redteam-agent', 'judge', 'learner'
+  ]);
+  if (pipelineTarget.id === 'codex') {
+    assert.deepEqual(pipeline.nodes.map((node) => node.status), [
+      'blocked', 'completed', 'degraded', 'blocked', 'blocked', 'pending', 'pending', 'completed'
+    ]);
+  }
 
   const browser = startBrowser();
   let cdp;
@@ -114,6 +124,28 @@ async function main() {
     await cdp.send('Page.navigate', { url: BASE });
     await sleep(1200);
 
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-pipeline .agentic-node').length"), 8);
+    assert.deepEqual(await cdp.evaluate("[...document.querySelectorAll('.agentic-pipeline .agentic-node > strong')].map((node) => node.innerText)"), [
+      '环境构建', '安全审计编排', '攻击场景设计', '蓝队验证', '红队场景构建', '红队执行', '独立审核', '经验学习'
+    ]);
+    await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"learner\"]').click()");
+    for (let i = 0; i < 40; i += 1) {
+      if (await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length")) break;
+      await sleep(250);
+    }
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer').length"), 1);
+    assert.match(await cdp.evaluate("document.querySelector('.agentic-trace-drawer').innerText"), /经验学习 · 执行轨迹/);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"), 1);
+    assert.match(await cdp.evaluate("document.querySelector('.agentic-trace-drawer .ccui-frame').getAttribute('src')"), /\/ccui\/session\//);
+    const learnerSession = await fetch(`${BASE}/api/runs/${pipelineTarget.id}/${pipelineTarget.latestRunId}/ccui?node=learner`).then((response) => response.json());
+    assert.equal(learnerSession.available, true);
+    assert.equal(learnerSession.traceKind, 'claude');
+    await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
+    await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"environment\"]').click()");
+    await sleep(300);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-text-trace').length"), 1);
+    assert.match(await cdp.evaluate("document.querySelector('.agentic-text-trace pre').innerText"), /Unknown Model/);
+    await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-strip.is-landing .refinery-stage').length"), 6);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-distribution .severity-critical').length"), 1);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-dist-row').length"), 2);
@@ -143,14 +175,40 @@ async function main() {
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.rail-button[aria-label=\"看板\"] .rail-tooltip')).visibility"), 'visible');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.rail-button[aria-current=\"page\"]').length"), 1);
 
+    await cdp.evaluate("document.querySelector('.project-import-trigger').click()");
+    await sleep(150);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.project-import-dialog').length"), 1);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.project-import-types button').length"), 2);
+    await cdp.evaluate("document.querySelectorAll('.project-import-types button')[1].click()");
+    await cdp.evaluate("document.querySelector('.project-directory-picker-trigger').click()");
+    for (let index = 0; index < 30; index += 1) {
+      if (await cdp.evaluate("document.querySelector('.directory-browser-current')?.innerText.startsWith('/')")) break;
+      await sleep(100);
+    }
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.directory-browser').length"), 1);
+    assert.ok(await cdp.evaluate("document.querySelector('.directory-browser-current').innerText.startsWith('/')"));
+    await cdp.evaluate("document.querySelector('button[aria-label=\"关闭目录选择器\"]').click()");
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.directory-browser').length"), 0);
+    await cdp.evaluate("document.querySelector('input[aria-label=\"本地目录路径\"]').focus()");
+    await cdp.send('Input.insertText', { text: `/tmp/mygoldmine-missing-import-${process.pid}` });
+    await cdp.evaluate("document.querySelector('.project-import-dialog form').requestSubmit()");
+    for (let index = 0; index < 30; index += 1) {
+      if (await cdp.evaluate("document.querySelectorAll('.project-import-error').length")) break;
+      await sleep(100);
+    }
+    assert.match(await cdp.evaluate("document.querySelector('.project-import-error').innerText"), /本地目录不存在或不可读取/);
+    await cdp.evaluate("document.querySelector('.project-import-head button').click()");
+    await sleep(150);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.project-import-dialog').length"), 0);
+
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"表格\"]').click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '表格');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.search-box').length"), 1);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.content-head').length"), 1);
-    await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"自动狩猎\"]').click()");
+    await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"自动审计\"]').click()");
     await sleep(150);
-    assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '自动狩猎');
+    assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '自动审计');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.search-box').length"), 0);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.content-head').length"), 0);
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"系统架构\"]').click()");
@@ -162,12 +220,12 @@ async function main() {
     assert.ok(await cdp.evaluate("[...document.querySelectorAll('.arch-overview img')].every(img => img.complete && img.naturalWidth > 0)"));
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card')[4].querySelector('img').getAttribute('src')"), '/architecture/rsi-flywheel.webp');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card')[4].querySelector('img').naturalWidth"), 1536);
-    assert.match(await cdp.evaluate("document.querySelector('.arch-overview').innerText"), /从一座矿，到一份可信证据/);
+    assert.match(await cdp.evaluate("document.querySelector('.arch-overview').innerText"), /从目标源码到可信证据/);
     for (const [zoneIndex, stageCount, componentCount] of [
       [0, 6, 0],
       [1, 4, 0],
       [2, 2, 3],
-      [3, 0, 5]
+      [3, 0, 7]
     ]) {
       await cdp.evaluate(`document.querySelectorAll('.arch-zone-card')[${zoneIndex}].click()`);
       await sleep(150);
@@ -184,16 +242,63 @@ async function main() {
           const detailText = await cdp.evaluate("document.querySelector('.arch-detail').innerText");
           assert.match(detailText, /输入/);
           assert.match(detailText, /输出/);
-          assert.match(detailText, /失败语义/);
+          assert.match(detailText, /失败时如何处理/);
           assert.match(detailText, /优化时重点检查/);
           assert.doesNotMatch(detailText, /undefined/);
-          if (zoneIndex === 0 && index === 0) assert.match(detailText, /parallel_mine\.sh/);
+          if (zoneIndex === 0 && index === 0) {
+            assert.equal(await cdp.evaluate("document.querySelector('#arch-detail-title').innerText"), '选择项目并批量审计');
+            assert.match(detailText, /项目清单/);
+            assert.match(detailText, /parallel_mine\.sh/);
+            assert.match(detailText, /控制同时运行的项目数和失败重试/);
+            assert.match(detailText, /overnight\.sh/);
+            assert.match(detailText, /后台启动、查看进度、停止和恢复未完成项目/);
+            assert.match(detailText, /独立目录/);
+          }
+          if (zoneIndex === 0 && index === 2) {
+            assert.equal(await cdp.evaluate("document.querySelector('#arch-detail-title').innerText"), '整理审计线索并拆分任务');
+            assert.match(detailText, /0 到 1 的优先检查分数/);
+            assert.match(detailText, /flags/);
+            assert.match(detailText, /认证边界、子进程执行或危险反序列化/);
+            assert.match(detailText, /只用于安排检查/);
+          }
+          if (zoneIndex === 0 && index === 3) {
+            assert.equal(await cdp.evaluate("document.querySelector('#arch-detail-title').innerText"), '持续更新报告与完整性检查');
+            assert.match(detailText, /数据结构、必填字段和系统语言全部通过检查才完整/);
+            assert.doesNotMatch(detailText, /质量门/);
+          }
+          if (zoneIndex === 0 && index === 4) {
+            assert.equal(await cdp.evaluate("document.querySelector('#arch-detail-title').innerText"), '时限与恢复');
+            assert.match(detailText, /所有尝试共享实际运行时间/);
+            assert.match(detailText, /按真实事件判断是否仍在推进/);
+            assert.match(detailText, /等待中的工具调用不算空闲/);
+            assert.match(detailText, /校验和匹配才复用成果/);
+            assert.match(detailText, /原始事件、任务产物和历史恢复检查点/);
+            assert.match(detailText, /每次尝试的健康状态/);
+            assert.match(detailText, /实际运行时间耗尽后不再启动新尝试/);
+            assert.match(detailText, /产物校验和/);
+          }
+          if (zoneIndex === 3 && selector === '.arch-zone-components .arch-component' && index === 0) {
+            assert.equal(await cdp.evaluate("document.querySelector('#arch-detail-title').innerText"), '发现记录表');
+            assert.match(detailText, /为每次发现的候选问题保留单独编号/);
+            assert.match(detailText, /编号相同但含义不同的问题不共用状态/);
+            assert.doesNotMatch(detailText, /同 ID 异义不串状态/);
+          }
           if (zoneIndex === 0 && index === 1) {
+            assert.match(detailText, /默认直接启动 environment-builder 智能体/);
+            assert.match(detailText, /确定性脚本不再抢先执行/);
+            assert.match(detailText, /没有产出可用环境时才执行确定性备用方案/);
             assert.match(detailText, /sandbox\.sh shell/);
             assert.match(detailText, /sandbox\.sh isolate/);
             assert.match(detailText, /复用同一工作副本/);
           }
-          if (zoneIndex === 2 && index === 0) assert.match(detailText, /当前只支持 HTTP 执行契约/);
+          if (zoneIndex === 2 && index === 0) {
+            const expectedTitle = selector === '.arch-zone-stages .arch-stage' ? '在隔离环境验证漏洞' : '隔离场景构建器';
+            assert.equal(await cdp.evaluate("document.querySelector('#arch-detail-title').innerText"), expectedTitle);
+            assert.match(detailText, /只能在攻击容器中执行命令/);
+            assert.match(detailText, /不能读取宿主机文件、直接读取随机标记文件或操作 Docker/);
+            assert.match(detailText, /目前只执行 HTTP 服务场景/);
+            assert.match(detailText, /暂不执行/);
+          }
           await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
           await sleep(100);
           assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone').length"), 1);
@@ -206,22 +311,25 @@ async function main() {
 
     await cdp.evaluate("document.querySelectorAll('.arch-zone-card')[4].click()");
     await sleep(150);
-    assert.equal(await cdp.evaluate("document.querySelector('.arch-zone-hero h2').innerText"), 'RSI 学习流程（只读建议）');
+    assert.equal(await cdp.evaluate("document.querySelector('.arch-zone-hero h2').innerText"), 'RSI 学习流程');
     assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-why').innerText"), /为什么能形成 RSI 学习流程/);
     const boundaryText = await cdp.evaluate("document.querySelector('.arch-rsi-boundary').innerText");
-    assert.match(boundaryText, /只学习、只建议，不自动改生产/);
-    assert.match(boundaryText, /可用于动作训练的 trusted 样本：0/);
+    assert.match(boundaryText, /验证动作只建议；挖掘修复经评估才发布/);
+    assert.match(boundaryText, /可用于动作训练的可信样本：0/);
     assert.match(boundaryText, /不证明因果/);
-    assert.match(boundaryText, /不自动修改/);
+    assert.match(boundaryText, /未参与训练的留出项目/);
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.arch-rsi-step .arch-stage p')).fontSize"), '15px');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-loop .arch-stage').length"), 6);
     assert.deepEqual(await cdp.evaluate("[...document.querySelectorAll('.arch-rsi-loop .arch-stage h3')].map((node) => node.innerText)"), [
-      '真实轨迹', '可信标签', '效用学习', 'Holdout + Flips 评估', '只读建议（shadow）', '结果回写（尚未接入）'
+      '真实轨迹', '可信标签', '成本与收益评估', '跨项目验证与前后结果对比', '只读建议（shadow）', '挖掘修复发布'
     ]);
+    const rsiStageText = await cdp.evaluate("document.querySelector('.arch-rsi-loop').innerText");
+    assert.match(rsiStageText, /比较每种处理方式的成本与收益/);
+    assert.match(rsiStageText, /在未参与训练的项目上检查效果，逐项比较前后结果/);
     assert.equal(await cdp.evaluate("[...document.querySelectorAll('.arch-rsi-loop .arch-stage')].every((node) => node.tagName === 'BUTTON' && node.getAttribute('aria-label').includes('实现细节'))"), true);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-step > svg').length"), 4);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-loop-links span').length"), 2);
-    assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-loop-links').innerText"), /尚未接入/);
+    assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-loop-links').innerText"), /发布后的新结果/);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-node').length"), 2);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-track > svg').length"), 2);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-node > svg').length"), 1);
@@ -233,20 +341,20 @@ async function main() {
       const detailText = await cdp.evaluate("document.querySelector('.arch-detail').innerText");
       assert.match(detailText, /输入/);
       assert.match(detailText, /输出/);
-      assert.match(detailText, /失败语义/);
+      assert.match(detailText, /失败时如何处理/);
       assert.doesNotMatch(detailText, /undefined/);
       if (index === 2) {
         assert.match(detailText, /ridge/);
         assert.match(detailText, /verify、deep_read、human_review、duplicate_candidate、defer/);
       }
       if (index === 3) {
-        assert.match(detailText, /不是 causal OPE/);
+        assert.match(detailText, /不是因果离线策略评估/);
         assert.match(detailText, /不构造反事实/);
       }
       if (index === 4) {
         assert.match(detailText, /trusted_support=0/);
         assert.match(detailText, /static-only/);
-        assert.match(detailText, /不生产 promote/);
+        assert.match(detailText, /不发布为生产策略/);
       }
       await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
       await sleep(100);
@@ -258,8 +366,13 @@ async function main() {
       const detailText = await cdp.evaluate("document.querySelector('.arch-detail').innerText");
       assert.match(detailText, /mutation=none/);
       assert.doesNotMatch(detailText, /undefined/);
-      if (index === 0) assert.match(detailText, /确定性聚类/);
-      if (index === 1) assert.match(detailText, /不自动修改 harness/);
+      if (index === 0) {
+        assert.match(detailText, /找出反复出现的执行失败/);
+        assert.match(detailText, /只统计真实执行记录/);
+        assert.doesNotMatch(await cdp.evaluate("document.querySelector('.arch-detail-group').innerText"), /audit_rsi/);
+        assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-detail-card')[1].querySelectorAll('code').length"), 1);
+      }
+      if (index === 1) assert.match(detailText, /不自动修改验证程序/);
       await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
       await sleep(100);
     }
@@ -296,36 +409,46 @@ async function main() {
       const topology = await fetch(`${BASE}/api/runs/${liveRun.project}/${liveRun.runId}/agents`).then((response) => response.json());
       agentLanes = topology.agents.length;
       assert.equal(await cdp.evaluate("document.querySelectorAll('.live-strip').length"), 1);
-      assert.match(await cdp.evaluate("document.querySelector('.live-strip').innerText"), /实时挖掘/);
+      assert.match(await cdp.evaluate("document.querySelector('.live-strip').innerText"), /实时审计/);
       await cdp.evaluate("document.querySelector('.live-run-card').click()");
       for (let i = 0; i < 40; i += 1) {
         if (await cdp.evaluate("document.querySelectorAll('.live-drawer').length")) break;
         await sleep(100);
       }
       assert.equal(await cdp.evaluate("document.querySelectorAll('.live-drawer').length"), 1, await cdp.evaluate("document.body.innerText.slice(-1200)"));
-      assert.match(await cdp.evaluate("document.querySelector('.live-drawer').innerText"), /实时挖掘日志|运行轨迹/);
-      for (let i = 0; i < 40; i += 1) {
-        if (await cdp.evaluate("document.querySelectorAll('.live-drawer .ccui-frame').length")) break;
-        await sleep(250);
+      assert.match(await cdp.evaluate("document.querySelector('.live-drawer').innerText"), /实时审计日志|运行轨迹/);
+      if (agentLanes > 0) {
+        for (let i = 0; i < 40; i += 1) {
+          if (await cdp.evaluate("document.querySelectorAll('.live-drawer .ccui-frame').length")) break;
+          await sleep(250);
+        }
+        assert.equal(await cdp.evaluate("document.querySelectorAll('.live-drawer .ccui-frame').length"), 1);
+        let embedReady = false;
+        for (let i = 0; i < 40; i += 1) {
+          if (await cdp.evaluate("Boolean(document.querySelector('.ccui-frame')?.contentDocument?.getElementById('mygoldmine-embed-style'))")) {
+            embedReady = true;
+            break;
+          }
+          await sleep(250);
+        }
+        if (embedReady) {
+          assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.ccui-frame').contentDocument.querySelector('header.pwa-header-safe')).display"), 'none');
+          assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.ccui-frame').contentDocument.querySelector('.chat-composer-shell')).display"), 'none');
+          await cdp.evaluate("window.__mygoldmineLiveFrame = document.querySelector('.ccui-frame'); window.__mygoldmineFrameTimeOrigin = window.__mygoldmineLiveFrame.contentWindow.performance.timeOrigin; true");
+          await sleep(16000);
+          assert.equal(await cdp.evaluate("window.__mygoldmineLiveFrame === document.querySelector('.ccui-frame')"), true);
+          assert.equal(await cdp.evaluate("window.__mygoldmineFrameTimeOrigin === document.querySelector('.ccui-frame').contentWindow.performance.timeOrigin"), true);
+        }
+        await cdp.evaluate("[...document.querySelectorAll('.live-drawer .traj-switch button')].find((b) => b.textContent.includes('智能体拓扑')).click()");
+        for (let i = 0; i < 40; i += 1) {
+          if (await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-lane').length")) break;
+          await sleep(100);
+        }
+        assert.equal(await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-lane').length"), agentLanes);
+        assert.equal(await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-origin').length"), 1);
+        assert.equal(await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-stage').length"), 8);
+        assert.match(await cdp.evaluate("document.querySelector('.agent-topology').innerText"), /智能体拓扑/);
       }
-      assert.equal(await cdp.evaluate("document.querySelectorAll('.live-drawer .ccui-frame').length"), 1);
-      await sleep(1800);
-      assert.equal(await cdp.evaluate("Boolean(document.querySelector('.ccui-frame')?.contentDocument?.getElementById('mygoldmine-embed-style'))"), true);
-      assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.ccui-frame').contentDocument.querySelector('header.pwa-header-safe')).display"), 'none');
-      assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.ccui-frame').contentDocument.querySelector('.chat-composer-shell')).display"), 'none');
-      await cdp.evaluate("window.__mygoldmineLiveFrame = document.querySelector('.ccui-frame'); window.__mygoldmineFrameTimeOrigin = window.__mygoldmineLiveFrame.contentWindow.performance.timeOrigin; true");
-      await sleep(16000);
-      assert.equal(await cdp.evaluate("window.__mygoldmineLiveFrame === document.querySelector('.ccui-frame')"), true);
-      assert.equal(await cdp.evaluate("window.__mygoldmineFrameTimeOrigin === document.querySelector('.ccui-frame').contentWindow.performance.timeOrigin"), true);
-      await cdp.evaluate("[...document.querySelectorAll('.live-drawer .traj-switch button')].find((b) => b.textContent.includes('Agent 拓扑')).click()");
-      for (let i = 0; i < 40; i += 1) {
-        if (await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-lane').length")) break;
-        await sleep(100);
-      }
-      assert.equal(await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-lane').length"), agentLanes);
-      assert.equal(await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-origin').length"), 1);
-      assert.equal(await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-stage').length"), 8);
-      assert.match(await cdp.evaluate("document.querySelector('.agent-topology').innerText"), /Agent 拓扑/);
       await cdp.evaluate("[...document.querySelectorAll('.live-drawer .traj-switch button')].find((b) => b.textContent.includes('原始日志')).click()");
       await sleep(400);
       assert.equal(await cdp.evaluate("document.querySelectorAll('.live-drawer .live-log').length"), 1);

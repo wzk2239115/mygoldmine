@@ -7,6 +7,7 @@ import StageView from './components/StageView.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
 import LiveRunDrawer from './components/LiveRunDrawer.jsx';
 import LiveRunsStrip from './components/LiveRunsStrip.jsx';
+import AgenticPipeline from './components/AgenticPipeline.jsx';
 import MapView from './components/MapView.jsx';
 import RefineryStrip from './components/RefineryStrip.jsx';
 import RailButton from './components/RailButton.jsx';
@@ -279,6 +280,24 @@ export default function App() {
 
   const filteredStats = useMemo(() => deriveStats(filtered), [filtered]);
 
+  const pipelineTarget = useMemo(() => {
+    const projects = board?.projects || [];
+    const selectedProject = filters.project !== 'all'
+      ? projects.find((project) => project.id === filters.project)
+      : null;
+    const live = board?.liveRuns?.[0];
+    const liveProject = live ? projects.find((project) => project.id === live.project) : null;
+    const latest = [...projects].sort((a, b) => String(b.startedAt || '').localeCompare(String(a.startedAt || '')))[0];
+    const target = selectedProject || liveProject || latest;
+    if (!target) return null;
+    return {
+      project: target.id,
+      projectName: target.name,
+      runId: target.liveRunId || target.latestRunId,
+      live: Boolean(target.isLive)
+    };
+  }, [board?.projects, board?.liveRuns, filters.project]);
+
   const facetStats = useMemo(
     () => ({
       severity: countBy(scoped, (finding) => finding.severity),
@@ -498,6 +517,11 @@ export default function App() {
         filters={filters}
         setFilters={setFilters}
         facets={facetStats}
+        onImported={async (result) => {
+          setFilters((current) => ({ ...current, project: result.project }));
+          showToast(`${result.name} 已导入，完整审计已启动`);
+          await loadBoard(true);
+        }}
       />
 
       <main className="main">
@@ -520,6 +544,7 @@ export default function App() {
             onSelectStage={setActiveStage}
             filters={filters}
             setFilters={setFilters}
+            flow={board?.flowStatus}
           />
         ) : null}
 
@@ -565,6 +590,7 @@ export default function App() {
 
           {!loading && board && view === 'board' && !activeStage ? (
             <section className="pipeline-landing">
+              <AgenticPipeline {...(pipelineTarget || {})} />
               <RefineryStrip
                 stats={scopedStats}
                 stageStats={filteredStats}
@@ -572,6 +598,7 @@ export default function App() {
                 onSelectStage={setActiveStage}
                 filters={filters}
                 setFilters={setFilters}
+                flow={board?.flowStatus}
                 landing
               />
             </section>
@@ -607,7 +634,6 @@ export default function App() {
           {!loading && board && view === 'map' ? (
             <MapView
               board={board}
-              filters={filters}
               onOpenFinding={(finding) => {
                 setLiveRun(null);
                 setSelectedKey(finding.key);
@@ -620,7 +646,7 @@ export default function App() {
             <div className="empty-state">
               <Database size={24} aria-hidden="true" />
               <strong>没有可读取的报告</strong>
-              <p>先运行 `bash run.sh &lt;source&gt;` 生成 runs/*/*/audit-report.json。</p>
+              <p>先执行 bash run.sh &lt;source&gt; 命令，生成 runs/*/*/audit-report.json 报告。</p>
             </div>
           ) : null}
         </div>

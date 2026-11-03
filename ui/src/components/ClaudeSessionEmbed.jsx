@@ -19,7 +19,7 @@ const EMBED_CSS = `
   .chat-messages-pane { padding-top: 0 !important; }
 `;
 
-export default function ClaudeSessionEmbed({ project, runId, live = false, tall = false, chrome = true }) {
+export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrator', trace = '', live = false, tall = false, chrome = true }) {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -44,7 +44,7 @@ export default function ClaudeSessionEmbed({ project, runId, live = false, tall 
       if (!force) setLoading(true);
       setError('');
       try {
-        const payload = await api.runCcui(project, runId, { force });
+        const payload = await api.runCcui(project, runId, { force, node, trace });
         if (seq !== requestSeq.current) return null;
         importedAtRef.current = payload.importedAt || '';
         setSession(payload);
@@ -57,7 +57,7 @@ export default function ClaudeSessionEmbed({ project, runId, live = false, tall 
         if (seq === requestSeq.current && !force) setLoading(false);
       }
     },
-    [project, runId, notifyFrame]
+    [project, runId, node, trace, notifyFrame]
   );
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function ClaudeSessionEmbed({ project, runId, live = false, tall 
       if (pending) return;
       pending = true;
       try {
-        const payload = await api.runCcui(project, runId);
+        const payload = await api.runCcui(project, runId, { node, trace });
         if (cancelled || !payload?.importedAt) return;
         if (payload.importedAt !== importedAtRef.current) {
           importedAtRef.current = payload.importedAt;
@@ -88,7 +88,7 @@ export default function ClaudeSessionEmbed({ project, runId, live = false, tall 
       }
     }, LIVE_POLL_MS);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [live, project, runId, notifyFrame]);
+  }, [live, project, runId, node, trace, notifyFrame]);
 
   const sync = useCallback(async () => {
     setSyncing(true);
@@ -170,8 +170,8 @@ export default function ClaudeSessionEmbed({ project, runId, live = false, tall 
 
       {!loading && !error && session && !session.available ? (
         <div className="ccui-state">
-          <p>该 run 没有可导入的 CC 会话：{session.reason || '未知原因'}</p>
-          <p className="ccui-hint">可改用 Trajectory 标签页浏览渲染日志。</p>
+          <p>该审计运行没有可导入的 CC 会话：{session.reason || '未知原因'}</p>
+          <p className="ccui-hint">可改用“轨迹”标签页浏览渲染日志。</p>
         </div>
       ) : null}
 

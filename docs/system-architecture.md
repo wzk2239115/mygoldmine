@@ -1,14 +1,14 @@
 # 系统架构说明
 
-面向开发人员。目标是把“静态挖掘 → 自动分类 → 动态验收 → 人工展示”做成一条可运行、可审计、可回放的流水线。
+面向开发人员。目标是把“静态审计 → 自动分类 → 动态验收 → 人工展示”做成一条可运行、可审计、可回放的流水线。
 
 ## 1. 设计目标
 
-- 原始 finding 不直接推给人；先自动评分、去重、路由。
-- 只有进入 `待验收` 的 case 才需要人工阅读。
-- `待验收` 必须同时满足：红队实际捕获 flag、独立 judge 通过、图文报告已生成。
-- 每条自动决策和每次验证都留下 trajectory，供 RSI 回放和策略优化。
-- 所有攻击只在隔离 lab 内进行，flag 随机，攻击者容器不能直接接触 flag。
+- 候选问题（finding）不直接推给人；先自动评分、去重和路由。
+- 只有进入待验收状态的条目才需要人工阅读。
+- 待验收必须同时满足：红队实际捕获随机标记（flag）、独立审核（judge）通过、图文报告已生成。
+- 每条自动决策和每次验证都留下执行轨迹，供 RSI 回放和策略优化。
+- 所有攻击只在隔离环境内进行，随机标记每轮重新生成，攻击者容器不能直接接触标记文件。
 
 非目标：
 
@@ -19,9 +19,15 @@
 ## 2. 端到端数据流
 
 ```text
-┌──────────────┐
-│ 目标源码/镜像 │
-└──────┬───────┘
+┌──────────────┐     high/critical     ┌────────────┐
+│ watch 轮询    │ ───────────────────▶ │ dispatch   │
+│ 分支/commit   │                      │ 绑定身份   │
+└──────┬───────┘                      └─────┬──────┘
+       │ 其他风险                             │ 自动派发
+       └──────────────┐                       ▼
+┌──────────────┐       │                ┌──────────────┐
+│ 目标源码/镜像 │ ◀─────┴────────────────│ run.sh       │
+└──────┬───────┘                         └──────────────┘
        │ run.sh / mine_one / overnight
        ▼
 ┌──────────────────┐
@@ -31,8 +37,8 @@
        │ finding_ledger.py（仅完整有效 run）
        ▼
 ┌──────────────────┐
-│ Finding Ledger    │  occurrence / semantic 双层身份
-│ 多轮审计历史台账   │  finding-ledger.json
+│ 发现记录表         │  单次编号 / 跨轮同一问题归并
+│ 多轮审计历史记录   │  finding-ledger.json
 └──────┬───────────┘
        │ build_state.py
        ▼
@@ -45,6 +51,12 @@
 ┌──────────────────┐
 │ 自动分类状态       │  refine-state.json / refine-queue.json
 │ 分诊/待验证/归档   │
+└──────┬───────────┘
+       │ flow_worker.py（消费 triage/reproduce）
+       ▼
+┌──────────────────┐
+│ 自动流转状态       │  flow-state.json / flow-queue.json
+│ verify / red-team │
 └──────┬───────────┘
        │ 候选
        ▼
@@ -70,25 +82,32 @@
 └──────────────────┘
 ```
 
-### 挖掘过程设计
+### 批量审计过程设计
 
-挖掘阶段负责产生**可追溯的静态候选**，不直接把模型结论当作已验证漏洞。执行链如下：
+批量审计阶段负责产生**可追溯的静态候选**，不直接把模型结论当作已验证漏洞。执行链如下：
 
 | 阶段 | 设计与职责 | 关键产物/边界 |
 |---|---|---|
-| 目标与调度 | `parallel_mine.sh` / `overnight.sh` 从 `targets/manifest.json` 选择项目，控制并发、失败重试和断点续跑；每个项目使用独立时间戳 run | 已有完整成功报告的项目默认跳过；编排状态与项目产物分离 |
-| 持久项目沙箱 | `sandbox.sh` 为每个 run 启动独立容器，源码只读挂载到 `/target`，挖掘、verify 和交互 shell 复用 `/workspace/repo` | 不挂载 Docker socket，`cap-drop ALL`、`no-new-privileges`；密钥不写入沙箱状态，verify 前断开网络 |
-| 召回与协同审计 | Jev 初筛提供 priority、flags 和 mitigations 线索；`security-orchestrator` 组织项目画像、路由/认证、语言与框架攻击面分析，并分派子任务 | Jev 只负责召回，不直接生成 finding；除模型 API 和指定初筛服务外不访问公网 |
-| 增量报告 | 审计开始即创建报告骨架，每个子任务完成后增量更新；finding 必须带文件/行号、根因、影响、复现思路和修复建议 | `raw.jsonl` 保留真实动作流，`claude.rendered.log` 供人阅读，`audit-report.md/json` 保存结论 |
-| 质量与运行状态 | `check_report.py` 检查 schema、必填字段和系统语言；`run-meta.json` 记录尝试次数、退出码、超时、中断和 `reports_complete` | 模型正常退出但报告不合格仍算失败；草稿和质量不合格报告不发布到台账 |
-| Deadline 与恢复 | 所有尝试和重试共享墙钟预算；`progress_guard.py` 按 setup/model/tool 的真实事件判活；`durable_recovery.py` 校验并复用分支成果，隔离失败任务 | 已完成且校验匹配的产物不重跑；恢复源证据不可变，恢复后继续未完成工作和 Phase 4 |
-| 发布到下游 | 完整有效报告进入 Finding Ledger；`run.sh` 可继续执行 Phase 4 自动验证，之后连接视觉报告、状态编译和自动分类 | 静态 finding 仍需 verify / red-team 证据才能晋级，不能跳过验证门 |
+| 选择项目并批量审计 | 看板通过 `POST /api/targets/github-branches` 读取公开仓库的分支引用，只下载当前页分支的提交对象并在页内按提交时间排序，分别标记默认分支和本页最新分支，接口每页最多返回 50 条、默认返回 10 条，分支列表与页面结果使用短时缓存；通过 `GET /api/targets/browse` 为本地目录选择器列出服务器可见子目录，再通过 `POST /api/targets/import` 导入公开 GitHub 仓库或服务器本地目录，登记 `ui/data/projects.json` 与 `targets/manifest.json` 后调用 `run.sh` 完整流程；项目清单记录项目名称、源码位置和版本。批量模式由 `parallel_mine.sh` 控制并发和失败重试，`overnight.sh` 提供后台启动、状态查看、停止和恢复；每个项目使用独立审计目录 | GitHub 仅接受公开 HTTPS 地址，分支查询通过 `tree:0` 过滤只读取提交对象，不下载目录树和源码，临时目录在结束后删除；目录浏览不读取文件内容；已有目录不强制更新，已有实时审计的项目不能重复启动。已有完整成功报告的项目默认跳过；批量运行状态与项目产物分离 |
+| 持久项目沙箱 | `sandbox.sh` 为每次审计运行启动独立容器，源码只读挂载到 `/target`，批量审计和交互命令行复用 `/workspace/repo`；主流程 `verify-agent` 默认用独立断网容器 | 不挂载 Docker 套接字，启用 `cap-drop ALL` 和 `no-new-privileges`；密钥不写入沙箱状态 |
+| 整理审计线索并拆分任务 | Jev 为代码块生成 0 到 1 的优先检查分数（priority）、达到阈值的风险信号（flags）和已有防护措施（mitigations）；`security-orchestrator` 再结合项目结构与攻击面拆分检查任务 | 这些信息只用于安排检查顺序，不直接生成候选问题；除模型 API 和指定初筛服务外不访问公网 |
+| 增量报告 | 审计开始即创建报告骨架，每个子任务完成后增量更新；候选问题必须带文件与行号、根因、影响、复现思路和修复建议 | `raw.jsonl` 保留真实动作流，`claude.rendered.log` 供人阅读，`audit-report.md/json` 保存结论 |
+| 质量与运行状态 | `check_report.py` 检查固定结构、必填字段和系统语言；`run-meta.json` 记录尝试次数、退出码、超时、中断和 `reports_complete` | 模型正常退出但报告不合格仍算失败；草稿和质量不合格报告不发布到发现记录表 |
+| 总时限与恢复 | 所有尝试和重试共享总时间预算；`progress_guard.py` 按环境准备、模型调用和工具执行的真实事件判断进展；`durable_recovery.py` 校验并复用分支成果，隔离失败任务 | 已完成且校验匹配的产物不重新执行；恢复源证据不可变，恢复后继续未完成工作和第 4 阶段 |
+| 发布到下游 | 完整有效报告进入发现记录表；`run.sh` 默认继续执行图文报告、第 4 阶段 `verify-agent`、第 5 阶段红队批量执行与独立审核，再编译状态和自动分类 | 静态候选问题仍需验证和红队证据才能进入下一阶段，不能跳过验证通过条件 |
+| 经验与挖掘修复候选 | 第 6 阶段重建红蓝经验并生成共享或仓库专属修复候选；候选经独立前后运行评估后才发布，下一轮挖掘加载已发布规则 | 候选目录、真实评估、活动规则与版本回滚记录分离；生成候选本身不改变生产挖掘 |
 
-`run.sh` 在单项目挖掘前还可执行 Phase 0 环境构建，在报告质量门通过后执行 Phase 4 Top-N Critical/High 验证。环境构建失败、报告不完整或验证 blocked 都保留明确状态，不伪装成 ready/confirmed。挖掘负责“找候选并保留证据”，verify 负责“验证候选”，red-team lab 负责“在隔离环境中证明可利用性”，三者不能互相冒充。
+`run.sh` 在单项目批量审计前执行第 0 阶段环境构建：`phase0_env.sh` 默认直接启动 `environment-builder` 智能体，由智能体检查源码、选择构建方式、调用确定性构建工具、阅读日志、修复并验收环境；智能体没有产出可用环境时才执行确定性备用方案，明确关闭智能体时只执行备用方案。报告完整性检查通过后依次执行 `visual_report.sh`（图文报告和场景图）、`phase4_verify_agent.sh`（真实 `verify-agent` 和隔离执行器）、`phase5_redteam.sh`（红队批量执行和独立审核）以及 `post_validation.sh`（红蓝经验和挖掘修复候选），最后重算待人工验收条件。环境构建失败、报告不完整、验证结论为 `blocked` 或红队未通过时都保留明确状态，不伪装成 `ready` 或 `confirmed`。批量审计负责找候选并保留证据，候选验证负责核实候选，隔离环境验证负责证明可利用性，三者不能互相替代。
+
+### 正式八节点执行链与运行状态
+
+看板首页、系统架构页和运行详情共用 `GET /api/runs/:project/:runId/pipeline`，固定展示八个节点：`environment-builder` 环境构建、`security-orchestrator` 安全审计编排、`attack-scene-director` 攻击场景设计、`verify-agent` 蓝队验证、`redteam-lab-builder` 红队场景构建、`scripts/redteam/agent.py` 红队执行、`exploit-judge` 独立审核、`mining-repair-learner` 经验学习。接口分别读取 `<run>.meta/env-phase.json`、审计报告、`visual-summary.json`、蓝队汇总、红队汇总和学习产物，不把整次运行的一个总状态复制到所有节点。状态分为已完成、降级、受阻、失败、运行中、未开始和已跳过；智能体失败但最终使用备用方案得到产物时标记降级，下游未实际启动时保持未开始，不伪装成智能体完成。首页默认显示最新项目，项目筛选可切换目标；实时运行时按 5 秒轮询。六个候选处理状态的计数与这条执行链分开，不混用两种“节点”含义。
+
+每个节点都可以打开自己的只读执行轨迹。环境、场景、蓝队和独立审核启动器统一保留 Claude Code 原生 `stream-json`；安全编排读取 `raw.jsonl`，经验学习读取 `rsi/learner.jsonl`。`ui/server/agentic-traces.mjs` 按节点和具体调用索引日志，同一节点存在多次调用时要求选择具体轮次、候选或红队运行，不能混成一条会话。`scripts/ccui/import_trace.py` 复用 `import_runs.py` 的转换逻辑，把选中的流式日志导入第三方 Claude Code 会话界面；`GET /api/runs/:project/:runId/ccui?node=<节点>&trace=<调用>` 只返回只读回放，不启动新智能体。旧文本日志保留文本查看；红队执行是独立模型循环，展示 `agent.jsonl` 结构化执行轨迹，不标记为 Claude Code 会话。
 
 ### 持久沙箱生命周期
 
-Phase 0 生成的镜像以 `mygoldmine:dev` 为基础，同时包含 Claude Code 和目标依赖。`run.sh` 默认通过 `scripts/env/sandbox.sh` 为每个 run 创建独立持久容器；`PERSIST_SANDBOX=0` 可退回一次性容器。沙箱名称和元数据保存在 `<run>.meta/sandbox.json`，不保存模型密钥。
+第 0 阶段生成的镜像以 `mygoldmine:dev` 为基础，同时包含 Claude Code 和目标依赖。`run.sh` 默认通过 `scripts/env/sandbox.sh` 为每次审计运行创建独立持久容器；`PERSIST_SANDBOX=0` 可退回一次性容器。沙箱名称和元数据保存在 `<run>.meta/sandbox.json`，不保存模型密钥。
 
 ```bash
 # 创建/查看（run.sh 默认自动创建）
@@ -99,7 +118,7 @@ bash scripts/env/sandbox.sh status --project <project> --run-dir <run>
 bash scripts/env/sandbox.sh exec --project <project> --run-dir <run> -- <command>
 bash scripts/env/sandbox.sh shell --project <project> --run-dir <run>
 
-# 离线验证；run.sh 在 Phase 4 前自动 isolate
+# 离线验证；run.sh 在第 4 阶段前自动断开持久沙箱网络
 bash scripts/env/sandbox.sh isolate --project <project> --run-dir <run>
 bash run.sh --verify-only <run>
 
@@ -108,128 +127,154 @@ bash scripts/env/sandbox.sh stop --project <project> --run-dir <run>
 bash scripts/env/sandbox.sh remove --project <project> --run-dir <run>
 ```
 
-挖掘使用 `/target` 的只读源码生成 `/workspace/repo`，之后 verify 和人工 shell 都进入这个工作副本。verify 复用沙箱时要求网络数为零，且同一工作副本上的 harness 串行执行，避免并行写入冲突。恢复 run 若不能共享原 run 的产物挂载，自动回退到独立验证容器；沙箱创建失败也保留一次性执行路径，不阻断挖掘。
+批量审计使用 `/target` 的只读源码生成 `/workspace/repo`，人工命令行可继续进入这个工作副本。主流程 `phase4_verify_agent.sh` 默认让每条验证程序（harness）在独立断网容器运行；`run_verify.sh` 仍支持显式 `--sandbox` 复用已断网沙箱，但要求同一工作副本串行执行。恢复审计运行时若不能共享原运行的产物挂载，自动回退到独立执行路径；沙箱创建失败也不阻断批量审计。
 
 ## 3. 核心组件
 
 | 路径 | 职责 |
 |---|---|
-| `scripts/env/sandbox.sh` | 每个 run 的持久沙箱生命周期、交互 shell、网络隔离与工作副本复用 |
-| `scripts/mine/mine_one_docker.sh` | 进入持久沙箱或启动一次性审计容器，生成原始报告并触发视觉/自动分类 |
-| `scripts/mine/progress_guard.py` | 以共享 deadline 和真实进展区分 setup/model/tool idle，超时统一失败语义 |
-| `scripts/mine/durable_recovery.py` | 持久化分支成果、隔离失败并恢复未完成工作，recovery 后继续 Phase 4 |
-| `scripts/workflow/finding_ledger.py` | 扫描全部有效 run，生成 occurrence/semantic 双层身份和历史台账 |
-| `scripts/workflow/build_state.py` | 基于台账合并 verify、CVE 和人工状态，重算红队 provenance 并生成 review 门槛 |
-| `scripts/workflow/refine_worker.py` | 按 source hash 重算路由，低价值归档，高分晋级 |
-| `scripts/verify/run_verify.sh` | 在独立容器或已断网的持久沙箱中验证单条 finding |
-| `scripts/verify/auto_verify.sh` | 批量静态/环境预验证；共享工作副本时串行执行 |
-| `scripts/redteam/lab.py` | 创建受限 victim/attacker 容器、内部网络、随机 flag、执行工具 |
-| `scripts/redteam/agent.py` | OpenAI-compatible 红队 agent loop，只从真实工具输出捕获 flag |
-| `scripts/redteam/judge.py` | 确定性 provenance 校验 + 独立模型审核 |
-| `scripts/redteam/batch.py` | 按 finding 构建/预检 lab，保留结构化失败原因 |
-| `.claude/skills/project-cartographer/` | 视觉模型、结构/覆盖/攻击场景图、image2 插图 |
+| `scripts/env/sandbox.sh` | 管理每次审计运行的持久沙箱生命周期、交互命令行、网络隔离与工作副本复用 |
+| `scripts/mine/mine_one_docker.sh` | 进入持久沙箱或启动一次性审计容器，生成原始报告并触发视觉报告与自动分类 |
+| `scripts/mine/progress_guard.py` | 根据共享总时限和真实进展区分环境准备、模型调用与工具执行的停滞，并统一处理超时 |
+| `scripts/mine/durable_recovery.py` | 持久化分支成果、隔离失败并恢复未完成工作，恢复后继续第 4 阶段 |
+| `scripts/workflow/finding_ledger.py` | 扫描全部有效审计报告，为每次发现的候选问题保留单独编号，归并多轮审计中的同一问题，并生成历史发现记录表 |
+| `scripts/workflow/build_state.py` | 基于发现记录表合并验证结果、CVE 和人工状态，重算红队证据来源链并生成待人工验收条件 |
+| `scripts/workflow/refine_worker.py` | 按来源哈希重算路由，归档低价值条目，让高分条目进入下一阶段 |
+| `scripts/workflow/flow_worker.py` | 处理 `triage` 和 `reproduce`：调用候选验证、补充图文报告、触发红队并写回自动流转状态 |
+| `scripts/verify/run_verify.sh` | 在独立容器或已断网的持久沙箱中验证单条候选问题 |
+| `scripts/verify/auto_verify.sh` | 手工静态预筛，只输出 `inconclusive` 或 `blocked`；不是主流程验证器 |
+| `scripts/verify/phase4_verify_agent.sh` | 主流程第 4 阶段：调用真实 `verify-agent` 编写验证程序，再交给 `run_verify.sh` |
+| `scripts/redteam/lab.py` | 创建受限的目标端与攻击端容器、内部网络和随机标记，并提供执行工具 |
+| `scripts/redteam/agent.py` | 通过兼容 OpenAI 接口的模型进行红队多轮交互，只从真实工具输出捕获随机标记 |
+| `scripts/redteam/judge.py` | 校验确定性证据来源链并独立审核；候选运行可用 `RSI_VALIDATION_TRAJECTORY` 隔离轨迹输出 |
+| `scripts/redteam/batch.py` | 按候选问题构建并预检隔离环境，运行攻击端，调用独立审核 |
+| `scripts/redteam/phase5_redteam.sh` | 主流程第 5 阶段：从当前审计运行选择候选问题，调用批量执行与独立审核，刷新待人工验收条件 |
+| `scripts/rsi/post_validation.sh` | 主流程第 6 阶段：重建红蓝经验并调用 `Claude Code` 学习节点，不直接发布 |
+| `.claude/agents/mining-repair-learner.md` | 组合多个技能归纳红蓝经验，输出共享或仓库专属修复 Markdown |
+| `.claude/skills/verification-experience-analyzer/`、`repair-scope-analyzer/`、`mining-repair-learning/` | 分析验证证据、判断修复作用域并组织已有知识与漏洞分析技能 |
+| `audit_rsi/mining_driver.py` | 让候选实际参与隔离挖掘、蓝队验证和红队审核，按真实结果发布或拒绝；批量模式自动选择留出项目 |
+| `scripts/mine/repair_context.py` | 把已发布共享规则与当前项目规则注入下一次挖掘，隔离其他项目规则 |
+| `scripts/mine/visual_report.sh` | 主流程图文报告：视觉模型、场景图和 `report-illustrated.md` |
+| `scripts/watch/watch.py` | 轮询仓库提交、静态 diff 评分，按项目和分支绑定 commit，并自动派发高风险事件到 `run.sh` |
+| `scripts/watch/daemon.sh` | 常驻轮询与自动派发；`WATCH_AUTO_RUN=0` 只监控不挖掘 |
+| `.claude/skills/project-cartographer/` | 视觉模型、结构与覆盖图、攻击场景图、image2 插图 |
 | `ui/` | 看板、表格、项目地图、持续监控、系统架构和运行详情 |
-| `audit_rsi/` | 经验构建、标签合并、效用训练、留出回放、统计门禁和只读建议（shadow） |
-| `rsi_version/` | 不可变候选版本、发布复核和回滚存储 |
+| `audit_rsi/` | 经验构建、标签合并、验证资源只读建议，以及挖掘修复候选、真实前后运行评估、分作用域发布和回滚 |
+| `rsi_version/` | 确定后不再修改的候选版本、发布复核和回滚存储 |
 
 ## 4. 身份、状态与优先级
 
-每个 finding 有两层身份：`occurrence_id=project/run_id/local_id` 精确定位一次观测，`semantic_id` 由项目、规范化证据路径、根因和 CWE 汇聚多轮审计语义。历史报告独有的 finding 不会因新 run 而消失；运行中或质量不合格的草稿不会替代最新完整报告。旧 `project:id` 状态仅在语义唯一时兼容，存在歧义时不猜测继承。
+每条候选问题有两层身份：`occurrence_id=project/run_id/local_id` 精确定位一次观测，`semantic_id` 由项目、规范化证据路径、根因和 CWE 汇聚多轮审计语义。每次挖掘运行另外记录 `branch` 和 `commit`；持续监控按“项目 → 分支/commit → 运行”绑定身份，派发器使用独立工作副本固定目标提交，不移动用户当前分支。历史报告独有的候选问题不会因新审计运行而消失；运行中或质量不合格的草稿不会替代最新完整报告。旧 `project:id` 状态仅在语义唯一时兼容，存在歧义时不猜测继承。
 
 状态优先级：
 
 ```text
-state.json（人工） > curated.json（人工种子） > refine-state.json（worker） > auto-state.json（自动） > inbox
+state.json（人工） > curated.json（人工种子） > flow-state.json（自动流转） > refine-state.json（自动分类） > auto-state.json（自动状态编译） > inbox
 ```
 
 | 状态 | 含义 | 是否给人看 |
 |---|---|---|
 | `inbox` | 未处理候选，尚未进入下一阶段 | 默认隐藏 |
-| `triage` | 自动评分进入分诊 | 流程视图 |
-| `reproduce` | CVE Tier 候选或 confirmed verify；等待验证（尚未复现） | 流程视图 |
-| `cve` | CVE 去重/跟踪 | 流程视图 |
+| `triage` | 自动分类进入分诊；自动流转后台任务会调用 `verify-agent` | 流程视图 |
+| `reproduce` | CVE 分级候选或验证结论为 `confirmed`；等待或已进入红队验证（尚未证明可利用） | 流程视图 |
+| `cve` | CVE 去重与跟踪 | 流程视图 |
 | `archived` | 可重算的低优先级归档，不是安全结论 | 默认隐藏 |
-| `closed` | 人工关闭/FP/重复/已知 | 流程视图 |
-| `review` | 可信红队 + judge + 图文全部通过 | 人工验收 |
+| `closed` | 人工关闭、误报、重复或已知问题 | 流程视图 |
+| `review` | 可信红队、独立审核和图文检查全部通过 | 人工验收 |
 
-## 5. 自动分类 worker（refine）
+## 5. 自动分类后台任务（`refine`）
 
-输入：schema v2 台账 + 现有自动/人工状态。输出 `refine-state.json`、`refine-queue.json` 和 `rsi/trajectories/refine.jsonl`。
+输入：第 2 版固定结构的发现记录表和现有自动与人工状态。输出 `refine-state.json`、`refine-queue.json` 和 `rsi/trajectories/refine.jsonl`。
 
 规则：
 
-- 每条决策保存 `source_hash`；raw、verify、CVE 或人工证据变化时重新计算。
-- 已归档项获得 confirmed verify 后重新进入队列并转为 reproduce。
-- 弱指纹只标记 duplicate_candidate；High/Critical 不凭弱指纹直接归档。
-- CVE Tier、verify confirmed → reproduce；Critical/High → triage；其他低分项 → archived。
-- 所有决策可回放；archived 不删除原始报告。
-- `--loop` 在空队列时 sleep 并继续扫描，不会因暂时 pending=0 退出；新 run 和新证据能持续进入经验链。
+- 每条决策保存 `source_hash`；原始报告、验证结果、CVE 或人工证据变化时重新计算。
+- 已归档项获得 `confirmed` 验证结论后重新进入队列并转为 `reproduce`。
+- 弱指纹只标记 `duplicate_candidate`；高危和严重问题不凭弱指纹直接归档。
+- CVE 分级候选或 `confirmed` 验证结论进入 `reproduce`；严重和高危问题进入 `triage`；其他低分项进入 `archived`。
+- 所有决策可回放；`archived` 不删除原始报告。
+- `--loop` 在空队列时等待并继续扫描，不会因暂时 `pending=0` 退出；新审计运行和新证据能持续进入经验链。
 
-## 6. 动态验收 lab 契约
+## 6. 自动流转后台任务（`flow`）
 
-lab 由 `redteam-lab-builder` 按 finding 生成到 `labs/<project>/<finding-id>/`。scenario 绑定 finding 内容哈希和 source commit/content hash；builder 退出为 0 且结构化校验通过才算 ready。当前执行器只支持 HTTP，其他 mode 明确 blocked，不能用 HTTP 包装冒充。
+输入：最新发现记录表、`refine-state.json`、`auto-state.json` 和人工状态。输出 `flow-state.json`、`flow-queue.json` 和 `rsi/trajectories/flow.jsonl`。
+
+规则：
+
+- 只处理 `triage` 和 `reproduce`；人工状态高于自动流转，自动流转高于自动分类。
+- `triage` 调用 `phase4_verify_agent.sh --finding-id`；`confirmed` 转为 `reproduce`，`rejected` 转为 `closed`，`blocked` 和 `inconclusive` 保持 `triage` 并记录尝试次数。
+- `reproduce` 先补图文报告，再调用 `phase5_redteam.sh --finding-id`；独立审核结论为 `approved` 后调用 `build_state.py` 重算待人工验收条件。
+- 每次尝试记录 `flowAttempts`、`flowOutcome`、产物路径和 `flowNextAt`；默认最多一次，避免对同一失败候选无限重试。
+- 环境清单缺失、镜像不存在或 Docker 不可用时只记录 `blocked`，不伪造验证结果；设置 `FLOW_BUILD_ENV=1` 时会对已知目标调用第 0 阶段构建环境后重试。`FLOW_WORKER=1` 时随看板启动，默认关闭以避免意外消耗模型。
+- CVE 跟踪仍由人工或 `docs/cve-*.json` 产物推进，自动流转不会自动创建 CVE 编号。
+
+## 7. 动态验收隔离环境契约
+
+每个候选问题使用独立的验证环境，由 `redteam-lab-builder` 生成到 `labs/<project>/<finding-id>/`。验证场景绑定候选问题内容哈希和源码版本；构建与结构化校验都通过后才可执行。攻击端只能在攻击容器中执行命令，并通过隔离网络访问目标 HTTP 服务。当前只执行 HTTP 服务场景，其他类型不执行并标记为“暂不支持（`blocked`）”，不能用 HTTP 包装冒充。
 
 不变量：
 
-- internal Docker network，victim 不发布宿主机端口
-- victim/attacker 均有 cap-drop、no-new-privileges、PID/内存/CPU 限制
-- flag 只由 harness 只读挂载到 victim 的 `/flag`
-- attacker 不挂载宿主、flag 或 Docker socket，scenario 不声明 mounts/volumes
-- flag 只能从真实工具输出捕获；最终回答本身不是证据
-- trace 记录工具事件、输出 SHA-256、flag SHA-256 和捕获事件
-- trace/agent 日志是 untrusted data，judge 不能被其指令带偏
+- 使用 Docker 内部网络，目标端不发布宿主机端口
+- 目标端和攻击端均启用 `cap-drop`、`no-new-privileges`，并限制进程数、内存和 CPU
+- 随机标记只由验证程序以只读方式挂载到目标端的 `/flag`
+- 攻击端不挂载宿主机目录、随机标记或 Docker 套接字，场景不声明 `mounts` 或 `volumes`
+- 随机标记只能从真实工具输出捕获；最终回答本身不是证据
+- 轨迹记录工具事件、输出 SHA-256、随机标记 SHA-256 和捕获事件
+- 轨迹与智能体日志都是不可信数据，独立审核不能被其中的指令带偏
 
-## 7. Judge 契约
+## 8. 独立审核契约
 
-`judge.json` 使用完整固定 schema，包含 verdict、intended_vulnerability、flag_provenance、no_cheat、environment_plausible、reproducible、minimal、confidence、reason、concerns 和 recommended_status。approved 的全部必要布尔字段必须为 JSON true，且 recommended_status 为 runtime-validated。
+`judge.json` 使用完整固定结构，包含 `verdict`、`intended_vulnerability`、`flag_provenance`、`no_cheat`、`environment_plausible`、`reproducible`、`minimal`、`confidence`、`reason`、`concerns` 和 `recommended_status`。审核结论为 `approved` 时，全部必要布尔字段必须为 JSON `true`，且 `recommended_status` 为 `runtime-validated`。
 
-程序在调用 judge 和接收结果时都会重算确定性 provenance；缺字段、字符串布尔、旧 judge 文件或哈希不一致均拒绝。review 构建还会再次验证 result 中记录的 provenance，旧“仅 judge approved”结果不能绕过。安全验证通过后，人工 review 队列仍要求图文报告和 scene 图；视觉素材本身不是漏洞证据。
+程序在调用独立审核和接收结果时都会重算确定性证据来源链；缺字段、字符串布尔、旧审核文件或哈希不一致均拒绝。待人工验收条件的构建还会再次验证结果中记录的证据来源链，旧“仅独立审核通过”结果不能绕过。安全验证通过后，人工验收队列仍要求图文报告和场景图；视觉素材本身不是漏洞证据。
 
-## 8. 图文报告
+## 9. 图文报告
 
 `project-cartographer` 生成：
 
-- `visual-model.json`：结构/覆盖/攻击树/attacker-victim 场景
+- `visual-model.json`：结构、覆盖、攻击树和攻击者与受害者场景
 - `project-map.svg`、`coverage-tree.svg`、`attack-*.svg`
 - `scene-*.svg`：准确的双方步骤
 - `scene-*.webp`：image2 叙事插图
-- `report-illustrated.md`：给人工验收的图文 case
+- `report-illustrated.md`：供人工验收的图文报告
 
-插图必须标注“AI 插图，非漏洞证据”。视觉素材不能替代 trace 和 judge。
+插图必须标注“AI 插图，非漏洞证据”。视觉素材不能替代轨迹和独立审核。
 
-## 9. RSI 学习流程（只读建议）
+## 10. RSI 学习流程
 
-当前实现是 Verification-RSI 的**只读建议模式**（`shadow`，只生成建议，不改变生产状态），不是已经接管生产审计的 RSI。真实运行会留下动作前上下文、动作、结果、成本和证据来源链；策略学习验证动作的收益，独立留出集与非回归检查决定候选能否进入发布复核。系统不会让模型直接改写自己，也不会把最终报告回放包装成在线发现能力。
+系统现有三条相互独立的学习支路：验证资源学习、红队验证程序改进和挖掘修复。验证资源学习仍是**只读建议模式**（`shadow`），不会改变生产状态；挖掘修复则可以经过真实前后运行评估后发布到共享技能或当前项目规则，并由下一轮挖掘实际加载。三条支路不能互相冒充：只读验证策略不会因为挖掘修复发布功能存在就自动上线，验证程序候选也仍不直接修改执行器。
 
-当前只读建议模式已跑通，但尚未完成“验证、发布、结果回写”的一整圈：训练支持 91 条全部为 `static`，可用于动作训练的 `trusted` 样本为 0；回放状态为 `insufficient`；没有 `flips` 产物；发布与结果回写尚未接入 `audit_rsi` CLI。
+真实运行会留下动作前上下文、动作、结果、成本和证据来源链；策略学习验证动作的收益，独立留出验证集与非回归检查决定候选能否进入发布复核。系统不会让模型直接改写自己，也不会把最终报告回放包装成在线发现能力。
 
-主流程保持以下六步，架构页按相同顺序提供可点击实现详情：
+当前验证资源的只读建议模式已跑通，但训练支持 91 条全部为静态证据（`static`），可用于动作训练的可信样本（`trusted`）为 0；回放状态为 `insufficient`，没有前后结果变化（`flips`）产物。因此验证动作策略仍停留在只读建议，不发布为生产策略。
+
+架构页按以下六步展示经验与挖掘修复的关系：
 
 ```text
 01 真实轨迹（verification / redteam 经验）
   → 02 标签与证据等级（runtime / judge / manual；static 不冒充 trusted）
-  → 03 效用学习（固定五动作词表做 ridge utility regression；当前仅 deep_read 25 条、defer 66 条有样本）
-  → 04 留出验证 + 同动作回放 + 结果翻转观测
+  → 03 成本与收益评估（固定五动作词表做 ridge utility regression；当前仅 deep_read 25 条、defer 66 条有样本）
+  → 04 跨项目验证与前后结果对比（留出验证、同动作回放、真实挖掘结果对照）
   → 05 只读建议（recommendation_only=true，state_change=none）
-  → 06 结果回写（尚未接入：accepted 候选经发布复核后才可进入既有流程）
-  └──────────────── 新真实结果回到 01（第 06 步尚未接入）
+  → 06 挖掘修复发布（独立支路：共享或仓库专属规则，经真实前后运行评估后发布）
+  └──────────────── 发布后的新真实结果回到 01
 ```
 
-第 06 步是计划中的发布路径，尚未接入 CLI，不是只读建议的自动升级。`trusted_support=0` 时仍停留在第 05 步，以 `static-only / no_trusted_utility_targets` 继续生成只读建议，不发布为生产策略（不生产 promote），也不宣称生产 RSI。回放只描述同动作的实际收益，flips 只描述真实经验集合之间的观测变化，两者都不是因果评估。
+第 06 步不是只读验证策略的自动升级，而是 `audit_rsi/mining_repair.py` 提供的独立挖掘修复链路。`trusted_support=0` 时验证动作仍以 `static-only / no_trusted_utility_targets` 继续生成只读建议；挖掘修复若只有静态证据，也只能保持候选状态。回放只描述同动作的实际收益，真实前后运行对照只描述观测变化，两者都不宣称因果评估。
 
-红队 harness 形成第二条学习支路，与验证动作效用学习分开：
+红队验证程序形成第二条学习支路，与验证动作成本与收益评估分开：
 
 ```text
-红队真实 run/step 轨迹
-  → 确定性弱点聚类（失败类别、支持度、成本、editable surface）
-  → 白名单 harness proposal（稳定 candidate_id，mutation=none）
-  → 独立 paired outcome flips + 候选/发布复核
+红队真实运行与步骤轨迹
+  → 按固定规则找出反复出现的执行失败（按失败原因等分组，统计出现次数、成本和候选修改位置）
+  → 白名单内的验证程序提案（稳定 candidate_id，mutation=none）
+  → 独立比较配对项的前后结果变化，再进行候选与发布复核
   → 受控变更后的新红队轨迹
 ```
 
-这条支路只生成候选证据与提案，不自动修改 harness；`validated` 也不等于已经发布。
+这条支路只生成候选证据与提案，不自动修改验证程序；`validated` 也不等于已经发布。
 
-`audit_rsi/adapters/raw_trace.py` 另行把真实 Claude stream-json 转为 action 轨迹，保留 Task/Agent 父子拓扑、实际结果和成本；未知 propensity 保持 null。最终报告重建树只用于旧回放，不能证明未探索分支的发现效果。
+`audit_rsi/adapters/raw_trace.py` 另行把真实 Claude `stream-json` 转为动作轨迹，保留 `Task` 和 `Agent` 父子拓扑、实际结果和成本；历史动作被选中的概率（propensity）未知时保持 `null`。最终报告重建树只用于旧回放，不能证明未探索分支的发现效果。
 
 常用命令：
 
@@ -249,31 +294,73 @@ python3 -m audit_rsi harness-propose --weakness rsi/redteam-weakness.json --outp
 python3 -m audit_rsi harness-validate --candidate <candidate.json> --flips rsi/verification-flips.json --output rsi/harness-validated.json
 ```
 
-unknown 不等于 FP；无合法标注倾向、holdout、标签覆盖或支持度时只输出 insufficient/只读建议（shadow），不生产 promote。回放只报告 matched-action realized utility，不宣称因果 uplift。`verify-flips` 按 semantic 比较两个真实经验池的 F→P/P→F、稳定项、配对覆盖和 unknown 转移，用于观测非回归，不把不同 run 的结果解释成反事实或因果效果。候选门禁默认要求 `paired_coverage>=0.8`、至少一个 F→P 且零 P→F；覆盖不足为 insufficient，有修复但出现回归为 rejected，满足条件才为 accepted。`mutation=none`，accepted 仍需候选复核和既有发布门禁。版本发布复核统计 gate，失败候选仍可查询和回滚。
+未知结论不等于误报；缺少合法标注倾向、留出验证集、标签覆盖或支持度时，只输出 `insufficient` 或只读建议，不发布为生产策略。回放只报告相同动作实际获得的收益，不宣称因果提升。`verify-flips` 按同一问题编号（semantic）比较两个真实经验池的 F→P 和 P→F、稳定项、配对覆盖与未知结论转移，用于观测非回归，不把不同审计运行的结果解释成反事实或因果效果。候选进入下一阶段的默认通过条件为 `paired_coverage>=0.8`、至少一个 F→P 且零 P→F；覆盖不足时为 `insufficient`，有修复但出现回归时为 `rejected`，满足条件才为 `accepted`。`mutation=none`，`accepted` 仍需候选复核和既有发布检查。版本发布复核统计各项检查结果，失败候选仍可查询和回滚。
 
-`redteam-experience` 将 run 级结果与 step 级 attacker 工具事件分开：记录角色、动作、成本、返回码、输出哈希、失败分类和 evidence class，不复制原始攻击命令、输出正文或 flag。只有确定性 provenance 可重算的捕获才自动成为 runtime 标签；judge approved 还要求审核状态与重算结果一致。`not_captured`、篡改轨迹和未复核结果保持 unknown，不成为 FP 或可信奖励。
+`redteam-experience` 将审计运行级结果与攻击端步骤级工具事件分开：记录角色、动作、成本、返回码、输出哈希、失败分类和证据等级，不复制原始攻击命令、输出正文或随机标记。只有确定性证据来源链可重算的捕获才自动成为运行时标签；独立审核结论为 `approved` 时还要求审核状态与重算结果一致。`not_captured`、篡改轨迹和未复核结果保持未知，不成为误报或可信奖励。
 
-`redteam-weakness` 对这些轨迹做确定性 Weakness Mining：按项目类型、攻击模型、失败类别、严重度聚类，输出 occurrence 支持度、事件支持度、平均成本和候选 editable surface。`model_timeout`、`lab_unhealthy`、`not_captured`、工具失败和结构化输出失败映射到不同 harness 表面。该产物只是候选证据包，`mutation=none`，候选修改仍须独立回放与非回归门禁。
+`redteam-weakness` 按固定规则归类这些轨迹中的重复失败：以项目类型、攻击模型、失败原因、严重度和候选修改位置作为分组条件，分别输出包含该类失败的运行次数（`support`）、失败事件次数（`event_support`）、平均模型调用次数和平均耗时。模型超时（`model_timeout`）、隔离环境异常（`lab_unhealthy`）、未捕获（`not_captured`）、工具失败和结构化输出失败对应不同的执行器修改位置。该产物只供后续评估（`candidate_only`），不修改执行器（`mutation=none`）；任何候选修改仍须通过独立回放与回归检查。
 
-`harness-propose` 只允许白名单 editable surface，为每个提案生成稳定 `candidate_id`、目标失败、证据哈希、保留行为和验证要求；不会直接修改 harness。`harness-validate` 重算提案身份并调用 outcome flip gate，只有 accepted 才标记 validated，身份篡改、回归或证据不足均不能通过。候选提案和验证结果都可审计、可回放，仍需后续发布复核。
+`harness-propose` 只允许修改白名单允许的范围，为每个提案生成稳定 `candidate_id`、目标失败、证据哈希、保留行为和验证要求；不会直接修改验证程序。`harness-validate` 重算提案身份并检查前后结果变化，只有 `accepted` 才标记为 `validated`，身份篡改、回归或证据不足均不能通过。候选提案和验证结果都可审计、可回放，仍需后续发布复核。
 
-经验构建同时读取 `verdict.json`、`verify-report.json` 和 `auto-state.json`：自动路由提供 `deterministic-auto-state` 动作及倾向，verify 提供 static/runtime 结果，不能把有结果但无动作的样本静默丢弃。runtime verify 与人工 curated 可自动获得确定标签来源；static verify 只进入只读建议的学习；judge 仍需独立标签复核，不自动获得 label propensity。
+经验构建同时读取 `verdict.json`、`verify-report.json` 和 `auto-state.json`：自动路由提供 `deterministic-auto-state` 动作及倾向，候选验证提供静态或运行时结果，不能把有结果但无动作的样本静默丢弃。运行时验证与人工整理记录可自动获得确定标签来源；静态验证只进入只读建议的学习；独立审核仍需独立标签复核，不自动获得标签选择概率。
 
-`label-plan` 在普通分层抽样之外优先补齐完全缺少 trusted 的项目和动作，再考虑 top-up 覆盖；无动作记录不进入人工标注队列。每个任务保留 occurrence/semantic 身份、抽样原因、分层配额和 label propensity，并过滤敏感上下文。该计划只提高标注效率，不把 unknown 自动变成 trusted。
+`label-plan` 在普通分层抽样之外优先补齐完全缺少可信样本的项目和动作，再考虑补充覆盖；无动作记录不进入人工标注队列。每个任务保留单次观测与同一问题编号、抽样原因、分层配额和标签选择概率，并过滤敏感上下文。该计划只提高标注效率，不把未知结论自动变成可信样本。
 
-agent 可以辅助做源码级静态标注，但必须使用 `evidence_class=static` 和 `adjudication.method=agent-static`，不能冒充 human/runtime/judge。只有 static 标签时只读建议明确为 `static-only / no_trusted_utility_targets`，即使训练产生了不同建议，也不得视为已验证提升或生产候选。
+智能体可以辅助做源码级静态标注，但必须使用 `evidence_class=static` 和 `adjudication.method=agent-static`，不能冒充人工、运行时或独立审核证据。只有静态标签时只读建议明确为 `static-only / no_trusted_utility_targets`，即使训练产生了不同建议，也不得视为已验证提升或生产候选。
 
-## 10. 运行手册
+### 挖掘修复学习（已接入，候选默认不发布）
+
+`run.sh` 在第 4 阶段蓝队验证和第 5 阶段红队审核后执行第 6 阶段 `scripts/rsi/post_validation.sh`，先重建红蓝经验并形成带证据的种子，再由 `Claude Code` 启动 `mining-repair-learner`。学习节点使用 `verification-experience-analyzer`、`repair-scope-analyzer`、`mining-repair-learning`，并按候选根因调用证据优先、可达性、误报模式、项目知识和现有漏洞分析技能，将修复写到 `rsi/mining-repairs/agentic/*.md`。随后主流程自动调用 `mining-repair-drive`：把候选 `Markdown` 写入独立上下文，在 `rsi/mining-repairs/attempt-runs/` 重新执行挖掘、报告完整性检查、蓝队验证和红队审核，再用这次真实候选运行评估发布或拒绝。`--skip-mining-repair` 可跳过整个学习阶段；`--mine-only` 也会跳过。候选重跑不进入正式 `runs/`，候选红队轨迹通过 `RSI_VALIDATION_TRAJECTORY` 写入独立评估目录，不污染正式经验。批量 `parallel_mine.sh` 在项目结束后执行同一智能体学习阶段，并自动从未参与来源训练的项目中选择留出项目重跑共享候选；`--skip-mining-repair` 可关闭。无需人工执行离线命令才能完成学习。
+
+修复分两种作用域：
+
+- 共享修复写入 `.claude/skills/rsi-shared-experience/rules/`，至少需要两个具有可信证据的来源项目，并必须在与来源项目隔离的留出项目上通过真实前后运行评估。
+- 仓库专属修复写入 `knowledge/project-rules/<project>/`，只评估并加载对应项目，不能进入其他项目的提示词或智能体加载清单。
+- 可信证据只包括实际运行、独立审核和人工结论；静态证据可以生成候选，但发布检查会以 `no_trusted_source_evidence` 拒绝。
+
+`mining-repair-drive` 使用正式运行作为修复前基线，并把候选实际参与的新运行作为修复后结果。误报修复必须至少抑制一个既有误报、降低误报率、保留全部基线正确结论且没有新增误报；已确认调查模式必须带来至少一个新的正确结论，同时满足相同的非回归条件。未知结论不当作误报，候选消失只对既有误报计为抑制，对既有正确结论计为丢失。`mining-repair-cycle` 仍可比较外部提供的经验集合，但只是离线调试入口，不是主流程的替代品，也不单独证明候选规则导致了结果变化。
+
+发布时重算候选身份、内容哈希和评估身份，在 `rsi/mining-repairs/versions/` 保存本次内容、前一内容和清单元数据。已发布共享规则由 `scripts/mine/repair_context.py` 与项目规则一起注入下一次挖掘；超过提示词预算时保留索引并要求智能体按需读取。容器通过只读挂载获得 `audit_rsi`、共享技能和项目知识。回滚只允许针对当前最新活动版本，防止覆盖后续修复。
+
+```bash
+# 单项目主流程：候选生成、隔离重跑、红蓝验证、评估和仓库专属发布自动完成
+bash run.sh <source>
+
+# 批量主流程：共享候选自动选择留出项目重跑，接受项发布并供后续项目加载
+bash scripts/mine/parallel_mine.sh
+
+# 调试入口：直接驱动候选重跑，或只生成候选
+python3 -m audit_rsi mining-repair-drive \
+  --scope project --project <project> --target <source> \
+  --baseline-run <run> --image <env-image> --miner-image mygoldmine:dev \
+  --output <driver.json>
+python3 -m audit_rsi mining-repair-propose \
+  --pool rsi/verification-experience.jsonl \
+  --additional-pool rsi/verification-experience-labeled.jsonl \
+  --ledger ui/data/finding-ledger.json \
+  --output rsi/mining-repairs/candidates
+
+# 查看实际加载内容、回滚活动版本
+python3 -m audit_rsi mining-repair-context --project <project>
+python3 -m audit_rsi mining-repair-rollback --version <mrv_...>
+```
+
+## 11. 运行手册
 
 ```bash
 # 全量看板
 bash scripts/ui/start.sh
 
-# 自动分类 worker
+# 自动分类后台任务
 bash scripts/workflow/refine_worker.sh start
 bash scripts/workflow/refine_worker.sh status
 
-# 单条红队
+# 自动流转后台任务（triage -> verify -> reproduce/closed，reproduce -> red-team -> review）
+bash scripts/workflow/flow_worker.sh start
+bash scripts/workflow/flow_worker.sh status
+bash scripts/workflow/flow_worker.sh once
+
+# 单条红队验证
 python3 scripts/redteam/agent.py --finding <finding.json> --victim-image <image>
 python3 scripts/redteam/judge.py --run-dir <redteam-run>
 
@@ -282,36 +369,36 @@ python3 scripts/redteam/batch.py --dry-run
 python3 scripts/redteam/batch.py
 ```
 
-## 11. 失败模式
+## 12. 失败时如何处理
 
 | 现象 | 处理 |
 |---|---|
-| 无 lab scenario | `blocked_no_lab`，不进入验收 |
-| victim 未启动 | LabError，保留 run 目录和容器日志 |
-| 红队拿不到 flag | `not_captured`，不进入 review |
-| 红队直接读 flag | judge 拒绝 |
-| judge 证据不足 | `needs_review`，不要猜 |
+| 没有隔离环境场景 | `blocked_no_lab`，不进入验收 |
+| 目标端未启动 | `LabError`，保留运行目录和容器日志 |
+| 红队未捕获随机标记 | `not_captured`，不进入待人工验收 |
+| 红队直接读取随机标记文件 | 独立审核拒绝 |
+| 独立审核证据不足 | `needs_review`，不要猜测 |
 | 图片生成失败 | 保留 SVG，不阻塞报告 |
-| worker 并发 | lock file 防止双实例 |
+| 后台任务并发 | 文件锁防止双实例 |
 
-## 12. 开发扩展点
+## 13. 开发扩展点
 
-新增项目 lab：
+新增项目隔离环境：
 
-1. 构建可直接启动的 victim image。
+1. 构建可直接启动的目标端镜像。
 2. 确认服务在 `--internal` 网络内健康。
-3. 决定 flag 如何只通过目标漏洞暴露。
-4. 按 finding/source 绑定写 `labs/<project>/<finding-id>/scenario.json`。
-5. 用 demo finding 跑一遍 `agent.py` + `judge.py`，确认确定性 provenance 校验通过。
-6. 再把真实 finding 加入 `docs/redteam-candidates.json`。
+3. 确定随机标记如何只通过目标漏洞暴露。
+4. 按候选问题和输入来源绑定，写入 `labs/<project>/<finding-id>/scenario.json`。
+5. 用演示候选问题运行一遍 `agent.py` 和 `judge.py`，确认确定性证据来源链校验通过。
+6. 再把真实候选问题加入 `docs/redteam-candidates.json`。
 
-新增 judge 规则：
+新增独立审核规则：
 
-- 只改 `exploit-judge.md` 和 `judge.py` 的输出 schema，不改变红队工具权限。
-- judge 不能调用攻击工具，不能修改 trace/finding/result。
+- 只改 `exploit-judge.md` 和 `judge.py` 的输出结构，不改变红队工具权限。
+- 独立审核不能调用攻击工具，不能修改轨迹、候选问题或结果。
 
-## 13. 架构说明维护
+## 14. 架构说明维护
 
-根目录 `AGENTS.md` 定义了同步契约。模块、数据流、finding 身份、状态门禁、API、恢复机制、安全边界或 RSI 发布关系变化时，同一轮修改必须核对本文和 `ui/src/components/ArchitectureView.jsx`；用户入口变化还要核对 README。局部且不改变行为的修复不需要机械更新，但不能保留已知过时描述。
+根目录 `AGENTS.md` 定义了同步契约。模块、数据流、候选问题身份、状态通过条件、API、恢复机制、安全边界或 RSI 发布关系变化时，同一轮修改必须核对本文和 `ui/src/components/ArchitectureView.jsx`；用户入口变化还要核对 README。局部且不改变行为的修复不需要机械更新，但不能保留已知过时描述。
 
-架构页是面向使用者的三级实现摘要：第一级用整体漫画地图展示挖掘工厂、自动分类与验证、红队与验收、核心组件、RSI 学习流程五个区域；第二级展示该区域的中层阶段和组件，其中 RSI 区域先用“为什么能学习”与当前只读建议边界建立整体认识，再用带方向箭头和结果回写连接的六步流程展示主流程，并单独画出“红队轨迹 → 弱点聚类 → Harness 候选 → 独立评估”的第二支路；第三级才展示输入输出、设计契约、实现入口、失败语义和优化检查点。漫画由 360 平台的 `bytedance/doubao-seedream-5.0-pro` 生成，仅用于叙事，不代替准确的节点关系或安全证据。本文是面向开发人员的完整契约，两者都不能把计划、静态标签或只读建议描述成已验证、已发布的生产能力。修改模块职责或契约时，也要同步对应中层节点和实现详情，不能只改视觉或标题。
+架构页是面向使用者的三级实现摘要：第一级用整体漫画地图展示批量审计、自动分类与验证、红队与验收、核心组件、RSI 学习流程五个区域；第二级展示中层阶段和组件，其中 RSI 区域区分验证资源只读建议、红队验证程序候选和可发布的挖掘修复，展示共享与仓库专属作用域、真实前后运行评估、下一轮加载和回滚；第三级才展示输入输出、执行规则、对应脚本与输出文件、失败时如何处理和优化检查点。漫画由 360 平台的 `bytedance/doubao-seedream-5.0-pro` 生成，仅用于叙事，不代替准确的节点关系或安全证据。本文是面向开发人员的完整契约，两者都不能把计划、静态标签、只读建议或未评估候选描述成已验证、已发布的生产能力。修改模块职责或契约时，也要同步对应中层节点和实现详情，不能只改视觉或标题。

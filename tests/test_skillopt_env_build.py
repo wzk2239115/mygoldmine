@@ -229,6 +229,8 @@ def test_build_env_agent_wrapper_uses_candidate_skill(tmp_path: Path) -> None:
     fake.write_text(
         "#!/usr/bin/env bash\n"
         "printf '%s\\n' \"$@\" > \"$CAPTURE\"\n"
+        "printf 'BASE=%s\\nMODEL=%s\\n' \"$ANTHROPIC_BASE_URL\" "
+        "\"$ANTHROPIC_MODEL\" >> \"$CAPTURE\"\n"
         "mkdir -p \"$ENV_BUILD_OUT_DIR\"\n"
         "printf '{\"env_status\":\"ready\",\"build_exit_code\":0,"
         "\"image_id\":\"sha256:abc\"}\\n' "
@@ -251,6 +253,7 @@ def test_build_env_agent_wrapper_uses_candidate_skill(tmp_path: Path) -> None:
             "ENV_BUILD_REPO": str(source),
             "ENV_BUILD_COMMIT": "abc",
             "ENV_BUILD_MODE": "auto",
+            "ENV_BUILD_MODEL": "360-proxy/demo-model",
             "ENV_BUILD_OUT_DIR": str(out),
             "CAPTURE": str(capture),
         }
@@ -264,3 +267,8 @@ def test_build_env_agent_wrapper_uses_candidate_skill(tmp_path: Path) -> None:
     args = capture.read_text(encoding="utf-8")
     assert "--append-system-prompt" in args
     assert "# candidate skill" in args
+    assert "--model" in args
+    assert "demo-model" in args
+    assert "--setting-sources\nproject,local\n" in args
+    assert "BASE=https://api.360.cn" in args
+    assert "MODEL=demo-model" in args

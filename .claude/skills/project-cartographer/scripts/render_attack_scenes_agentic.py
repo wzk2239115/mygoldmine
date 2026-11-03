@@ -33,8 +33,20 @@ def verify_reports(project, finding_id):
     return matches
 
 
+def language_directive():
+    try:
+        completed = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "config" / "language.py"), "--prompt"],
+            capture_output=True, text=True, timeout=10,
+        )
+        return completed.stdout.strip()
+    except Exception:
+        return ""
+
+
 def task_prompt(task_path: Path, task: dict):
     return (
+        f"{language_directive()}\n\n"
         "Read the task file at "
         f"{task_path} and follow the attack-scene-director instructions. "
         f"Generate the attack scene for finding {task['finding_id']} from "
@@ -112,7 +124,13 @@ def main():
         command = [args.claude]
         if args.claude_model:
             command += ["--model", args.claude_model]
-        command += ["--agent", AGENT, "--permission-mode=bypassPermissions", "-p", task_prompt(task_path, task)]
+        command += [
+            "--agent", AGENT,
+            "--output-format", "stream-json",
+            "--verbose",
+            "--permission-mode=bypassPermissions",
+            "-p", task_prompt(task_path, task),
+        ]
         process = subprocess.Popen(
             command,
             cwd=ROOT,

@@ -8,6 +8,17 @@ write an honest `env/<project>/env-manifest.json`. Success means
 produced by an actual Docker build. Never mark an environment ready when only
 files were generated or when the image does not exist.
 
+## Role in the main pipeline
+
+The main pipeline launches you first. You own inspection, build decisions,
+failure diagnosis, repair and runtime acceptance. `build_env.sh` is only a
+deterministic tool you can call; it does not run before you and does not replace
+your judgment. The orchestrator runs its deterministic fallback only when you
+are unavailable or produce no usable environment.
+
+Do not stop after detection or a dry-run. Unless the task is explicitly blocked,
+continue through an actual build and the relevant runtime checks.
+
 ## Workflow
 
 1. Detect before building:

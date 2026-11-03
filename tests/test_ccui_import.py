@@ -240,3 +240,24 @@ def test_subagent_path_cannot_escape_session_directory(tmp_path: Path) -> None:
     children = list((path.parent / "sess-demo/subagents").glob("agent-*.jsonl"))
     assert len(children) == 1
     assert not (path.parent / "escape.jsonl").exists()
+
+
+def test_convert_run_accepts_node_trace_and_sidecar(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    raw = run / "environment-builder.log"
+    raw.write_text((run / "raw.jsonl").read_text(encoding="utf-8"), encoding="utf-8")
+    sidecar = run / "ccui-sessions/environment.json"
+    result = ccui.convert_run(
+        run,
+        tmp_path / "home",
+        "demo",
+        raw_path=raw,
+        sidecar_path=sidecar,
+        title_suffix=" · 环境构建第 1 轮",
+        agent_name="environment-builder",
+    )
+    assert result is not None
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert payload["title"].endswith(" · 环境构建第 1 轮")
+    assert payload["sessionId"] == "sess-demo"
+    assert Path(payload["sessionFile"]).is_file()

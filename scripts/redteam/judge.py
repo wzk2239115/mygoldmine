@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -65,7 +66,13 @@ def main():
     command = [args.claude]
     if args.claude_model:
         command += ["--model", args.claude_model]
-    command += ["--agent", "exploit-judge", "--permission-mode=default", "-p", prompt]
+    command += [
+        "--agent", "exploit-judge",
+        "--output-format", "stream-json",
+        "--verbose",
+        "--permission-mode=default",
+        "-p", prompt,
+    ]
     try:
         completed = subprocess.run(
             command, cwd=ROOT, capture_output=True, text=True, timeout=args.timeout
@@ -99,7 +106,10 @@ def main():
     result["status"] = "judge_" + verdict["verdict"]
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     if verdict["verdict"] == "approved":
-        trajectory = ROOT / "rsi" / "trajectories" / "validation.jsonl"
+        trajectory = Path(os.environ.get(
+            "RSI_VALIDATION_TRAJECTORY",
+            str(ROOT / "rsi" / "trajectories" / "validation.jsonl"),
+        ))
         trajectory.parent.mkdir(parents=True, exist_ok=True)
         finding_data = json.loads(finding.read_text(encoding="utf-8")) if finding.exists() else {}
         with trajectory.open("a", encoding="utf-8") as fh:

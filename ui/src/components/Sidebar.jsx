@@ -2,12 +2,13 @@ import { Check, Filter, RotateCcw, Target } from 'lucide-react';
 import { SEVERITIES, VERDICTS } from '../constants.js';
 import { cx } from '../utils.js';
 import ProjectMark from './ProjectMark.jsx';
+import ProjectImport from './ProjectImport.jsx';
 
 function CountPill({ value }) {
   return <span className="filter-count">{value}</span>;
 }
 
-export default function Sidebar({ board, filters, setFilters, facets }) {
+export default function Sidebar({ board, filters, setFilters, facets, onImported }) {
   const projects = board?.projects || [];
   const stats = board?.stats;
   const active = Boolean(
@@ -46,9 +47,10 @@ export default function Sidebar({ board, filters, setFilters, facets }) {
     <aside className="sidebar" id="finding-filters" aria-label="筛选与目标">
       <div className="sidebar-head">
         <div>
-          <h2>漏洞矿场</h2>
+          <h2>漏洞审计</h2>
         </div>
         <div className="sidebar-head-actions">
+          <ProjectImport onImported={onImported} />
           {active ? (
             <button
               type="button"
@@ -86,10 +88,10 @@ export default function Sidebar({ board, filters, setFilters, facets }) {
           aria-pressed={filters.project === 'all'}
           onClick={() => setFilters((current) => ({ ...current, project: 'all' }))}
         >
-          <span className="project-mark is-all">ALL</span>
+          <span className="project-mark is-all">全部</span>
           <span className="project-copy">
             <strong>全部目标</strong>
-            <span>{stats?.total ?? 0} findings</span>
+            <span>{stats?.total ?? 0} 条候选问题</span>
           </span>
           <span className="project-total">{stats?.total ?? 0}</span>
         </button>
@@ -106,9 +108,13 @@ export default function Sidebar({ board, filters, setFilters, facets }) {
               <strong>{project.name}</strong>
               <span>
                 <i className={cx('run-dot', `state-${project.state}`)} />
-                {project.isLive ? <em className="live-project-badge">LIVE</em> : null}
-                {project.isLive && !project.hasReport ? 'mining…' : `${project.findingsCount} findings`}
+                {project.isLive ? <em className="live-project-badge">实时</em> : null}
+                {project.isLive && !project.hasReport ? '审计中…' : `${project.findingsCount} 条候选问题`}
               </span>
+              <small className="project-branch" title={project.commit || ''}>
+                {project.branch || '分支未知'}
+                {project.commit ? ` · ${String(project.commit).slice(0, 8)}` : ''}
+              </small>
             </span>
             <span className="project-total">{project.curatedCount || 0}</span>
           </button>
@@ -189,7 +195,7 @@ export default function Sidebar({ board, filters, setFilters, facets }) {
           </span>
           <span>
             <strong>只看待验收</strong>
-            <small>红队验证 + judge + 图文的精品 case</small>
+            <small>通过红队验证和独立审核，且图文报告齐全的候选</small>
           </span>
         </button>
         <button

@@ -147,7 +147,13 @@ def run(args):
     command = [args.claude]
     if args.claude_model:
         command += ["--model", args.claude_model]
-    command += ["--agent", "redteam-lab-builder", "--permission-mode=bypassPermissions", "-p", prompt]
+    command += [
+        "--agent", "redteam-lab-builder",
+        "--output-format", "stream-json",
+        "--verbose",
+        "--permission-mode=bypassPermissions",
+        "-p", prompt,
+    ]
     started = time.monotonic()
     timed_out = False
     returncode = 0

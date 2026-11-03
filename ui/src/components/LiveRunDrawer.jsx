@@ -15,6 +15,7 @@ import { cx, formatDateTime, formatDuration, relativeTime } from '../utils.js';
 import TrajectoryPanel from './TrajectoryPanel.jsx';
 import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
 import AgentTopology from './AgentTopology.jsx';
+import AgenticPipeline from './AgenticPipeline.jsx';
 import DrawerResizer, { useDrawerWidth } from './DrawerResizer.jsx';
 
 export default function LiveRunDrawer({ run, onClose, onToast }) {
@@ -116,16 +117,20 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
               </button>
             </div>
           </div>
-          <h2>{run.finished ? '运行轨迹' : '实时挖掘日志'}</h2>
+          <h2>{run.finished ? '运行轨迹' : '实时审计日志'}</h2>
           <div className="live-drawer-meta">
             <span>
               <Clock3 size={12} aria-hidden="true" />
               {formatDuration(elapsed)}
               {timeout ? ` / ${formatDuration(timeout)}` : ''}
             </span>
-            <span>{run.model || 'unknown model'}</span>
-            <span>{run.container || (run.recovery ? '独立任务恢复' : 'container pending')}</span>
-            {run.hasReport ? <span className="report-ready">{run.finished ? 'REPORT WRITTEN' : 'DRAFT'}</span> : null}
+            <span>{run.model || '模型未知'}</span>
+            <span>{run.container || (run.recovery ? '独立任务恢复' : '容器等待中')}</span>
+            {run.visualStatus ? <span>图文 {run.visualStatus}</span> : null}
+            {run.verifyAgentStatus ? <span>验证 {run.verifyAgentStatus}</span> : null}
+            {run.redteamStatus ? <span>红队 {run.redteamStatus}</span> : null}
+            {run.reviewReady ? <span className="report-ready">待验收 {run.reviewReady}</span> : null}
+            {run.hasReport ? <span className="report-ready">{run.finished ? '报告已写入' : '草稿'}</span> : null}
           </div>
           {progress !== null ? (
             <div className="live-progress is-large" aria-label={`已运行 ${progress}%`}>
@@ -139,8 +144,8 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
             {run.finished
               ? '运行已结束。关闭后刷新看板；如果报告尚未出现，请查看下方日志尾部。'
               : run.hasReport
-                ? '已有增量报告草稿，挖掘仍在运行；最终格式检查与漏洞复现尚未完成。'
-                : '报告尚未生成时，看板先展示这条实时日志。完成后会自动刷新看板并载入 findings。'}
+                ? '已有增量报告草稿，审计仍在运行；最终格式检查与漏洞复现尚未完成。'
+                : '报告尚未生成时，看板先展示这条实时日志。完成后会自动刷新看板并载入候选问题。'}
           </div>
 
           {run.recovery ? (
@@ -153,6 +158,15 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
             </div>
           ) : null}
           <div className="traj-switch" role="tablist" aria-label="运行视图">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'pipeline'}
+              className={cx(view === 'pipeline' && 'is-active')}
+              onClick={() => setView('pipeline')}
+            >
+              正式执行链
+            </button>
             <button
               type="button"
               role="tab"
@@ -169,7 +183,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
               className={cx(view === 'agents' && 'is-active')}
               onClick={() => setView('agents')}
             >
-              Agent 拓扑
+              智能体拓扑
             </button>
             <button
               type="button"
@@ -191,7 +205,15 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
             </button>
           </div>
 
-          {view === 'claude' ? (
+          {view === 'pipeline' ? (
+            <AgenticPipeline
+              project={run.project}
+              runId={run.runId}
+              projectName={run.projectName}
+              live={!run.finished}
+              compact
+            />
+          ) : view === 'claude' ? (
             <ClaudeSessionEmbed project={run.project} runId={run.runId} live={!run.finished} tall chrome={false} />
           ) : view === 'agents' ? (
             <AgentTopology
@@ -215,11 +237,11 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
                 onChange={(event) => setAutoRefresh(event.target.checked)}
                 disabled={run.finished}
               />
-              自动刷新 2s
+              每 2 秒自动刷新
             </label>
-            <button type="button" className="button is-small" onClick={() => copy(`tail -f ${run.logPath}`, '已复制 tail 命令')}>
+            <button type="button" className="button is-small" onClick={() => copy(`tail -f ${run.logPath}`, '已复制日志跟踪命令')}>
               <Terminal size={13} aria-hidden="true" />
-              复制 tail
+              复制日志跟踪命令
             </button>
             <a className="button is-small" href={`/api/runs/${run.project}/${run.runId}/log.txt`} target="_blank" rel="noreferrer">
               <ExternalLink size={13} aria-hidden="true" />
@@ -235,7 +257,7 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
 
           <div className="log-meta">
             <span>{log?.path || run.logPath || 'claude.rendered.log'}</span>
-            <span>{log ? `${log.totalLines} lines · ${formatDateTime(log.mtime)}` : ''}</span>
+            <span>{log ? `${log.totalLines} 行 · ${formatDateTime(log.mtime)}` : ''}</span>
           </div>
 
           {error ? <div className="inline-error">{error}</div> : null}
@@ -246,14 +268,14 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
               const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
               setFollow(atBottom);
             }}>
-              {loading && !log ? 'Connecting to live stream…\n' : null}
+              {loading && !log ? '正在连接实时日志…\n' : null}
               {log?.lines?.map((line, index) => (
                 <span className="log-line" key={`${startLine + index}-${line.slice(0, 24)}`}>
                   <span className="log-number">{startLine + index}</span>
                   <span className="log-text">{line || ' '}</span>
                 </span>
               ))}
-              {!loading && !log?.lines?.length ? <span className="log-empty">No log lines yet.</span> : null}
+              {!loading && !log?.lines?.length ? <span className="log-empty">尚无日志。</span> : null}
             </pre>
             {!follow ? (
               <button
@@ -281,14 +303,14 @@ export default function LiveRunDrawer({ run, onClose, onToast }) {
             {run.finished ? '运行已结束' : '实时输出 · 2 秒刷新'}
           </span>
           <div className="footer-actions">
-            <button type="button" className="button is-small" onClick={() => copy(run.runDir, '已复制 run 目录')}>
+            <button type="button" className="button is-small" onClick={() => copy(run.runDir, '已复制审计运行目录')}>
               <Copy size={13} aria-hidden="true" />
-              Copy run
+              复制运行目录
             </button>
             {run.hasReport ? (
               <button type="button" className="button is-small" onClick={() => copy(`bash run.sh --verify-only ${run.runDir}`, '已复制验证命令')}>
                 <Terminal size={13} aria-hidden="true" />
-                Copy verify
+                复制验证命令
               </button>
             ) : null}
           </div>

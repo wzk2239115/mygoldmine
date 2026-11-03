@@ -18,17 +18,34 @@ async function request(url, options = {}) {
 
 export const api = {
   board: () => request('/api/board'),
+  serverDirectories: (directory = '') => request(`/api/targets/browse${directory ? `?path=${encodeURIComponent(directory)}` : ''}`),
+  githubBranches: (source, { offset = 0, limit = 10 } = {}) => request('/api/targets/github-branches', {
+    method: 'POST',
+    body: JSON.stringify({ source, offset, limit })
+  }),
+  importProject: (payload) => request('/api/targets/import', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  }),
   watch: () => request('/api/watch'),
   live: () => request('/api/live'),
   agents: (project, runId) =>
     request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/agents`),
+  pipeline: (project, runId) =>
+    request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/pipeline`),
   visual: (project, runId) => request(`/api/visual/${encodeURIComponent(project)}/${encodeURIComponent(runId)}`),
   runs: () => request('/api/runs'),
   ccuiStatus: () => request('/api/ccui'),
-  runCcui: (project, runId, { force = false } = {}) =>
-    request(
-      `/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/ccui${force ? '?force=1' : ''}`
-    ),
+  runCcui: (project, runId, { force = false, node = 'orchestrator', trace = '' } = {}) => {
+    const search = new URLSearchParams();
+    if (force) search.set('force', '1');
+    if (node !== 'orchestrator') search.set('node', node);
+    if (trace) search.set('trace', trace);
+    const suffix = search.toString();
+    return request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/ccui${suffix ? `?${suffix}` : ''}`);
+  },
+  traceText: (project, runId, node, trace = '') =>
+    request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/trace?node=${encodeURIComponent(node)}&id=${encodeURIComponent(trace)}`),
   log: (project, runId, lines = 400) =>
     request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/log?lines=${lines}`),
   trajectory: (project, runId, params = {}) => {

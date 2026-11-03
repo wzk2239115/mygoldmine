@@ -1,16 +1,25 @@
 # VUL/AI Findings Board
 
-漏洞挖掘 Kanban UI，读取 `runs/<project>/<timestamp>/audit-report.json`，把二次审计结论、CVE 候选和运行日志放在同一个工作台里。
+漏洞审计看板读取 `runs/<project>/<timestamp>/audit-report.json`，把二次审计结论、CVE 候选和运行日志放在同一个工作台里。
 
 ## 启动
 
 ```bash
-# 生产模式：构建前端 + 启动本地 API/静态服务
+# 生产模式：构建前端并启动本地接口和静态文件服务
 bash scripts/ui/start.sh
 # 打开 http://127.0.0.1:8787
 ```
 
-首次运行会自动 `npm install` 和 `npm run build`。也可以手动：
+## 导入项目并启动审计
+
+左侧“漏洞审计”标题旁的加号用于导入新目标：
+
+- **GitHub 仓库**：输入 `https://github.com/所有者/仓库` 后自动读取分支下拉列表，首次显示 10 条，点击“加载更多”追加第 11–20 条，依次类推；分别标记默认分支和“本页最新”分支，也可手动刷新。服务只读取当前页分支的提交对象，不下载目录树和源码，分支列表与页面结果短时缓存；导入时以浅克隆方式保存到 `targets/<项目标识>`，只支持公开仓库，不收集访问令牌。已有目录不会被强制更新或切换分支。
+- **本地目录**：点击“选择目录”浏览服务器上的可见子目录，可进入子目录、返回上一级、回到主目录并选择当前目录；也可以直接输入绝对路径。导入后直接审计该目录的当前内容，不复制源码或切换分支。
+
+项目标识用于隔离运行报告和仓库专属经验，默认取目录或仓库名称。导入成功后，接口登记 `ui/data/projects.json` 和 `targets/manifest.json`，再调用现有 `run.sh` 启动完整流程，包括环境构建、挖掘、蓝队验证、红队验证和挖掘修复学习；不会使用仅静态挖掘的快捷流程。已有实时审计的项目不能重复启动。
+
+首次运行会自动执行 `npm install` 和 `npm run build`。也可以手动执行：
 
 ```bash
 cd ui
@@ -19,7 +28,7 @@ npm run build
 npm start
 ```
 
-开发模式（Vite HMR + API server）：
+开发模式使用 Vite 热更新和接口服务：
 
 ```bash
 cd ui
@@ -35,7 +44,7 @@ npm run dev
 PORT=8787 HOST=127.0.0.1 bash scripts/ui/start.sh
 ```
 
-`HOST=0.0.0.0` 会把 API 暴露到网络；默认只监听回环，因为报告里可能包含未修复漏洞细节。
+`HOST=0.0.0.0` 会把接口暴露到网络；默认只监听回环地址，因为报告里可能包含未修复漏洞细节。
 
 ## 验证
 
@@ -45,67 +54,77 @@ cd ui
 npm run smoke
 ```
 
-`smoke` 会检查 `/api/board` 结构、统计一致性、至少 25 条人工复核、至少 8 个 CVE 候选，以及 `/api/live` 和日志/轨迹接口。
+`smoke` 命令会检查 `/api/board` 结构、统计一致性、至少 25 条人工复核、至少 8 个 CVE 候选，以及 `/api/live` 和日志与轨迹接口。
 
 ## 数据来源
 
-- `ui/data/finding-ledger.json` 扫描所有完整有效 run，以 occurrence/semantic 双层身份保留历史独有 finding；运行中、失败或不完整草稿不会替代最新完整报告。没有台账时 UI 回退到旧最新报告路径。
-- 默认排除 `smoke`、`smoke-real`、`smoke-target`；报告里的 `findings` 或 `vulnerabilities` 统一归一化。
-- `run.sh` 的 `.meta/status.json` 优先；没有 status 的运行按日志更新时间识别 LIVE。
-- `ui/data/curated.json` 保存人工复核种子；旧 `project:finding-id` 只有语义唯一时才继承，歧义状态不会套到不同 finding。
-- `ui/data/auto-state.json` 合并台账、verify 和 CVE 产物，生成自动路由及 review 资格；红队 review 会重算确定性 flag provenance。
-- `ui/data/state.json` 保存手工改动，优先使用 occurrence_id，旧 API 仍可回退到 project:id。
-- `scripts/workflow/refine_worker.py` 按 source hash 重算未处理候选，新证据可触发已归档项重新评估；轨迹写入 `rsi/trajectories/refine.jsonl`。
-- 优先级：`state.json` > `curated.json` > `refine-state.json` > `auto-state.json` > 默认 inbox。手工变更不修改原始报告。
+- `ui/data/finding-ledger.json` 扫描所有完整有效的审计报告，为每次发现的候选问题保留单独编号，并归并多轮审计中的同一问题；历史报告中独有的问题也会保留，运行中、失败或不完整草稿不会替代最新完整报告。没有发现记录表时，界面改用旧版最新报告路径。
+- 默认排除 `smoke`、`smoke-real`、`smoke-target`；报告里的 `findings` 或 `vulnerabilities` 字段统一转换为候选问题列表。
+- 优先读取 `run.sh` 生成的 `.meta/status.json`；没有状态文件的运行按日志更新时间识别为实时运行。
+- `ui/data/curated.json` 保存人工复核种子；旧 `project:finding-id` 只有语义唯一时才继承，歧义状态不会套到不同候选问题。
+- `ui/data/auto-state.json` 合并发现记录表、验证结果和 CVE 产物，生成自动路由及待人工验收条件；红队验收会重算确定性的随机标记证据来源链。
+- `ui/data/state.json` 保存手工改动，优先使用单次观测编号（`occurrence_id`），旧接口仍可使用 `project:id`。
+- `scripts/workflow/refine_worker.py` 按来源内容哈希重算未处理候选，新证据可触发已归档项重新评估；轨迹写入 `rsi/trajectories/refine.jsonl`。
+- `scripts/workflow/flow_worker.py` 处理分诊和待验证候选：调用第四阶段验证智能体、补图文报告、触发第五阶段红队验证；状态写入 `flow-state.json`，队列和心跳写入 `flow-queue.json`，轨迹写入 `rsi/trajectories/flow.jsonl`。
+- 优先级：`state.json` > `curated.json` > `flow-state.json` > `refine-state.json` > `auto-state.json` > 默认未处理候选。手工变更不修改原始报告。
+- `scripts/ui/start.sh` 默认启动自动分类后台任务；`REFINE_WORKER=0` 可关闭。自动流转默认不随看板启动，设置 `FLOW_WORKER=1` 或运行 `flow_worker.sh start` 开启；缺少环境时设置 `FLOW_BUILD_ENV=1` 先构建环境。自动流转只处理已分类候选，不会创建 CVE 编号或跳过验证和独立审核的通过条件。
 
 ## 列与判定
 
 | 列 | 含义 |
 |---|---|
 | 未处理候选 | 未进入流程 |
-| 分诊 | Critical / High 自动入队；人工判断可达性、重复、设计意图 |
-| 待验证 | CVE Tier 候选或 confirmed verify；等待验证（尚未复现），补版本映射、环境验证或最小 PoC |
-| CVE 跟踪 | 先查 NVD/GHSA/项目公告去重，再披露/CNA |
+| 分诊 | 严重和高危候选自动入队；自动流转后台任务调用验证智能体，人工仍可优先处理 |
+| 待验证 | CVE 等级候选或已有确认的验证结论；自动流转后台任务补图文报告并触发红队，尚未证明可利用 |
+| CVE 跟踪 | 先查 NVD、GHSA 和项目公告去重，再披露或联系 CNA |
 | 已关闭 | 误报、重复、已知 CVE、设计限制 |
 
-自动分诊只代表“值得先看”，不等于漏洞成立；`auto` 徽标表示该状态来自产物而不是人工。`未处理候选`（`inbox`）是自动评分后未达到进入下一阶段条件的候选问题，默认隐藏，不是待办。
+自动分诊只代表“值得先看”，不等于漏洞成立；`AUTO` 和 `FLOW` 徽标表示该状态来自自动分类或自动流转产物，而不是人工。未处理候选（`inbox`）是自动评分后未达到进入下一阶段条件的候选问题，默认隐藏，不是待办。
 
-`verdict`：`TP` 代码级成立、`FP` 误报、`DUP` 重复、`UNCLEAR` 待定。
+候选判定（`verdict`）：`TP` 表示代码级成立，`FP` 表示误报，`DUP` 表示重复，`UNCLEAR` 表示待定。
 
 ## 视图
 
-- **Board**：六阶段流程视图；卡片显示严重度、判定、CVE Tier、证据数，点击或键盘打开详情后修改状态。
-- **Live mining**：运行中的 run 在看板顶部显示 LIVE 条（状态、耗时、最后一行日志）；点开进入实时日志抽屉，运行状态每 4 秒轮询，报告生成后看板自动重载。
-- **Persistent sandbox**：每个 run 可用 `scripts/env/sandbox.sh` 复用同一工作副本继续 shell 探索和离线 verify；架构页“隔离工作副本”详情提供对应命令。
-- **Table**：按严重度/目标排序，适合批量分诊。
-- **系统架构**：左侧轨道书图标进入三级架构浏览器。第一级以漫画系统地图展示 5 个区域；点击区域进入中层阶段/组件图，再点击节点查看输入输出、设计契约、实现入口、失败语义和优化检查点。“RSI 学习流程”用带方向与结果回写箭头的六步流程解释真实轨迹、标签与证据等级、效用学习、holdout+flips、只读建议（shadow）和结果回写，并展示红队“失败分组 → Harness 候选”第二支路；页面明确 `trusted_support=0` 时继续仅静态证据的只读建议、replay 非因果、harness 不自动修改，结果回写尚未接入，当前不是生产 RSI。漫画由 360 平台的 Seedream 生成，只承担叙事，准确结构以可点击节点为准。同步维护要求见根目录 `AGENTS.md`。
-- **Detail drawer**：Brief / Evidence / Agent stream。
-  - Brief：改状态、判定、CVE Tier、CVE 状态、关联 CVE、审计备注。
-  - Evidence：复制证据路径、打开 `audit-report.md` / `.json`、查看原始 finding JSON。
-  - Agent stream：读取 `claude.rendered.log` 尾部，可自动刷新、复制 `run.sh --verify-only` 命令。
-- **Filter**：目标、严重度、判定、CVE-only、待验收、搜索；默认隐藏未处理候选，只显示已自动分类流程。
-- **待验收**：只显示通过红队 flag 验证、judge 审核和图文报告门槛的 case；人工在这里做最终验收。
-- 深色/浅色主题；状态与筛选保存在浏览器 localStorage。
+- **看板**：顶部“正式执行链”固定展示环境构建、安全审计编排、攻击场景设计、蓝队验证、红队场景构建、红队执行、独立审核和经验学习八个节点，分别读取最新一次运行的真实产物；项目筛选可切换目标。点击节点可打开对应的只读轨迹，多次调用可按轮次、候选或红队运行选择；Claude 原生流式日志复用第三方 Claude Code 会话界面，旧文本日志与红队独立模型循环保留各自轨迹形式。下方六阶段流程继续统计候选处理状态，卡片显示严重度、判定、CVE 等级和证据数，点击卡片或按键盘打开详情后可修改状态。
+- **实时审计**：运行中的审计任务在看板顶部显示实时状态条，包括状态、耗时和最后一行日志；点开进入实时日志抽屉，可查看同一八节点执行链、节点级会话、对话、内部智能体拓扑、结构化轨迹和原始日志。运行状态每 4 秒轮询，执行链在实时运行时按 5 秒轮询，报告生成后看板自动重新加载。
+- **持久沙箱**：每次审计运行都可用 `scripts/env/sandbox.sh` 复用同一工作副本，继续交互式探索和离线验证；架构页“隔离工作副本”详情提供对应命令。
+- **表格**：按严重度或目标排序，适合批量分诊。
+- **系统架构**：左侧轨道书图标先展示最新项目的八节点执行链，再进入三级架构浏览器。第一级以漫画系统地图展示 5 个区域；点击区域进入中层阶段和组件图，再点击节点查看输入输出、执行规则、对应脚本与输出文件、失败时如何处理和优化检查点。“RSI 学习流程”区分验证资源只读建议、红队验证程序候选和挖掘修复：挖掘修复按共享或仓库专属作用域生成，经真实前后运行评估后发布，由下一轮挖掘加载并可回滚。页面明确可信样本支持数为 0（`trusted_support=0`）时验证动作继续仅静态证据的只读建议，回放不证明因果，验证程序不会自动修改，未评估挖掘候选不会发布。漫画由 360 平台的 Seedream 生成，只承担叙事，准确结构以可点击节点为准。同步维护要求见根目录 `AGENTS.md`。
+- **详情抽屉**：摘要、证据和智能体流。
+  - 摘要：修改状态、判定、CVE 等级、CVE 状态、关联 CVE 和审计备注。
+  - 证据：复制证据路径、打开 `audit-report.md` 或 `audit-report.json`、查看原始候选问题 JSON。
+  - 智能体流：读取 `claude.rendered.log` 尾部，可自动刷新、复制 `run.sh --verify-only` 命令。
+- **筛选**：目标、严重度、判定、仅 CVE、待验收和搜索；默认隐藏未处理候选，只显示已进入自动分类流程的候选。
+- **待验收**：只显示通过红队随机标记验证、独立审核且图文报告齐全的候选；人工在这里做最终验收。
+- **流程说明**：悬停或聚焦“未处理候选/分诊/待验证/CVE 跟踪/待验收/已关闭”会显示该环节的定义、当前下一步和是否由自动流转推进；底部显示自动流转后台任务心跳和待处理数。
+- 深色和浅色主题；状态与筛选保存在浏览器本地存储中。
 
-## API
+## 接口
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/board` | 聚合后的项目、findings、统计、liveRuns |
-| GET | `/api/live` | 轻量轮询：运行中的 run + 目标状态 |
-| GET | `/api/runs` | 所有可读运行摘要 |
+| GET | `/api/board` | 聚合后的项目、候选问题（`findings`）、统计和实时运行列表（`liveRuns`） |
+| GET | `/api/targets/browse?path=/路径` | 为目录选择器列出服务器上的可见子目录 |
+| POST | `/api/targets/github-branches` | 按 `offset`、`limit` 分页读取公开 GitHub 分支、默认分支和各分支最新提交时间，默认每页 10 条 |
+| POST | `/api/targets/import` | 导入本地目录或公开 GitHub 仓库，登记目标并启动完整审计 |
+| GET | `/api/live` | 轻量轮询运行中的审计任务和目标状态 |
+| GET | `/api/runs` | 所有可读审计运行摘要 |
+| GET | `/api/runs/:project/:runId/pipeline` | 八个智能体节点的真实状态、证据摘要、完成统计和节点轨迹索引 |
+| GET | `/api/runs/:project/:runId/ccui?node=节点&trace=调用` | 把选定 Claude 原生轨迹导入第三方只读会话界面 |
+| GET | `/api/runs/:project/:runId/trace?node=节点&id=调用` | 读取旧文本日志或红队独立模型循环的文本轨迹 |
+| GET | `/api/watch` | 仓库监控事件、分支/提交、自动派发状态 |
 | GET | `/api/runs/:project/:runId/log?lines=400` | 渲染日志尾部 |
-| GET | `/api/runs/:project/:runId/log.txt` | 完整日志纯文本（去掉 ANSI） |
+| GET | `/api/runs/:project/:runId/log.txt` | 完整日志纯文本（去掉 ANSI 控制字符） |
 | GET | `/api/runs/:project/:runId/report.md` | 原始 Markdown 报告 |
 | GET | `/api/runs/:project/:runId/report.json` | 原始 JSON 报告 |
-| GET | `/api/findings/:project/:id/raw` | 单条原始 finding |
-| PATCH | `/api/findings/:project/:id` | 更新状态/判定/备注/CVE 字段 |
+| GET | `/api/findings/:project/:id/raw` | 单条原始候选问题 |
+| PATCH | `/api/findings/:project/:id` | 更新状态、判定、备注和 CVE 字段 |
 
 ## 设计说明
 
-- 交互参考 `siteboon/claudecodeui` 的 workspace shell、侧栏、详情面板和 agent session 组织方式；**没有 vendoring 它的代码**（其许可证为 AGPL-3.0-or-later）。
-- 视觉采用中性浅色工作区：白色内容面、浅灰侧栏、细边框和柔和圆角；颜色主要用于严重度、判定、错误和运行状态，深色主题使用中性炭灰。左侧品牌图标为混元 3D 生成的黄金铲子；首页自动分类管线保留 3D 工厂主视觉，进入具体流程后切换为轻量计数面板。
-- 报告是静态分析结果，UI 会明确标注“未运行时验证”。CVE 结论以人工复核和 `docs/cve-handoff.json` 为准。
+- 交互参考 `siteboon/claudecodeui` 的工作区外层布局、侧栏、详情面板和智能体会话组织方式；没有复制其代码，其许可证为 AGPL-3.0-or-later。
+- 视觉采用中性浅色工作区：白色内容面、浅灰侧栏、细边框和柔和圆角；颜色主要用于严重度、判定、错误和运行状态，深色主题使用中性炭灰。左侧品牌图标为混元三维生成的黄金铲子；首页自动分类流程保留三维工厂主视觉，进入具体流程后切换为轻量计数面板。
+- 报告是静态分析结果，界面会明确标注“未运行时验证”。CVE 结论以人工复核和 `docs/cve-handoff.json` 为准。
 
 ## 重置
 
@@ -114,7 +133,7 @@ printf '{}\n' > ui/data/state.json
 python3 scripts/workflow/build_state.py
 ```
 
-只重置某条：
+只重置某条记录：
 
 ```bash
 jq 'del(."vllm:F-02")' ui/data/state.json > /tmp/state.json && mv /tmp/state.json ui/data/state.json

@@ -120,8 +120,18 @@ def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
     temp.replace(path)
 
 
-def convert_run(run_dir: Path, home: Path, project: str) -> tuple[str, Path] | None:
-    raw_path = run_dir / "raw.jsonl"
+def convert_run(
+    run_dir: Path,
+    home: Path,
+    project: str,
+    *,
+    raw_path: Path | None = None,
+    sidecar_path: Path | None = None,
+    title_suffix: str = "",
+    agent_name: str = "",
+) -> tuple[str, Path] | None:
+    raw_path = raw_path or run_dir / "raw.jsonl"
+    sidecar_path = sidecar_path or run_dir / "ccui-session.json"
     meta = {
         **_load_json(run_dir.with_name(run_dir.name + ".meta") / "status.json", {}),
         **_load_json(run_dir / "run-meta.json", {}),
@@ -150,11 +160,13 @@ def convert_run(run_dir: Path, home: Path, project: str) -> tuple[str, Path] | N
             started = datetime.strptime(run_dir.name, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
         except ValueError:
             # Persisted for unstructured run names so periodic import remains stable.
-            previous = _load_json(run_dir / "ccui-session.json", {})
+            previous = _load_json(sidecar_path, {})
             started = datetime.fromisoformat(
                 previous.get("startedAt") or datetime.now(timezone.utc).isoformat()
             )
-    title = f"mygoldmine · {project} · {run_dir.name}"
+    title = f"mygoldmine · {project} · {run_dir.name}{title_suffix}"
+    if agent_name:
+        meta["agent"] = agent_name
     commit = str(meta.get("commit") or "")
     model = str(meta.get("model") or "")
 
@@ -315,6 +327,7 @@ def convert_run(run_dir: Path, home: Path, project: str) -> tuple[str, Path] | N
         "sessionId": session_id,
         "project": project,
         "runId": run_dir.name,
+        "title": title,
         "cwd": cwd,
         "sessionFile": str(out_path),
         "messages": sum(1 for row in rows if row.get("type") in {"user", "assistant"}),
@@ -324,7 +337,8 @@ def convert_run(run_dir: Path, home: Path, project: str) -> tuple[str, Path] | N
         "subagents": len(children),
         "subagentMessages": sum(len(items) for items in children.values()),
     }
-    (run_dir / "ccui-session.json").write_text(
+    sidecar_path.parent.mkdir(parents=True, exist_ok=True)
+    sidecar_path.write_text(
         json.dumps(sidecar, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )

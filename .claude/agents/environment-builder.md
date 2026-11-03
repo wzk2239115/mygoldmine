@@ -1,9 +1,9 @@
 ---
 name: environment-builder
 description: |
-  Phase 0 环境构建智能体。输入源码目录，生成可复现的 Docker 环境镜像（自带 Claude Code
-  + 已部署项目），输出 env/<project>/Dockerfile、build/run/test 脚本和 env-manifest.json。
-  构建失败时如实标记 partial/blocked，不假装 ready。用于给后续 verify-agent 提供可运行环境。
+  第 0 阶段环境构建智能体。输入源码目录，生成可复现的 Docker 环境镜像（自带 Claude Code
+  和已部署项目），输出 env/<project>/Dockerfile、build/run/test 脚本和 env-manifest.json。
+  构建失败时如实标记 `partial` 或 `blocked`，不得写成 `ready`。用于给后续 verify-agent 提供可运行环境。
 model: inherit
 tools: Read, Write, Edit, Bash
 ---
@@ -15,8 +15,25 @@ tools: Read, Write, Edit, Bash
 
 ## 运行位置
 
-本 agent 需要 `docker build` / `docker run` 权限，必须在**宿主机或专用 runner**运行，
-不要在挖掘容器（`mygoldmine:dev`）内运行；挖掘容器默认不挂载 docker socket。
+本智能体需要 `docker build` / `docker run` 权限，必须在**宿主机或专用执行节点**运行，
+不要在审计容器（`mygoldmine:dev`）内运行；审计容器默认不挂载 Docker 套接字。
+
+## Phase 0 中的位置
+
+`run.sh` 通过 `scripts/env/phase0_env.sh` 默认直接启动本智能体，由本智能体主导第 0 阶段：
+
+1. `build_env_agent.sh` 启动本智能体，加载智能体定义和环境构建技能；
+2. 本智能体检查源码，决定检测、构建、修复和验收步骤，并把 `build_env.sh` 当作确定性构建工具调用；
+3. 每轮可用结果会保存为快照，后续轮次失败时恢复最佳结果；没有任何可用结果时才执行确定性备用方案；
+4. `--agent off` 表示明确关闭智能体，只执行确定性备用方案；智能体不可用时也会记录原因并执行备用方案；
+5. 最终结果写入 `<run>.meta/env-phase.json` 的 `baseline`、`agent`、`final` 字段。智能体主导且未执行备用方案时，`baseline.status=not_run`。
+
+被 `build_env_agent.sh` 调用时，通过环境变量接收 `ENV_BUILD_PROJECT`、`ENV_BUILD_REPO`、
+`ENV_BUILD_COMMIT`、`ENV_BUILD_MODE`、`ENV_BUILD_OUT_DIR`、`ENV_BUILD_BASE_IMAGE`、
+`ENV_BUILD_TIMEOUT`、`ENV_BUILD_NETWORK`、`ENV_BUILD_MODEL` 和 `ENV_BUILDER_SKILL_FILE`。
+必须用 `--env-dir "$ENV_BUILD_OUT_DIR"` 调用 `build_env.sh`，并在该目录写出 `env-manifest.json`。
+
+独立手工调用本智能体时不会生成 `env-phase.json`，需要自行说明实际执行了哪些构建与验收步骤。
 
 ## 输入
 
@@ -74,9 +91,9 @@ tools: Read, Write, Edit, Bash
 
 ## 安全边界
 
-- 所有依赖安装、编译、postinstall 都必须发生在 Docker build 内，禁止在宿主机执行。
-- 不写入任何密钥、token、`.env` 内容到 Dockerfile、manifest 或日志。
-- 不挂载 docker socket，不使用 `--privileged`。
+- 所有依赖安装、编译和安装后脚本都必须在 Docker 镜像构建过程中执行，禁止在宿主机执行。
+- 不写入任何密钥、访问令牌、`.env` 内容到 Dockerfile、环境清单或日志。
+- 不挂载 Docker 套接字，不使用 `--privileged`。
 - 构建上下文包含目标源码；不要把构建产物或大文件提交到 git。
 - 默认不启用 GPU；需要 GPU 时明确记录 `limitations`，不要声称已验证 GPU 路径。
 
