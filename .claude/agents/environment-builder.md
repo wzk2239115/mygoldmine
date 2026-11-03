@@ -41,53 +41,16 @@ tools: Read, Write, Edit, Bash
 - 可选：项目名、目标镜像名、安装模式（`none|editable|requirements|full|auto`）
 - 可选：已知构建限制（GPU、外部数据库、模型权重等）
 
-## 标准流程
+## 构建决策
 
-1. 先检测，不构建：
+调用方会通过 `ENV_BUILDER_SKILL_FILE` 加载环境构建技能。以该技能的验收目标、下载预检、构建等待和失败收敛要求执行；不要将完整依赖安装作为默认目标。
 
-   ```bash
-   bash scripts/env/build_env.sh <SOURCE> --project <NAME> --dry-run
-   ```
-
-   检查 `env/<project>/env-manifest.json` 的 `detected.languages`、`install_commands`、
-   `limitations`，判断语言/构建系统是否识别正确。
-
-2. 选择安装模式：
-
-   - `auto`（默认）：Python editable `--no-deps`、Node `--ignore-scripts`、Rust/Go 只 fetch。
-     适合静态/导入级验证。
-   - `requirements`：Python 按 requirements.txt 安装。
-   - `full`：完整安装/编译。vLLM、SGLang、verl 这类项目可能非常慢或需要 GPU，先评估。
-   - `none`：只把源码放进镜像。
-
-3. 正式构建：
-
-   ```bash
-   bash scripts/env/build_env.sh <SOURCE> --project <NAME> --mode <MODE>
-   ```
-
-   构建日志在 `env/<project>/build.log`。退出码：`0 ready`、`10 partial`、`20 blocked`。
-
-4. 构建失败时：
-
-   - 先读 `build.log`，判断是系统包、语言版本、构建命令还是网络问题。
-   - 可以编辑 `env/<project>/Dockerfile` 补充系统包或调整安装命令。
-   - 用 `--no-generate` 复用你修改后的 Dockerfile 重新构建：
-
-     ```bash
-     bash scripts/env/build_env.sh <SOURCE> --project <NAME> --no-generate
-     ```
-
-   - 不要为了“成功”而删除必要的依赖或伪造 `env_status`。无法解决就保留 `blocked` 并写清原因。
-
-5. 构建成功后检查：
-
-   ```bash
-   docker run --rm --network none --entrypoint /bin/bash <IMAGE> \
-     -lc 'ls /opt/target | head; python3 --version; node --version 2>/dev/null; cargo --version 2>/dev/null'
-   ```
-
-   确认 `/opt/target` 里有源码、关键运行时可用。
+- 先确认本次需要源码审计、包导入、CPU 测试还是完整运行能力，并检查平台与基础镜像。未明确要求完整运行时，先提供满足审计需要的轻量环境。
+- `auto` 是轻量安装，不保证包导入。需要导入时按导入链补齐必要依赖，不自动扩大为全部开发、训练或 GPU 依赖。
+- 正式构建、失败诊断和验收使用 `build_env.sh`；定制 Dockerfile 时如实说明实际安装内容，不能以 `auto` 名义隐式全量安装。
+- 有证据支持的 `partial` 是有效结果，不因技能目标写着“可运行”就强行升级为完整训练环境。声明的能力必须实际验收，工具仍判定部分可用时不手改为就绪。
+- 等待期间检查构建日志与实际进展，不使用数分钟的阻塞等待，不通过后台任务绕过执行时限。失败后修改具体原因，不原样重复构建。
+- 主流程的备用方案会复用已有 Dockerfile。放弃本轮自定义方案时保留诊断材料，能在预算内恢复轻量方案才执行并验证；没有完成就明确报告，不假设主流程一定会自动降级。
 
 ## 安全边界
 
@@ -115,4 +78,4 @@ next: 可交给 verify-agent
 
 - 依赖需要私有源/凭据：标记 `blocked`，说明需要什么，不要尝试绕过。
 - 需要 GPU/CUDA 才能构建：标记 `partial` 或 `blocked`，保留 CPU 可验证部分。
-- 构建超时：提高 `--timeout` 重试一次；仍失败则 `blocked`，附日志末尾 30 行。
+- 构建超时：先区分源访问慢、依赖范围过大、缺少预编译包、编译耗时与无进展；只在原因明确且预算允许时修正后重试，不能仅提高超时原样重跑。保留日志与清单中的真实状态。

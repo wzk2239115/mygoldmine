@@ -1,94 +1,78 @@
-# Environment Build Skill
+# 环境构建技能
 
-## Objective
+为指定源码构建可复现的 Docker 环境，使用实际构建和验收结果填写 `env-manifest.json`。目标是满足本次任务需要，不是安装项目全部依赖，也不是一定得到 `ready`。
 
-Build a reproducible, runnable Docker environment for a source repository and
-write an honest `env/<project>/env-manifest.json`. Success means
-`env_status=ready`, `build_exit_code=0`, and a non-empty `image_id` that was
-produced by an actual Docker build. Never mark an environment ready when only
-files were generated or when the image does not exist.
+主流程先调用环境构建智能体；`scripts/env/build_env.sh` 是构建工具。没有可用结果时，主流程才调用备用构建。不要只做检测后退出，也不要为了“完成”扩大安装范围或修改状态掩盖限制。
 
-## Role in the main pipeline
+## 先确定验收目标，再安装
 
-The main pipeline launches you first. You own inspection, build decisions,
-failure diagnosis, repair and runtime acceptance. `build_env.sh` is only a
-deterministic tool you can call; it does not run before you and does not replace
-your judgment. The orchestrator runs its deterministic fallback only when you
-are unavailable or produce no usable environment.
+先检查源码的依赖声明、已有 Dockerfile、测试入口、已有环境清单，以及基础镜像中的架构、Python 等运行时版本与已安装依赖。保留调用方指定的 `--env-dir` 和源码版本。
 
-Do not stop after detection or a dry-run. Unless the task is explicitly blocked,
-continue through an actual build and the relevant runtime checks.
+执行检测：
 
-## Workflow
-
-1. Detect before building:
-
-   ```bash
-   bash scripts/env/build_env.sh <SOURCE> --project <NAME> --dry-run
-   ```
-
-   Read `env/<project>/env-manifest.json`: languages, install commands,
-   limitations, and partial reasons. If detection is wrong, fix the generated
-   Dockerfile with `--no-generate` rather than pretending the build succeeded.
-
-2. Choose the smallest mode that can satisfy the task:
-
-   - `none`: only place source in the image.
-   - `auto`: Python editable `--no-deps`, Node `--ignore-scripts`, Rust/Go fetch.
-   - `requirements`: install Python requirements.
-   - `full`: full compile/install; use only when the evaluator needs it.
-
-3. Build:
-
-   ```bash
-   bash scripts/env/build_env.sh <SOURCE> --project <NAME> --mode <MODE>
-   ```
-
-   Treat exit codes as data: `0=ready`, `10=partial`, `20=blocked`.
-   Keep the build log. Do not delete dependencies or tests to force a pass.
-
-4. On failure, read `build.log` and classify the cause:
-
-   - missing system package -> add it to the Dockerfile;
-   - wrong language/version -> fix the base image or toolchain;
-   - network/private registry -> mark `blocked` with the exact requirement;
-   - GPU/CUDA only -> keep the CPU-verifiable part and record the limitation.
-
-5. Verify after a successful build:
-
-   ```bash
-   docker run --rm --network none --entrypoint /bin/bash <IMAGE> \
-     -lc 'test -d /opt/target && python3 --version 2>/dev/null; node --version 2>/dev/null'
-   ```
-
-   `ready` requires the source tree and the expected runtime to be present.
-
-## Rules
-
-- Run every install, compile, and postinstall step inside `docker build`.
-- Never write credentials, tokens, or `.env` contents into the Dockerfile,
-  manifest, or log.
-- Do not use `--privileged`, do not mount `docker.sock`, and do not run target
-  code on the host.
-- Keep all limitations and partial reasons in the manifest. A truthful
-  `partial` or `blocked` is better than a false `ready`.
-- If a build needs GPU or an external service, record it as a limitation and
-  keep the CPU path reproducible.
-
-## Output
-
-Return a compact result:
-
-```text
-project: <name>
-image: <image:tag>
-env_status: ready|partial|blocked
-mode: <mode>
-manifest: env/<project>/env-manifest.json
-limitations: ...
-next: verify-agent
+```bash
+bash scripts/env/build_env.sh <SOURCE> --project <NAME> --env-dir <OUT_DIR> --dry-run
 ```
 
-The machine-readable contract is `env/<project>/env-manifest.json`; the
-evaluator reads `env_status`, `build_exit_code`, `image_id`, `partial_reasons`,
-and `limitations` from it.
+检测会生成文件；已有环境文件时先读取并保留，不能用检测覆盖有效构建结果。
+
+构建前用简短说明明确：本次验收命令、必要依赖、暂不支持的能力、选择的安装模式。未指定验收目标时，先提供源码可读、工具可用的最小审计环境；包导入和运行测试属于额外能力，按实际需求补齐并记录限制。
+
+- `none`：仅放入源码。
+- `auto`：沿用工具提供的轻量安装策略，例如 Python 可编辑安装且不自动安装依赖。
+- `requirements`：已有验收目标确实需要依赖集合时使用。
+- `full`：只有需要完整编译或运行能力时使用。
+
+`auto` 不保证 `import <project>` 成功。若后续验收要求导入，追踪该导入实际需要的依赖，先补最小集合并执行导入检查。不要因为项目是训练框架，就安装全部训练、开发、GPU 和可选后端依赖。没有相应需求时，不下载模型权重。
+
+对于 verl 等较重项目，区分源码审计、核心模块导入、CPU 测试和 GPU 训练；不能用“完整训练环境”替代尚未明确的验收目标。
+
+## 下载和平台预检
+
+在批量安装前确认实际构建平台及 Python 版本，检查关键依赖是否有对应的预编译包。ARM64 与 x86_64 的包可用性不能混用；缺少对应包时先评估编译成本，再决定是否构建或记录限制。
+
+对准备使用的源做有界的访问和关键包检查。发现连接、元数据请求或下载持续很慢时，先诊断具体源与失败类型，不直接启动全量安装等待。
+
+PyTorch 等专用源只用于对应包；普通依赖使用已配置的通用源。需要分开安装时核对并补齐依赖，不能用 `--no-deps` 后跳过验收。不要自动引入未经确认的镜像源、关闭证书验证或修改宿主机全局源配置。
+
+## 构建和缓存
+
+选择方案后进行实际构建：
+
+```bash
+bash scripts/env/build_env.sh <SOURCE> --project <NAME> --env-dir <OUT_DIR> --mode <MODE>
+```
+
+调整本轮 Dockerfile 后使用 `--no-generate` 复用修改。模式、实际安装命令与清单说明必须一致；不要在 `auto` 名义下隐式安装全部 requirements，再把清单当作轻量构建结果。
+
+已有可用镜像只在源码版本、基础镜像、平台、依赖与验收要求匹配时复用。自定义 Dockerfile 尽量将依赖文件和依赖安装放在独立层，再复制其他源码，避免每次源码变化都重新下载。保留已有有效缓存；不要以清空 Docker 缓存作为常规修复。
+
+## 等待、诊断和收敛
+
+区分智能体执行时限与 Docker 构建时限；以本次启动配置为准，不能把构建允许的时长当作智能体剩余时长。
+
+- 每次检查读取最新构建步骤、最后有效输出、进程状态与错误。使用短间隔检查或工具提供的后台任务查询，不连续执行数分钟的 `sleep`。
+- 日志持续出现新的下载、安装或编译进展时，不仅因模型暂时没有消息就重启构建。相同错误的重复重试不算有效进展。
+- 遇到慢源、缺包、版本冲突或编译失败，先给出日志证据，再修改对应原因。没有变化的相同方案不原样重试；重试必须有明确修正，保留前次日志。
+- 长构建要为诊断、验收和写清单留出时间。不要在预算即将耗尽时新启动一套预计无法完成的全量安装，也不要通过后台脱离管理绕过时限。
+- 需要停止时，只停止本次创建的任务及其子进程，确认已经退出；不使用按模糊命令匹配的全局 `pkill`，不留下并发写入同一环境目录的构建。
+
+当前工具会复用已有 Dockerfile，备用流程也不保证重新生成最小方案。因此，放弃本轮重型方案时，应先保存该方案及日志；在还有执行预算且不会覆盖用户文件的前提下，明确恢复本轮生成的轻量方案并验证。来不及处理时记录未完成的构建、文件与原因，不声称已完成降级。不要覆盖用户自带 Dockerfile，也不要仅提高超时后重复整套安装。
+
+## 验收与清单
+
+构建后在容器内、断网条件下执行事先确定的验收命令。至少核对源码和实际需要的运行时；要求导入或 CPU 测试时，分别记录命令、退出码与结果。GPU 路径未执行就不能声称通过。
+
+退出码 `0`、`10`、`20` 分别表示工具判定的就绪、部分可用、受阻，应结合镜像与验收证据解释。
+
+- `ready`：真实构建成功、镜像存在，声明的验收目标通过。
+- `partial`：可用能力已经验证，同时明确记录缺失依赖或不支持的能力。可用的轻量环境是有效结果，不必为了消除这个状态继续扩建。
+- `blocked`：本次要求的最小能力仍无法提供，说明具体原因。
+
+不要仅凭镜像存在就认定依赖可用。工具仍判定为 `partial` 时，不手改为 `ready`；在清单现有说明字段中补充实际安装与验收证据，不删改失败记录来消除限制。
+
+## 执行边界与交付
+
+依赖安装、编译和安装后脚本只在 Docker 构建中执行，不在宿主机安装项目依赖。不使用特权容器，不向目标容器挂载 Docker 套接字，不把密钥写入 Dockerfile、清单或日志。
+
+收尾报告项目、源码版本、镜像、实际安装模式、环境状态、清单路径、验收结果和限制。只有构建与验收确实结束后才报告完成；仍在构建时说明当前步骤，不把后台启动成功当作环境构建成功。
