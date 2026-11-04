@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FileText, MessageSquare, X } from 'lucide-react';
 import { api } from '../api.js';
 import { traceVersion } from '../ccui-cache.js';
@@ -7,14 +7,14 @@ import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
 import VerifyTasks from './VerifyTasks.jsx';
 import LabTasks from './LabTasks.jsx';
 import TeamAgentIcon from './TeamAgentIcon.jsx';
+import {initialTaskSelection, resolveTaskSelection, taskStateLabel, candidateTasks} from '../task-selection.js';
 
 export default function AgenticTraceDrawer({ project, runId, node: initialNode, traces: initialTraces, live, onClose, onStarted }) {
   const [node, setNode] = useState(initialNode);
   const [traces, setTraces] = useState(initialTraces);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState('');
-  const pickedTrace = useRef(false);
-  const [traceId, setTraceId] = useState(initialTraces[0]?.id || '');
+  const [selection, setSelection] = useState(() => initialTaskSelection(initialNode));
   useEffect(() => {
     let cancelled = false;
     const refresh = () => api.pipeline(project, runId).then(payload => {
@@ -32,31 +32,22 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
       onStarted?.();
       const payload = await api.pipeline(project, runId);
       const fresh = payload.nodes.find(item => item.id === node.id);
-      pickedTrace.current = false;
-      if (fresh) { setNode(fresh); setTraces(fresh.traces || []); setTraceId(`${result.id}-worker`); }
+      if (fresh) { setNode(fresh); setTraces(fresh.traces || []); setSelection(candidateTasks(fresh) ? initialTaskSelection(fresh) : {...initialTaskSelection(fresh), history: true, traceId: `${result.id}-worker`}); }
     } catch (error) { setRetryError(error.message); }
     finally { setRetrying(false); }
   }
   const [showRaw, setShowRaw] = useState(false);
   const [text, setText] = useState(null);
   const [error, setError] = useState('');
-  const selected = traces.find((trace) => trace.id === traceId) || traces[0] || null;
-
+  const {batchId, task: selectedTask, trace: selected} = resolveTaskSelection(node, traces, selection);
+  const tasks = candidateTasks(node)?.tasks || [];
   useEffect(() => {
-    if (pickedTrace.current) return;
-    if (node.id === 'redteam-lab') {
-      const tasks=node.construction?.tasks || [];
-      const active=tasks.find(task=>task.state==='running' && traces.some(trace=>trace.id===task.traceId));
-      const first=traces.find(trace=>trace.id===active?.traceId) || traces.find(trace=>trace.kind==='claude');
-      if(first) {pickedTrace.current=true;setTraceId(first.id);}
-      return;
+    if (selection.batchId !== batchId || (!selection.history && !selection.taskId && tasks.length)) {
+      setSelection(initialTaskSelection(node));
     }
-    if (node.id !== 'verify') return;
-    const tasks = node.verification?.tasks || [];
-    const first = tasks.find(task => task.state === 'running' && traces.some(trace => trace.id === task.traceId))
-      || tasks.find(task => traces.some(trace => trace.id === task.traceId));
-    if (first) { pickedTrace.current = true; setTraceId(first.traceId); }
-  }, [node.verification, traces]);
+  }, [batchId, tasks.length, selection.batchId, selection.history, selection.taskId]);
+  const selectTask = taskId => setSelection({batchId, taskId, history: false, traceId: ''});
+  const selectHistory = traceId => setSelection({batchId, taskId: null, history: true, traceId});
 
   useEffect(() => { setShowRaw(false); }, [selected?.id]);
 
@@ -118,14 +109,15 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
             <span>{node.retryReason || '保留历史结果，仅重跑此节点；后续节点不会自动执行'}</span>
           </div>}
           {node.recoveryNotice ? <p className="agentic-trace-subtitle">{node.recoveryNotice}</p> : null}
-          {node.learning ? <p className="agentic-trace-subtitle">下次运行技能：通用 {node.learning.general ? node.learning.general.slice(0, 8) : '基础规则'} · 仓库专属 {node.learning.project ? node.learning.project.slice(0, 8) : '暂无已验证版本'} · {node.learning.candidates} 个候选待评估</p> : null}
+          {node.learning ? <details className="agentic-learning-info"><summary>下次运行技能</summary><p className="agentic-trace-subtitle">下次运行技能：通用 {node.learning.general ? node.learning.general.slice(0, 8) : '基础规则'} · 仓库专属 {node.learning.project ? node.learning.project.slice(0, 8) : '暂无已验证版本'} · {node.learning.candidates} 个候选待评估</p></details> : null}
           {retryError ? <p className="inline-error" role="alert">{retryError}</p> : null}
           {traces.some((trace) => trace.label.includes('恢复汇总')) ? <p className="agentic-trace-subtitle">本次为已有结果的恢复汇总，未重新扫描；可切换查看原始完整审计。</p> : null}
           {traces.length > 1 ? (['verify','redteam-lab'].includes(node.id) ? (
             <details className="verify-other-traces"><summary>日志与历史记录（{traces.length} 份）</summary>
             <label className="agentic-trace-picker">
               <span>选择执行记录</span>
-              <select value={selected?.id || ''} onChange={(event) => { pickedTrace.current = true; setTraceId(event.target.value); }}>
+              <select value={selected?.id || ''} onChange={(event) => selectHistory(event.target.value)}>
+                <option value="" disabled>请选择执行记录</option>
                 {traces.map((trace) => <option value={trace.id} key={trace.id}>{trace.label}</option>)}
               </select>
             </label>
@@ -133,14 +125,19 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
           ) : (
             <label className="agentic-trace-picker">
               <span>选择执行记录</span>
-              <select value={selected?.id || ''} onChange={(event) => { pickedTrace.current = true; setTraceId(event.target.value); }}>
+              <select value={selected?.id || ''} onChange={(event) => selectHistory(event.target.value)}>
+                <option value="" disabled>请选择执行记录</option>
                 {traces.map((trace) => <option value={trace.id} key={trace.id}>{trace.label}</option>)}
               </select>
             </label>
           )) : null}
-          {node.id === 'redteam-lab' ? <LabTasks key={node.construction?.attemptId || 'original'} project={project} runId={runId} construction={node.construction} traces={traces} selectedId={selected?.id} onSelect={id=>{pickedTrace.current=true;setTraceId(id);}} /> : null}
-          {node.id === 'verify' ? <VerifyTasks key={node.verification?.attemptId || 'original'} project={project} runId={runId} verification={node.verification} traces={traces} selectedId={selected?.id} onSelect={id=>{pickedTrace.current=true;setTraceId(id);}} /> : null}
+          {node.id === 'redteam-lab' ? <LabTasks key={node.construction?.attemptId || 'original'} project={project} runId={runId} construction={node.construction} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
+          {node.id === 'verify' ? <VerifyTasks key={node.verification?.attemptId || 'original'} project={project} runId={runId} verification={node.verification} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
         </header>
+        {(selectedTask || selected) ? <div className="agentic-current-task" data-team={node.id === 'verify' ? 'blue' : 'red'} aria-live="polite">
+          <div><strong>{selectedTask ? `当前候选：${selectedTask.id}` : '当前执行记录'}</strong><span className={`task-state state-${selectedTask?.state || 'history'}`}>{selectedTask ? taskStateLabel(selectedTask) : '日志与历史记录'}</span></div>
+          <p title={selectedTask?.title || selected?.label}>{selectedTask?.title || selected?.label}</p>
+        </div> : null}
         <div className="drawer-body agentic-trace-body">
           {selected?.kind === 'claude' && !showRaw ? (
             <ClaudeSessionEmbed
@@ -170,8 +167,8 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
           ) : (
             <div className="agentic-trace-empty">
               <MessageSquare size={22} aria-hidden="true" />
-              <strong>这个节点还没有执行轨迹</strong>
-              <p>当前状态为“{node.detail}”。只有实际启动节点后，才会在这里出现对应的会话或执行记录。</p>
+              <strong>{selectedTask ? `${selectedTask.id} · ${taskStateLabel(selectedTask)}` : '这个节点还没有执行轨迹'}</strong>
+              <p>{selectedTask ? selectedTask.state === 'queued' ? '此候选正在等待执行，启动后将在这里显示它的轨迹。' : selectedTask.state === 'running' ? '此候选已开始运行，正在等待它的第一条执行记录。' : selectedTask.reason || '此候选尚无会话记录，可查看对应报告。' : `当前状态为“${node.detail}”。实际启动节点后会显示执行记录。`}</p>
             </div>
           )}
         </div>
