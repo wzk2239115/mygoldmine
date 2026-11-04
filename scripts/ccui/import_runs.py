@@ -136,6 +136,7 @@ def convert_run(
         **_load_json(run_dir.with_name(run_dir.name + ".meta") / "status.json", {}),
         **_load_json(run_dir / "run-meta.json", {}),
     }
+    source_stat = raw_path.stat()
     events: list[dict[str, Any]] = []
     for line in raw_path.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
@@ -334,6 +335,9 @@ def convert_run(
         "importedAt": datetime.now(timezone.utc).isoformat(),
         "startedAt": started.isoformat(),
         "importVersion": 2,
+        "sourceFile": str(raw_path.resolve()),
+        "sourceSize": source_stat.st_size,
+        "sourceMtimeNs": str(source_stat.st_mtime_ns),
         "subagents": len(children),
         "subagentMessages": sum(len(items) for items in children.values()),
     }

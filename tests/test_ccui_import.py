@@ -272,3 +272,14 @@ def test_environment_trace_import_does_not_create_audit_output_directory(tmp_pat
     assert result is not None
     assert sidecar.is_file()
     assert not run.exists()
+
+
+def test_import_records_source_version_for_clock_independent_cache(tmp_path: Path) -> None:
+    run = _run(tmp_path)
+    raw = run / "raw.jsonl"
+    before = raw.stat()
+    ccui.convert_run(run, tmp_path / "home", "demo")
+    sidecar = json.loads(run.with_name(run.name + ".meta").joinpath("ccui-session.json").read_text())
+    assert sidecar["sourceFile"] == str(raw.resolve())
+    assert sidecar["sourceSize"] == before.st_size
+    assert sidecar["sourceMtimeNs"] == str(before.st_mtime_ns)

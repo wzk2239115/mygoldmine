@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, CircleDashed, Loader2, MinusCircle, RefreshCw, Workflow } from 'lucide-react';
 import { api } from '../api.js';
+import { ccuiSessions, traceVersion } from '../ccui-cache.js';
 import { cx } from '../utils.js';
 import AgenticTraceDrawer from './AgenticTraceDrawer.jsx';
 
@@ -59,6 +60,12 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
     return () => window.clearInterval(timer);
   }, [live, load]);
 
+  const prepareTrace = (node) => {
+    const trace = node.traces?.[0];
+    if (trace?.kind !== 'claude') return;
+    ccuiSessions.load(project, runId, {node: node.id, trace: trace.id, version: traceVersion(trace)}).catch(() => {});
+  };
+
   return (
     <section className={cx('agentic-pipeline', compact && 'is-compact')} aria-label="正式执行链">
       <header className="agentic-pipeline-head">
@@ -84,6 +91,8 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
               key={node.id}
               title={`${node.title}：${node.detail} · 点击查看执行轨迹`}
               aria-label={`查看${node.title}执行轨迹，${node.traces?.length || 0} 条记录`}
+              onPointerEnter={() => prepareTrace(node)}
+              onFocus={() => prepareTrace(node)}
               onClick={() => setSelectedNode(node)}
             >
               <div className="agentic-node-top">

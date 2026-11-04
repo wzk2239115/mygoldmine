@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ExternalLink, Loader2, RefreshCw, ServerOff, Terminal } from 'lucide-react';
-import { api } from '../api.js';
+import { ccuiSessions } from '../ccui-cache.js';
 import { cx, formatDateTime } from '../utils.js';
 
 const LIVE_POLL_MS = 4000;
@@ -19,13 +19,14 @@ const EMBED_CSS = `
   .chat-messages-pane { padding-top: 0 !important; }
 `;
 
-export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrator', trace = '', live = false, tall = false, chrome = true }) {
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
+export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrator', trace = '', version = '', onShowRaw, live = false, tall = false, chrome = true }) {
+  const [session, setSession] = useState(() => ccuiSessions.peek(project, runId, {node, trace, version}));
+  const [loading, setLoading] = useState(() => !ccuiSessions.peek(project, runId, {node, trace, version}));
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
   const requestSeq = useRef(0);
   const importedAtRef = useRef('');
+  const identityRef = useRef(JSON.stringify([project, runId, node, trace]));
   const frameRef = useRef(null);
 
   // Keep the iframe document and its React tree alive; the inner app merges history.
@@ -41,14 +42,15 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
       if (!project || !runId) return null;
       const seq = requestSeq.current + 1;
       requestSeq.current = seq;
-      if (!force) setLoading(true);
+      if (!force) setLoading(!ccuiSessions.peek(project, runId, {node, trace, version}));
       setError('');
       try {
-        const payload = await api.runCcui(project, runId, { force, node, trace });
+        const payload = await ccuiSessions.load(project, runId, { force, node, trace, version });
         if (seq !== requestSeq.current) return null;
+        const previousImport = importedAtRef.current;
         importedAtRef.current = payload.importedAt || '';
         setSession(payload);
-        if (force) notifyFrame(payload);
+        if (force || (previousImport && previousImport !== payload.importedAt)) notifyFrame(payload);
         return payload;
       } catch (loadError) {
         if (seq === requestSeq.current) setError(loadError.message);
@@ -57,12 +59,16 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
         if (seq === requestSeq.current && !force) setLoading(false);
       }
     },
-    [project, runId, node, trace, notifyFrame]
+    [project, runId, node, trace, version, notifyFrame]
   );
 
   useEffect(() => {
-    setSession(null);
-    importedAtRef.current = '';
+    const identity = JSON.stringify([project, runId, node, trace]);
+    if (identityRef.current !== identity) {
+      identityRef.current = identity;
+      setSession(ccuiSessions.peek(project, runId, {node, trace, version}));
+      importedAtRef.current = '';
+    }
     load(false);
   }, [load]);
 
@@ -74,7 +80,7 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
       if (pending) return;
       pending = true;
       try {
-        const payload = await api.runCcui(project, runId, { node, trace });
+        const payload = await ccuiSessions.load(project, runId, { node, trace, version, refresh: true });
         if (cancelled || !payload?.importedAt) return;
         if (payload.importedAt !== importedAtRef.current) {
           importedAtRef.current = payload.importedAt;
@@ -88,7 +94,7 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
       }
     }, LIVE_POLL_MS);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [live, project, runId, node, trace, notifyFrame]);
+  }, [live, project, runId, node, trace, version, notifyFrame]);
 
   const sync = useCallback(async () => {
     setSyncing(true);
@@ -152,15 +158,17 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
         </div>
       </div> : null}
 
-      {loading ? (
+      {loading && !showFrame ? (
         <div className="ccui-state">
-          <Loader2 size={16} className="traj-spin" aria-hidden="true" /> 正在准备执行轨迹…
+          <Loader2 size={16} className="traj-spin" aria-hidden="true" /> 正在加载执行记录…
+          {onShowRaw ? <button type="button" className="traj-button" onClick={onShowRaw}>查看原始记录</button> : null}
         </div>
       ) : null}
 
       {!loading && error ? (
         <div className="ccui-state is-error">
           {error}
+          {onShowRaw ? <button type="button" className="traj-button" onClick={onShowRaw}>查看原始记录</button> : null}
           <button type="button" className="traj-button" onClick={() => load(false)}>
             <RefreshCw size={15} aria-hidden="true" />
             重试
@@ -180,6 +188,7 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
           <p><ServerOff size={15} aria-hidden="true" /> 执行轨迹服务暂不可用</p>
           <p className="ccui-hint">可点击重试，或查看原始执行记录。</p>
           <div className="ccui-state-actions">
+            {onShowRaw ? <button type="button" className="traj-button" onClick={onShowRaw}>查看原始记录</button> : null}
             <button type="button" className="traj-button" onClick={() => load(false)}>
               <RefreshCw size={15} aria-hidden="true" />
               重新检测

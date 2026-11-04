@@ -1,3 +1,4 @@
+import { sessionMatchesTrace } from './ccui-cache.mjs';
 import { startNodeRetry } from './node-retries.mjs';
 import { createModelSettings } from './model-settings.mjs';
 import { createCcuiService } from './ccui-service.mjs';
@@ -1075,12 +1076,11 @@ async function ensureCcuiSession(run, { force = false, node = 'orchestrator', tr
   }
   const sidecarPath = traceSessionPath(run.runDir, node, trace.id);
   const sidecar = readJson(sidecarPath, null);
-  const rawStat = fs.statSync(trace.path);
+  const rawStat = fs.statSync(trace.path, {bigint: true});
   const sidecarFresh =
     sidecar && sidecar.sessionId && fileExists(String(sidecar.sessionFile || ''));
   if (!force && sidecarFresh) {
-    const importedAt = Date.parse(sidecar.importedAt || '') || 0;
-    if (importedAt >= rawStat.mtimeMs - 50) {
+    if (sessionMatchesTrace(sidecar, trace.path, rawStat)) {
       return { available: true, session: sidecar, reimported: false, traceKind: trace.kind };
     }
   }
@@ -1132,6 +1132,7 @@ function proxyCcui(req, res, targetPath) {
     }
   );
   upstreamReq.on('error', () => {
+    ccuiHealthCache = {at: 0, reachable: false};
     if (!res.headersSent) sendError(res, 502, 'CloudCLI upstream unavailable');
     else res.end();
   });
@@ -1495,8 +1496,9 @@ const server = http.createServer(async (req, res) => {
       const force = url.searchParams.get('force') === '1';
       const node = url.searchParams.get('node') || 'orchestrator';
       const traceId = url.searchParams.get('trace') || '';
-      const outcome = await ensureCcuiSession(run, { force, node, traceId });
-      const reachable = await ccuiService.ensure();
+      const [outcome, reachable] = await Promise.all([
+        ensureCcuiSession(run, { force, node, traceId }), ccuiService.ensure()
+      ]);
       if (!outcome.available) {
         sendJson(res, 200, {
           available: false,

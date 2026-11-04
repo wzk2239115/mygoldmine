@@ -18,7 +18,7 @@ export function createCcuiService({repoRoot, home, url, health, launch, wait = m
   return {ensure() {
     if (starting) return starting;
     starting = (async () => {
-      if (await health(true)) return true;
+      if (await health()) return true;
       if (!local) return false;
       await start();
       for (let i=0;i<attempts;i++) {

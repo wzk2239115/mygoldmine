@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { FileText, MessageSquare, X } from 'lucide-react';
 import { api } from '../api.js';
+import { traceVersion } from '../ccui-cache.js';
 import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
 
 export default function AgenticTraceDrawer({ project, runId, node: initialNode, traces: initialTraces, live, onClose }) {
@@ -30,12 +31,15 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
     } catch (error) { setRetryError(error.message); }
     finally { setRetrying(false); }
   }
+  const [showRaw, setShowRaw] = useState(false);
   const [text, setText] = useState(null);
   const [error, setError] = useState('');
   const selected = traces.find((trace) => trace.id === traceId) || traces[0] || null;
 
+  useEffect(() => { setShowRaw(false); }, [selected?.id]);
+
   useEffect(() => {
-    if (!selected || selected.kind === 'claude') {
+    if (!selected || (selected.kind === 'claude' && !showRaw)) {
       setText(null);
       setError('');
       return;
@@ -51,7 +55,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
         if (!cancelled) setError(loadError.message);
       });
     return () => { cancelled = true; };
-  }, [project, runId, node.id, selected?.id, selected?.kind, selected?.size]);
+  }, [project, runId, node.id, selected?.id, selected?.kind, selected?.size, showRaw]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -102,13 +106,15 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
           ) : null}
         </header>
         <div className="drawer-body agentic-trace-body">
-          {selected?.kind === 'claude' ? (
+          {selected?.kind === 'claude' && !showRaw ? (
             <ClaudeSessionEmbed
               key={selected.id}
               project={project}
               runId={runId}
               node={node.id}
               trace={selected.id}
+              version={traceVersion(selected)}
+              onShowRaw={() => setShowRaw(true)}
               live={live || node.status === 'running'}
               tall
               chrome
@@ -118,6 +124,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
               <div className="agentic-text-trace-head">
                 <FileText size={15} aria-hidden="true" />
                 <strong>{selected.label}</strong>
+                {showRaw ? <button type="button" className="traj-button" onClick={() => setShowRaw(false)}>返回会话视图</button> : null}
                 <span>{selected.kind === 'execution' ? '红队结构化执行轨迹' : '执行日志'}</span>
               </div>
               {error ? <div className="inline-error" role="alert">{error}</div> : null}
