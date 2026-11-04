@@ -154,7 +154,7 @@ export function listAgenticTraces(run, node) {
 export function resolveAgenticTrace(run, node, traceId = '') {
   const traces = listAgenticTraces(run, node);
   if (traceId) return traces.find((trace) => trace.id === traceId) || null;
-  return traces.length === 1 || (node === 'orchestrator' && traces[0]?.id === 'source-main') ? traces[0] : null;
+  return traces[0] || null;
 }
 
 export function traceSessionPath(runDir, node, traceId) {

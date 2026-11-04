@@ -95,3 +95,13 @@ test('恢复汇总能查看原始环境构建会话', t => {
   write(`${run.runDir}.meta/env-phase0.log`,'new build');
   assert.equal(listAgenticTraces(run,'environment').length,0);
 });
+
+test('多次阶段学习默认打开最新会话，明确的错误编号不回退', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'learner-default-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const run={runDir:path.join(root,'run')};
+  write(path.join(run.runDir,'rsi/learner.jsonl'),claude);
+  write(path.join(run.runDir,'rsi/stage-learning-attempts/new/stream.jsonl'),claude);
+  assert.equal(resolveAgenticTrace(run,'learner').id,'stage-learning-new');
+  assert.equal(resolveAgenticTrace(run,'learner','not-a-session'),null);
+});
