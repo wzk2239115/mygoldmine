@@ -1,4 +1,5 @@
 import {useRef,useState} from 'react';
+import TeamAgentIcon from './TeamAgentIcon.jsx';
 
 export default function VerifyTasks({project,runId,verification,traces,onSelect,selectedId}) {
  const [report,setReport]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState('');
@@ -19,7 +20,7 @@ export default function VerifyTasks({project,runId,verification,traces,onSelect,
   <summary>候选验证 · {finished}/{tasks.length} 已结束 · {verification.legacy?'旧版串行批次':`并发上限 ${verification.concurrency}`}</summary>
   {!report ? <div className="verify-task-grid">{tasks.map(task=><div key={task.id} className={`verify-task ${selectedId===task.traceId?'is-active':''}`}>
    <button type="button" onClick={()=>onSelect(task.traceId)} disabled={!traces.some(trace=>trace.id===task.traceId)} title={task.title}>
-    <span><strong>{task.id}</strong><small>{task.label}</small></span><span className="verify-task-title">{task.title}</span>
+    <span><span className="verify-task-identity"><TeamAgentIcon team="blue" active={task.state==='running'} /><strong>{task.id}</strong></span><small>{task.label}</small></span><span className="verify-task-title">{task.title}</span>
    </button>
    <button type="button" className="traj-button" aria-label={`查看 ${task.id} 验证报告`} disabled={!task.hasReport || loading===task.id} onClick={()=>openReport(task)}>{loading===task.id?'读取中…':'查看报告'}</button>
   </div>)}</div> : null}

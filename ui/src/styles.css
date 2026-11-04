@@ -7526,3 +7526,15 @@ body > .project-import-dialog .project-import-body { flex: 1 1 auto; }
 
 .verify-other-traces { margin-top: 8px; font-size: 12px; color: var(--muted); }
 .verify-other-traces summary { cursor: pointer; }
+
+
+/* 队伍色仅用于身份，运行结论仍由文字与状态图标表达。 */
+.team-agent-icon { display: inline-block; flex: none; vertical-align: middle; }
+.team-agent-icon--blue { color: #3b82f6; }
+.team-agent-icon--red { color: #ef4444; }
+.agentic-node-name, .agentic-trace-heading, .verify-task-identity { display: flex; align-items: center; gap: 7px; }
+.verify-task-identity { min-width: 0; }
+.verify-task-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-agent-icon.is-active { animation: team-agent-pulse 1.8s ease-in-out infinite; }
+@keyframes team-agent-pulse { 50% { opacity: .65; } }
+@media (prefers-reduced-motion: reduce) { .team-agent-icon.is-active { animation: none; } }

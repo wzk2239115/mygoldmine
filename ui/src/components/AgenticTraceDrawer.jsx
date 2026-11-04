@@ -5,6 +5,7 @@ import { api } from '../api.js';
 import { traceVersion } from '../ccui-cache.js';
 import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
 import VerifyTasks from './VerifyTasks.jsx';
+import TeamAgentIcon from './TeamAgentIcon.jsx';
 
 export default function AgenticTraceDrawer({ project, runId, node: initialNode, traces: initialTraces, live, onClose }) {
   const [node, setNode] = useState(initialNode);
@@ -84,7 +85,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
           <div className="drawer-head-top">
             <div>
               <span className="drawer-kicker">{node.agent}</span>
-              <h2>{node.title} · 执行轨迹</h2>
+              <h2 className="agentic-trace-heading"><TeamAgentIcon node={node.id} active={node.status==='running'} size={26} />{node.title} · 执行轨迹</h2>
             </div>
             <button type="button" className="icon-button" title="关闭轨迹" aria-label="关闭轨迹" onClick={onClose}>
               <X size={18} />

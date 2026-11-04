@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { ccuiSessions, traceVersion } from '../ccui-cache.js';
 import { cx } from '../utils.js';
 import AgenticTraceDrawer from './AgenticTraceDrawer.jsx';
+import TeamAgentIcon from './TeamAgentIcon.jsx';
 
 const STATUS_LABELS = {
   completed: '已完成',
@@ -103,7 +104,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
                   {STATUS_LABELS[node.status] || node.status}
                 </span>
               </div>
-              <strong>{node.title}</strong>
+              <strong><span className="agentic-node-name"><TeamAgentIcon node={node.id} active={node.status==='running'} />{node.title}</span></strong>
               <code>{node.agent}</code>
               <p>{node.detail}</p>
               {node.environment?.status === 'partial' ? <span className="agentic-node-scope">{node.environment.scope} · 能力受限</span> : null}
