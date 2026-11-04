@@ -1,3 +1,4 @@
+import { nodeAttempts } from './node-retries.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -62,7 +63,7 @@ function redteamTrace(run, node) {
   return traces.filter(Boolean);
 }
 
-export function listAgenticTraces(run, node) {
+function originalTraces(run, node) {
   if (node === 'orchestrator') {
     const main = makeTrace(node, 'main', '安全审计主会话', path.join(run.runDir, 'raw.jsonl'), 'claude');
     if (main?.size) {
@@ -112,6 +113,17 @@ export function listAgenticTraces(run, node) {
     return [makeTrace(node, 'learner', '经验学习主会话', path.join(run.runDir, 'rsi/learner.jsonl'), 'claude')].filter(Boolean);
   }
   return [];
+}
+
+export function listAgenticTraces(run, node) {
+  const retries = nodeAttempts(run.runDir, node).reverse().flatMap(attempt => {
+    const label = `节点重跑 ${new Date(attempt.startedAt).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai',hour12:false})} · ${attempt.status === 'running' ? '运行中' : attempt.resultStatus === 'degraded' ? '部分完成' : attempt.status === 'completed' ? '已结束' : '失败'}`;
+    const logs = node === 'visual'
+      ? fs.existsSync(path.join(attempt.workspace, 'visual/agentic')) ? fs.readdirSync(path.join(attempt.workspace, 'visual/agentic')).map(id => path.join(attempt.workspace, 'visual/agentic', id, 'agent.log')) : []
+      : fs.existsSync(path.join(attempt.workspace, 'verify/agent/logs')) ? fs.readdirSync(path.join(attempt.workspace, 'verify/agent/logs')).map(id => path.join(attempt.workspace, 'verify/agent/logs', id)) : [];
+    return [makeTrace(node, `${attempt.id}-worker`, `${label} · 执行日志`, path.join(attempt.root, 'worker.log')), ...logs.map((file,i) => makeTrace(node, `${attempt.id}-${i}`, `${label} · ${path.basename(path.dirname(file))}`, file))].filter(Boolean);
+  });
+  return [...retries, ...originalTraces(run, node)];
 }
 
 export function resolveAgenticTrace(run, node, traceId = '') {

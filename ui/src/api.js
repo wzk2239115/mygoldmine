@@ -48,6 +48,7 @@ async function request(url, options = {}) {
 
 export const api = {
   importWithProgress,
+  restartNode: (project, runId, node) => request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/nodes/${encodeURIComponent(node)}/restart`, {method: 'POST'}),
   modelSettings: () => request('/api/stage-models'),
   saveModelSettings: (models) => request('/api/stage-models', {method:'POST',body:JSON.stringify({models})}),
   restartProject: (project) => request(`/api/targets/${encodeURIComponent(project)}/restart`, { method: 'POST' }),

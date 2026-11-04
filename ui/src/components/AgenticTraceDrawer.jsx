@@ -4,8 +4,32 @@ import { FileText, MessageSquare, X } from 'lucide-react';
 import { api } from '../api.js';
 import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
 
-export default function AgenticTraceDrawer({ project, runId, node, traces, live, onClose }) {
-  const [traceId, setTraceId] = useState(traces[0]?.id || '');
+export default function AgenticTraceDrawer({ project, runId, node: initialNode, traces: initialTraces, live, onClose }) {
+  const [node, setNode] = useState(initialNode);
+  const [traces, setTraces] = useState(initialTraces);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState('');
+  const [traceId, setTraceId] = useState(initialTraces[0]?.id || '');
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => api.pipeline(project, runId).then(payload => {
+      const fresh = payload.nodes?.find(item => item.id === initialNode.id);
+      if (!cancelled && fresh) { setNode(fresh); setTraces(fresh.traces || []); }
+    }).catch(() => {});
+    refresh();
+    const timer = setInterval(refresh, 4000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [project, runId, initialNode.id]);
+  async function restartNode() {
+    setRetrying(true); setRetryError('');
+    try {
+      const result = await api.restartNode(project, runId, node.id);
+      const payload = await api.pipeline(project, runId);
+      const fresh = payload.nodes.find(item => item.id === node.id);
+      if (fresh) { setNode(fresh); setTraces(fresh.traces || []); setTraceId(`${result.id}-worker`); }
+    } catch (error) { setRetryError(error.message); }
+    finally { setRetrying(false); }
+  }
   const [text, setText] = useState(null);
   const [error, setError] = useState('');
   const selected = traces.find((trace) => trace.id === traceId) || traces[0] || null;
@@ -27,7 +51,7 @@ export default function AgenticTraceDrawer({ project, runId, node, traces, live,
         if (!cancelled) setError(loadError.message);
       });
     return () => { cancelled = true; };
-  }, [project, runId, node.id, selected?.id, selected?.kind]);
+  }, [project, runId, node.id, selected?.id, selected?.kind, selected?.size]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -51,7 +75,14 @@ export default function AgenticTraceDrawer({ project, runId, node, traces, live,
               <X size={18} />
             </button>
           </div>
-          <p className="agentic-trace-subtitle">{project}/{runId} · 只读记录，不会启动新的智能体</p>
+          <p className="agentic-trace-subtitle">{project}/{runId} · 历史执行记录</p>
+          <div className="agentic-trace-picker">
+            <button type="button" className="button" disabled={retrying || Boolean(node.retryReason) || node.retryReason === undefined} title={node.retryReason || '复用已有输入，仅重新执行当前节点'} onClick={restartNode}>
+              {retrying || node.detail === '正在独立重跑此节点' ? '正在重跑…' : '重新运行此节点'}
+            </button>
+            <span>{node.retryReason || '保留历史结果，仅重跑此节点；后续节点不会自动执行'}</span>
+          </div>
+          {retryError ? <p className="inline-error" role="alert">{retryError}</p> : null}
           {traces.some((trace) => trace.label.includes('恢复汇总')) ? <p className="agentic-trace-subtitle">本次为已有结果的恢复汇总，未重新扫描；可切换查看原始完整审计。</p> : null}
           {traces.length > 1 ? (
             <label className="agentic-trace-picker">
@@ -70,7 +101,7 @@ export default function AgenticTraceDrawer({ project, runId, node, traces, live,
               runId={runId}
               node={node.id}
               trace={selected.id}
-              live={live}
+              live={live || node.status === 'running'}
               tall
               chrome
             />

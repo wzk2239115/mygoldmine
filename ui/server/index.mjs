@@ -1,3 +1,4 @@
+import { startNodeRetry } from './node-retries.mjs';
 import { createModelSettings } from './model-settings.mjs';
 import { createCcuiService } from './ccui-service.mjs';
 import { projectLogo } from './project-logo.mjs';
@@ -1298,6 +1299,7 @@ const server = http.createServer(async (req, res) => {
     const restartTarget = pathname.match(/^\/api\/targets\/([^/]+)\/restart$/);
     if (req.method === 'POST' && restartTarget) {
       const project = normalizeProjectId(restartTarget[1]);
+      if (fs.existsSync(path.join(REPO_ROOT, 'runs', `.node-retry-${project}.lock`))) return sendError(res, 409, '该项目正在执行节点重跑');
       if (!discoverRuns({withFindings:false}).some(run => run.project === project)) return sendError(res,404,'项目不存在');
       sendJson(res,201,await projectImporter.restart(project));
       return;
@@ -1457,6 +1459,13 @@ const server = http.createServer(async (req, res) => {
       const reachable = await ccuiService.ensure();
       sendJson(res, 200, { url: CCUI_URL, embedPrefix: CCUI_PREFIX, home: CCUI_HOME, reachable });
       return;
+    }
+
+    const retryMatch = pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/nodes\/([^/]+)\/restart$/);
+    if (req.method === 'POST' && retryMatch) {
+      const run = findRun(retryMatch[1], retryMatch[2], false);
+      if (!run) return sendError(res, 404, '未找到审计运行');
+      return sendJson(res, 201, startNodeRetry({repoRoot: REPO_ROOT, run, node: retryMatch[3], models: modelSettings.get().models}));
     }
 
     const traceMatch = pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/trace$/);

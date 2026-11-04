@@ -1,3 +1,4 @@
+import { nodeAttempts, retryEligibility } from './node-retries.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { listAgenticTraces } from './agentic-traces.mjs';
@@ -293,6 +294,15 @@ export function buildAgenticPipeline(run) {
       }
     }
     notice = `任务在${current.title}阶段中断，后续阶段未执行`;
+  }
+  for (const node of nodes) {
+    node.retryReason = retryEligibility(run, node.id);
+    const latest = nodeAttempts(run.runDir, node.id).at(-1);
+    if (latest) {
+      node.status = latest.status === 'running' ? 'running' : latest.resultStatus || 'failed';
+      node.detail = latest.status === 'running' ? '正在独立重跑此节点' : '节点重跑已结束；原始流程记录保留';
+      node.retryReason = latest.status === 'running' ? '此节点正在重跑' : node.retryReason;
+    }
   }
   return {
     notice,
