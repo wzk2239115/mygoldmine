@@ -65,7 +65,20 @@ function redteamTrace(run, node) {
 export function listAgenticTraces(run, node) {
   if (node === 'orchestrator') {
     const main = makeTrace(node, 'main', '安全审计主会话', path.join(run.runDir, 'raw.jsonl'), 'claude');
-    if (main?.size) return [main];
+    if (main?.size) {
+      const report = readJson(path.join(run.runDir, 'audit-report.json'));
+      if (report?.coverage?.analysis_mode === 'assembly-only') {
+        main.label = '恢复汇总（未重新扫描）';
+        // 仅关联同一项目下约定名称的原始运行，不信任报告中的任意路径。
+        const name = path.basename(run.runDir);
+        if (name.endsWith('-recovery')) {
+          const sourceDir = path.join(path.dirname(run.runDir), name.slice(0, -9));
+          const source = makeTrace(node, 'source-main', '原始完整审计', path.join(sourceDir, 'raw.jsonl'), 'claude');
+          if (source?.size) return [{ ...source, sourceRunDir: sourceDir }, main];
+        }
+      }
+      return [main];
+    }
     const startup = makeTrace(node, 'startup', '审计启动日志', `${run.runDir}.meta/wrapper.log`);
     return startup ? [{ ...startup, kind: 'text' }] : [];
 
@@ -104,13 +117,13 @@ export function listAgenticTraces(run, node) {
 export function resolveAgenticTrace(run, node, traceId = '') {
   const traces = listAgenticTraces(run, node);
   if (traceId) return traces.find((trace) => trace.id === traceId) || null;
-  return traces.length === 1 ? traces[0] : null;
+  return traces.length === 1 || (node === 'orchestrator' && traces[0]?.id === 'source-main') ? traces[0] : null;
 }
 
 export function traceSessionPath(runDir, node, traceId) {
   const safe = value => value.replace(/[^A-Za-z0-9._-]/g, '_');
   const metadata = `${runDir}.meta`;
-  return node === 'orchestrator'
+  return node === 'orchestrator' && traceId !== 'source-main'
     ? path.join(metadata, 'ccui-session.json')
     : path.join(metadata, 'ccui-sessions', `${safe(node)}-${safe(traceId)}.json`);
 }

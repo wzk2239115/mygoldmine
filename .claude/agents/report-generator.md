@@ -151,3 +151,10 @@ check-task .workspace/tasks/report-generator-tasks.json --show-pending
   "tasks": []
 }
 ```
+
+
+## 报告交付前检查
+
+机器可读报告每条候选必须明确提供 `id`、`title`、`severity`、`root_cause`、`impact`、`reproduction`、`remediation`、`evidence` 和 `verification.status`。正文提到根因或复现不能代替机器可读字段；字段缺失时回到证据补齐，无法支持的条目保留为假设并说明缺口，不编造复现或验证成功。
+
+交付前对实际交付路径运行 `python3 "$MYGOLDMINE_HOME/scripts/mine/check_report.py" --report "$RUN_DIR/audit-report.json"`，检查返回结果并修正后再交付。独立调用时将变量替换为真实仓库和报告路径。任务状态全部完成不能代替报告质量检查；恢复汇总需在 `coverage.analysis_mode` 写 `assembly-only`，明确未重新扫描，保持未验证状态。

@@ -65,3 +65,20 @@ test('各节点轨迹缓存不占用审计输出目录', t => {
   assert.ok(fs.existsSync(`${run}.meta/ccui-session.json`));
   assert.ok(fs.existsSync(`${run}.meta/ccui-sessions/environment-round-1.json`));
 });
+
+test('恢复汇总保留原始审计入口，且会话缓存互不覆盖', (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'recovery-traces-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const source = path.join(root, 'run-1');
+  const run = { runDir: `${source}-recovery` };
+  write(path.join(source, 'raw.jsonl'), claude);
+  write(path.join(run.runDir, 'raw.jsonl'), claude);
+  write(path.join(run.runDir, 'audit-report.json'), JSON.stringify({ coverage: { analysis_mode: 'assembly-only' } }));
+  const traces = listAgenticTraces(run, 'orchestrator');
+  assert.deepEqual(traces.map(trace => trace.label), ['原始完整审计', '恢复汇总（未重新扫描）']);
+  assert.equal(resolveAgenticTrace(run, 'orchestrator', 'source-main').sourceRunDir, source);
+  assert.notEqual(traceSessionPath(run.runDir, 'orchestrator', 'main'), traceSessionPath(run.runDir, 'orchestrator', 'source-main'));
+  fs.rmSync(source, { recursive: true });
+  assert.equal(listAgenticTraces(run, 'orchestrator').length, 1);
+  assert.equal(listAgenticTraces(run, 'orchestrator')[0].label, '恢复汇总（未重新扫描）');
+});

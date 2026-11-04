@@ -52,9 +52,10 @@ export default function AgenticTraceDrawer({ project, runId, node, traces, live,
             </button>
           </div>
           <p className="agentic-trace-subtitle">{project}/{runId} · 只读记录，不会启动新的智能体</p>
+          {traces.some((trace) => trace.label.includes('恢复汇总')) ? <p className="agentic-trace-subtitle">本次为已有结果的恢复汇总，未重新扫描；可切换查看原始完整审计。</p> : null}
           {traces.length > 1 ? (
             <label className="agentic-trace-picker">
-              <span>选择本次节点调用</span>
+              <span>选择执行记录</span>
               <select value={selected?.id || ''} onChange={(event) => setTraceId(event.target.value)}>
                 {traces.map((trace) => <option value={trace.id} key={trace.id}>{trace.label}</option>)}
               </select>

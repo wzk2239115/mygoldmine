@@ -1040,7 +1040,7 @@ function runCcuiImporter(run, trace, sidecarPath) {
       'python3',
       [
         path.join(REPO_ROOT, 'scripts', 'ccui', 'import_trace.py'),
-        '--run-dir', run.runDir,
+        '--run-dir', trace.sourceRunDir || run.runDir,
         '--home', CCUI_HOME,
         '--raw', trace.path,
         '--sidecar', sidecarPath,

@@ -7,6 +7,8 @@
 # 适配最新的 tasks.json 格式（agent, agent_task_id, tasks, summary）
 
 import sys
+import os
+import importlib.util
 import json
 import logging
 import fcntl
@@ -408,6 +410,22 @@ class TaskChecker:
         except Exception as e:
             self.log_message(f"重置计数器失败: {e}")
 
+    def check_run_report(self):
+        run_dir = os.environ.get("RUN_DIR")
+        if not run_dir:
+            return
+        report = Path(run_dir) / "audit-report.json"
+        checker = Path(__file__).resolve().parents[2] / "scripts/mine/check_report.py"
+        if not report.exists() or not checker.exists():
+            return  # 缺失产物仍由既有产物检查和最终质量门槛处理。
+        spec = importlib.util.spec_from_file_location("audit_report_checker", checker)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        result = module.check_report(report)
+        if not result["valid"] or result["incomplete"]:
+            self.has_issues = True
+            self.artifact_issues.append("报告质量检查未通过，请修正实际交付的 audit-report.json：" + json.dumps(result, ensure_ascii=False))
+
     def check_all_tasks(self) -> Optional[bool]:
         """检查所有任务文件
 
@@ -437,6 +455,8 @@ class TaskChecker:
             self.process_task_file(task_file)
 
         self.log_message(f"任务文件检查完成，共发现 {self.task_file_count} 个任务文件")
+
+        self.check_run_report()
 
         if not self.has_issues:
             self.log_message("所有任务均已完成，产物完整，允许退出")
