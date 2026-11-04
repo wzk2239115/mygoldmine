@@ -202,3 +202,20 @@ def test_phase0_agent_off_runs_only_deterministic_fallback(tmp_path: Path) -> No
     assert phase["agent"]["status"] == "off"
     assert phase["agent"]["reason"] == "disabled"
     assert phase["final"]["status"] == "partial"
+
+
+def test_phase0_snapshots_capabilities_without_promoting_partial(tmp_path: Path) -> None:
+    agent = _fake_agent(tmp_path, status="partial")
+    text = agent.read_text().replace('"partial_reasons":[],"limitations":[]',
+        '"partial_reasons":["GPU 未验证"],"limitations":["仅支持 CPU"],'
+        '"platform":{"torch":"2.13.0+cpu"},"acceptance":[{"check":"CPU","exit_code":0}]')
+    agent.write_text(text)
+    result = _run_phase0(tmp_path, baseline=_fake_baseline(tmp_path), agent_script=agent)
+    assert result.returncode == 10, result.stderr
+    snapshot = _phase(tmp_path)["final"]["capabilities"]
+    assert _phase(tmp_path)["final"]["status"] == "partial"
+    assert snapshot["platform"]["torch"] == "2.13.0+cpu"
+    assert snapshot["acceptance"] == [{"check": "CPU", "exit_code": 0}]
+    assert snapshot["limitations"] == ["仅支持 CPU"]
+    (tmp_path / "env/demo/env-manifest.json").write_text('{}')
+    assert _phase(tmp_path)["final"]["capabilities"] == snapshot

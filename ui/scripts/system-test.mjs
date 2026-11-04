@@ -142,9 +142,21 @@ async function main() {
     assert.equal(learnerSession.traceKind, 'claude');
     await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
     await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"environment\"]').click()");
-    await sleep(300);
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-text-trace').length"), 1);
-    assert.match(await cdp.evaluate("document.querySelector('.agentic-text-trace pre').innerText"), /Unknown Model/);
+    const environmentNode = pipeline.nodes.find(node => node.id === 'environment');
+    assert.equal(await cdp.evaluate(`document.querySelector('.agentic-node[data-node-id="environment"]').classList.contains('is-${environmentNode.status}')`), true);
+    if (environmentNode.environment) {
+      assert.match(await cdp.evaluate("document.querySelector('.agentic-environment-info summary').innerText"), /环境能力/);
+      await cdp.evaluate("document.querySelector('.agentic-environment-info summary').click()");
+      const details = await cdp.evaluate("document.querySelector('.agentic-environment-info').innerText");
+      assert.ok(details.includes(environmentNode.environment.scope));
+      for (const limitation of environmentNode.environment.limitations) assert.ok(details.includes(limitation));
+    }
+    const traceSelector = environmentNode.traces[0]?.kind === 'claude' ? '.agentic-trace-drawer .ccui-frame' : '.agentic-text-trace';
+    for (let i = 0; i < 40; i += 1) {
+      if (await cdp.evaluate(`document.querySelectorAll('${traceSelector}').length`)) break;
+      await sleep(250);
+    }
+    assert.equal(await cdp.evaluate(`document.querySelectorAll('${traceSelector}').length`), 1);
     await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-strip.is-landing .refinery-stage').length"), 6);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-distribution .severity-critical').length"), 1);

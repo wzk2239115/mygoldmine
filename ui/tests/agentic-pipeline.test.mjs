@@ -109,12 +109,14 @@ test('没有产物时不会把总运行状态伪装成八节点完成', (t) => {
   assert.ok(result.nodes.slice(2).every((node) => node.status === 'pending'));
 });
 
-test('部分可用的环境不能显示完整完成', (t) => {
+test('智能体已交付部分可用环境时完成状态与能力范围分开', (t) => {
   const {runDir,run}=fixture(t);
   writeJson(`${runDir}.meta/env-phase.json`,{agent:{status:'partial'},final:{status:'partial'}});
   const node=buildAgenticPipeline(run).nodes.find(item=>item.id==='environment');
-  assert.equal(node.status,'degraded');
-  assert.match(node.detail,/部分可用/);
+  assert.equal(node.status,'completed');
+  assert.match(node.detail,/部分能力可用/);
+  assert.equal(node.environment.status,'partial');
+  assert.equal(node.environment.coverage,'能力受限');
 });
 
 test('源码复制失败标明启动前失败，保留启动日志入口', (t) => {
@@ -195,4 +197,60 @@ test('蓝队汇总存在也按受阻结果展示，红队缺少场景不算完�
   });
   nodes = Object.fromEntries(buildAgenticPipeline(run).nodes.map((node) => [node.id, node]));
   assert.equal(nodes.verify.status, 'degraded');
+});
+
+test('CPU 验收通过显示交付完成，并保留 GPU 限制与底层部分可用状态', (t) => {
+ const {runDir,run}=fixture(t);
+ writeJson(`${runDir}.meta/env-phase.json`, {agent:{status:'partial',exit_code:'0'},baseline:{status:'not_run'},
+  final:{status:'partial',capabilities:{platform:{torch:'2.13.0+cpu'},acceptance:[{exit_code:0}],limitations:['GPU/CUDA 路径未验证']}}});
+ const node=buildAgenticPipeline(run).nodes[0];
+ assert.equal(node.status,'completed');
+ assert.equal(node.environment.scope,'CPU 沙箱可用');
+ assert.equal(node.environment.checksPassed,1);
+ assert.deepEqual(node.environment.limitations,['GPU/CUDA 路径未验证']);
+ assert.equal(node.environment.status,'partial');
+});
+
+test('备用方案、必要验收失败与不可用环境不冒充交付完成', (t) => {
+ const {runDir,run}=fixture(t);
+ for(const [phase,expected] of [
+  [{agent:{status:'failed'},baseline:{status:'partial'},final:{status:'partial'}},'degraded'],
+  [{agent:{status:'partial'},final:{status:'partial',capabilities:{acceptance:[{exit_code:1}]}}},'degraded'],
+  [{agent:{status:'partial',exit_code:'1'},final:{status:'partial'}},'degraded'],
+  [{agent:{status:'failed'},final:{status:'blocked'}},'blocked']
+ ]) {
+  writeJson(`${runDir}.meta/env-phase.json`,phase);
+  assert.equal(buildAgenticPipeline(run).nodes[0].status,expected);
+ }
+});
+
+test('可选能力验收失败保留限制，不改写必要验收已通过的交付', (t) => {
+ const {runDir,run}=fixture(t);
+ writeJson(`${runDir}.meta/env-phase.json`,{agent:{status:'partial'},final:{status:'partial',capabilities:{
+  acceptance:[{exit_code:0},{exit_code:1,required:false}],limitations:['可选 GPU 验收未通过']}}});
+ const node=buildAgenticPipeline(run).nodes[0];
+ assert.equal(node.status,'completed');
+ assert.equal(node.environment.checksFailed,0);
+ assert.deepEqual(node.environment.limitations,['可选 GPU 验收未通过']);
+});
+
+test('旧运行只读取仍与本次环境绑定的清单，拒绝后来更新的说明', (t) => {
+ const {root,runDir,run}=fixture(t);
+ const manifest=path.join(root,'env/demo/env-manifest.json');
+ const phase={project:'demo',source:'/source/demo',updated_at:'2026-11-04T04:00:00Z',manifest,
+  agent:{status:'partial'},final:{status:'partial',image:'fixture:one'}};
+ const value={project:'demo',source:'/source/demo',image:'fixture:one',platform:{torch:'2.13.0+cpu'},
+  reuse_verification:{verified_at:'2026-11-04T03:59:00Z',checks:[{exit_code:0}]},limitations:['原环境 GPU 未验证']};
+ writeJson(`${runDir}.meta/env-phase.json`,phase);writeJson(manifest,value);
+ fs.utimesSync(manifest,new Date(value.reuse_verification.verified_at),new Date(value.reuse_verification.verified_at));
+ assert.equal(buildAgenticPipeline(run).nodes[0].environment.scope,'CPU 沙箱可用');
+ for(const change of [{image:'fixture:two'},{source:'/source/other'},{project:'other'},
+  {reuse_verification:{verified_at:'2026-11-04T05:00:00Z'}}]) {
+  writeJson(manifest,{...value,...change});
+  const node=buildAgenticPipeline(run).nodes[0];
+  assert.equal(node.environment.scope,'部分能力可用');
+  assert.deepEqual(node.environment.limitations,[]);
+ }
+ writeJson(`${runDir}.meta/env-phase.json`,{...phase,final:{...phase.final,capabilities:{platform:{torch:'2.13.0+cpu'},limitations:['本次快照']}}});
+ assert.deepEqual(buildAgenticPipeline(run).nodes[0].environment.limitations,['本次快照']);
 });

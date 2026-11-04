@@ -24,6 +24,21 @@ function makeNode(id, title, agent, status, detail, artifact = '') {
   return { id, title, agent, status, detail, artifact };
 }
 
+function environmentCapabilities(run, phase) {
+  if (phase?.final?.capabilities) return phase.final.capabilities;
+  // 兼容旧记录：共享清单必须仍绑定同一环境，且未在本次运行结束后更新。
+  const expected = path.resolve(run.runDir, '../../..', 'env', run.project, 'env-manifest.json');
+  if (!phase?.manifest || path.resolve(phase.manifest) !== expected) return null;
+  const manifest = readJson(expected);
+  const verifiedAt = Date.parse(manifest?.reuse_verification?.verified_at || manifest?.built_at);
+  const endedAt = Date.parse(phase.updated_at);
+  if (!manifest || manifest.project !== run.project || manifest.source !== phase.source
+      || manifest.image !== phase.final?.image || !Number.isFinite(verifiedAt)
+      || !Number.isFinite(endedAt) || verifiedAt > endedAt
+      || fs.statSync(expected).mtimeMs > endedAt + 1000) return null;
+  return { ...manifest, acceptance: manifest.reuse_verification?.checks || manifest.acceptance || [] };
+}
+
 function environmentNode(run, status, phase) {
   const id = 'environment';
   const title = '环境构建';
@@ -32,20 +47,37 @@ function environmentNode(run, status, phase) {
   if (phase) {
     const finalStatus = phase.final?.status || 'blocked';
     const agentStatus = phase.agent?.status || '';
-    const labels = { ready: '就绪', partial: '部分可用', blocked: '受阻', failed: '失败' };
-    const detail = `智能体：${labels[agentStatus] || agentStatus || '未知'} · 环境：${labels[finalStatus] || finalStatus}`;
-    if (finalStatus === 'partial') return makeNode(id, title, agent, 'degraded', detail, artifact);
-    if (usableEnvironment(finalStatus) && usableEnvironment(agentStatus)) {
-      return makeNode(id, title, agent, 'completed', detail, artifact);
+    const evidence = environmentCapabilities(run, phase);
+    const checks = Array.isArray(evidence?.acceptance) ? evidence.acceptance : [];
+    const failedChecks = checks.filter(check => check?.required !== false
+      && ((check?.exit_code != null && Number(check.exit_code) !== 0) || check?.status === 'failed'));
+    const recordedLimits = Array.isArray(evidence?.limitations) && evidence.limitations.length
+      ? evidence.limitations : evidence?.partial_reasons;
+    const limitations = [...new Set((Array.isArray(recordedLimits) ? recordedLimits : []).filter(item => typeof item === 'string'))];
+    const cpuOnly = String(evidence?.platform?.torch || '').includes('+cpu');
+    const scope = !usableEnvironment(finalStatus) ? '沙箱不可用' : failedChecks.length ? '沙箱待验收' : cpuOnly ? 'CPU 沙箱可用' : finalStatus === 'partial' ? '部分能力可用' : '沙箱可用';
+    const coverage = !usableEnvironment(finalStatus) ? '必要能力缺失' : failedChecks.length ? '必要验收未通过' : finalStatus === 'partial' ? '能力受限' : '已声明能力可用';
+    const environment = { status: finalStatus, scope, coverage, limitations,
+      checksPassed: checks.filter(check => check?.exit_code != null && Number(check.exit_code) === 0).length,
+      checksFailed: failedChecks.length };
+    const node = (state, detail) => ({ ...makeNode(id, title, agent, state, detail, artifact), environment });
+    if (!usableEnvironment(finalStatus)) return node('blocked', '未交付可用沙箱');
+    if (failedChecks.length) return node('degraded', `沙箱部分可用 · ${failedChecks.length} 项必要验收未通过`);
+    const fallback = usableEnvironment(phase.baseline?.status) || !usableEnvironment(agentStatus)
+      || (phase.agent?.exit_code != null && Number(phase.agent.exit_code) !== 0);
+    if (fallback) {
+      const reason = usableEnvironment(phase.baseline?.status) || agentStatus.includes('fallback') ? '使用了确定性备用方案' : '构建交付未确认';
+      return node('degraded', `${scope} · ${reason}`);
     }
-    if (usableEnvironment(finalStatus)) {
-      return makeNode(id, title, agent, 'degraded', `${detail} · 使用了确定性备用方案`, artifact);
-    }
-    return makeNode(id, title, agent, 'blocked', detail, artifact);
+    return node('completed', `${scope} · ${coverage}`);
   }
-  if (status.env_status === 'partial') return makeNode(id, title, agent, 'degraded', '环境部分可用');
+  if (status.env_status === 'partial') {
+    const completed = usableEnvironment(status.env_agent_status) && status.env_agent_reason === 'agent_primary';
+    return { ...makeNode(id, title, agent, completed ? 'completed' : 'degraded', '沙箱部分可用 · 能力受限'),
+      environment: { status: 'partial', scope: '部分能力可用', coverage: '能力受限', limitations: [] } };
+  }
   if (usableEnvironment(status.env_status)) {
-    return makeNode(id, title, agent, 'completed', `环境：${status.env_status}`);
+    return makeNode(id, title, agent, 'completed', '沙箱已交付');
   }
   if (status.env_status === 'blocked') {
     return makeNode(id, title, agent, 'blocked', status.env_agent_reason || '环境构建受阻');

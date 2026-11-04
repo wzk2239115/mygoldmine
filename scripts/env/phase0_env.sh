@@ -269,6 +269,7 @@ jq -n \
     --arg agent_missing "$AGENT_MISSING" \
     --arg final_status "$FINAL_STATUS" \
     --arg final_image "$FINAL_IMAGE" \
+    --argjson capabilities "$(jq -cs '(.[0] // {}) | {platform,acceptance:(.reuse_verification.checks // .acceptance // []),limitations:(.limitations // []),partial_reasons:(.partial_reasons // [])}' "$MANIFEST" 2>/dev/null || echo null)" \
     --arg env_dir "$ENV_DIR" \
     --arg manifest "$MANIFEST" \
     --arg updated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
@@ -279,7 +280,7 @@ jq -n \
                             skill_path:$skill_path,skill_available:($skill_available == 1),
                             script_path:$agent_script,script_available:($agent_script_available == 1),
                             missing:($agent_missing|split(",")|map(select(length>0)))}},
-      final:{status:$final_status,image:$final_image},
+      final:{status:$final_status,image:$final_image,capabilities:$capabilities},
       env_dir:$env_dir, manifest:$manifest, updated_at:$updated_at}' \
     > "$META_DIR/env-phase.json"
 

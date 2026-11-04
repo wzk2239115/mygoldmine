@@ -76,6 +76,13 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
             </button>
           </div>
           <p className="agentic-trace-subtitle">{project}/{runId} · 历史执行记录</p>
+          {node.environment ? (
+            <details className="agentic-environment-info">
+              <summary>环境能力：{node.environment.scope} · {node.environment.coverage}</summary>
+              {node.environment.checksPassed || node.environment.checksFailed ? <p>{node.environment.checksPassed} 项验收通过{node.environment.checksFailed ? `，${node.environment.checksFailed} 项必要验收未通过` : ''}</p> : null}
+              {node.environment.limitations.length ? <ul>{node.environment.limitations.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p>具体能力范围请查看本次环境构建记录。</p>}
+            </details>
+          ) : null}
           <div className="agentic-trace-picker">
             <button type="button" className="button" disabled={retrying || Boolean(node.retryReason) || node.retryReason === undefined} title={node.retryReason || '复用已有输入，仅重新执行当前节点'} onClick={restartNode}>
               {retrying || node.detail === '正在独立重跑此节点' ? '正在重跑…' : '重新运行此节点'}

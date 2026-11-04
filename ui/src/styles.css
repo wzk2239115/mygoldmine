@@ -7499,3 +7499,12 @@ body > .project-import-dialog .project-import-body { flex: 1 1 auto; }
 .model-settings-help { margin: 20px 0 0; }
 .model-settings-saved { color: var(--green); font-size: 12px; }
 @media(max-width:540px) { .model-settings-grid {grid-template-columns:1fr;} }
+
+/* 环境交付状态与能力范围分别展示。 */
+.agentic-node-scope { display: none; margin-top: 7px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.agentic-environment-info { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; line-height: 1.6; }
+.agentic-environment-info summary { cursor: pointer; }
+.agentic-environment-info p, .agentic-environment-info ul { margin: 8px 0 0; color: var(--muted); }
+.agentic-environment-info ul { padding-left: 20px; max-height: 180px; overflow: auto; }
+
+.pipeline-landing .agentic-node-scope { display: block; }

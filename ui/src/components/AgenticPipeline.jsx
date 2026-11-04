@@ -96,6 +96,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
               <strong>{node.title}</strong>
               <code>{node.agent}</code>
               <p>{node.detail}</p>
+              {node.environment?.status === 'partial' ? <span className="agentic-node-scope">{node.environment.scope} · 能力受限</span> : null}
               <span className="agentic-node-trace">{node.traces?.length ? `查看 ${node.traces.length} 条轨迹` : '暂无轨迹'}</span>
             </button>
           ))}
