@@ -12,8 +12,9 @@ export function labTasks(run) {
  const selection=read(path.join(root,'selection.json'));
  let candidates=selection?.candidates || [];
  if(!candidates.length && !attempt)candidates=read(path.join(run.runDir,'redteam/candidates.json'))?.candidates || [];
+ const gate=selection || (!attempt ? read(path.join(run.runDir,'redteam/selection.json')) : null);
  const report=read(path.join(attempt?.workspace || run.runDir,'audit-report.json'));
- const originals=new Map((report?.findings || []).filter(item=>item && typeof item==='object').map(item=>[item.id || item.finding_id,item]));
+ const originals=new Map((report?.findings || report?.vulnerabilities || []).filter(item=>item && typeof item==='object').map(item=>[item.id || item.finding_id,item]));
  const fallback=attempt?summary:read(path.join(run.runDir,'redteam/summary.json')) || summary;
  if(!attempt)for(const result of fallback.results || [])if(!candidates.some(task=>task.id===result.id))candidates=[...candidates,{id:result.id}];
  const tasks=candidates.filter(task=>safe(task.id) && (!task.project || task.project===run.project)).map((candidate,index)=>{
@@ -28,7 +29,7 @@ export function labTasks(run) {
    hasReport:['scenario.json','BLOCKED.md','lab-report.md'].some(name=>fs.existsSync(path.join(lab,name))),
    traceId:attempt?`${attempt.id}-redteam-lab-${candidate.id}-agent`:saved?`lab-${candidate.id}`:result?`${candidate.id}-${String((fallback.results || []).indexOf(result)+1).padStart(2,'0')}`:`lab-${candidate.id}`,sourceIndex:index};
  });
- return {tasks,attemptId:attempt?.id || '',concurrency:summary.concurrency || 1,legacy:!summary.concurrency,
+ return {tasks,excluded:gate?.excluded || [],blueAttemptId:gate?.blue_attempt_id || '',blueHandoffCount:candidates.filter(item=>item.blue_handoff).length,attemptId:attempt?.id || '',concurrency:summary.concurrency || 1,legacy:!summary.concurrency,
   selectedCount:tasks.length,processedCount:tasks.filter(task=>!['running','queued'].includes(task.state)).length,
   running:tasks.filter(task=>task.state==='running').length,ready:tasks.filter(task=>task.label==='可用').length,blocked:tasks.filter(task=>task.label==='受阻').length};
 }

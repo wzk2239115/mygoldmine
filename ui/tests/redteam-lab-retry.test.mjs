@@ -5,8 +5,21 @@ import os from 'node:os';
 import path from 'node:path';
 import {startNodeRetry,nodeAttempts,retryEligibility} from '../server/node-retries.mjs';
 import {listAgenticTraces} from '../server/agentic-traces.mjs';
+import {labTasks} from '../server/lab-tasks.mjs';
 import {buildAgenticPipeline} from '../server/agentic-pipeline.mjs';
 const write=(file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value));};
+function blueReports(repoRoot,run,findings) {
+ write(path.join(repoRoot,'env/demo/env-manifest.json'),{image:'fixture:test',image_id:'sha256:fixture',commit:'a'.repeat(40)});
+ const root=path.join(run.runDir,'verify/agent');write(path.join(root,'summary.json'),{project:'demo'});
+ for(const finding of findings) {
+  const folder=path.join(root,finding.id);
+  write(path.join(folder,'finding.json'),finding);
+  write(path.join(folder,'verify-report.json'),{project:'demo',finding_id:finding.id,verdict:'confirmed',evidence_class:'runtime',image:'fixture:test',image_id:'sha256:fixture',evidence:['result.txt']});
+  fs.writeFileSync(path.join(folder,'verify-report.md'),'real fixture report');
+  fs.mkdirSync(path.join(folder,'harness'),{recursive:true});fs.writeFileSync(path.join(folder,'harness/probe.py'),'print("fixture proof")');
+  fs.mkdirSync(path.join(folder,'evidence'),{recursive:true});fs.writeFileSync(path.join(folder,'evidence/result.txt'),'fixture observation');
+ }
+}
 function fixture(t) {
  const repoRoot=fs.mkdtempSync(path.join(os.tmpdir(),'lab-retry-'));
  t.after(()=>fs.rmSync(repoRoot,{recursive:true,force:true}));
@@ -16,6 +29,7 @@ function fixture(t) {
  write(`${runDir}.meta/status.json`,{target:source,env_image:'fixture:test'});
  write(path.join(runDir,'redteam/candidates.json'),{candidates:['F-1','F-2'].map(id=>({id,project:'demo',run_id:'one'}))});
  write(path.join(runDir,'redteam/summary.json'),{results:[{id:'F-1',status:'blocked_no_finding'}]});
+ blueReports(repoRoot,run,['F-1','F-2','F-3'].map(id=>({id,title:id,severity:'high'})));
  return {repoRoot,run};
 }
 
@@ -29,6 +43,7 @@ from pathlib import Path
 args=sys.argv[1:]
 def arg(name): return args[args.index(name)+1]
 assert '--build-only' in args
+context=Path(arg('--blue-handoff'));assert context.is_file();assert json.loads(context.read_text())['role']=='builder_only'
 assert arg('--claude-model')=='red-fixture'
 lab=Path(arg('--lab-dir')); finding=json.loads(Path(arg('--finding')).read_text()); identifier=finding['id']
 assert '/node-retries/redteam-lab/' in str(lab)
@@ -76,6 +91,7 @@ for(const [jobs,count,peak] of [[undefined,12,10],[2,4,2]])test(`红队候选池
  write(path.join(run.runDir,'audit-report.json'),{findings});
  write(path.join(run.runDir,'redteam/candidates.json'),{candidates:findings.map(item=>({id:item.id,project:'demo',run_id:'one'}))});
  write(path.join(workspace,'audit-report.json'),{findings});
+ blueReports(repoRoot,run,findings);
  const {prepareLabRetry,runLabRetry}=await import('../server/redteam-lab-retry.mjs');
  prepareLabRetry(run,workspace);
  const script=path.join(repoRoot,'scripts/redteam/build_lab.py');fs.mkdirSync(path.dirname(script),{recursive:true});
@@ -104,4 +120,22 @@ print(json.dumps({'scenario_valid':True,'finding_id':finding['id'],'scenario':st
  assert.deepEqual(summary.results.map(item=>item.id),findings.map(item=>item.id));
  for(const finding of findings)assert.equal(JSON.parse(fs.readFileSync(path.join(workspace,'redteam/tasks',`${finding.id}.json`))).state,'completed');
  await assert.rejects(()=>runLabRetry(job,11),/并发数/);
+});
+
+test('红队节点只接收蓝队确认且完整的交付，最新蓝队运行时不能使用旧结果',t=>{
+ const {repoRoot,run}=fixture(t);
+ const root=path.join(run.runDir,'verify/agent');
+ const report=JSON.parse(fs.readFileSync(path.join(root,'F-2/verify-report.json')));report.verdict='blocked';write(path.join(root,'F-2/verify-report.json'),report);
+ const workspace=path.join(repoRoot,'workspace');write(path.join(workspace,'audit-report.json'),JSON.parse(fs.readFileSync(path.join(run.runDir,'audit-report.json'))));
+ return import('../server/redteam-lab-retry.mjs').then(({prepareLabRetry})=>{
+  prepareLabRetry(run,workspace);
+  const selected=JSON.parse(fs.readFileSync(path.join(workspace,'redteam/selection.json')));
+  assert.deepEqual(selected.candidates.map(x=>x.id),['F-1']);assert.equal(selected.excluded[0].id,'F-2');
+  assert.ok(fs.existsSync(path.join(workspace,'redteam/blue-handoff/F-1/harness/probe.py')));
+  write(`${run.runDir}.meta/node-retries/redteam-lab/new/attempt.json`,{id:'red-new',project:'demo',runId:'one',workspace,status:'completed',startedAt:'2026-11-05'});
+  const roster=labTasks(run);assert.equal(roster.blueHandoffCount,1);assert.equal(roster.blueAttemptId,'original');
+  assert.equal(roster.excluded[0].id,'F-2');assert.deepEqual(roster.tasks.map(x=>x.id),['F-1']);
+  write(`${run.runDir}.meta/node-retries/verify/new/attempt.json`,{id:'new',project:'demo',runId:'one',workspace:path.join(repoRoot,'new'),status:'running',startedAt:'2026-11-05'});
+  assert.match(retryEligibility(run,'redteam-lab'),/蓝队验证正在运行/);
+ });
 });

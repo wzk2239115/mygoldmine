@@ -257,6 +257,10 @@ async function main() {
           assert.match(detailText, /失败时如何处理/);
           assert.match(detailText, /优化时重点检查/);
           assert.doesNotMatch(detailText, /undefined/);
+          if (await cdp.evaluate("document.querySelector('#arch-detail-title').innerText") === '在隔离环境验证漏洞') {
+            assert.match(detailText, /blue_handoff\.py/);
+            assert.match(detailText, /不传给独立攻击执行者/);
+          }
           if (zoneIndex === 0 && index === 0) {
             assert.equal(await cdp.evaluate("document.querySelector('#arch-detail-title').innerText"), '选择项目并批量审计');
             assert.match(detailText, /项目清单/);

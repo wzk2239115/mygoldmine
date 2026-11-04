@@ -109,116 +109,12 @@ mkdir -p "$OUTPUT" || die "无法创建输出目录: $OUTPUT"
 
 CANDIDATES="$OUTPUT/candidates.json"
 SELECTION="$OUTPUT/selection.json"
-"$PYTHON" - "$AUDIT_REPORT" "$PROJECT" "$RUN_ID" "$MAX" "$SEVERITY" "$CANDIDATES" "$SELECTION" "$FINDING_ID_FILTER" <<'PY'
-import json
-import sys
-from datetime import datetime, timezone
-from pathlib import Path
-
-report_path, project, run_id, max_raw, severity_raw, candidates_out, selection_out, only_id = sys.argv[1:9]
-
-
-def fail(message):
-    print(json.dumps({"error": message}, ensure_ascii=False))
-    sys.exit(3)
-
-
-def normalize_severity(value):
-    raw = str(value or "info").strip().lower()
-    if raw.startswith("critical") or raw == "crit":
-        return "critical"
-    if raw.startswith("high"):
-        return "high"
-    if raw.startswith("medium") or raw.startswith("moderate"):
-        return "medium"
-    if raw.startswith("low"):
-        return "low"
-    return "info"
-
-
-try:
-    maximum = int(max_raw)
-except ValueError:
-    fail("invalid --max")
-
-allowed = [item.strip().lower() for item in severity_raw.split(",") if item.strip()]
-valid = {"critical", "high", "medium", "low", "info"}
-if not allowed or any(item not in valid for item in allowed):
-    fail("invalid --severity (use critical,high,medium,low,info)")
-
-try:
-    report = json.loads(Path(report_path).read_text(encoding="utf-8"))
-except (OSError, ValueError) as exc:
-    fail(f"invalid audit-report.json: {exc}")
-if not isinstance(report, dict):
-    fail("audit-report.json must be a JSON object")
-
-sources = []
-found_source = False
-for key in ("findings", "vulnerabilities"):
-    value = report.get(key)
-    if isinstance(value, list):
-        found_source = True
-        sources.extend(value)
-    elif value is not None:
-        fail(f"audit-report.json .{key} must be a list")
-if not found_source:
-    fail("audit-report.json has no findings or vulnerabilities list")
-
-selected = []
-seen = set()
-matched = 0
-duplicates = 0
-for raw in sources:
-    if not isinstance(raw, dict):
-        continue
-    finding_id = str(raw.get("id") or raw.get("finding_id") or "").strip()
-    if not finding_id:
-        continue
-    if only_id and finding_id != only_id:
-        continue
-    severity = normalize_severity(raw.get("severity") or raw.get("severity_raw"))
-    if severity not in allowed:
-        continue
-    matched += 1
-    if finding_id in seen:
-        duplicates += 1
-        continue
-    seen.add(finding_id)
-    if len(selected) >= maximum:
-        continue
-    selected.append({"project": project, "id": finding_id, "run_id": run_id})
-
-generated_at = datetime.now(timezone.utc).isoformat()
-Path(candidates_out).write_text(
-    json.dumps({
-        "project": project,
-        "run_id": run_id,
-        "generated_at": generated_at,
-        "candidates": selected,
-    }, ensure_ascii=False, indent=2) + "\n",
-    encoding="utf-8",
-)
-Path(selection_out).write_text(
-    json.dumps({
-        "report": str(report_path),
-        "project": project,
-        "run_id": run_id,
-        "max": maximum,
-        "severity": allowed,
-        "finding_id": only_id,
-        "total_findings": len(sources),
-        "matched": matched,
-        "selected": len(selected),
-        "duplicates_skipped": duplicates,
-        "candidates": selected,
-        "generated_at": generated_at,
-    }, ensure_ascii=False, indent=2) + "\n",
-    encoding="utf-8",
-)
-PY
+"$PYTHON" "$ROOT/scripts/redteam/blue_handoff.py" \
+    --run-dir "$RUN_DIR" --project "$PROJECT" --output "$OUTPUT" \
+    --max "$MAX" --severity "$SEVERITY" --finding-id "$FINDING_ID_FILTER" \
+    > "$OUTPUT/blue-handoff.log"
 SELECT_RC=$?
-[ "$SELECT_RC" -eq 0 ] || die "无法从 audit-report.json 选择候选问题（returncode=$SELECT_RC）" 3
+[ "$SELECT_RC" -eq 0 ] || die "无法读取蓝队确认和交付产物（returncode=$SELECT_RC）" 3
 
 SELECTED="$("$PYTHON" -c 'import json,sys; print(len(json.load(open(sys.argv[1], encoding="utf-8")).get("candidates", [])))' "$CANDIDATES")" \
     || die "无法读取 candidates.json"
@@ -313,6 +209,8 @@ try:
 except (TypeError, ValueError):
     build_returncode = None
 
+if final_status == "no_findings" and selection.get("excluded"):
+    final_status = "blocked"
 if final_status == "completed":
     terminal = {"judge_approved", "judge_rejected", "judge_needs_review", "flag_captured", "not_captured", "completed", "ready"}
     failures = [item for item in normalized if str(item.get("status")) not in terminal]
@@ -337,6 +235,7 @@ payload = {
         "duplicates_skipped": selection.get("duplicates_skipped"),
     },
     "candidates": candidates,
+    "blue_gate": {"reason": selection.get("gate_reason") or "没有蓝队已确认且交付完整的候选", "excluded": selection.get("excluded", [])},
     "batch": {
         "out_dir": batch_out,
         "returncode": batch_returncode,
@@ -370,6 +269,9 @@ lines = [
     f"- Build state: attempted={cell(build_attempted)} returncode={cell(build_returncode)}",
     "",
 ]
+if not candidates and selection.get("excluded"):
+    lines += ["蓝队交付未满足红队构建条件，未启动场景构建。", ""]
+    lines += [f"- {cell(item.get('id'))}: {cell(item.get('reason'))}" for item in selection["excluded"]]
 if final_status == "no_findings":
     lines += ["No findings matched the severity filter; the batch was not run.", ""]
 if batch_error:
@@ -403,7 +305,7 @@ PY
 
 if [ "$SELECTED" -eq 0 ]; then
     write_summary "-" "" "false" "" "no_findings" || die "无法写入 summary"
-    log "no findings matched severity=$SEVERITY; batch not run"
+    log "没有满足严重度、蓝队确认和交付完整性条件的候选；未启动红队批次"
     exit 0
 fi
 

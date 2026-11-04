@@ -175,6 +175,9 @@ function redteamNodes(run, summary) {
     labDetail = `${labsReady.length}/${results.length} 个隔离场景可用`;
     labStatus = buildFailed.length === results.length ? 'blocked' : buildFailed.length ? 'degraded' : 'completed';
     if (buildFailed.length) labDetail += ` · ${buildFailed.length} 个场景未就绪`;
+  } else if (summary?.blue_gate?.excluded?.length && !summary?.candidates?.length) {
+    labStatus = 'blocked';
+    labDetail = summary.blue_gate.reason;
   } else if (run.redteamStatus === 'blocked') {
     labStatus = 'blocked';
     labDetail = '环境不可用，红队场景构建未启动';

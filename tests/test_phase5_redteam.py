@@ -91,6 +91,27 @@ def write_report(tmp_path, findings, key="findings", run_name="run-A"):
     (run_dir / "audit-report.json").write_text(
         json.dumps({key: findings}, ensure_ascii=False), encoding="utf-8"
     )
+    environment = tmp_path / "env/proj"
+    environment.mkdir(parents=True, exist_ok=True)
+    (environment / "env-manifest.json").write_text(json.dumps({
+        "image": "fixture:image", "image_id": "sha256:fixture", "commit": "a" * 40,
+    }))
+    blue = run_dir / "verify/agent"
+    blue.mkdir(parents=True)
+    (blue / "summary.json").write_text(json.dumps({"project": "proj", "status": "completed"}))
+    for finding in findings:
+        directory = blue / (finding.get("id") or finding["finding_id"])
+        (directory / "harness").mkdir(parents=True)
+        (directory / "evidence").mkdir()
+        (directory / "finding.json").write_text(json.dumps(finding))
+        (directory / "verify-report.json").write_text(json.dumps({
+            "project": "proj", "finding_id": directory.name, "verdict": "confirmed",
+            "evidence_class": "runtime", "image": "fixture:image",
+            "image_id": "sha256:fixture", "evidence": ["proof.txt"],
+        }))
+        (directory / "verify-report.md").write_text("observed runtime")
+        (directory / "harness/probe.py").write_text("print('benign')")
+        (directory / "evidence/proof.txt").write_text("benign observed")
     return run_dir
 
 
@@ -350,3 +371,25 @@ def test_wrapper_all_candidates_blocked_is_not_completed(tmp_path):
     summary = json.loads((output / 'summary.json').read_text())
     assert summary['status'] == 'blocked'
     assert summary['completed'] is False
+
+
+def test_wrapper_skips_unconfirmed_blue_findings_without_starting_batch(tmp_path):
+    run = write_report(tmp_path, [{"id": "F-1", "severity": "high"}])
+    file = run / 'verify/agent/F-1/verify-report.json'
+    report = json.loads(file.read_text())
+    report['verdict'] = 'blocked'
+    file.write_text(json.dumps(report))
+    env, batch_marker, _ = fixtures(tmp_path)
+    output = tmp_path / 'out'
+    completed = subprocess.run(
+        ['bash', str(WRAPPER), '--project', 'proj', '--run-dir', str(run),
+         '--output', str(output)],
+        capture_output=True, text=True, timeout=60, env=env,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert not batch_marker.exists()
+    summary = json.loads((output / 'summary.json').read_text())
+    assert summary['status'] == 'blocked'
+    assert summary['completed'] is False
+    assert summary['blue_gate']['excluded'][0]['id'] == 'F-1'
+    assert 'blocked' in summary['blue_gate']['excluded'][0]['reason']

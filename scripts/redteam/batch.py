@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
 import build_state as base  # noqa: E402
 from model_config import DEFAULT_MODEL  # noqa: E402
 from pipeline_stage import record_stage  # noqa: E402
+from blue_handoff import validate_packet
 from contracts import (  # noqa: E402
     ContractError,
     classify_agent_failure,
@@ -89,12 +90,17 @@ def build_parallel(candidates, ledger, snapshot, batch_dir, args):
         if not item:
             continue
         try:
+            if snapshot is not None:
+                context = validate_packet(candidate.get('blue_handoff', ''), item.get('raw') or {}, project)
+                if context.get('run_id') != candidate.get('run_id') or context.get('report_sha256') != snapshot['sha256']:
+                    raise ValueError('蓝队交付不属于本轮审计报告')
             preferred = scenario_path(ROOT, project, identifier)
             finding = dict(item.get("raw") or {})
-            finding.setdefault("id", identifier)
+            if snapshot is None:
+                finding.setdefault("id", identifier)
             if validate_finding_id(finding) != str(identifier) or preferred.exists():
                 continue
-        except ContractError:
+        except (ContractError, OSError, ValueError, KeyError, TypeError):
             continue
         file = batch_dir / f"{index:02d}-{project}-{identifier}.json"
         file.write_text(json.dumps(finding, ensure_ascii=False, indent=2) + "\n")
@@ -102,7 +108,7 @@ def build_parallel(candidates, ledger, snapshot, batch_dir, args):
         if any(plan["key"] == key for plan in plans):
             continue
         plans.append({"id": identifier, "project": project, "key": key,
-                      "title": finding.get("title", identifier), "finding": str(file), "state": "queued"})
+                      "title": finding.get("title", identifier), "finding": str(file), "state": "queued", "blue_handoff": candidate.get("blue_handoff", "")})
     if not plans:
         return {}
     (root / "tasks").mkdir(parents=True, exist_ok=True)
@@ -134,7 +140,8 @@ def build_parallel(candidates, ledger, snapshot, batch_dir, args):
             completed = subprocess.run(
                 [sys.executable, str(ROOT / "scripts/redteam/build_lab.py"),
                  "--project", plan["project"], "--finding", plan["finding"],
-                 "--lab-dir", str(lab), "--claude-model", args.model, "--build-only"],
+                 "--lab-dir", str(lab), "--claude-model", args.model, "--build-only"]
+                + (["--blue-handoff", plan["blue_handoff"]] if plan["blue_handoff"] else []),
                 capture_output=True, text=True, cwd=ROOT, timeout=args.build_timeout)
             rc, stdout, stderr = completed.returncode, completed.stdout, completed.stderr
             timed_out = False
@@ -203,6 +210,15 @@ def main():
         if snapshot is not None:
             entry["report_sha256"] = snapshot["sha256"]
         if item:
+            if snapshot is not None:
+                try:
+                    context = validate_packet(candidate.get('blue_handoff', ''), item.get('raw') or {}, project)
+                    if context.get('run_id') != candidate.get('run_id') or context.get('report_sha256') != snapshot['sha256']:
+                        raise ValueError('蓝队交付不属于本轮审计报告')
+                except (OSError, ValueError, KeyError, TypeError) as exc:
+                    entry.update({'status': 'blocked_blue_handoff', 'error': str(exc)})
+                    summary.append(entry)
+                    continue
             try:
                 preferred_path = scenario_path(ROOT, project, candidate_id)
             except ContractError as exc:
@@ -212,7 +228,8 @@ def main():
                 continue
             finding_path = batch_dir / f"{index:02d}-{project}-{candidate_id}.json"
             finding = dict(item.get("raw") or {})
-            finding.setdefault("id", candidate_id)
+            if snapshot is None:
+                finding.setdefault("id", candidate_id)
             try:
                 if validate_finding_id(finding) != str(candidate_id):
                     raise ContractError("blocked_finding_mismatch", "candidate and finding ids differ")
@@ -241,7 +258,8 @@ def main():
                     builder = subprocess.run(
                         [sys.executable, str(ROOT / "scripts" / "redteam" / "build_lab.py"),
                          "--project", project, "--finding", str(finding_path),
-                         "--claude-model", args.model],
+                         "--claude-model", args.model]
+                        + (["--blue-handoff", candidate["blue_handoff"]] if candidate.get("blue_handoff") else []),
                         capture_output=True, text=True, cwd=ROOT, timeout=args.build_timeout,
                     )
                     entry["builder_returncode"] = builder.returncode
@@ -266,6 +284,10 @@ def main():
                                                  expected_finding_sha256=hashlib.sha256(finding_path.read_bytes()).hexdigest())
                 else:
                     resolved_path, scenario = resolve_scenario(ROOT, project, finding, finding_path.read_bytes())
+                if snapshot is not None:
+                    validate_scenario(scenario, expected_finding_id=str(candidate_id),
+                                      expected_finding_sha256=hashlib.sha256(finding_path.read_bytes()).hexdigest(),
+                                      expected_source=context["source"])
                 entry["scenario"] = str(resolved_path)
             except ContractError as exc:
                 entry.update({

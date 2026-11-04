@@ -39,7 +39,8 @@ def test_main_flow_builds_candidates_concurrently_before_execution(tmp_path, mon
 
     monkeypatch.setattr(batch.subprocess, 'run', invoke)
     args = SimpleNamespace(build_jobs=jobs, model='fixture', build_timeout=30)
-    results = batch.build_parallel(candidates, {}, snapshot, out, args)
+    monkeypatch.setattr(batch, 'resolve_candidate', lambda candidate, *_: snapshot['items'][candidate['id']])
+    results = batch.build_parallel(candidates, {}, None, out, args)
     assert state == {'active': 0, 'peak': jobs}
     assert list(results) == [f"demo:{candidate['id']}" for candidate in candidates]
     summary = json.loads((out / 'construction/summary.json').read_text())

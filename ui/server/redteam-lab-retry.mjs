@@ -1,48 +1,40 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {spawn} from 'node:child_process';
-import {createHash} from 'node:crypto';
+import {spawn,spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 
 const read=file=>{try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}};
 const write=(file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(`${file}.tmp`,JSON.stringify(value,null,2));fs.renameSync(`${file}.tmp`,file);};
-const safe=value=>typeof value==='string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/.test(value);
 
-export function labCandidates(run,report=read(path.join(run.runDir,'audit-report.json'))) {
-  if(!Array.isArray(report?.findings))throw Error('缺少有效的审计报告');
-  const originals=new Map();
-  for(const item of report.findings) {
-    const id=item?.id || item?.finding_id;
-    if(!id)continue;
-    if(originals.has(id))throw Error('审计报告含重复的候选编号，无法安全重跑');
-    originals.set(id,item);
-  }
+const helper=fileURLToPath(new URL('../../scripts/redteam/blue_handoff.py',import.meta.url));
+function blueSelection(run,output) {
   const selectedFile=path.join(run.runDir,'redteam/candidates.json');
-  let selected;
-  if(fs.existsSync(selectedFile)) {
-    const snapshot=read(selectedFile);
-    if(!Array.isArray(snapshot?.candidates))throw Error('红队候选清单无效');
-    selected=snapshot.candidates.map(item=>{
-      if(item.project!==run.project || item.run_id!==run.runId)throw Error('红队候选清单不属于当前运行');
-      return item.id;
-    });
-  } else selected=[...originals].filter(([,item])=>['critical','high'].includes(String(item.severity || item.severity_raw || '').toLowerCase())).slice(0,5).map(([id])=>id);
-  if(new Set(selected).size!==selected.length)throw Error('红队候选清单含重复编号');
-  return selected.map(id=>{
-    if(!safe(id) || !originals.has(id))throw Error('红队候选编号无效或不在本轮报告中');
-    return {id,finding:originals.get(id)};
-  });
+  const args=[helper,'--run-dir',run.runDir,'--project',run.project,'--reuse-selection','--max',fs.existsSync(selectedFile)?'10000':'5'];
+  if(output)args.push('--output',output);else args.push('--inspect');
+  const result=spawnSync('python3',args,{encoding:'utf8',timeout:30000,maxBuffer:2*1024*1024});
+  if(result.error)throw Error(`蓝队交付检查失败：${result.error.message}`);
+  let value;try{value=JSON.parse(result.stdout);}catch{throw Error('无法读取蓝队交付检查结果');}
+  if(result.status!==0 || value.error)throw Error(value.error || '蓝队交付检查失败');
+  if(value.gate_reason)throw Error(value.gate_reason);
+  return value;
 }
-
+export function labCandidates(run) {
+  const selection=blueSelection(run);
+  if(!selection.candidates.length)throw Error(`没有蓝队已确认且产物完整的候选${selection.excluded.length?'：'+selection.excluded.slice(0,5).map(item=>`${item.id} ${item.reason}`).join('；'):''}`);
+  return selection.candidates;
+}
 export function prepareLabRetry(run,workspace) {
   const report=fs.readFileSync(path.join(workspace,'audit-report.json'));
-  const candidates=labCandidates(run,JSON.parse(report));
-  const root=path.join(workspace,'redteam');
-  const inputs=candidates.map(({id,finding})=>{
-    const file=path.join(root,'inputs',`${id}.json`);
-    write(file,finding);
-    return {id,title:finding.title || id,finding:file};
+  if(!report.equals(fs.readFileSync(path.join(run.runDir,'audit-report.json'))))throw Error('审计报告已变化，请刷新后重试');
+  const reportData=JSON.parse(report);
+  const originals=new Map((reportData.findings || reportData.vulnerabilities || []).map(item=>[item.id || item.finding_id,item]));
+  const root=path.join(workspace,'redteam'), selection=blueSelection(run,root);
+  if(!selection.candidates.length)throw Error('没有蓝队已确认且产物完整的候选');
+  const inputs=selection.candidates.map(candidate=>{
+    const file=path.join(root,'inputs',`${candidate.id}.json`);write(file,originals.get(candidate.id));
+    return {...candidate,finding:file};
   });
-  write(path.join(root,'selection.json'),{sourceRunId:run.runId,project:run.project,reportSha256:createHash('sha256').update(report).digest('hex'),candidates:inputs});
+  write(path.join(root,'selection.json'),{...selection,sourceRunId:run.runId,candidates:inputs});
 }
 
 export async function runLabRetry(job, concurrency = 10) {
@@ -65,7 +57,7 @@ export async function runLabRetry(job, concurrency = 10) {
     fs.mkdirSync(lab,{recursive:true});
     update(candidate,'running');save();
     console.log(`[红队场景构建] 开始 ${candidate.id}（并发上限 ${concurrency}），仅构建本节点`);
-    const args=['scripts/redteam/build_lab.py','--project',job.project,'--finding',candidate.finding,'--source',job.source,'--lab-dir',lab,'--claude-model',job.model,'--build-only'];
+    const args=['scripts/redteam/build_lab.py','--project',job.project,'--finding',candidate.finding,'--source',job.source,'--lab-dir',lab,'--claude-model',job.model,'--build-only','--blue-handoff',candidate.blue_handoff];
     let result;
     try {result=await new Promise((resolve,reject)=>{
       const child=spawn('python3',args,{cwd:job.repoRoot,stdio:['ignore','pipe','pipe']});

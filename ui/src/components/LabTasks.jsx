@@ -4,7 +4,7 @@ import {taskStateLabel} from '../task-selection.js';
 export default function LabTasks({project,runId,construction,onSelect,selectedId}) {
  const [report,setReport]=useState(null),[error,setError]=useState(''),[loading,setLoading]=useState('');
  const sequence=useRef(0), tasks=construction?.tasks || [];
- if(!tasks.length)return null;
+ if(!tasks.length && !construction?.excluded?.length)return null;
  async function open(task) {
   const request=++sequence.current;setLoading(task.id);setError('');setReport(null);
   try {
@@ -16,6 +16,8 @@ export default function LabTasks({project,runId,construction,onSelect,selectedId
  return <section className="verify-tasks lab-tasks" aria-label="红队候选任务">
   <div className="verify-tasks-heading">场景构建 · {construction.processedCount}/{construction.selectedCount} 条已结束 · {construction.legacy?'旧版串行批次':`并发上限 ${construction.concurrency}`}</div>
   <p className="verify-batch-counts">运行中 {tasks.filter(task=>task.state==='running').length} · 待运行 {tasks.filter(task=>task.state==='queued').length} · 已结束 {tasks.filter(task=>!['running','queued'].includes(task.state)).length} · 可用 {construction.ready} · 受阻 {construction.blocked}</p>
+  {construction.blueAttemptId ? <p className="verify-batch-counts">已接收 {construction.blueHandoffCount} 条蓝队验证交付</p> : null}
+  {construction.excluded?.length ? <details className="verify-batch-scope"><summary>未进入红队构建：{construction.excluded.length} 条</summary>{construction.excluded.map(item=><p key={item.id}><strong>{item.id}</strong>：{item.reason}</p>)}</details> : null}
   {!report?<div className="verify-task-grid">{tasks.map(task=><div key={task.id} className={`verify-task ${selectedId===task.id?'is-active':''}`}>
    <button type="button" aria-pressed={selectedId===task.id} onClick={()=>{sequence.current++;setReport(null);setLoading('');onSelect(task.id);}} title={task.title} aria-label={`查看红队队员 ${task.id} 轨迹 · ${taskStateLabel(task)} · ${task.title}`}>
     <span><span className="verify-task-identity"><TeamAgentIcon team="red" active={task.state==='running'} /><strong>{task.id}</strong></span><small className={`task-state state-${task.state}`}>{taskStateLabel(task)}</small></span><span className="verify-task-title">{task.title}</span><span className="member-open-trace">查看轨迹 →</span>
