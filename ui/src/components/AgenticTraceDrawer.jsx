@@ -1,15 +1,17 @@
 import { createPortal } from 'react-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FileText, MessageSquare, X } from 'lucide-react';
 import { api } from '../api.js';
 import { traceVersion } from '../ccui-cache.js';
 import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
+import VerifyTasks from './VerifyTasks.jsx';
 
 export default function AgenticTraceDrawer({ project, runId, node: initialNode, traces: initialTraces, live, onClose }) {
   const [node, setNode] = useState(initialNode);
   const [traces, setTraces] = useState(initialTraces);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState('');
+  const pickedTrace = useRef(false);
   const [traceId, setTraceId] = useState(initialTraces[0]?.id || '');
   useEffect(() => {
     let cancelled = false;
@@ -27,6 +29,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
       const result = await api.restartNode(project, runId, node.id);
       const payload = await api.pipeline(project, runId);
       const fresh = payload.nodes.find(item => item.id === node.id);
+      pickedTrace.current = false;
       if (fresh) { setNode(fresh); setTraces(fresh.traces || []); setTraceId(`${result.id}-worker`); }
     } catch (error) { setRetryError(error.message); }
     finally { setRetrying(false); }
@@ -35,6 +38,14 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
   const [text, setText] = useState(null);
   const [error, setError] = useState('');
   const selected = traces.find((trace) => trace.id === traceId) || traces[0] || null;
+
+  useEffect(() => {
+    if (node.id !== 'verify' || pickedTrace.current) return;
+    const tasks = node.verification?.tasks || [];
+    const first = tasks.find(task => task.state === 'running' && traces.some(trace => trace.id === task.traceId))
+      || tasks.find(task => traces.some(trace => trace.id === task.traceId));
+    if (first) { pickedTrace.current = true; setTraceId(first.traceId); }
+  }, [node.verification, traces]);
 
   useEffect(() => { setShowRaw(false); }, [selected?.id]);
 
@@ -93,17 +104,28 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
             </button>
             <span>{node.retryReason || '保留历史结果，仅重跑此节点；后续节点不会自动执行'}</span>
           </div>
+          {node.detail?.startsWith('汇总已恢复') ? <p className="agentic-trace-subtitle">{node.detail}</p> : null}
           {node.learning ? <p className="agentic-trace-subtitle">下次运行技能：通用 {node.learning.general ? node.learning.general.slice(0, 8) : '基础规则'} · 仓库专属 {node.learning.project ? node.learning.project.slice(0, 8) : '暂无已验证版本'} · {node.learning.candidates} 个候选待评估</p> : null}
           {retryError ? <p className="inline-error" role="alert">{retryError}</p> : null}
           {traces.some((trace) => trace.label.includes('恢复汇总')) ? <p className="agentic-trace-subtitle">本次为已有结果的恢复汇总，未重新扫描；可切换查看原始完整审计。</p> : null}
-          {traces.length > 1 ? (
+          {traces.length > 1 ? (node.id === 'verify' ? (
+            <details className="verify-other-traces"><summary>其他执行记录（{traces.length}）</summary>
             <label className="agentic-trace-picker">
               <span>选择执行记录</span>
-              <select value={selected?.id || ''} onChange={(event) => setTraceId(event.target.value)}>
+              <select value={selected?.id || ''} onChange={(event) => { pickedTrace.current = true; setTraceId(event.target.value); }}>
                 {traces.map((trace) => <option value={trace.id} key={trace.id}>{trace.label}</option>)}
               </select>
             </label>
-          ) : null}
+            </details>
+          ) : (
+            <label className="agentic-trace-picker">
+              <span>选择执行记录</span>
+              <select value={selected?.id || ''} onChange={(event) => { pickedTrace.current = true; setTraceId(event.target.value); }}>
+                {traces.map((trace) => <option value={trace.id} key={trace.id}>{trace.label}</option>)}
+              </select>
+            </label>
+          )) : null}
+          {node.id === 'verify' ? <VerifyTasks key={node.verification?.attemptId || 'original'} project={project} runId={runId} verification={node.verification} traces={traces} selectedId={selected?.id} onSelect={id=>{pickedTrace.current=true;setTraceId(id);}} /> : null}
         </header>
         <div className="drawer-body agentic-trace-body">
           {selected?.kind === 'claude' && !showRaw ? (

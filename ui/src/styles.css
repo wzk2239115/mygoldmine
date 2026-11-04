@@ -7508,3 +7508,21 @@ body > .project-import-dialog .project-import-body { flex: 1 1 auto; }
 .agentic-environment-info ul { padding-left: 20px; max-height: 180px; overflow: auto; }
 
 .pipeline-landing .agentic-node-scope { display: block; }
+
+.verify-tasks { margin-top: 12px; font-size: 12px; max-height: 210px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.verify-tasks > summary { cursor: pointer; }
+.verify-task-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 8px; }
+.verify-task { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 6px; }
+.verify-task.is-active { border-color: var(--blue); }
+.verify-task > button:first-child { min-width: 0; width: 100%; padding: 0; background: none; color: var(--ink); border: 0; text-align: left; cursor: pointer; }
+.verify-task > button:disabled { cursor: default; }
+.verify-task > button > span:first-child { display: flex; justify-content: space-between; gap: 8px; }
+.verify-task small { color: var(--muted); }
+.verify-task-title { display: block; margin: 6px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.verify-report-preview { margin-top: 10px; line-height: 1.6; }
+.verify-report-preview > .traj-button { float: right; }
+.verify-report-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media(max-width:600px) { .verify-task-grid { grid-template-columns: 1fr; } }
+
+.verify-other-traces { margin-top: 8px; font-size: 12px; color: var(--muted); }
+.verify-other-traces summary { cursor: pointer; }

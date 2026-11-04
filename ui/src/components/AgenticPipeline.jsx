@@ -61,7 +61,8 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
   }, [live, load]);
 
   const prepareTrace = (node) => {
-    const trace = node.traces?.[0];
+    const task = node.verification?.tasks.find(item => item.state === 'running') || node.verification?.tasks[0];
+    const trace = node.traces?.find(item => item.id === task?.traceId) || node.traces?.[0];
     if (trace?.kind !== 'claude') return;
     ccuiSessions.load(project, runId, {node: node.id, trace: trace.id, version: traceVersion(trace)}).catch(() => {});
   };

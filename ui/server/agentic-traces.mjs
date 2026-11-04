@@ -128,7 +128,7 @@ export function listAgenticTraces(run, node) {
     const logs = node === 'visual'
       ? fs.existsSync(path.join(attempt.workspace, 'visual/agentic')) ? fs.readdirSync(path.join(attempt.workspace, 'visual/agentic')).map(id => path.join(attempt.workspace, 'visual/agentic', id, 'agent.log')) : []
       : fs.existsSync(path.join(attempt.workspace, 'verify/agent/logs')) ? fs.readdirSync(path.join(attempt.workspace, 'verify/agent/logs')).map(id => path.join(attempt.workspace, 'verify/agent/logs', id)) : [];
-    return [makeTrace(node, `${attempt.id}-worker`, `${label} · 执行日志`, path.join(attempt.root, 'worker.log')), ...logs.map((file,i) => makeTrace(node, `${attempt.id}-${i}`, `${label} · ${path.basename(path.dirname(file))}`, file))].filter(Boolean);
+    return [makeTrace(node, `${attempt.id}-worker`, `${label} · 执行日志`, path.join(attempt.root, 'worker.log')), ...logs.map(file => { const name=path.basename(file); const finding=node==='verify'?name.replace(/\.(agent|runner)\.log$/,''):path.basename(path.dirname(file)); const kind=node==='verify'?(name.endsWith('.agent.log')?'agent':'runner'):'agent'; return makeTrace(node, `${attempt.id}-${node}-${finding}-${kind}`, `${label} · ${finding} · ${kind==='runner'?'执行器日志':'智能体轨迹'}`, file); })].filter(Boolean);
   });
   const original = originalTraces(run, node);
   const roots = new Set([run.runDir, path.join(run.runDir, 'visual-rendered')]);

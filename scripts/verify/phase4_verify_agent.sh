@@ -12,7 +12,19 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="${PHASE4_REPO_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+
+# 执行启动时的副本，在线更新不会改变已经运行的批次。
+if [ "${PHASE4_SNAPSHOT_PATH:-}" != "${BASH_SOURCE[0]}" ]; then
+    snapshot="$(mktemp /tmp/mygoldmine-phase4.XXXXXX)" || exit 3
+    if ! cp "${BASH_SOURCE[0]}" "$snapshot"; then
+        rm -f "$snapshot"
+        exit 3
+    fi
+    export PHASE4_REPO_ROOT="$REPO_ROOT" PHASE4_SNAPSHOT_PATH="$snapshot"
+    exec bash "$snapshot" "$@"
+fi
+trap 'rm -f "$PHASE4_SNAPSHOT_PATH"' EXIT
 
 log() { printf '[phase4] %s\n' "$*" >&2; }
 die() { printf '[phase4] ERROR: %s\n' "$*" >&2; exit "${2:-3}"; }
@@ -31,6 +43,7 @@ usage() {
 
 选项:
   --max N              最多选择多少条（默认 10）
+  --jobs N             同时验证多少条（1–10，默认 10）
   --severity LIST      逗号分隔的严重度（默认 critical,high）
   --finding-id ID      只处理指定候选问题编号（自动流转用）
   --occurrence-id ID   写入候选问题和报告的单次观测身份字段
@@ -58,6 +71,7 @@ RUN_DIR=""
 IMAGE=""
 SOURCE=""
 MAX=10
+JOBS=10
 SEVERITY="critical,high"
 VERIFY_TIMEOUT=300
 AGENT_TIMEOUT=900
@@ -76,6 +90,7 @@ while [ "$#" -gt 0 ]; do
         --run-dir) [ "$#" -ge 2 ] || die "--run-dir 需要参数"; RUN_DIR="$2"; shift ;;
         --image) [ "$#" -ge 2 ] || die "--image 需要参数"; IMAGE="$2"; shift ;;
         --source) [ "$#" -ge 2 ] || die "--source 需要参数"; SOURCE="$2"; shift ;;
+        --jobs) [ "$#" -ge 2 ] || die "--jobs 需要参数"; JOBS="$2"; shift ;;
         --max) [ "$#" -ge 2 ] || die "--max 需要参数"; MAX="$2"; shift ;;
         --severity) [ "$#" -ge 2 ] || die "--severity 需要参数"; SEVERITY="$2"; shift ;;
         --finding-id) [ "$#" -ge 2 ] || die "--finding-id 需要参数"; FINDING_ID_FILTER="$2"; shift ;;
@@ -101,6 +116,8 @@ done
 [[ "$MAX" =~ ^[1-9][0-9]*$ ]] || die "--max 必须正整数: $MAX"
 [[ "$VERIFY_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || die "--timeout 必须正整数: $VERIFY_TIMEOUT"
 [[ "$AGENT_TIMEOUT" =~ ^[1-9][0-9]*$ ]] || die "--agent-timeout 必须正整数: $AGENT_TIMEOUT"
+
+[[ "$JOBS" =~ ^[1-9][0-9]*$ ]] && [ "$JOBS" -le 10 ] || die "--jobs 必须在 1 到 10 之间"
 
 command -v jq >/dev/null 2>&1 || die "缺少 jq"
 
@@ -368,21 +385,13 @@ Steps:
 EOF
 }
 
-for entry in "${SELECTED[@]}"; do
+verify_one() {
+    entry="$1"
+    sid="$2"
     source_index="$(jq -r '.index' <<< "$entry")"
     orig_id="$(jq -r '.orig_id // ""' <<< "$entry")"
     title="$(jq -r '.title // ""' <<< "$entry")"
     severity="$(jq -r '.severity // "unknown"' <<< "$entry")"
-
-    base="$(printf '%s' "${orig_id:-finding-$source_index}" | tr -c 'A-Za-z0-9._-' '_' | cut -c1-80)"
-    [ -n "$base" ] || base="finding-$source_index"
-    sid="$base"
-    suffix=2
-    while [ -e "$OUTPUT/inputs/$sid" ]; do
-        sid="${base}-${suffix}"
-        suffix=$((suffix + 1))
-    done
-
     input_dir="$OUTPUT/inputs/$sid"
     run_dir="$OUTPUT/$sid"
     harness_dir="$run_dir/harness"
@@ -528,8 +537,42 @@ for entry in "${SELECTED[@]}"; do
             harness_path: (if $harness_path == "" then null else $harness_path end),
             agent_log: $agent_log,
             runner_log: $runner_log
-        }' >> "$RECORDS_FILE"
+        }' > "$run_dir/result.json.tmp"
+    mv "$run_dir/result.json.tmp" "$run_dir/result.json"
+}
+
+JOBS_FILE="$OUTPUT/.jobs.ndjson"
+: > "$JOBS_FILE"
+for entry in "${SELECTED[@]}"; do
+    source_index="$(jq -r '.index' <<< "$entry")"
+    orig_id="$(jq -r '.orig_id // ""' <<< "$entry")"
+    title="$(jq -r '.title // ""' <<< "$entry")"
+    severity="$(jq -r '.severity // "unknown"' <<< "$entry")"
+
+    base="$(printf '%s' "${orig_id:-finding-$source_index}" | tr -c 'A-Za-z0-9._-' '_' | cut -c1-80)"
+    [ -n "$base" ] || base="finding-$source_index"
+    sid="$base"
+    suffix=2
+    while [ -e "$OUTPUT/inputs/$sid" ]; do
+        sid="${base}-${suffix}"
+        suffix=$((suffix + 1))
+    done
+
+    mkdir -p "$OUTPUT/inputs/$sid" "$OUTPUT/$sid"
+    jq -nc --arg id "$sid" --argjson entry "$entry" '{id:$id,entry:$entry}' >> "$JOBS_FILE"
 done
+export PROJECT RUN_DIR RUN_ID_VALUE IMAGE SOURCE MODEL MODEL_RAW OUTPUT ENV_MANIFEST VERIFY_TIMEOUT AGENT_TIMEOUT CLAUDE_BIN VERIFY_RUNNER REPO_ROOT OCCURRENCE_ID SEMANTIC_ID
+export -f log die find_harness write_synth_report enrich_report_identity report_valid load_report invoke_runner build_prompt verify_one
+python3 "$REPO_ROOT/scripts/verify/parallel.py" --jobs "$JOBS" --input "$JOBS_FILE" --output "$OUTPUT" &
+SCHEDULER_PID=$!
+trap 'kill -TERM "$SCHEDULER_PID" 2>/dev/null; wait "$SCHEDULER_PID"; exit 130' INT TERM
+wait "$SCHEDULER_PID"
+SCHEDULER_RC=$?
+trap - INT TERM
+[ "$SCHEDULER_RC" -eq 0 ] || exit "$SCHEDULER_RC"
+jq -c '.[]' "$OUTPUT/.parallel-results.json" > "$RECORDS_FILE"
+rm -f "$JOBS_FILE" "$OUTPUT/.parallel-results.json"
+
 
 FINDINGS_JSON="$(jq -s '.' "$RECORDS_FILE" 2>/dev/null)" || FINDINGS_JSON="[]"
 [ -n "$FINDINGS_JSON" ] || FINDINGS_JSON="[]"
@@ -550,6 +593,7 @@ jq -n \
     --argjson env_manifest_exists "$ENV_MANIFEST_EXISTS" \
     --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     --arg output "$OUTPUT" \
+    --argjson concurrency "$JOBS" \
     --argjson selected "$SELECTED_COUNT" \
     --argjson processed "$PROCESSED_COUNT" \
     --argjson malformed "$MALFORMED_JSON" \
@@ -572,6 +616,7 @@ jq -n \
         generated_at: $generated_at,
         output: $output,
         selected: $selected,
+        concurrency: $concurrency,
         processed: $processed,
         malformed_count: ($malformed | length),
         malformed: $malformed,

@@ -1,3 +1,4 @@
+import {verifyTasks} from './verify-tasks.mjs';
 import { stageLearning } from './stage-learning.mjs';
 import { nodeAttempts, retryEligibility } from './node-retries.mjs';
 import fs from 'node:fs';
@@ -335,13 +336,14 @@ export function buildAgenticPipeline(run) {
     notice = `任务在${current.title}阶段中断，后续阶段未执行`;
   }
   for (const node of nodes) {
+    if (node.id === 'verify') node.verification = verifyTasks(run);
     node.learning = stageLearning(path.resolve(run.runDir, '../../..'), run.project, node.id);
     if (node.id === 'learner') node.detail += ` · 阶段技能待评估 ${node.learning.projectCandidates} 条`;
     node.retryReason = retryEligibility(run, node.id);
     const latest = nodeAttempts(run.runDir, node.id).at(-1);
     if (latest) {
       node.status = latest.status === 'running' ? 'running' : latest.resultStatus || 'failed';
-      node.detail = latest.status === 'running' ? '正在独立重跑此节点' : '节点重跑已结束；原始流程记录保留';
+      node.detail = latest.status === 'running' ? '正在独立重跑此节点' : latest.recovery?.kind === 'aggregation-only' ? '汇总已恢复；候选未重新执行，原始错误记录保留' : '节点重跑已结束；原始流程记录保留';
       node.retryReason = latest.status === 'running' ? '此节点正在重跑' : node.retryReason;
     }
   }
