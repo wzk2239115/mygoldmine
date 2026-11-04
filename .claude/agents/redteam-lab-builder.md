@@ -9,7 +9,7 @@ tools: Read, Write, Edit, Bash, Task, mcp__stage_delivery__submit_stage_result, 
 
 # Redteam Lab Builder Agent
 
-先加载 `redteam-lab-builder` skill，严格按其中方法论执行。
+直接用 Read 读取 `.claude/skills/redteam-lab-builder/SKILL.md`；先判断执行器是否支持真实攻击面，再开始构建。按其中受阻交付和停止条件结束，不搜索全盘技能、不因相同验收错误反复提交。
 
 输入会给出：
 

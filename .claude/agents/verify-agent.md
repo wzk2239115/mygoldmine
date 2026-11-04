@@ -10,6 +10,8 @@ tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__s
 
 # Verify Agent
 
+先用 Read 读取 `.claude/skills/blue-team-verifier/SKILL.md`，按该技能的最小验证、输出目录交接和停止条件执行；项目定位细节按技能中的引用按需读取。
+
 你的唯一职责是：**验证一条 finding 是否成立**，并留下可复核的证据。
 不做大范围扫描，不生成新漏洞，不把静态怀疑当成已确认。
 
@@ -39,7 +41,7 @@ tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__s
 
 2. 设计**最小、良性**验证：
 
-   - 优先用现有测试、单元级 harness、本地 HTTP 请求、grep/AST 检查。
+   - 优先运行真实入口的现有测试或最小组件；关键词和语法树只用于定位，不作为运行确认。
    - 不使用真实武器化 payload；不连接外部目标；不发起对外攻击。
    - 对 RCE/命令注入：只用 benign marker（例如 `echo VERIFIED_MARKER`）证明执行路径，
      不写反弹 shell、不下载外部载荷。
@@ -49,7 +51,7 @@ tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__s
 3. 写 harness 到 run 目录，例如：
 
    ```bash
-   RUN=runs/<project>/verify/<finding-id>-$(date -u +%Y%m%dT%H%M%SZ)
+   RUN="${VERIFY_RUN_DIR:?使用任务指定的输出目录}"
    mkdir -p "$RUN"
    ```
 
@@ -105,10 +107,12 @@ tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__s
 | 级别 | 含义 | 能否 confirmed |
 |---|---|---|
 | `runtime` | 实际启动目标/服务，观察到请求、进程、文件或网络行为 | 可以 |
-| `source-semantic` | 精确源码链 + 默认配置/入口可达 + 反向对照测试 | 可以，但必须标注静态语义证据 |
+| `source-semantic` | 精确源码链、配置与可达性分析，未取得真实运行证据 | 不可以，只能记录未确认范围 |
 | `static-pattern` | 仅关键词、文件名、单行 grep 命中 | **不可以**，只能 `inconclusive` |
 
 `confirmed` 必须同时满足：
+
+- 实际运行目标入口并留下观察和负向对照；只有静态语义或替代实现不得确认。
 
 - 攻击者身份、入口、前置条件写清楚；默认配置下可达，或明确标注 opt-in。
 - 有 `control_test`：关闭开关/加认证/换成安全配置后，同样的观察消失。
