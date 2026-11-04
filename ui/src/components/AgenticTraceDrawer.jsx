@@ -99,18 +99,20 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
               {node.environment.limitations.length ? <ul>{node.environment.limitations.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p>具体能力范围请查看本次环境构建记录。</p>}
             </details>
           ) : null}
-          <div className="agentic-trace-picker">
+          {node.retrySupported === false ? <div className="agentic-retry-unavailable" role="note">
+            <strong>此节点暂不支持单独重跑</strong><span>请使用项目的“重新审计”入口。</span>
+          </div> : <div className="agentic-trace-picker">
             <button type="button" className="button" disabled={retrying || Boolean(node.retryReason) || node.retryReason === undefined} title={node.retryReason || '复用已有输入，仅重新执行当前节点'} onClick={restartNode}>
-              {retrying || node.detail === '正在独立重跑此节点' ? '正在重跑…' : '重新运行此节点'}
+              {retrying ? '正在提交…' : node.retryReason === '此节点正在重跑' ? '正在重跑…' : node.retryReason ? '暂时无法重跑' : '重新运行此节点'}
             </button>
             <span>{node.retryReason || '保留历史结果，仅重跑此节点；后续节点不会自动执行'}</span>
-          </div>
-          {node.detail?.startsWith('汇总已恢复') ? <p className="agentic-trace-subtitle">{node.detail}</p> : null}
+          </div>}
+          {node.recoveryNotice ? <p className="agentic-trace-subtitle">{node.recoveryNotice}</p> : null}
           {node.learning ? <p className="agentic-trace-subtitle">下次运行技能：通用 {node.learning.general ? node.learning.general.slice(0, 8) : '基础规则'} · 仓库专属 {node.learning.project ? node.learning.project.slice(0, 8) : '暂无已验证版本'} · {node.learning.candidates} 个候选待评估</p> : null}
           {retryError ? <p className="inline-error" role="alert">{retryError}</p> : null}
           {traces.some((trace) => trace.label.includes('恢复汇总')) ? <p className="agentic-trace-subtitle">本次为已有结果的恢复汇总，未重新扫描；可切换查看原始完整审计。</p> : null}
           {traces.length > 1 ? (node.id === 'verify' ? (
-            <details className="verify-other-traces"><summary>其他执行记录（{traces.length}）</summary>
+            <details className="verify-other-traces"><summary>日志与历史记录（{traces.length} 份）</summary>
             <label className="agentic-trace-picker">
               <span>选择执行记录</span>
               <select value={selected?.id || ''} onChange={(event) => { pickedTrace.current = true; setTraceId(event.target.value); }}>

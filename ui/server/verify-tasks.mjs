@@ -19,7 +19,7 @@ export function verifyTasks(run) {
   if(!tasks.length && fs.existsSync(path.join(root,'inputs'))) tasks=fs.readdirSync(path.join(root,'inputs')).filter(validId).map(id=>{
    const input=read(path.join(root,'inputs',id,'finding.json')) || {};
    const report=read(path.join(root,id,'verify-report.json'));
-   return {finding_id:id,title:input.title || id,source_index:input.selection_index,verdict:report?.verdict,reason:report?.reason,
+   return {finding_id:id,title:input.title || id,severity:input.severity,source_index:input.selection_index,verdict:report?.verdict,reason:report?.reason,
     state:report?'completed':active?'running':'interrupted'};
   });
  }
@@ -30,11 +30,19 @@ export function verifyTasks(run) {
   if(!active && ['running','queued'].includes(state))state='interrupted';
   const report=read(path.join(root,id,'verify-report.json'));
   const verdict=item.verdict || report?.verdict || '';
-  return {id,title:item.title || item.entry?.title || id,state,verdict,label:labels[state==='completed'?verdict || state:state] || '已结束',
+  return {id,title:item.title || item.entry?.title || id,severity:item.severity || item.entry?.severity || '',state,verdict,label:labels[state==='completed'?verdict || state:state] || '已结束',
    reason:item.reason || report?.reason || '',sourceIndex:item.entry?.index ?? item.source_index ?? 0,
    hasReport:Boolean(report),traceId:attempt?`${attempt.id}-verify-${id}-agent`:id};
  }).sort((a,b)=>a.sourceIndex-b.sourceIndex || a.id.localeCompare(b.id));
- return {concurrency:Number(summary?.concurrency || (!legacy && read(path.join(directory,`${tasks[0]?.id}.json`))?.concurrency) || 1),
+ const number=(value,fallback=0)=>Number.isInteger(Number(value)) && Number(value)>=0 ? Number(value) : fallback;
+ const finished=tasks.filter(task=>!['running','queued'].includes(task.state));
+ const verdicts=['confirmed','rejected','inconclusive','blocked'];
+ const counts=Object.fromEntries(verdicts.map(verdict=>[verdict,number(summary?.counts?.[verdict],finished.filter(task=>task.verdict===verdict).length)]));
+ const report=read(path.join(attempt?.workspace || run.runDir,'audit-report.json'));
+ const processedCount=number(summary?.processed,Math.max(finished.length,summary?Object.values(counts).reduce((sum,count)=>sum+count,0):0));
+ return {selectedCount:number(summary?.selected,Math.max(tasks.length,processedCount)),processedCount,counts,
+  reportTotal:Array.isArray(report?.findings)?report.findings.length:null,
+  concurrency:Number(summary?.concurrency || (!legacy && read(path.join(directory,`${tasks[0]?.id}.json`))?.concurrency) || 1),
   legacy,attemptId:attempt?.id || '',tasks};
 }
 export function verifyTaskReport(run,id,attemptId='') {

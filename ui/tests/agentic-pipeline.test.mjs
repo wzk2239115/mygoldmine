@@ -254,3 +254,32 @@ test('旧运行只读取仍与本次环境绑定的清单，拒绝后来更新�
  writeJson(`${runDir}.meta/env-phase.json`,{...phase,final:{...phase.final,capabilities:{platform:{torch:'2.13.0+cpu'},limitations:['本次快照']}}});
  assert.deepEqual(buildAgenticPipeline(run).nodes[0].environment.limitations,['本次快照']);
 });
+
+
+test('蓝队最新批次候选数与日志数分开，部分受阻保留原因并明确重跑支持范围', t=>{
+ const {runDir,run}=fixture(t);
+ const root=`${runDir}.meta/node-retries/verify/latest`, workspace=path.join(root,'output');
+ writeJson(path.join(root,'attempt.json'),{id:'latest',workspace,root,status:'completed',resultStatus:'degraded',startedAt:'2026-11-04T01:00:00Z',recovery:{kind:'aggregation-only'}});
+ writeJson(path.join(workspace,'audit-report.json'),{findings:Array.from({length:30},(_,i)=>({id:`F-${i}`}))});
+ writeJson(path.join(runDir,'verify/agent/summary.json'),{status:'blocked',counts:{blocked:4},processed:4});
+ const findings=Array.from({length:4},(_,i)=>({finding_id:`F-${i}`,title:`候选 ${i}`,severity:'high',verdict:i===3?'blocked':'confirmed',reason:i===3?'验证智能体超时，未生成验证脚本':''}));
+ writeJson(path.join(workspace,'verify/agent/summary.json'),{status:'partial',selected:4,processed:4,counts:{confirmed:3,blocked:1},findings});
+ fs.writeFileSync(path.join(root,'worker.log'),'批次记录');
+ for(let i=0;i<4;i++)for(const kind of ['agent','runner']) {
+  const file=path.join(workspace,`verify/agent/logs/F-${i}.${kind}.log`);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,'执行记录');
+ }
+ const nodes=Object.fromEntries(buildAgenticPipeline(run).nodes.map(n=>[n.id,n]));
+ assert.equal(nodes.verify.traces.length,9);
+ assert.equal(nodes.verify.verification.selectedCount,4);
+ assert.equal(nodes.verify.verification.processedCount,4);
+ assert.equal(nodes.verify.verification.reportTotal,30);
+ assert.deepEqual(nodes.verify.verification.counts,{confirmed:3,rejected:0,inconclusive:0,blocked:1});
+ assert.equal(nodes.verify.status,'degraded');assert.equal(nodes.verify.statusLabel,'部分受阻');
+ assert.match(nodes.verify.candidateSummary,/确认 3.*受阻 1/);
+ assert.match(nodes.verify.detail,/F-3：验证智能体超时/);
+ assert.match(nodes.verify.recoveryNotice,/汇总已恢复/);
+ assert.equal(nodes.verify.retrySupported,true);
+ assert.equal(nodes.visual.retrySupported,true);
+ assert.equal(nodes['redteam-lab'].retrySupported,false);
+ assert.equal(nodes['redteam-agent'].retrySupported,false);
+});

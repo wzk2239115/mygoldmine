@@ -92,7 +92,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
               data-node-id={node.id}
               key={node.id}
               title={`${node.title}：${node.detail} · 点击查看执行轨迹`}
-              aria-label={`查看${node.title}执行轨迹，${node.traces?.length || 0} 条记录`}
+              aria-label={`查看${node.title}执行轨迹，${node.verification ? `${node.verification.selectedCount} 条候选，` : ''}${node.traces?.length || 0} 份执行记录`}
               onPointerEnter={() => prepareTrace(node)}
               onFocus={() => prepareTrace(node)}
               onClick={() => setSelectedNode(node)}
@@ -101,14 +101,15 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
                 <span className="agentic-node-index">{String(index + 1).padStart(2, '0')}</span>
                 <span className={cx('agentic-node-status', `is-${node.status}`)}>
                   <StatusIcon status={node.status} />
-                  {STATUS_LABELS[node.status] || node.status}
+                  {node.statusLabel || STATUS_LABELS[node.status] || node.status}
                 </span>
               </div>
               <strong><span className="agentic-node-name"><TeamAgentIcon node={node.id} active={node.status==='running'} />{node.title}</span></strong>
               <code>{node.agent}</code>
               <p>{node.detail}</p>
               {node.environment?.status === 'partial' ? <span className="agentic-node-scope">{node.environment.scope} · 能力受限</span> : null}
-              <span className="agentic-node-trace">{node.traces?.length ? `查看 ${node.traces.length} 条轨迹` : '暂无轨迹'}</span>
+              <span className="agentic-node-candidates">{node.candidateSummary}</span>
+              <span className="agentic-node-trace">{node.verification ? `查看 ${node.verification.selectedCount} 条候选` : node.traces?.length ? `查看 ${node.traces.length} 条轨迹` : '暂无轨迹'}</span>
             </button>
           ))}
         </div>

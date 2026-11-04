@@ -7538,3 +7538,14 @@ body > .project-import-dialog .project-import-body { flex: 1 1 auto; }
 .team-agent-icon.is-active { animation: team-agent-pulse 1.8s ease-in-out infinite; }
 @keyframes team-agent-pulse { 50% { opacity: .65; } }
 @media (prefers-reduced-motion: reduce) { .team-agent-icon.is-active { animation: none; } }
+
+
+.agentic-node-candidates { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.agentic-node-candidates:empty { display: none; }
+.agentic-retry-unavailable { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 12px; }
+.agentic-retry-unavailable strong { font-weight: 500; }
+.verify-batch-counts { margin: 7px 0; color: var(--ink-2); }
+.verify-batch-counts:empty { display: none; }
+.verify-batch-scope { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.verify-batch-scope > summary { cursor: pointer; }
+.verify-batch-scope p { margin: 6px 0; }

@@ -1,6 +1,6 @@
 import {verifyTasks} from './verify-tasks.mjs';
 import { stageLearning } from './stage-learning.mjs';
-import { nodeAttempts, retryEligibility } from './node-retries.mjs';
+import { nodeAttempts, retryEligibility, supportsNodeRetry } from './node-retries.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { listAgenticTraces } from './agentic-traces.mjs';
@@ -339,12 +339,28 @@ export function buildAgenticPipeline(run) {
     if (node.id === 'verify') node.verification = verifyTasks(run);
     node.learning = stageLearning(path.resolve(run.runDir, '../../..'), run.project, node.id);
     if (node.id === 'learner') node.detail += ` · 阶段技能待评估 ${node.learning.projectCandidates} 条`;
+    node.retrySupported = supportsNodeRetry(node.id);
     node.retryReason = retryEligibility(run, node.id);
     const latest = nodeAttempts(run.runDir, node.id).at(-1);
     if (latest) {
       node.status = latest.status === 'running' ? 'running' : latest.resultStatus || 'failed';
       node.detail = latest.status === 'running' ? '正在独立重跑此节点' : latest.recovery?.kind === 'aggregation-only' ? '汇总已恢复；候选未重新执行，原始错误记录保留' : '节点重跑已结束；原始流程记录保留';
       node.retryReason = latest.status === 'running' ? '此节点正在重跑' : node.retryReason;
+    }
+    if (node.id === 'verify') {
+      const info = node.verification;
+      const labels = {confirmed:'确认',rejected:'排除',inconclusive:'待定',blocked:'受阻'};
+      node.candidateSummary = Object.entries(labels).filter(([key])=>info.counts[key]>0).map(([key,label])=>`${label} ${info.counts[key]}`).join(' · ');
+      if (info.selectedCount || info.tasks.length) {
+        const progress = `${info.processedCount}/${info.selectedCount} 条候选已处理`;
+        node.detail = [progress,node.candidateSummary].filter(Boolean).join(' · ');
+        if (node.status === 'failed') node.detail += ' · 批次异常退出，请查看执行日志';
+        else if (node.status === 'running') node.detail += ' · 正在验证';
+        const blocked = info.tasks.find(task=>task.verdict==='blocked' && task.reason);
+        if (blocked && node.status !== 'running') node.detail += ` · ${blocked.id}：${blocked.reason}`;
+      }
+      if (node.status === 'degraded') node.statusLabel = info.counts.blocked > 0 ? '部分受阻' : '部分完成';
+      if (latest?.recovery?.kind === 'aggregation-only') node.recoveryNotice = '汇总已恢复；候选未重新执行，原始错误记录保留';
     }
   }
   return {

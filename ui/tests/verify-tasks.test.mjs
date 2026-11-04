@@ -19,6 +19,7 @@ test('历史候选各自绑定报告，不按模型给出的报告路径读取',
  write(path.join(root,'F-1/verify-report.json'),{finding_id:'F-1',verdict:'blocked',reason:'缺少条件'});
  const data=verifyTasks(run);
  assert.equal(data.concurrency,1);assert.equal(data.legacy,true);
+ assert.equal(data.selectedCount,1);assert.equal(data.processedCount,1);
  assert.equal(data.tasks[0].traceId,'F-1');assert.equal(data.tasks[0].label,'受阻');
  assert.equal(verifyTaskReport(run,'F-1').finding_id,'F-1');
  assert.equal(verifyTaskReport(run,'..'),null);
@@ -36,6 +37,7 @@ test('并发候选在新批次独立定位，新增日志不会改变已有轨�
  fs.writeFileSync(file,'{"type":"assistant","message":{"content":[]}}\n');
  let data=verifyTasks(run);
  assert.equal(data.concurrency,10);assert.equal(data.tasks[0].label,'运行中');
+ assert.equal(data.selectedCount,2);assert.equal(data.processedCount,0);
  assert.ok(listAgenticTraces(run,'verify').some(trace=>trace.id===data.tasks[0].traceId));
  fs.writeFileSync(path.join(root,'logs/F-1.runner.log'),'runner');
  assert.ok(listAgenticTraces(run,'verify').some(trace=>trace.id===data.tasks[0].traceId));

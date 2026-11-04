@@ -11,8 +11,9 @@ export function nodeAttempts(runDir,node) {
   if(!fs.existsSync(root))return [];
   return fs.readdirSync(root).map(id=>read(path.join(root,id,'attempt.json'))).filter(Boolean).sort((a,b)=>a.startedAt.localeCompare(b.startedAt));
 }
+export const supportsNodeRetry = node => ['visual','verify'].includes(node);
 export function retryEligibility(run,node) {
-  if(!['visual','verify'].includes(node))return '该节点暂不支持独立重跑，请使用项目重跑';
+  if(!supportsNodeRetry(node))return '该节点暂不支持独立重跑，请使用项目重跑';
   if(fs.existsSync(path.join(path.resolve(run.runDir,'../../..'),'runs',`.learning-cycle-${run.project}.lock`)))return '该项目正在执行学习循环';
   if(run.isLive)return '项目正在运行，请等待本次流程结束';
   const status=read(`${run.runDir}.meta/status.json`) || {};

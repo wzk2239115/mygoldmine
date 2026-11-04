@@ -6,6 +6,10 @@ export default function VerifyTasks({project,runId,verification,traces,onSelect,
  const sequence=useRef(0);
  const tasks=verification?.tasks || [];
  if(!tasks.length)return null;
+ const counts=verification.counts || {};
+ const severityLabels={critical:'严重',high:'高危',medium:'中危',low:'低危',info:'信息'};
+ const severities=Object.entries(severityLabels).map(([key,label])=>[label,tasks.filter(task=>task.severity===key).length]).filter(([,count])=>count>0).map(([label,count])=>`${label} ${count}`).join(' · ');
+ const blocked=tasks.filter(task=>task.verdict==='blocked' && task.reason);
  const finished=tasks.filter(task=>!['running','queued'].includes(task.state)).length;
  async function openReport(task) {
   const request=++sequence.current;
@@ -17,7 +21,9 @@ export default function VerifyTasks({project,runId,verification,traces,onSelect,
   } catch(error){if(request===sequence.current)setError(error.message);}finally{if(request===sequence.current)setLoading('');}
  }
  return <details className="verify-tasks" open>
-  <summary>候选验证 · {finished}/{tasks.length} 已结束 · {verification.legacy?'旧版串行批次':`并发上限 ${verification.concurrency}`}</summary>
+  <summary>候选进度 · {finished}/{verification.selectedCount ?? tasks.length} 条已结束 · {verification.legacy?'旧版串行批次':`并发上限 ${verification.concurrency}`}</summary>
+  <p className="verify-batch-counts">{[['confirmed','确认'],['rejected','排除'],['inconclusive','待定'],['blocked','受阻']].filter(([key])=>counts[key]>0).map(([key,label])=>`${label} ${counts[key]}`).join(' · ')}</p>
+  <details className="verify-batch-scope"><summary>本批次范围{verification.reportTotal !== null ? `：选中 ${verification.selectedCount} / 报告 ${verification.reportTotal} 条` : ''}</summary><p>{severities ? `本批次包含：${severities}。` : ''}这里只显示本批次选中的候选，未选中的候选不代表已经验证。执行记录按智能体会话、执行器日志和批次日志分别计数。</p>{blocked.map(task=><p key={task.id}><strong>{task.id} 受阻：</strong>{task.reason}</p>)}</details>
   {!report ? <div className="verify-task-grid">{tasks.map(task=><div key={task.id} className={`verify-task ${selectedId===task.traceId?'is-active':''}`}>
    <button type="button" onClick={()=>onSelect(task.traceId)} disabled={!traces.some(trace=>trace.id===task.traceId)} title={task.title}>
     <span><span className="verify-task-identity"><TeamAgentIcon team="blue" active={task.state==='running'} /><strong>{task.id}</strong></span><small>{task.label}</small></span><span className="verify-task-title">{task.title}</span>
