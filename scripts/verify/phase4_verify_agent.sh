@@ -412,7 +412,7 @@ for entry in "${SELECTED[@]}"; do
     PROMPT="$(build_prompt "$sid" "$finding_file" "$run_dir" "$harness_dir")"
     CLAUDE_ARGS=(
         --mcp-config "$(python3 "$REPO_ROOT/scripts/stages/submission.py" config --stage verify --root "$run_dir")"
-        --append-system-prompt "$(python3 "$REPO_ROOT/scripts/stages/submission.py" instruction)"
+        --append-system-prompt "$(python3 "$REPO_ROOT/scripts/stages/submission.py" instruction --stage verify --root "$run_dir")"
         --agent verify-agent
         --output-format stream-json
         --verbose

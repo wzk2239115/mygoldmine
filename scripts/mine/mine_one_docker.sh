@@ -153,6 +153,7 @@ docker_cmd() {
     c+=(-e "WORK_DIR=/workspace/repo")
     c+=(-e "RUN_DIR=${RUN_DIR}")
     c+=(-e "PROJECT=${PROJECT}")
+    c+=(-e "STAGE_SKILL_OVERRIDE=${STAGE_SKILL_OVERRIDE:-}" -e "STAGE_SKILL_BASELINE=${STAGE_SKILL_BASELINE:-}")
     c+=(-e "TIMEOUT=${TIMEOUT}")
     c+=(-e "AUDIT_IDLE_TIMEOUT=${AUDIT_IDLE_TIMEOUT:-180}")
     c+=(-e "MODEL=${CLAUDE_MODEL}")
@@ -271,6 +272,7 @@ if [ -n "$SANDBOX_CONTAINER" ]; then
     docker exec --workdir /workspace/repo \
         -e MYGOLDMINE_HOME=/opt/mygoldmine \
         -e TARGET_DIR=/target -e WORK_DIR=/workspace/repo -e WORKSPACE_PREPARED=1 \
+        -e STAGE_SKILL_OVERRIDE="${STAGE_SKILL_OVERRIDE:-}" -e STAGE_SKILL_BASELINE="${STAGE_SKILL_BASELINE:-}" \
         -e RUN_DIR="$RUN_DIR" -e PROJECT="$PROJECT" \
         -e TIMEOUT="$TIMEOUT" -e AUDIT_IDLE_TIMEOUT="${AUDIT_IDLE_TIMEOUT:-180}" \
         -e MODEL="$CLAUDE_MODEL" -e AGENT="$AGENT" \

@@ -4,7 +4,7 @@ description: |
   自动构建红队验收 lab 的 agent。读取 finding、源码和环境清单，判断攻击面，构建 victim/attacker、
   设计 flag、写 scenario.json 和负向控制，再交给 redteam-agent 与 exploit-judge。
 model: inherit
-tools: Read, Write, Edit, Bash, Task
+tools: Read, Write, Edit, Bash, Task, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
 ---
 
 # Redteam Lab Builder Agent

@@ -4,7 +4,7 @@ description: |
   安全审计编排智能体：先判断项目类型，再按 Web 或智能体基础设施路径分派扫描、验证与报告任务。
   Use when you need to classify a project and run the full audit pipeline.
 model: opus
-tools: Read, Write, Edit, Bash, Agent
+tools: Read, Write, Edit, Bash, Agent, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
 ---
 
 你是安全编排智能体，负责统筹项目分类，并处理子智能体返回的任务。

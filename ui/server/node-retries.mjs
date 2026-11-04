@@ -13,6 +13,7 @@ export function nodeAttempts(runDir,node) {
 }
 export function retryEligibility(run,node) {
   if(!['visual','verify'].includes(node))return '该节点暂不支持独立重跑，请使用项目重跑';
+  if(fs.existsSync(path.join(path.resolve(run.runDir,'../../..'),'runs',`.learning-cycle-${run.project}.lock`)))return '该项目正在执行学习循环';
   if(run.isLive)return '项目正在运行，请等待本次流程结束';
   const status=read(`${run.runDir}.meta/status.json`) || {};
   const report=read(path.join(run.runDir,'audit-report.json'));
@@ -55,6 +56,9 @@ async function worker(file) {
       job.resultStatus=summary?.steps?.render_attack_scenes_agentic?.ok?'completed':summary?.scene_count?'degraded':'failed';
     } else job.resultStatus=code===0?'completed':'failed';
   } catch(error) { job.error=error.message; }
-  finally { job.status=code===0?'completed':'failed';job.exitCode=code;job.endedAt=new Date().toISOString();write(file,job);fs.rmSync(job.lock,{recursive:true,force:true}); }
+  finally { job.status=code===0?'completed':'failed';job.exitCode=code;job.endedAt=new Date().toISOString();write(file,job);fs.rmSync(job.lock,{recursive:true,force:true});
+    const originalRun=path.resolve(job.root,'../../..').replace(/\.meta$/,'');
+    const collector=path.join(job.repoRoot,'scripts/stages/skill_bank.py');
+    if(fs.existsSync(collector)) await new Promise(resolve=>{const child=spawn('python3',[collector,'collect','--project',job.project,'--root',originalRun],{cwd:job.repoRoot,stdio:'ignore'});child.on('error',resolve);child.on('close',resolve);}); }
 }
 if(process.argv[2]==='--worker')await worker(process.argv[3]);

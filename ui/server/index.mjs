@@ -1299,6 +1299,7 @@ const server = http.createServer(async (req, res) => {
     const restartTarget = pathname.match(/^\/api\/targets\/([^/]+)\/restart$/);
     if (req.method === 'POST' && restartTarget) {
       const project = normalizeProjectId(restartTarget[1]);
+      if (fs.existsSync(path.join(REPO_ROOT, 'runs', `.learning-cycle-${project}.lock`))) return sendError(res, 409, '该项目正在执行学习循环');
       if (fs.existsSync(path.join(REPO_ROOT, 'runs', `.node-retry-${project}.lock`))) return sendError(res, 409, '该项目正在执行节点重跑');
       if (!discoverRuns({withFindings:false}).some(run => run.project === project)) return sendError(res,404,'项目不存在');
       sendJson(res,201,await projectImporter.restart(project));

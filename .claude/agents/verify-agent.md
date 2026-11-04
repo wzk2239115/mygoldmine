@@ -5,7 +5,7 @@ description: |
   编写最小化、非武器化的 harness，在隔离容器中运行，输出 confirmed/rejected/inconclusive/blocked
   四态结论与证据。不编写可直接武器化的 exploit。
 model: inherit
-tools: Read, Write, Edit, Bash
+tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
 ---
 
 # Verify Agent

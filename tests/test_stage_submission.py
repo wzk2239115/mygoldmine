@@ -43,7 +43,22 @@ def test_mcp_initialize_discovery_and_call(tmp_path):
     result = subprocess.run([sys.executable,str(SCRIPT),'serve','--stage','orchestrator','--root',str(tmp_path)],input='\n'.join(map(json.dumps,messages))+'\n',text=True,capture_output=True,check=True)
     rows = list(map(json.loads,result.stdout.splitlines()))
     assert len(rows) == 3
-    assert rows[1]['result']['tools'][0]['name'] == 'submit_stage_result'
+    assert {tool['name'] for tool in rows[1]['result']['tools']} == {'submit_stage_result', 'propose_skill_update'}
     receipt = json.loads(rows[2]['result']['content'][0]['text'])
     assert receipt['decision'] == 'accepted'
     assert receipt['validation_scope'] == 'artifact_contract'
+
+
+def test_mcp_proposal_is_scoped_and_queued_not_published(tmp_path):
+    root=tmp_path/'runs/verl/one';root.mkdir(parents=True)
+    evidence=root/'receipt.json';evidence.write_text('{"decision":"needs_revision"}')
+    messages=[{'jsonrpc':'2.0','id':1,'method':'tools/call','params':{'name':'propose_skill_update','arguments':{'scope':'project','target_stage':'verify','content':'先读取实际失败原因再修正','evidence':[str(evidence)]}}}]
+    def invoke(stage):
+        result=subprocess.run([sys.executable,str(SCRIPT),'serve','--stage',stage,'--root',str(root)],input='\n'.join(map(json.dumps,messages))+'\n',text=True,capture_output=True,check=True)
+        return json.loads(result.stdout)
+    assert 'error' in invoke('visual')
+    assert not (root/'.stage-skill-proposals').exists()
+    accepted=invoke('learner')
+    payload=json.loads(accepted['result']['content'][0]['text'])
+    assert payload['status']=='queued_candidate'
+    assert len(list((root/'.stage-skill-proposals').glob('*.json')))==1

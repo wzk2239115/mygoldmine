@@ -5,7 +5,7 @@ description: |
   信任边界、分镜和视觉隐喻，调用 image2 生成攻击场景插图，检查并迭代修正。
   不重新判定漏洞，不写武器化 exploit，不把插图当证据。
 model: inherit
-tools: Read, Write, Edit, Bash
+tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
 ---
 
 # Attack Scene Director

@@ -115,7 +115,9 @@ function originalTraces(run, node) {
   }
   if (['redteam-lab', 'redteam-agent', 'judge'].includes(node)) return redteamTrace(run, node);
   if (node === 'learner') {
-    return [makeTrace(node, 'learner', '经验学习主会话', path.join(run.runDir, 'rsi/learner.jsonl'), 'claude')].filter(Boolean);
+    const directory=path.join(run.runDir,'rsi/stage-learning-attempts');
+    const attempts=fs.existsSync(directory)?fs.readdirSync(directory).map(id=>makeTrace(node,`stage-learning-${id}`,'八阶段技能提炼',path.join(directory,id,'stream.jsonl'),'claude')).filter(Boolean).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)):[];
+    return [...attempts, makeTrace(node, 'stage-learning-pilot', '八阶段技能提炼（试运行）', path.join(run.runDir,'rsi/stage-learning.jsonl'),'claude'), makeTrace(node, 'learner', '挖掘修复经验学习', path.join(run.runDir, 'rsi/learner.jsonl'), 'claude')].filter(Boolean);
   }
   return [];
 }

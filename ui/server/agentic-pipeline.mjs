@@ -1,3 +1,4 @@
+import { stageLearning } from './stage-learning.mjs';
 import { nodeAttempts, retryEligibility } from './node-retries.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -296,6 +297,8 @@ export function buildAgenticPipeline(run) {
     notice = `任务在${current.title}阶段中断，后续阶段未执行`;
   }
   for (const node of nodes) {
+    node.learning = stageLearning(path.resolve(run.runDir, '../../..'), run.project, node.id);
+    if (node.id === 'learner') node.detail += ` · 阶段技能待评估 ${node.learning.projectCandidates} 条`;
     node.retryReason = retryEligibility(run, node.id);
     const latest = nodeAttempts(run.runDir, node.id).at(-1);
     if (latest) {

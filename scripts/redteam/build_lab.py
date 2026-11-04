@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 sys.path.insert(0, str(ROOT / 'scripts/stages'))
 from submission import config as delivery_config, INSTRUCTION as DELIVERY_INSTRUCTION
+from skill_bank import instruction as layered_skill_instruction
 
 
 def language_directive():
@@ -147,7 +148,7 @@ def run(args):
         "and do not declare mounts. If impossible, write BLOCKED.md with the concrete blocker. "
         "Do not modify the finding or the source tree. Print the scenario path when done."
     )
-    command = [args.claude, "--mcp-config", json.dumps(delivery_config("redteam-lab", lab_dir)), "--append-system-prompt", DELIVERY_INSTRUCTION]
+    command = [args.claude, "--mcp-config", json.dumps(delivery_config("redteam-lab", lab_dir)), "--append-system-prompt", DELIVERY_INSTRUCTION + "\n" + layered_skill_instruction("redteam-lab", lab_dir)]
     if args.claude_model:
         command += ["--model", args.claude_model]
     command += [

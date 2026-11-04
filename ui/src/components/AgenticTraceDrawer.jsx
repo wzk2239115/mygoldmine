@@ -82,6 +82,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
             </button>
             <span>{node.retryReason || '保留历史结果，仅重跑此节点；后续节点不会自动执行'}</span>
           </div>
+          {node.learning ? <p className="agentic-trace-subtitle">下次运行技能：通用 {node.learning.general ? node.learning.general.slice(0, 8) : '基础规则'} · 仓库专属 {node.learning.project ? node.learning.project.slice(0, 8) : '暂无已验证版本'} · {node.learning.candidates} 个候选待评估</p> : null}
           {retryError ? <p className="inline-error" role="alert">{retryError}</p> : null}
           {traces.some((trace) => trace.label.includes('恢复汇总')) ? <p className="agentic-trace-subtitle">本次为已有结果的恢复汇总，未重新扫描；可切换查看原始完整审计。</p> : null}
           {traces.length > 1 ? (

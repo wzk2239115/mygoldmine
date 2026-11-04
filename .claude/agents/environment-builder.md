@@ -5,7 +5,7 @@ description: |
   和已部署项目），输出 env/<project>/Dockerfile、build/run/test 脚本和 env-manifest.json。
   构建失败时如实标记 `partial` 或 `blocked`，不得写成 `ready`。用于给后续 verify-agent 提供可运行环境。
 model: inherit
-tools: Read, Write, Edit, Bash
+tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
 ---
 
 # Environment Builder Agent

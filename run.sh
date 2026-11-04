@@ -394,11 +394,23 @@ if [ "$MODE" = "supervise" ]; then
               review_ready:$review_ready, timeout_seconds:$timeout,
               started_at:$started_at, updated_at:$updated_at, container:$container,
               exit_code:$exit_code}' > "$META/status.json"
+        case "$state" in
+            success|completed|partial|failed|timeout|stopped)
+                python3 "$REPO_ROOT/scripts/stages/skill_bank.py" collect --project "$PROJECT" --root "$RUN_DIR" >> "$META/stage-learning.log" 2>&1 || true ;;
+        esac
     }
 
     set_stage() {
         PIPELINE_STAGE_FILE="$META/pipeline-stage.json" python3 "$REPO_ROOT/scripts/workflow/pipeline_stage.py" "$1"
     }
+    if [ -z "${STAGE_SKILL_BASELINE:-}" ]; then
+        export STAGE_SKILL_BASELINE="$META/stage-skills-baseline.json"
+        if [ -f "$REPO_ROOT/rsi/stage-skills/active.json" ]; then
+            cp "$REPO_ROOT/rsi/stage-skills/active.json" "$STAGE_SKILL_BASELINE"
+        else
+            printf '{}\n' > "$STAGE_SKILL_BASELINE"
+        fi
+    fi
     set_stage environment
     write_status "starting" -1
 
@@ -685,6 +697,10 @@ PYRECOVERY
     else
         [ "$RC" -eq 0 ] && RC=2
         write_status "failed" "$RC"
+    fi
+    if [ "$SKIP_MINING_REPAIR" -eq 0 ]; then
+        python3 "$REPO_ROOT/scripts/stages/learn_round.py" --project "$PROJECT" --root "$RUN_DIR" >> "$META/stage-learning.log" 2>&1 || true
+        python3 "$REPO_ROOT/scripts/stages/skill_bank.py" advance --project "$PROJECT" > "$RUN_DIR/rsi/stage-learning-evaluation.json" 2>> "$META/stage-learning.log" || true
     fi
     log "监督进程结束：退出码=$RC 产物目录=$RUN_DIR"
     exit "$RC"

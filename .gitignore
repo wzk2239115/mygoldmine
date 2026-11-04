@@ -83,3 +83,6 @@ backups/
 
 # Local stage model preferences
 /config/stage-models.json
+
+# 阶段技能运行数据与独立评估产物
+rsi/stage-skills/

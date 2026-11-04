@@ -92,7 +92,7 @@ CLAUDE_ARGS=(
     --permission-mode=bypassPermissions
     --disallowed-tools WebSearch,WebFetch
     --append-system-prompt "$(cat "$SKILL_FILE")
-$(python3 "$REPO_ROOT/scripts/stages/submission.py" instruction)"
+$(python3 "$REPO_ROOT/scripts/stages/submission.py" instruction --stage environment --root "$OUT_DIR")"
 )
 [ -n "$MODEL" ] && CLAUDE_ARGS+=(--model "$MODEL")
 CLAUDE_ARGS+=(-p "$PROMPT")
