@@ -63,7 +63,8 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
   }, [live, retryLive, load]);
 
   const prepareTrace = (node) => {
-    const task = node.verification?.tasks.find(item => item.state === 'running') || node.verification?.tasks[0];
+    const tasks = node.verification?.tasks || node.construction?.tasks || [];
+    const task = tasks.find(item => item.state === 'running') || tasks[0];
     const trace = node.traces?.find(item => item.id === task?.traceId) || node.traces?.[0];
     if (trace?.kind !== 'claude') return;
     ccuiSessions.load(project, runId, {node: node.id, trace: trace.id, version: traceVersion(trace)}).catch(() => {});
@@ -93,7 +94,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
               data-node-id={node.id}
               key={node.id}
               title={`${node.title}：${node.detail} · 点击查看执行轨迹`}
-              aria-label={`查看${node.title}执行轨迹，${node.verification ? `${node.verification.selectedCount} 条候选，` : ''}${node.traces?.length || 0} 份执行记录`}
+              aria-label={`查看${node.title}执行轨迹，${(node.verification || node.construction) ? `${(node.verification || node.construction).selectedCount} 条候选，` : ''}${node.traces?.length || 0} 份执行记录`}
               onPointerEnter={() => prepareTrace(node)}
               onFocus={() => prepareTrace(node)}
               onClick={() => setSelectedNode(node)}
@@ -110,7 +111,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
               <p>{node.detail}</p>
               {node.environment?.status === 'partial' ? <span className="agentic-node-scope">{node.environment.scope} · 能力受限</span> : null}
               <span className="agentic-node-candidates">{node.candidateSummary}</span>
-              <span className="agentic-node-trace">{node.verification ? `查看 ${node.verification.selectedCount} 条候选` : node.traces?.length ? `查看 ${node.traces.length} 条轨迹` : '暂无轨迹'}</span>
+              <span className="agentic-node-trace">{(node.verification || node.construction) ? `查看 ${(node.verification || node.construction).selectedCount} 条候选` : node.traces?.length ? `查看 ${node.traces.length} 条轨迹` : '暂无轨迹'}</span>
             </button>
           ))}
         </div>

@@ -69,3 +69,39 @@ test('红队场景重跑拒绝缺失源码、跨运行清单、危险编号与�
   assert.notEqual(retryEligibility(run,'redteam-lab'),'');
  }
 });
+
+for(const [jobs,count,peak] of [[undefined,12,10],[2,4,2]])test(`红队候选池限制并发 ${jobs || 10}，结果保持原顺序并分别保存`,async t=>{
+ const {repoRoot,run}=fixture(t),workspace=path.join(`${run.runDir}.meta/node-retries/redteam-lab/parallel/output`);
+ const findings=Array.from({length:count},(_,i)=>({id:`F-${String(i).padStart(2,'0')}`,severity:'high'}));
+ write(path.join(run.runDir,'audit-report.json'),{findings});
+ write(path.join(run.runDir,'redteam/candidates.json'),{candidates:findings.map(item=>({id:item.id,project:'demo',run_id:'one'}))});
+ write(path.join(workspace,'audit-report.json'),{findings});
+ const {prepareLabRetry,runLabRetry}=await import('../server/redteam-lab-retry.mjs');
+ prepareLabRetry(run,workspace);
+ const script=path.join(repoRoot,'scripts/redteam/build_lab.py');fs.mkdirSync(path.dirname(script),{recursive:true});
+ fs.writeFileSync(script,`import sys,json,time,fcntl
+from pathlib import Path
+args=sys.argv[1:]
+def arg(name):return args[args.index(name)+1]
+state=Path(__file__).parents[2]/'counter.json'
+def update(delta):
+ with state.open('a+') as file:
+  fcntl.flock(file,fcntl.LOCK_EX);file.seek(0);data=json.loads(file.read() or '{"active":0,"peak":0}')
+  data['active']+=delta;data['peak']=max(data['peak'],data['active'])
+  file.seek(0);file.truncate();file.write(json.dumps(data));file.flush()
+update(1);time.sleep(.5)
+lab=Path(arg('--lab-dir'));finding=json.loads(Path(arg('--finding')).read_text())
+scenario=lab/'scenario.json';scenario.write_text(json.dumps({'finding_id':finding['id']}))
+update(-1)
+print(json.dumps({'scenario_valid':True,'finding_id':finding['id'],'scenario':str(scenario)}))
+`);
+ const job={repoRoot,workspace,project:'demo',source:path.join(repoRoot,'source'),model:'fixture'};
+ assert.equal(await runLabRetry(job,jobs),'completed');
+ const observed=JSON.parse(fs.readFileSync(path.join(repoRoot,'counter.json')));
+ assert.equal(observed.active,0);assert.equal(observed.peak,peak);
+ const summary=JSON.parse(fs.readFileSync(path.join(workspace,'redteam/summary.json')));
+ assert.equal(summary.concurrency,jobs || 10);assert.equal(summary.processed,count);
+ assert.deepEqual(summary.results.map(item=>item.id),findings.map(item=>item.id));
+ for(const finding of findings)assert.equal(JSON.parse(fs.readFileSync(path.join(workspace,'redteam/tasks',`${finding.id}.json`))).state,'completed');
+ await assert.rejects(()=>runLabRetry(job,11),/并发数/);
+});

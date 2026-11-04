@@ -5,6 +5,7 @@ import { api } from '../api.js';
 import { traceVersion } from '../ccui-cache.js';
 import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
 import VerifyTasks from './VerifyTasks.jsx';
+import LabTasks from './LabTasks.jsx';
 import TeamAgentIcon from './TeamAgentIcon.jsx';
 
 export default function AgenticTraceDrawer({ project, runId, node: initialNode, traces: initialTraces, live, onClose, onStarted }) {
@@ -44,7 +45,9 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
   useEffect(() => {
     if (pickedTrace.current) return;
     if (node.id === 'redteam-lab') {
-      const first=traces.find(trace=>trace.kind==='claude');
+      const tasks=node.construction?.tasks || [];
+      const active=tasks.find(task=>task.state==='running' && traces.some(trace=>trace.id===task.traceId));
+      const first=traces.find(trace=>trace.id===active?.traceId) || traces.find(trace=>trace.kind==='claude');
       if(first) {pickedTrace.current=true;setTraceId(first.id);}
       return;
     }
@@ -118,7 +121,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
           {node.learning ? <p className="agentic-trace-subtitle">下次运行技能：通用 {node.learning.general ? node.learning.general.slice(0, 8) : '基础规则'} · 仓库专属 {node.learning.project ? node.learning.project.slice(0, 8) : '暂无已验证版本'} · {node.learning.candidates} 个候选待评估</p> : null}
           {retryError ? <p className="inline-error" role="alert">{retryError}</p> : null}
           {traces.some((trace) => trace.label.includes('恢复汇总')) ? <p className="agentic-trace-subtitle">本次为已有结果的恢复汇总，未重新扫描；可切换查看原始完整审计。</p> : null}
-          {traces.length > 1 ? (node.id === 'verify' ? (
+          {traces.length > 1 ? (['verify','redteam-lab'].includes(node.id) ? (
             <details className="verify-other-traces"><summary>日志与历史记录（{traces.length} 份）</summary>
             <label className="agentic-trace-picker">
               <span>选择执行记录</span>
@@ -135,6 +138,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
               </select>
             </label>
           )) : null}
+          {node.id === 'redteam-lab' ? <LabTasks key={node.construction?.attemptId || 'original'} project={project} runId={runId} construction={node.construction} traces={traces} selectedId={selected?.id} onSelect={id=>{pickedTrace.current=true;setTraceId(id);}} /> : null}
           {node.id === 'verify' ? <VerifyTasks key={node.verification?.attemptId || 'original'} project={project} runId={runId} verification={node.verification} traces={traces} selectedId={selected?.id} onSelect={id=>{pickedTrace.current=true;setTraceId(id);}} /> : null}
         </header>
         <div className="drawer-body agentic-trace-body">

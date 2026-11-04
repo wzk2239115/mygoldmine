@@ -113,6 +113,12 @@ function originalTraces(run, node) {
       return makeTrace(node, finding, `蓝队验证 ${finding}`, path.join(root, file));
     }).filter(Boolean);
   }
+  if(node==='redteam-lab') {
+    const root=path.join(run.runDir,'redteam/batch/construction');
+    const tasks=readJson(path.join(root,'selection.json'))?.candidates || [];
+    const current=tasks.filter(task=>task.project===run.project && /^[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/.test(task.id)).map(task=>makeTrace(node,`lab-${task.id}`,`场景 ${task.id}`,path.join(root,'labs',run.project,task.id,'builder.log'))).filter(Boolean);
+    if(current.length)return [...current,...redteamTrace(run,node).filter(trace=>!current.some(item=>item.path===trace.path))];
+  }
   if (['redteam-lab', 'redteam-agent', 'judge'].includes(node)) return redteamTrace(run, node);
   if (node === 'learner') {
     const directory=path.join(run.runDir,'rsi/stage-learning-attempts');

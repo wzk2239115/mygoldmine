@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {labTasks,labTaskReport} from '../server/lab-tasks.mjs';
+const write=(file,data)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(data));};
+for(const retry of [true,false])test(`红队并发卡片按当前批次关联独立轨迹与交付：${retry?'节点重跑':'项目流程'}`,t=>{
+ const repo=fs.mkdtempSync(path.join(os.tmpdir(),'lab-tasks-'));t.after(()=>fs.rmSync(repo,{recursive:true,force:true}));
+ const run={runDir:path.join(repo,'runs/demo/one'),project:'demo',runId:'one',isLive:true};
+ const attemptRoot=`${run.runDir}.meta/node-retries/redteam-lab/latest`,workspace=path.join(attemptRoot,'output');
+ const root=retry?path.join(workspace,'redteam'):path.join(run.runDir,'redteam/batch/construction');
+ if(retry)write(path.join(attemptRoot,'attempt.json'),{id:'latest',workspace,root:attemptRoot,status:'running',startedAt:'2026-11-04T01:00:00Z'});
+ write(path.join(root,'selection.json'),{candidates:[{id:'F-1',project:'demo'},{id:'F-2',project:'demo'}]});
+ write(path.join(root,'summary.json'),{concurrency:10});
+ write(path.join(root,'tasks',`${retry?'':'demo--'}F-1.json`),{state:'running'});
+ write(path.join(root,'tasks',`${retry?'':'demo--'}F-2.json`),{state:'completed',status:'build_failed',error:'不支持的攻击面'});
+ const lab=retry?path.join(root,'labs/F-2'):path.join(root,'labs/demo/F-2');fs.mkdirSync(lab,{recursive:true});fs.writeFileSync(path.join(lab,'BLOCKED.md'),'实际受阻原因');
+ const view=labTasks(run);
+ assert.equal(view.concurrency,10);assert.equal(view.running,1);assert.equal(view.blocked,1);
+ assert.equal(view.tasks[1].hasReport,true);assert.equal(view.tasks[0].traceId,retry?'latest-redteam-lab-F-1-agent':'lab-F-1');
+ assert.equal(labTaskReport(run,'F-2',retry?'latest':'').blocked,'实际受阻原因');
+ assert.equal(labTaskReport(run,'F-2','other'),null);assert.equal(labTaskReport(run,'..',retry?'latest':''),null);
+});

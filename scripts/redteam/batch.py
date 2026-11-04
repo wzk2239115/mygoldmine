@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import concurrent.futures
+import threading
 import json
 import hashlib
 import subprocess
@@ -18,6 +20,7 @@ from contracts import (  # noqa: E402
     finding_id as validate_finding_id,
     resolve_scenario,
     scenario_path,
+    validate_scenario,
 )
 
 CANDIDATES = ROOT / "docs" / "redteam-candidates.json"
@@ -77,6 +80,90 @@ def resolve_candidate(candidate, ledger, snapshot=None):
                  if key in ledger.get("occurrences", {})), None)
 
 
+def build_parallel(candidates, ledger, snapshot, batch_dir, args):
+    root = batch_dir / "construction"
+    plans = []
+    for index, candidate in enumerate(candidates, 1):
+        project, identifier = candidate.get("project", ""), candidate.get("id", "")
+        item = resolve_candidate(candidate, ledger, snapshot)
+        if not item:
+            continue
+        try:
+            preferred = scenario_path(ROOT, project, identifier)
+            finding = dict(item.get("raw") or {})
+            finding.setdefault("id", identifier)
+            if validate_finding_id(finding) != str(identifier) or preferred.exists():
+                continue
+        except ContractError:
+            continue
+        file = batch_dir / f"{index:02d}-{project}-{identifier}.json"
+        file.write_text(json.dumps(finding, ensure_ascii=False, indent=2) + "\n")
+        key = base.canon(project, identifier)
+        if any(plan["key"] == key for plan in plans):
+            continue
+        plans.append({"id": identifier, "project": project, "key": key,
+                      "title": finding.get("title", identifier), "finding": str(file), "state": "queued"})
+    if not plans:
+        return {}
+    (root / "tasks").mkdir(parents=True, exist_ok=True)
+    lock = threading.Lock()
+
+    def write(file, value):
+        temp = file.with_suffix(".tmp")
+        temp.write_text(json.dumps(value, ensure_ascii=False, indent=2))
+        temp.replace(file)
+
+    def save():
+        for plan in plans:
+            write(root / "tasks" / f"{plan['project']}--{plan['id']}.json", plan)
+        write(root / "summary.json", {"concurrency": args.build_jobs, "selected": len(plans),
+              "processed": sum(plan["state"] == "completed" for plan in plans),
+              "results": [plan for plan in plans if plan["state"] == "completed"]})
+
+    write(root / "selection.json", {"candidates": plans})
+    save()
+    record_stage("redteam-lab")
+
+    def execute(plan):
+        lab = root / "labs" / plan["project"] / plan["id"]
+        lab.mkdir(parents=True, exist_ok=True)
+        with lock:
+            plan["state"] = "running"
+            save()
+        try:
+            completed = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/redteam/build_lab.py"),
+                 "--project", plan["project"], "--finding", plan["finding"],
+                 "--lab-dir", str(lab), "--claude-model", args.model, "--build-only"],
+                capture_output=True, text=True, cwd=ROOT, timeout=args.build_timeout)
+            rc, stdout, stderr = completed.returncode, completed.stdout, completed.stderr
+            timed_out = False
+        except subprocess.TimeoutExpired as exc:
+            rc, stdout, stderr, timed_out = 124, exc.stdout, exc.stderr, True
+        except OSError as exc:
+            rc, stdout, stderr, timed_out = 1, "", str(exc), False
+        try:
+            delivery = json.loads(stdout)
+        except (ValueError, TypeError):
+            delivery = {}
+        if not isinstance(delivery, dict):
+            delivery = {}
+        scenario = lab / "scenario.json"
+        ready = (rc == 0 and delivery.get("scenario_valid") is True
+                 and delivery.get("finding_id") == plan["id"]
+                 and delivery.get("scenario") == str(scenario) and scenario.is_file())
+        with lock:
+            plan.update({"state": "completed", "status": "built" if ready else "build_failed",
+                         "scenario": str(scenario) if ready else "", "builder_returncode": rc,
+                         "builder_stdout": output_tail(stdout, 1200), "builder_stderr": output_tail(stderr, 1200),
+                         "builder_timed_out": timed_out, "error": "" if ready else delivery.get("error") or "场景构建未通过检查"})
+            save()
+        return plan
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.build_jobs) as pool:
+        return {plan["key"]: plan for plan in pool.map(execute, plans)}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidates", default=str(CANDIDATES))
@@ -87,6 +174,7 @@ def main():
     parser.add_argument("--max-steps", type=int, default=12)
     parser.add_argument("--max-tokens", type=int, default=1200)
     parser.add_argument("--build-labs", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--build-jobs", type=int, choices=range(1, 11), default=10)
     parser.add_argument("--build-timeout", type=int, default=1260)
     parser.add_argument("--agent-timeout", type=int, default=900)
     parser.add_argument("--judge-timeout", type=int, default=360)
@@ -104,6 +192,7 @@ def main():
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     batch_dir = Path(args.out_dir).resolve() if args.out_dir else BATCH_ROOT / stamp
     batch_dir.mkdir(parents=True, exist_ok=True)
+    prebuilt = build_parallel(candidates, ledger, snapshot, batch_dir, args) if args.build_labs and not args.dry_run else {}
     summary = []
     for index, candidate in enumerate(candidates, 1):
         project = candidate.get("project", "")
@@ -134,8 +223,18 @@ def main():
                 continue
             finding_path.write_text(json.dumps(finding, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             entry.update({"finding": str(finding_path), "scenario": str(preferred_path)})
-            build_attempted = False
-            if not preferred_path.exists() and args.build_labs and not args.dry_run:
+            build_attempted = key in prebuilt
+            if key in prebuilt:
+                built = prebuilt[key]
+                entry.update({field: built[field] for field in ("builder_returncode", "builder_stdout", "builder_stderr", "builder_timed_out")})
+                if built["status"] != "built":
+                    entry.update({"status": "build_failed", "error": built["error"]})
+                    summary.append(entry)
+                    print(json.dumps(entry, ensure_ascii=False))
+                    continue
+                preferred_path = Path(built["scenario"])
+                entry["scenario"] = str(preferred_path)
+            if key not in prebuilt and not preferred_path.exists() and args.build_labs and not args.dry_run:
                 build_attempted = True
                 try:
                     record_stage("redteam-lab", str(candidate_id))
@@ -161,9 +260,12 @@ def main():
                     print(json.dumps(entry, ensure_ascii=False))
                     continue
             try:
-                resolved_path, scenario = resolve_scenario(
-                    ROOT, project, finding, finding_path.read_bytes()
-                )
+                if key in prebuilt:
+                    resolved_path = preferred_path
+                    scenario = validate_scenario(load(resolved_path, {}), expected_finding_id=str(candidate_id),
+                                                 expected_finding_sha256=hashlib.sha256(finding_path.read_bytes()).hexdigest())
+                else:
+                    resolved_path, scenario = resolve_scenario(ROOT, project, finding, finding_path.read_bytes())
                 entry["scenario"] = str(resolved_path)
             except ContractError as exc:
                 entry.update({

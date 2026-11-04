@@ -7549,3 +7549,5 @@ body > .project-import-dialog .project-import-body { flex: 1 1 auto; }
 .verify-batch-scope { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .verify-batch-scope > summary { cursor: pointer; }
 .verify-batch-scope p { margin: 6px 0; }
+
+.lab-tasks .verify-task.is-active { border-color: #ef4444; }

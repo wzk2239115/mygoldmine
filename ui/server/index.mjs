@@ -1,3 +1,4 @@
+import {labTaskReport} from './lab-tasks.mjs';
 import {verifyTaskReport} from './verify-tasks.mjs';
 import { sessionMatchesTrace } from './ccui-cache.mjs';
 import { startNodeRetry } from './node-retries.mjs';
@@ -1469,6 +1470,14 @@ const server = http.createServer(async (req, res) => {
       const run = findRun(retryMatch[1], retryMatch[2], false);
       if (!run) return sendError(res, 404, '未找到审计运行');
       return sendJson(res, 201, startNodeRetry({repoRoot: REPO_ROOT, run, node: retryMatch[3], models: modelSettings.get().models}));
+    }
+
+    const labReportMatch = pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/lab-tasks\/([^/]+)\/report$/);
+    if(req.method==='GET' && labReportMatch) {
+      const run=findRun(labReportMatch[1],labReportMatch[2],false);
+      if(!run)return sendError(res,404,'未找到审计运行');
+      const report=labTaskReport(run,labReportMatch[3],url.searchParams.get('attempt') || '');
+      return report?sendJson(res,200,{report}):sendError(res,404,'该批次交付不存在或已切换批次，请刷新后重试');
     }
 
     const verifyReportMatch = pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/verify-tasks\/([^/]+)\/report$/);
