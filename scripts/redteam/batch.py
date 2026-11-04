@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import hashlib
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -36,9 +37,50 @@ def output_tail(value, limit):
     return str(value or "")[-limit:]
 
 
+def report_snapshot(file):
+    file = Path(file).resolve()
+    sys.path.insert(0, str(ROOT / "scripts" / "mine"))
+    from check_report import check_report
+
+    data = file.read_bytes()
+    quality = check_report(file)
+    if not quality["valid"] or quality["incomplete"]:
+        raise ValueError("本轮报告未通过质量检查")
+    if file.read_bytes() != data:
+        raise ValueError("报告在校验期间发生变化")
+    report = json.loads(data)
+    items = {}
+    for raw in report.get("findings", report.get("vulnerabilities", [])):
+        fid = str(raw.get("id") or raw.get("finding_id") or "")
+        if not fid or fid in items:
+            raise ValueError("报告中的候选问题编号缺失或重复")
+        items[fid] = {"raw": raw}
+    return {
+        "project": report.get("project"), "run_id": file.parent.name,
+        "items": items, "sha256": hashlib.sha256(data).hexdigest(),
+    }
+
+
+def resolve_candidate(candidate, ledger, snapshot=None):
+    if snapshot is not None:
+        if snapshot["project"] and snapshot["project"] != candidate.get("project"):
+            return None
+        if candidate.get("run_id") != snapshot["run_id"]:
+            return None
+        return snapshot["items"].get(candidate.get("id"))
+    matches = base.finding_ledger.resolve_reference(
+        ledger, project=candidate.get("project", ""), finding_id=candidate.get("id", ""),
+        run_id=candidate.get("run_id", ""), occurrence_id=candidate.get("occurrence_id", ""),
+        semantic_id=candidate.get("semantic_id", ""),
+    )
+    return next((ledger["occurrences"][key] for key in matches
+                 if key in ledger.get("occurrences", {})), None)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidates", default=str(CANDIDATES))
+    parser.add_argument("--report", default="", help="本轮已验收报告；不通过全局完成态索引读取")
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--base-url", default="")
     parser.add_argument("--api-key", default="")
@@ -57,8 +99,8 @@ def main():
         parser.error("timeouts must be positive")
 
     candidates = load(Path(args.candidates), {}).get("candidates", [])
-    ledger = base.finding_ledger.build_ledger()
-    latest = base.latest_findings(ledger)
+    snapshot = report_snapshot(args.report) if args.report else None
+    ledger = base.finding_ledger.build_ledger() if snapshot is None else {}
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     batch_dir = Path(args.out_dir).resolve() if args.out_dir else BATCH_ROOT / stamp
     batch_dir.mkdir(parents=True, exist_ok=True)
@@ -67,16 +109,10 @@ def main():
         project = candidate.get("project", "")
         candidate_id = candidate.get("id", "")
         key = base.canon(project, candidate_id)
-        matches = base.finding_ledger.resolve_reference(
-            ledger,
-            project=project,
-            finding_id=candidate_id,
-            run_id=candidate.get("run_id") or "",
-            occurrence_id=candidate.get("occurrence_id") or "",
-            semantic_id=candidate.get("semantic_id") or "",
-        )
-        item = next((latest[match] for match in matches if match in latest), None)
+        item = resolve_candidate(candidate, ledger, snapshot)
         entry = {"project": project, "id": candidate_id, "key": key, "status": "blocked_no_finding"}
+        if snapshot is not None:
+            entry["report_sha256"] = snapshot["sha256"]
         if item:
             try:
                 preferred_path = scenario_path(ROOT, project, candidate_id)
@@ -105,7 +141,8 @@ def main():
                     record_stage("redteam-lab", str(candidate_id))
                     builder = subprocess.run(
                         [sys.executable, str(ROOT / "scripts" / "redteam" / "build_lab.py"),
-                         "--project", project, "--finding", str(finding_path)],
+                         "--project", project, "--finding", str(finding_path),
+                         "--claude-model", args.model],
                         capture_output=True, text=True, cwd=ROOT, timeout=args.build_timeout,
                     )
                     entry["builder_returncode"] = builder.returncode

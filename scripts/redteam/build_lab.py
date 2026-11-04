@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts/stages'))
 from submission import config as delivery_config, INSTRUCTION as DELIVERY_INSTRUCTION
 from skill_bank import instruction as layered_skill_instruction
+from claude_connection import claude_connection
 
 
 def language_directive():
@@ -148,9 +149,10 @@ def run(args):
         "and do not declare mounts. If impossible, write BLOCKED.md with the concrete blocker. "
         "Do not modify the finding or the source tree. Print the scenario path when done."
     )
-    command = [args.claude, "--mcp-config", json.dumps(delivery_config("redteam-lab", lab_dir)), "--append-system-prompt", DELIVERY_INSTRUCTION + "\n" + layered_skill_instruction("redteam-lab", lab_dir)]
-    if args.claude_model:
-        command += ["--model", args.claude_model]
+    model_name, connection_env = claude_connection(args.claude_model)
+    command = [args.claude, "--setting-sources", "project,local", "--mcp-config", json.dumps(delivery_config("redteam-lab", lab_dir)), "--append-system-prompt", DELIVERY_INSTRUCTION + "\n" + layered_skill_instruction("redteam-lab", lab_dir)]
+    if model_name:
+        command += ["--model", model_name]
     command += [
         "--agent", "redteam-lab-builder",
         "--output-format", "stream-json",
@@ -167,7 +169,7 @@ def run(args):
         log.flush()
         try:
             completed = subprocess.run(
-                command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
+                command, env=connection_env, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
                 text=True, timeout=args.timeout,
             )
             returncode = completed.returncode

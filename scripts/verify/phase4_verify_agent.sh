@@ -442,7 +442,7 @@ for entry in "${SELECTED[@]}"; do
         VERIFY_RUNNER="$VERIFY_RUNNER" \
         PROJECT="$PROJECT" \
         timeout --signal=TERM --kill-after=30 "$AGENT_TIMEOUT" \
-            "$CLAUDE_BIN" "${CLAUDE_ARGS[@]}"
+            python3 "$REPO_ROOT/scripts/stages/claude_connection.py" "$MODEL_RAW" "$CLAUDE_BIN" "${CLAUDE_ARGS[@]}"
     ) > "$agent_log" 2>&1
     agent_rc=$?
 
@@ -575,6 +575,7 @@ jq -n \
         processed: $processed,
         malformed_count: ($malformed | length),
         malformed: $malformed,
+        status: (if ($findings|length)==0 then "no_findings" elif all($findings[]; .verdict=="blocked") then "blocked" elif any($findings[]; .verdict=="blocked") then "partial" else "completed" end),
         counts: ($findings | group_by(.verdict) | map({key: (.[0].verdict // "unknown"), value: length}) | from_entries),
         status_counts: ($findings | group_by(.status) | map({key: (.[0].status // "unknown"), value: length}) | from_entries),
         findings: $findings,

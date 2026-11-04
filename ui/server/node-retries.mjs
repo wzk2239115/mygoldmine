@@ -54,7 +54,10 @@ async function worker(file) {
     if(job.node==='visual') {
       const summary=read(path.join(job.workspace,'visual-rendered/visual-summary.json'));
       job.resultStatus=summary?.steps?.render_attack_scenes_agentic?.ok?'completed':summary?.scene_count?'degraded':'failed';
-    } else job.resultStatus=code===0?'completed':'failed';
+    } else {
+      const summary=read(path.join(job.workspace,'verify/agent/summary.json'));
+      job.resultStatus=code!==0 || !summary?'failed':summary.status==='blocked'?'blocked':summary.status==='partial'?'degraded':summary.status==='failed'?'failed':'completed';
+    }
   } catch(error) { job.error=error.message; }
   finally { job.status=code===0?'completed':'failed';job.exitCode=code;job.endedAt=new Date().toISOString();write(file,job);fs.rmSync(job.lock,{recursive:true,force:true});
     const originalRun=path.resolve(job.root,'../../..').replace(/\.meta$/,'');

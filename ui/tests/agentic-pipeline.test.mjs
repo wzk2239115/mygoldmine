@@ -175,3 +175,24 @@ test('审计阶段中断保留环境完成结果，后续不再显示等待', (t
   assert.equal(result.nodes[1].status,'failed');
   assert.ok(result.nodes.slice(2).every(n=>n.status==='not_started'));
 });
+
+test('蓝队汇总存在也按受阻结果展示，红队缺少场景不算完成', (t) => {
+  const { runDir, run } = fixture(t);
+  Object.assign(run, { state: 'success', isLive: false });
+  writeJson(path.join(runDir, 'verify/agent/summary.json'), {
+    counts: { blocked: 4 }, processed: 4,
+    findings: Array.from({ length: 4 }, () => ({ verdict: 'blocked' }))
+  });
+  writeJson(path.join(runDir, 'redteam/summary.json'), {
+    results: Array.from({ length: 4 }, () => ({ status: 'blocked_no_finding' }))
+  });
+  let nodes = Object.fromEntries(buildAgenticPipeline(run).nodes.map((node) => [node.id, node]));
+  assert.equal(nodes.verify.status, 'blocked');
+  assert.equal(nodes['redteam-lab'].status, 'blocked');
+  assert.equal(nodes['redteam-agent'].status, 'pending');
+  writeJson(path.join(runDir, 'verify/agent/summary.json'), {
+    status: 'partial', counts: { blocked: 1, confirmed: 1 }, processed: 2
+  });
+  nodes = Object.fromEntries(buildAgenticPipeline(run).nodes.map((node) => [node.id, node]));
+  assert.equal(nodes.verify.status, 'degraded');
+});

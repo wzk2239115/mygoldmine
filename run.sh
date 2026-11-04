@@ -591,12 +591,13 @@ PYRECOVERY
             if [ -f "$RUN_DIR/verify/agent/summary.json" ]; then
                 VERIFY_SUMMARY="$RUN_DIR/verify/agent/summary.md"
                 VERIFY_COUNTS="$(jq -c '.counts // {}' "$RUN_DIR/verify/agent/summary.json" 2>/dev/null || echo '{}')"
-                VERIFY_AGENT_STATUS="completed"
+                VERIFY_AGENT_STATUS="$(jq -r '.status // "completed"' "$RUN_DIR/verify/agent/summary.json" 2>/dev/null || echo failed)"
             else
                 VERIFY_AGENT_STATUS="failed"
                 PIPELINE_DEGRADED=1
             fi
             [ "$VRC" -eq 0 ] || { VERIFY_AGENT_STATUS="failed"; PIPELINE_DEGRADED=1; }
+            case "$VERIFY_AGENT_STATUS" in blocked|partial|failed) PIPELINE_DEGRADED=1 ;; esac
             log "第 4 阶段完成：退出码=$VRC 状态=$VERIFY_AGENT_STATUS 结论统计=$VERIFY_COUNTS"
         else
             log "第 4 阶段跳过：环境镜像不存在 $ENV_IMAGE"

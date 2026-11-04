@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--report", default="")
 parser.add_argument("--candidates", required=True)
 parser.add_argument("--out-dir", required=True)
 parser.add_argument("--model", default="")
@@ -140,6 +141,7 @@ def test_wrapper_filters_caps_and_preserves_batch_statuses(tmp_path):
     assert all(item["project"] == "proj" and item["run_id"] == "run-A" for item in candidates)
 
     invocation = json.loads((output / "batch" / "invocation.json").read_text(encoding="utf-8"))
+    assert invocation["report"] == str(run_dir / "audit-report.json")
     assert invocation["candidates"] == str(output / "candidates.json")
     assert Path(invocation["out_dir"]) == output / "batch"
     assert invocation["model"] == "test-model"
@@ -152,8 +154,8 @@ def test_wrapper_filters_caps_and_preserves_batch_statuses(tmp_path):
     assert invocation["judge_claude_model"] == "judge-model"
 
     summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
-    assert summary["status"] == "completed"
-    assert summary["completed"] is True
+    assert summary["status"] == "partial"
+    assert summary["completed"] is False
     assert summary["counts"] == {
         "blocked": 1,
         "judge_rejected": 1,
@@ -335,3 +337,16 @@ def test_wrapper_finding_id_filter_selects_only_requested_candidate(tmp_path):
     assert completed.returncode == 0, completed.stderr
     candidates = json.loads((output / "candidates.json").read_text(encoding="utf-8"))["candidates"]
     assert [item["id"] for item in candidates] == ["VULN-002"]
+
+
+def test_wrapper_all_candidates_blocked_is_not_completed(tmp_path):
+    run_dir = write_report(tmp_path, [{'id': 'F-1', 'severity': 'high'}])
+    env, _, _ = fixtures(tmp_path)
+    output = tmp_path / 'out'
+    result = subprocess.run(['bash', str(WRAPPER), '--project', 'proj',
+                             '--run-dir', str(run_dir), '--output', str(output)],
+                            env=env, capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stderr
+    summary = json.loads((output / 'summary.json').read_text())
+    assert summary['status'] == 'blocked'
+    assert summary['completed'] is False

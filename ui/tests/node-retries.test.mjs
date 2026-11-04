@@ -27,3 +27,23 @@ test('独立重跑隔离产物、拒绝并发并保留原始输入', async t => 
  assert.equal(fs.existsSync(latest.lock),false);
  assert.ok(listAgenticTraces(run,'visual').some(trace=>trace.id===`${started.id}-worker`));
 });
+
+test('蓝队重跑进程正常退出但候选全部受阻时保留受阻状态', async t => {
+ const repoRoot=fs.mkdtempSync(path.join(os.tmpdir(),'node-retry-blocked-'));
+ t.after(()=>fs.rmSync(repoRoot,{recursive:true,force:true}));
+ const runDir=path.join(repoRoot,'runs/demo/one');fs.mkdirSync(`${runDir}.meta`,{recursive:true});
+ fs.mkdirSync(runDir,{recursive:true});
+ fs.writeFileSync(path.join(runDir,'audit-report.json'),JSON.stringify({findings:[]}));
+ fs.writeFileSync(`${runDir}.meta/status.json`,JSON.stringify({target:'/tmp/source',env_image:'fixture:test'}));
+ const dir=path.join(repoRoot,'scripts/verify');fs.mkdirSync(dir,{recursive:true});
+ fs.writeFileSync(path.join(dir,'phase4_verify_agent.sh'),`while [ "$#" -gt 0 ]; do if [ "$1" = --output ]; then out="$2"; fi; shift; done
+mkdir -p "$out"
+printf '%s' '{"status":"blocked","counts":{"blocked":4}}' > "$out/summary.json"
+exit 0
+`);
+ startNodeRetry({repoRoot,run:{runDir,project:'demo',runId:'one',isLive:false},node:'verify',models:{audit:'test'}});
+ let latest;
+ for(let i=0;i<100;i++) {latest=nodeAttempts(runDir,'verify')[0];if(latest.status!=='running')break;await new Promise(r=>setTimeout(r,50));}
+ assert.equal(latest.status,'completed');
+ assert.equal(latest.resultStatus,'blocked');
+});

@@ -313,6 +313,11 @@ try:
 except (TypeError, ValueError):
     build_returncode = None
 
+if final_status == "completed":
+    terminal = {"judge_approved", "judge_rejected", "judge_needs_review", "flag_captured", "not_captured", "completed", "ready"}
+    failures = [item for item in normalized if str(item.get("status")) not in terminal]
+    if failures:
+        final_status = "blocked" if len(failures) == len(normalized) else "partial"
 completed = final_status in {"completed", "no_findings"}
 payload = {
     "schema_version": 1,
@@ -425,6 +430,7 @@ mkdir -p "$BATCH_OUT" || die "无法创建 batch 输出目录: $BATCH_OUT"
 
 log "selected=$SELECTED running batch -> $BATCH_OUT"
 "${BATCH_CMD[@]}" \
+    --report "$AUDIT_REPORT" \
     --candidates "$CANDIDATES" \
     --out-dir "$BATCH_OUT" \
     --model "$MODEL" \

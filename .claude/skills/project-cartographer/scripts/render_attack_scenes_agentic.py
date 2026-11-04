@@ -12,31 +12,9 @@ ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / 'scripts/stages'))
 from submission import config as delivery_config, INSTRUCTION as DELIVERY_INSTRUCTION
 from skill_bank import instruction as layered_skill_instruction
+from claude_connection import claude_connection
+
 AGENT = "attack-scene-director"
-
-
-def claude_connection(model, environ=None):
-    """为场景设计配置与环境构建一致的 Claude 兼容连接。"""
-    env = dict(os.environ if environ is None else environ)
-    for prefix in ("360-proxy/", "opencode/"):
-        if model.startswith(prefix):
-            model = model[len(prefix):]
-            break
-    env["ANTHROPIC_BASE_URL"] = env.get("ANTHROPIC_BASE_URL") or env.get("GLM_ANTHROPIC_BASE") or "https://api.360.cn"
-    env["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"] = "1"
-    if not (env.get("ANTHROPIC_AUTH_TOKEN") or env.get("ANTHROPIC_API_KEY")):
-        token = env.get("GLM_API_KEY", "")
-        if not token:
-            config = Path(env.get("OPENCODE_CONFIG") or str(Path.home() / ".config/opencode/opencode.json"))
-            if config.exists():
-                token = json.loads(config.read_text()).get("provider", {}).get("360-proxy", {}).get("options", {}).get("apiKey", "")
-        if token:
-            env["ANTHROPIC_AUTH_TOKEN"] = token
-    if model:
-        for key in ("ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL",
-                    "ANTHROPIC_DEFAULT_HAIKU_MODEL", "ANTHROPIC_SMALL_FAST_MODEL", "CLAUDE_CODE_SUBAGENT_MODEL"):
-            env[key] = model
-    return model, env
 
 
 def attack_id(attack):

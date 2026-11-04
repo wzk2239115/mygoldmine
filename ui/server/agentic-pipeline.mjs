@@ -114,7 +114,13 @@ function verifyNode(run, summary) {
   const artifact = summary ? path.join(run.runDir, 'verify/agent/summary.json') : '';
   if (summary) {
     const counts = Object.entries(summary.counts || {}).map(([key, value]) => `${key}=${value}`).join(' · ');
-    return makeNode('verify', title, agent, 'completed', counts || '验证执行完成', artifact);
+    const entries = Array.isArray(summary.findings) ? summary.findings : [];
+    const blocked = entries.filter((item) => item.verdict === 'blocked').length || Number(summary.counts?.blocked || 0);
+    const total = entries.length || Number(summary.processed || 0);
+    const state = summary.status === 'failed' ? 'failed'
+      : summary.status === 'blocked' || (blocked > 0 && blocked === total) ? 'blocked'
+      : summary.status === 'partial' || blocked > 0 ? 'degraded' : 'completed';
+    return makeNode('verify', title, agent, state, counts || '验证执行完成', artifact);
   }
   const state = run.verifyAgentStatus || '';
   if (state === 'completed') return makeNode('verify', title, agent, 'completed', '验证阶段已完成');
@@ -127,14 +133,14 @@ function verifyNode(run, summary) {
 
 function redteamNodes(run, summary) {
   const results = Array.isArray(summary?.results) ? summary.results : [];
-  const buildFailed = results.filter((item) => item.status === 'build_failed' || (Number(item.builder_returncode) || 0) !== 0);
+  const buildFailed = results.filter((item) => item.status === 'build_failed' || !item.scenario || (Number(item.builder_returncode) || 0) !== 0);
   const labsReady = results.filter((item) => item.scenario && !buildFailed.includes(item));
   let labStatus = 'pending';
   let labDetail = '等待蓝队验证结果';
   if (results.length) {
     labDetail = `${labsReady.length}/${results.length} 个隔离场景可用`;
     labStatus = buildFailed.length === results.length ? 'blocked' : buildFailed.length ? 'degraded' : 'completed';
-    if (buildFailed.length) labDetail += ` · ${buildFailed.length} 个构建失败`;
+    if (buildFailed.length) labDetail += ` · ${buildFailed.length} 个场景未就绪`;
   } else if (run.redteamStatus === 'blocked') {
     labStatus = 'blocked';
     labDetail = '环境不可用，红队场景构建未启动';
