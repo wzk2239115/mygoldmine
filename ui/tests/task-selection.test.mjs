@@ -6,7 +6,9 @@ for (const field of ['verification','construction']) test(`${field} 候选选择
   const node={[field]:{attemptId:'new',tasks}};
   const traces=[{id:'old-2'},{id:'new-1'}];
   const first=initialTaskSelection(node);
-  assert.equal(first.taskId,'F-1');
+  assert.equal(first.taskId,null);
+  assert.equal(resolveTaskSelection(node,traces,first).trace,null);
+  assert.equal(resolveTaskSelection(node,traces,{batchId:'new',taskId:'F-1',history:false}).trace.id,'new-1');
   const waiting={batchId:'new',taskId:'F-2',history:false};
   assert.equal(resolveTaskSelection(node,traces,waiting).trace,null);
   assert.equal(resolveTaskSelection(node,traces,waiting).task.id,'F-2');
@@ -19,10 +21,15 @@ for (const field of ['verification','construction']) test(`${field} 候选选择
   const history=resolveTaskSelection(node,traces,{batchId:'new',history:true,traceId:'old-2'});
   assert.equal(history.task,null);assert.equal(history.trace.id,'old-2');
   const next=resolveTaskSelection({...node,[field]:{attemptId:'next',tasks:[{id:'F-2',state:'queued',traceId:'next-2'}]}},traces,waiting);
-  assert.equal(next.task.id,'F-2');assert.equal(next.trace,null);
+  assert.equal(next.task,null);assert.equal(next.trace,null);
 });
 test('普通节点仍可选择新重跑日志', () => {
   const node={id:'scene'};
   const selection={...initialTaskSelection(node),history:true,traceId:'new-worker'};
   assert.equal(resolveTaskSelection(node,[{id:'old'},{id:'new-worker'}],selection).trace.id,'new-worker');
+});
+
+for(const id of ['verify','redteam-lab']) test(`${id} 尚无任务也不自动显示历史会话`,()=>{
+ const node={id};
+ assert.equal(resolveTaskSelection(node,[{id:'old-session'}],initialTaskSelection(node)).trace,null);
 });

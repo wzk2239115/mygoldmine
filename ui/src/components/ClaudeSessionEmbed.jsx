@@ -19,7 +19,7 @@ const EMBED_CSS = `
   .chat-messages-pane { padding-top: 0 !important; }
 `;
 
-export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrator', trace = '', version = '', onShowRaw, live = false, tall = false, chrome = true }) {
+export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrator', trace = '', version = '', onShowRaw, live = false, tall = false, chrome = true, label = '' }) {
   const [session, setSession] = useState(() => ccuiSessions.peek(project, runId, {node, trace, version}));
   const [loading, setLoading] = useState(() => !ccuiSessions.peek(project, runId, {node, trace, version}));
   const [syncing, setSyncing] = useState(false);
@@ -135,12 +135,12 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
   const importedLabel = session?.importedAt ? formatDateTime(session.importedAt) : '';
 
   return (
-    <section className={cx('ccui-embed', tall && 'ccui-embed-tall', !chrome && 'is-bare')} aria-label="Claude Code UI 会话">
+    <section className={cx('ccui-embed', tall && 'ccui-embed-tall', !chrome && 'is-bare')} aria-label={label || 'Claude Code UI 会话'}>
       {chrome ? <div className="ccui-toolbar">
         <span className="ccui-title">
           {showFrame
-            ? `Claude Code · ${session.messages || 0} 条消息`
-            : 'Claude Code UI'}
+            ? `${label || 'Claude Code'} · ${session.messages || 0} 条消息`
+            : label || 'Claude Code UI'}
         </span>
         <div className="ccui-actions">
           {showFrame ? (
@@ -203,7 +203,7 @@ export default function ClaudeSessionEmbed({ project, runId, node = 'orchestrato
             ref={frameRef}
             className="ccui-frame"
             src={embedUrl}
-            title={`Claude Code UI session ${runId}`}
+            title={label || `Claude Code UI session ${runId}`}
             allow="clipboard-read; clipboard-write"
             onLoad={applyEmbedCss}
           />

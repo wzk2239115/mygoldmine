@@ -63,6 +63,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
   }, [live, retryLive, load]);
 
   const prepareTrace = (node) => {
+    if (['verify', 'redteam-lab'].includes(node.id)) return;
     const tasks = node.verification?.tasks || node.construction?.tasks || [];
     const task = tasks.find(item => item.state === 'running') || tasks[0];
     const trace = node.traces?.find(item => item.id === task?.traceId) || node.traces?.[0];

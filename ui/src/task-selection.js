@@ -1,19 +1,20 @@
 export function candidateTasks(node) {
   return node.verification || node.construction || null;
 }
+export function isCandidateNode(node) {
+  return ['verify', 'redteam-lab'].includes(node.id) || Boolean(candidateTasks(node));
+}
 export function initialTaskSelection(node) {
-  const info = candidateTasks(node), tasks = info?.tasks || [];
-  const task = tasks.find(item => item.state === 'running') || tasks[0];
-  return {batchId: info?.attemptId || 'original', taskId: task?.id || null, history: false, traceId: ''};
+  return {batchId: candidateTasks(node)?.attemptId || 'original', taskId: null, history: false, traceId: ''};
 }
 export function resolveTaskSelection(node, traces, selection) {
   const info = candidateTasks(node), tasks = info?.tasks || [];
   const batchId = info?.attemptId || 'original';
   const current = selection.batchId === batchId ? selection : initialTaskSelection(node);
-  const task = current.history ? null : tasks.find(item => item.id === current.taskId)
-    || tasks.find(item => item.state === 'running') || tasks[0] || null;
-  // A queued candidate must never fall back to another candidate's session.
+  const task = current.history ? null : tasks.find(item => item.id === current.taskId) || null;
+  // Team sessions are opened only after an explicit member or history selection.
   const trace = task ? traces.find(item => item.id === task.traceId) || null
+    : isCandidateNode(node) && !current.history ? null
     : traces.find(item => item.id === current.traceId) || traces[0] || null;
   return {batchId, task, trace};
 }

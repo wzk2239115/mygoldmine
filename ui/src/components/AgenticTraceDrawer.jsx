@@ -7,7 +7,7 @@ import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
 import VerifyTasks from './VerifyTasks.jsx';
 import LabTasks from './LabTasks.jsx';
 import TeamAgentIcon from './TeamAgentIcon.jsx';
-import {initialTaskSelection, resolveTaskSelection, taskStateLabel, candidateTasks} from '../task-selection.js';
+import {initialTaskSelection, resolveTaskSelection, taskStateLabel, candidateTasks, isCandidateNode} from '../task-selection.js';
 
 export default function AgenticTraceDrawer({ project, runId, node: initialNode, traces: initialTraces, live, onClose, onStarted }) {
   const [node, setNode] = useState(initialNode);
@@ -40,14 +40,16 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
   const [text, setText] = useState(null);
   const [error, setError] = useState('');
   const {batchId, task: selectedTask, trace: selected} = resolveTaskSelection(node, traces, selection);
-  const tasks = candidateTasks(node)?.tasks || [];
+  const teamNode = isCandidateNode(node);
+  const memberView = teamNode && Boolean(selectedTask || selected);
   useEffect(() => {
-    if (selection.batchId !== batchId || (!selection.history && !selection.taskId && tasks.length)) {
+    if (selection.batchId !== batchId) {
       setSelection(initialTaskSelection(node));
     }
-  }, [batchId, tasks.length, selection.batchId, selection.history, selection.taskId]);
+  }, [batchId, selection.batchId]);
   const selectTask = taskId => setSelection({batchId, taskId, history: false, traceId: ''});
   const selectHistory = traceId => setSelection({batchId, taskId: null, history: true, traceId});
+  const backToMembers = () => setSelection(initialTaskSelection(node));
 
   useEffect(() => { setShowRaw(false); }, [selected?.id]);
 
@@ -85,14 +87,16 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
         <header className="drawer-head">
           <div className="drawer-head-top">
             <div>
-              <span className="drawer-kicker">{node.agent}</span>
-              <h2 className="agentic-trace-heading"><TeamAgentIcon node={node.id} active={node.status==='running'} size={26} />{node.title} · 执行轨迹</h2>
+              <span className="drawer-kicker">{memberView ? node.title : node.agent}</span>
+              <h2 className="agentic-trace-heading"><TeamAgentIcon node={node.id} active={node.status==='running'} size={26} />{memberView ? `${selectedTask?.id || '历史记录'} · 执行轨迹` : teamNode ? `${node.title} · 队员` : `${node.title} · 执行轨迹`}</h2>
             </div>
             <button type="button" className="icon-button" title="关闭轨迹" aria-label="关闭轨迹" onClick={onClose}>
               <X size={18} />
             </button>
           </div>
           <p className="agentic-trace-subtitle">{project}/{runId} · 历史执行记录</p>
+          {memberView ? <button type="button" className="traj-button member-back" onClick={backToMembers}>← 返回队员列表</button> : null}
+          {!memberView ? <>
           {node.environment ? (
             <details className="agentic-environment-info">
               <summary>环境能力：{node.environment.scope} · {node.environment.coverage}</summary>
@@ -131,15 +135,19 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
               </select>
             </label>
           )) : null}
-          {node.id === 'redteam-lab' ? <LabTasks key={node.construction?.attemptId || 'original'} project={project} runId={runId} construction={node.construction} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
-          {node.id === 'verify' ? <VerifyTasks key={node.verification?.attemptId || 'original'} project={project} runId={runId} verification={node.verification} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
+          </> : null}
         </header>
         {(selectedTask || selected) ? <div className="agentic-current-task" data-team={node.id === 'verify' ? 'blue' : 'red'} aria-live="polite">
           <div><strong>{selectedTask ? `当前候选：${selectedTask.id}` : '当前执行记录'}</strong><span className={`task-state state-${selectedTask?.state || 'history'}`}>{selectedTask ? taskStateLabel(selectedTask) : '日志与历史记录'}</span></div>
           <p title={selectedTask?.title || selected?.label}>{selectedTask?.title || selected?.label}</p>
         </div> : null}
-        <div className="drawer-body agentic-trace-body">
-          {selected?.kind === 'claude' && !showRaw ? (
+        <div className={`drawer-body agentic-trace-body ${teamNode && !memberView ? 'member-roster-body' : ''}`}>
+          {teamNode && !memberView ? <>
+            <p className="member-roster-hint">选择一位{node.id === 'verify' ? '蓝队验证' : '红队构建'}队员，查看他的执行轨迹。</p>
+          {node.id === 'redteam-lab' ? <LabTasks key={node.construction?.attemptId || 'original'} project={project} runId={runId} construction={node.construction} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
+          {node.id === 'verify' ? <VerifyTasks key={node.verification?.attemptId || 'original'} project={project} runId={runId} verification={node.verification} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
+            {!(candidateTasks(node)?.tasks || []).length ? <p className="member-roster-hint">当前批次尚未生成队员任务，请等待任务启动或查看启动日志。</p> : null}
+          </> : selected?.kind === 'claude' && !showRaw ? (
             <ClaudeSessionEmbed
               key={selected.id}
               project={project}
@@ -151,6 +159,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
               live={live || node.status === 'running'}
               tall
               chrome
+              label={selectedTask ? `${selectedTask.id} · 执行轨迹` : selected.label}
             />
           ) : selected ? (
             <section className="agentic-text-trace" aria-label={`${selected.label}文本轨迹`}>
