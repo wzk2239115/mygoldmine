@@ -85,6 +85,11 @@ function originalTraces(run, node) {
 
   }
   if (node === 'environment') {
+    const report = readJson(path.join(run.runDir, 'audit-report.json'));
+    if (path.basename(run.runDir).endsWith('-recovery') && report?.coverage?.analysis_mode === 'assembly-only' && !fs.existsSync(`${run.runDir}.meta/env-phase0.log`)) {
+      const sourceDir = path.join(path.dirname(run.runDir), path.basename(run.runDir).slice(0, -9));
+      return originalTraces({...run, runDir:sourceDir}, node).map(trace => ({...trace, id:`source-${trace.id}`, label:`原始运行 · ${trace.label}`, sourceRunDir:sourceDir}));
+    }
     const meta = `${run.runDir}.meta`;
     const files = fs.existsSync(meta)
       ? fs.readdirSync(meta).filter((file) => /^env-build-agent-\d+\.log$/.test(file)).sort()
@@ -123,7 +128,25 @@ export function listAgenticTraces(run, node) {
       : fs.existsSync(path.join(attempt.workspace, 'verify/agent/logs')) ? fs.readdirSync(path.join(attempt.workspace, 'verify/agent/logs')).map(id => path.join(attempt.workspace, 'verify/agent/logs', id)) : [];
     return [makeTrace(node, `${attempt.id}-worker`, `${label} · 执行日志`, path.join(attempt.root, 'worker.log')), ...logs.map((file,i) => makeTrace(node, `${attempt.id}-${i}`, `${label} · ${path.basename(path.dirname(file))}`, file))].filter(Boolean);
   });
-  return [...retries, ...originalTraces(run, node)];
+  const original = originalTraces(run, node);
+  const roots = new Set([run.runDir, path.join(run.runDir, 'visual-rendered')]);
+  for (const attempt of nodeAttempts(run.runDir, node)) { roots.add(attempt.workspace); roots.add(path.join(attempt.workspace, 'visual-rendered')); }
+  for (const trace of original) roots.add(path.dirname(trace.path));
+  if (node === 'verify') {
+    const directory = path.join(run.runDir, 'verify/agent');
+    if (fs.existsSync(directory)) for (const name of fs.readdirSync(directory)) roots.add(path.join(directory,name));
+  }
+  const receipts = [];
+  for (const root of roots) {
+    const directory = path.join(root, '.stage-submissions', node);
+    if (!fs.existsSync(directory)) continue;
+    for (const name of fs.readdirSync(directory)) {
+      const file = path.join(directory,name), receipt = readJson(file);
+      if (!receipt?.id || receipt.stage !== node) continue;
+      receipts.push(makeTrace(node, `submission-${receipt.id}`, `交付检查 · ${receipt.decision === 'accepted' ? '通过' : '需修改'} · ${new Date(receipt.checked_at).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false})}`, file, 'text'));
+    }
+  }
+  return [...retries, ...original, ...receipts.filter(Boolean)];
 }
 
 export function resolveAgenticTrace(run, node, traceId = '') {

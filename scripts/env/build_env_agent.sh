@@ -81,16 +81,18 @@ You own detection, build decisions, failure diagnosis, repair and runtime checks
 Use scripts/env/build_env.sh as a build tool with --env-dir ${OUT_DIR}, not as a
 substitute for your own inspection and decisions. Do not stop after a dry-run.
 Do not fake ready. Finish by writing ${OUT_DIR}/env-manifest.json with an honest
-env_status after an actual build or an explicit blocked result."
+env_status after an actual build, verified reuse, or an explicit blocked result."
 
 CLAUDE_ARGS=(
+    --mcp-config "$(python3 "$REPO_ROOT/scripts/stages/submission.py" config --stage environment --root "$OUT_DIR")"
     --agent environment-builder
     --setting-sources project,local
     --output-format stream-json
     --verbose
     --permission-mode=bypassPermissions
     --disallowed-tools WebSearch,WebFetch
-    --append-system-prompt "$(cat "$SKILL_FILE")"
+    --append-system-prompt "$(cat "$SKILL_FILE")
+$(python3 "$REPO_ROOT/scripts/stages/submission.py" instruction)"
 )
 [ -n "$MODEL" ] && CLAUDE_ARGS+=(--model "$MODEL")
 CLAUDE_ARGS+=(-p "$PROMPT")

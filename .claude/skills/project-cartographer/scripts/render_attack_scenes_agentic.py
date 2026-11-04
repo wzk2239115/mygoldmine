@@ -8,6 +8,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
+
+sys.path.insert(0, str(ROOT / 'scripts/stages'))
+from submission import config as delivery_config, INSTRUCTION as DELIVERY_INSTRUCTION
 AGENT = "attack-scene-director"
 
 
@@ -146,7 +149,7 @@ def main():
             results.append(record)
             continue
         model_name, connection_env = claude_connection(args.claude_model)
-        command = [args.claude, "--setting-sources", "project,local"]
+        command = [args.claude, "--setting-sources", "project,local", "--mcp-config", json.dumps(delivery_config("visual", out_dir)), "--append-system-prompt", DELIVERY_INSTRUCTION]
         if model_name:
             command += ["--model", model_name]
         command += [

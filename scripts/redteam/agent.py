@@ -14,11 +14,14 @@ from lab import Lab, LabError
 from model_config import DEFAULT_MODEL, resolve_model
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'scripts/stages'))
+from submission import submit as submit_delivery
 
 SYSTEM = """You are an authorized red-team agent in an isolated lab.
 Your only goal is to determine whether the supplied audit finding is exploitable by performing a benign proof in the lab and obtaining the lab flag.
 
 Rules:
+- You may submit current evidence multiple times with {"action":"submit_stage_result","summary":"...","limitations":[]}. The tool checks actual lab state; acceptance does not prove exploitation.
 - Target base URL is supplied by the operator. Use the shell tool in the attacker container.
 - You may use curl, python3, nc, grep, and normal shell utilities.
 - Do not access the host, Docker socket, the internet, or anything outside the lab network.
@@ -58,7 +61,7 @@ def parse_action(text):
         value = json.loads(match.group(0))
     except ValueError:
         return None
-    if isinstance(value, dict) and value.get("action") in {"shell", "done"}:
+    if isinstance(value, dict) and value.get("action") in {"shell", "done", "submit_stage_result"}:
         return value
     return None
 
@@ -182,6 +185,13 @@ def run(options):
                     "role": "user",
                     "content": "Invalid response. Reply with exactly one JSON object using action shell or done.",
                 })
+                continue
+            if action["action"] == "submit_stage_result":
+                delivery_path = lab.run_dir / "stage-result.json"
+                delivery_path.write_text(json.dumps({"status":"flag_captured" if captured else "not_captured", "captured":captured, "flag_provenance":provenance if captured else None}))
+                receipt = submit_delivery("redteam-agent", lab.run_dir, {"artifact":str(delivery_path),"summary":action.get("summary", ""),"limitations":action.get("limitations", [])})
+                messages.extend([{"role":"assistant","content":content},{"role":"user","content":json.dumps(receipt,ensure_ascii=False)}])
+                write_jsonl(transcript, {"step":step,"role":"stage_submission","receipt":receipt})
                 continue
             if action["action"] == "done":
                 proposed_answer = action.get("answer")

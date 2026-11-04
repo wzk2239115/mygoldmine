@@ -82,3 +82,16 @@ test('恢复汇总保留原始审计入口，且会话缓存互不覆盖', (t) =
   assert.equal(listAgenticTraces(run, 'orchestrator').length, 1);
   assert.equal(listAgenticTraces(run, 'orchestrator')[0].label, '恢复汇总（未重新扫描）');
 });
+
+test('恢复汇总能查看原始环境构建会话', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'recovery-environment-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const original=path.join(root,'run'); const run={runDir:`${original}-recovery`};
+  write(`${original}.meta/env-build-agent-1.log`,claude);
+  write(path.join(run.runDir,'audit-report.json'),JSON.stringify({coverage:{analysis_mode:'assembly-only'}}));
+  const trace=listAgenticTraces(run,'environment')[0];
+  assert.equal(trace.sourceRunDir,original);
+  assert.match(trace.label,/原始运行/);
+  write(`${run.runDir}.meta/env-phase0.log`,'new build');
+  assert.equal(listAgenticTraces(run,'environment').length,0);
+});

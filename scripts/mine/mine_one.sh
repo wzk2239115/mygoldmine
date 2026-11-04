@@ -578,6 +578,8 @@ while :; do
             "$CLAUDE_BIN" --verbose --output-format=stream-json \
                 --permission-mode=bypassPermissions \
                 --disallowed-tools WebSearch,WebFetch \
+                --mcp-config "$(python3 "$REPO_ROOT/scripts/stages/submission.py" config --stage orchestrator --root "$RUN_DIR")" \
+                --append-system-prompt "$(python3 "$REPO_ROOT/scripts/stages/submission.py" instruction)" \
                 --agent "$AGENT"
     ) < "$PROMPT_FILE" >> "$RAW" 2> "$ATTEMPT_ERR_LOG" &
     CHILD_PID=$!
