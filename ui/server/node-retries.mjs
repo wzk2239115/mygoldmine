@@ -1,3 +1,4 @@
+import {labCandidates,prepareLabRetry,runLabRetry} from './redteam-lab-retry.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -11,7 +12,7 @@ export function nodeAttempts(runDir,node) {
   if(!fs.existsSync(root))return [];
   return fs.readdirSync(root).map(id=>read(path.join(root,id,'attempt.json'))).filter(Boolean).sort((a,b)=>a.startedAt.localeCompare(b.startedAt));
 }
-export const supportsNodeRetry = node => ['visual','verify'].includes(node);
+export const supportsNodeRetry = node => ['visual','verify','redteam-lab'].includes(node);
 export function retryEligibility(run,node) {
   if(!supportsNodeRetry(node))return '该节点暂不支持独立重跑，请使用项目重跑';
   if(fs.existsSync(path.join(path.resolve(run.runDir,'../../..'),'runs',`.learning-cycle-${run.project}.lock`)))return '该项目正在执行学习循环';
@@ -20,6 +21,10 @@ export function retryEligibility(run,node) {
   const report=read(path.join(run.runDir,'audit-report.json'));
   if(!Array.isArray(report?.findings))return '缺少有效的审计报告';
   if(node==='verify' && (!status.env_image || !status.target))return '缺少环境镜像或源码信息';
+  if(node==='redteam-lab') {
+    if(!status.target || !fs.existsSync(status.target) || !fs.statSync(status.target).isDirectory())return '缺少可用的项目源码目录';
+    try {if(!labCandidates(run).length)return '没有可重跑的红队候选';}catch(error){return error.message;}
+  }
   return '';
 }
 export function startNodeRetry({repoRoot,run,node,models}) {
@@ -32,7 +37,8 @@ export function startNodeRetry({repoRoot,run,node,models}) {
     const workspace=path.join(root,'output');fs.mkdirSync(workspace);
     fs.copyFileSync(path.join(run.runDir,'audit-report.json'),path.join(workspace,'audit-report.json'));
     const status=read(`${run.runDir}.meta/status.json`) || {};
-    const model=models[node] || models.audit;
+    if(node==='redteam-lab')prepareLabRetry(run,workspace);
+    const model=models[node==='redteam-lab'?'redteam':node] || models.audit;
     const job={id,node,project:run.project,runId:run.runId,repoRoot,root,workspace,lock,model,status:'running',startedAt:new Date().toISOString(),source:status.target,image:status.env_image};
     write(path.join(root,'attempt.json'),job);
     const fd=fs.openSync(path.join(root,'worker.log'),'a');
@@ -48,6 +54,7 @@ export function startNodeRetry({repoRoot,run,node,models}) {
 async function worker(file) {
   const job=read(file);let code=1;
   try {
+    if(job.node==='redteam-lab') {job.resultStatus=await runLabRetry(job);code=0;return;}
     let args;
     if(job.node==='visual')args=['scripts/mine/visual_report.sh','--project',job.project,'--run-dir',job.workspace,'--model',job.model];
     else args=['scripts/verify/phase4_verify_agent.sh','--project',job.project,'--run-dir',job.workspace,'--source',job.source,'--image',job.image,'--model',job.model,'--output',path.join(job.workspace,'verify/agent')];

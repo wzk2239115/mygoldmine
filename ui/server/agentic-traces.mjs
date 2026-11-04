@@ -125,10 +125,13 @@ function originalTraces(run, node) {
 export function listAgenticTraces(run, node) {
   const retries = nodeAttempts(run.runDir, node).reverse().flatMap(attempt => {
     const label = `节点重跑 ${new Date(attempt.startedAt).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai',hour12:false})} · ${attempt.status === 'running' ? '运行中' : attempt.resultStatus === 'degraded' ? '部分完成' : attempt.status === 'completed' ? '已结束' : '失败'}`;
-    const logs = node === 'visual'
-      ? fs.existsSync(path.join(attempt.workspace, 'visual/agentic')) ? fs.readdirSync(path.join(attempt.workspace, 'visual/agentic')).map(id => path.join(attempt.workspace, 'visual/agentic', id, 'agent.log')) : []
-      : fs.existsSync(path.join(attempt.workspace, 'verify/agent/logs')) ? fs.readdirSync(path.join(attempt.workspace, 'verify/agent/logs')).map(id => path.join(attempt.workspace, 'verify/agent/logs', id)) : [];
-    return [makeTrace(node, `${attempt.id}-worker`, `${label} · 执行日志`, path.join(attempt.root, 'worker.log')), ...logs.map(file => { const name=path.basename(file); const finding=node==='verify'?name.replace(/\.(agent|runner)\.log$/,''):path.basename(path.dirname(file)); const kind=node==='verify'?(name.endsWith('.agent.log')?'agent':'runner'):'agent'; return makeTrace(node, `${attempt.id}-${node}-${finding}-${kind}`, `${label} · ${finding} · ${kind==='runner'?'执行器日志':'智能体轨迹'}`, file); })].filter(Boolean);
+    const directory=path.join(attempt.workspace,node==='visual'?'visual/agentic':node==='redteam-lab'?'redteam/labs':'verify/agent/logs');
+    const logs=fs.existsSync(directory)?fs.readdirSync(directory).map(id=>node==='visual'?path.join(directory,id,'agent.log'):node==='redteam-lab'?path.join(directory,id,'builder.log'):path.join(directory,id)):[];
+    return [makeTrace(node, `${attempt.id}-worker`, `${label} · 批次日志`, path.join(attempt.root, 'worker.log')), ...logs.map(file => {
+      const name=path.basename(file), finding=node==='verify'?name.replace(/\.(agent|runner)\.log$/,''):path.basename(path.dirname(file));
+      const kind=node==='verify' && name.endsWith('.runner.log')?'runner':'agent';
+      return makeTrace(node, `${attempt.id}-${node}-${finding}-${kind}`, `${label} · ${finding} · ${kind==='runner'?'执行器日志':'智能体轨迹'}`, file);
+    })].filter(Boolean);
   });
   const original = originalTraces(run, node);
   const roots = new Set([run.runDir, path.join(run.runDir, 'visual-rendered')]);
@@ -137,6 +140,10 @@ export function listAgenticTraces(run, node) {
   if (node === 'verify') {
     const directory = path.join(run.runDir, 'verify/agent');
     if (fs.existsSync(directory)) for (const name of fs.readdirSync(directory)) roots.add(path.join(directory,name));
+  }
+  if(node==='redteam-lab')for(const attempt of nodeAttempts(run.runDir,node)) {
+    const directory=path.join(attempt.workspace,'redteam/labs');
+    if(fs.existsSync(directory))for(const entry of fs.readdirSync(directory,{withFileTypes:true}))if(entry.isDirectory())roots.add(path.join(directory,entry.name));
   }
   const receipts = [];
   for (const root of roots) {

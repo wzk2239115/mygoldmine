@@ -280,6 +280,6 @@ test('蓝队最新批次候选数与日志数分开，部分受阻保留原因�
  assert.match(nodes.verify.recoveryNotice,/汇总已恢复/);
  assert.equal(nodes.verify.retrySupported,true);
  assert.equal(nodes.visual.retrySupported,true);
- assert.equal(nodes['redteam-lab'].retrySupported,false);
+ assert.equal(nodes['redteam-lab'].retrySupported,true);
  assert.equal(nodes['redteam-agent'].retrySupported,false);
 });

@@ -129,6 +129,7 @@ def run(args):
         "report_out": str(lab_dir / "lab-report.md"),
         "blocked_out": str(lab_dir / "BLOCKED.md"),
         "scenario_schema_version": 1,
+        "build_only": getattr(args, "build_only", False),
         "supported_modes": ["http"],
     }
     task_path = lab_dir / "lab-task.json"
@@ -149,6 +150,12 @@ def run(args):
         "and do not declare mounts. If impossible, write BLOCKED.md with the concrete blocker. "
         "Do not modify the finding or the source tree. Print the scenario path when done."
     )
+    if getattr(args, "build_only", False):
+        prompt += (
+            " 本次是单节点重跑：只构建并验收场景，提交交付后结束。"
+            "不要运行红队 agent.py 或 judge.py，不启动后续节点。"
+            "所有文件只写入 lab-task.json 指定的 lab_dir，不写入共享 labs 目录。"
+        )
     model_name, connection_env = claude_connection(args.claude_model)
     command = [args.claude, "--setting-sources", "project,local", "--mcp-config", json.dumps(delivery_config("redteam-lab", lab_dir)), "--append-system-prompt", DELIVERY_INSTRUCTION + "\n" + layered_skill_instruction("redteam-lab", lab_dir)]
     if model_name:
@@ -234,6 +241,7 @@ def main():
     parser.add_argument("--claude-model", default="")
     parser.add_argument("--timeout", type=int, default=1200)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--build-only", action="store_true", help="仅构建当前场景，不启动后续节点")
     args = parser.parse_args()
     try:
         return run(args)

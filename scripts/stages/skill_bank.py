@@ -108,7 +108,7 @@ class SkillBank:
             'judge':[run/'redteam/summary.json'],
             'learner':[run/'rsi/post-validation.json',run/'rsi/driver.json'],
         }
-        for stage,artifact in [('visual','visual-rendered/visual-summary.json'),('verify','verify/agent/summary.json')]:
+        for stage,artifact in [('visual','visual-rendered/visual-summary.json'),('verify','verify/agent/summary.json'),('redteam-lab','redteam/summary.json')]:
             retries=[read(p,{}) for p in (meta/'node-retries'/stage).glob('*/attempt.json')]
             retries=[item for item in retries if item.get('workspace')]
             if retries:
@@ -126,6 +126,7 @@ class SkillBank:
                 d=read(p,{})
                 if isinstance(d,dict):reported.update(d)
             stage_state=reported.get('status') or reported.get('scene_status') or ('missing' if not refs else 'recorded')
+            if stage=='redteam-lab' and reported.get('resultStatus'):stage_state=reported['resultStatus']
             if stage=='environment':stage_state=status.get('env_status') or reported.get('final',{}).get('status') or stage_state
             if stage=='orchestrator':stage_state='complete' if reported.get('incomplete')==0 and reported.get('valid') else stage_state
             counts=reported.get('counts',{})

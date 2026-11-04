@@ -7,7 +7,7 @@ import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
 import VerifyTasks from './VerifyTasks.jsx';
 import TeamAgentIcon from './TeamAgentIcon.jsx';
 
-export default function AgenticTraceDrawer({ project, runId, node: initialNode, traces: initialTraces, live, onClose }) {
+export default function AgenticTraceDrawer({ project, runId, node: initialNode, traces: initialTraces, live, onClose, onStarted }) {
   const [node, setNode] = useState(initialNode);
   const [traces, setTraces] = useState(initialTraces);
   const [retrying, setRetrying] = useState(false);
@@ -28,6 +28,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
     setRetrying(true); setRetryError('');
     try {
       const result = await api.restartNode(project, runId, node.id);
+      onStarted?.();
       const payload = await api.pipeline(project, runId);
       const fresh = payload.nodes.find(item => item.id === node.id);
       pickedTrace.current = false;
@@ -41,7 +42,13 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
   const selected = traces.find((trace) => trace.id === traceId) || traces[0] || null;
 
   useEffect(() => {
-    if (node.id !== 'verify' || pickedTrace.current) return;
+    if (pickedTrace.current) return;
+    if (node.id === 'redteam-lab') {
+      const first=traces.find(trace=>trace.kind==='claude');
+      if(first) {pickedTrace.current=true;setTraceId(first.id);}
+      return;
+    }
+    if (node.id !== 'verify') return;
     const tasks = node.verification?.tasks || [];
     const first = tasks.find(task => task.state === 'running' && traces.some(trace => trace.id === task.traceId))
       || tasks.find(task => traces.some(trace => trace.id === task.traceId));

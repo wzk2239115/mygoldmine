@@ -347,6 +347,10 @@ export function buildAgenticPipeline(run) {
       node.detail = latest.status === 'running' ? '正在独立重跑此节点' : latest.recovery?.kind === 'aggregation-only' ? '汇总已恢复；候选未重新执行，原始错误记录保留' : '节点重跑已结束；原始流程记录保留';
       node.retryReason = latest.status === 'running' ? '此节点正在重跑' : node.retryReason;
     }
+    if (node.id === 'redteam-lab' && latest) {
+      const progress=readJson(path.join(latest.workspace,'redteam/summary.json'));
+      if(progress)node.detail=`场景构建 ${progress.processed}/${progress.selected} 已结束 · 可用 ${progress.ready} · 受阻 ${progress.blocked}${progress.current ? ` · 当前 ${progress.current}` : ''}`;
+    }
     if (node.id === 'verify') {
       const info = node.verification;
       const labels = {confirmed:'确认',rejected:'排除',inconclusive:'待定',blocked:'受阻'};

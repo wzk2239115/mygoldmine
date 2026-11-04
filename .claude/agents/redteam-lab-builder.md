@@ -44,3 +44,5 @@ tools: Read, Write, Edit, Bash, Task, mcp__stage_delivery__submit_stage_result, 
 
 只写 `labs/<project>/<finding-id>/` 和必要镜像/脚本，不改 finding、不降低 judge 标准。完成后打印：
 `scenario=<path> report=<path> blocked=<yes|no>`。
+
+指定输出目录时，以 `lab-task.json` 的 `lab_dir` 为唯一交付目录；不要另写共享的 `labs/<project>/<finding-id>/`。若任务的 `build_only` 为 `true`，只完成场景构建、负向控制和交付检查，然后结束；红队执行和独立审核由后续节点负责，不在本节点自动启动。

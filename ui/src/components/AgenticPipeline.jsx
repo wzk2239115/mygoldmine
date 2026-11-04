@@ -53,13 +53,14 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
     load(false);
   }, [load]);
 
+  const retryLive = data?.nodes.some(node=>node.retryReason==='此节点正在重跑') || false;
   useEffect(() => {
-    if (!live) return undefined;
+    if (!live && !retryLive) return undefined;
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') load(true);
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [live, load]);
+  }, [live, retryLive, load]);
 
   const prepareTrace = (node) => {
     const task = node.verification?.tasks.find(item => item.state === 'running') || node.verification?.tasks[0];
@@ -126,7 +127,8 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
           node={selectedNode}
           traces={selectedNode.traces || []}
           live={live}
-          onClose={() => setSelectedNode(null)}
+          onStarted={() => load(true)}
+          onClose={() => { setSelectedNode(null); load(true); }}
         />
       ) : null}
     </section>
