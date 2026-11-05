@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / 'scripts/stages'))
 from submission import config as delivery_config, INSTRUCTION as DELIVERY_INSTRUCTION
 from skill_bank import instruction as layered_skill_instruction
 from claude_connection import claude_connection
+from owned_process import run_session
 
 
 def language_directive():
@@ -86,7 +87,7 @@ def main():
         "-p", prompt,
     ]
     try:
-        completed = subprocess.run(
+        completed = run_session(
             command, env=connection_env, cwd=ROOT, capture_output=True, text=True, timeout=args.timeout
         )
     except subprocess.TimeoutExpired as exc:

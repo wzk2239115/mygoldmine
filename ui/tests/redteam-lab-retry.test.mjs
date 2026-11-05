@@ -62,15 +62,15 @@ print(json.dumps({'scenario_valid':True,'finding_id':identifier,'scenario':str(s
  for(let i=0;i<150;i++) {latest=nodeAttempts(run.runDir,'redteam-lab')[0];if(latest.status!=='running')break;await new Promise(r=>setTimeout(r,50));}
  assert.equal(latest.status,'completed');assert.equal(latest.resultStatus,'degraded');
  const summary=JSON.parse(fs.readFileSync(path.join(latest.workspace,'redteam/summary.json')));
- assert.equal(summary.buildOnly,true);assert.equal(summary.selected,2);assert.equal(summary.ready,1);assert.equal(summary.blocked,1);
- assert.deepEqual(summary.results.map(row=>row.id),['F-1','F-2']);
+ assert.equal(summary.buildOnly,true);assert.equal(summary.selected,3);assert.equal(summary.ready,2);assert.equal(summary.blocked,1);
+ assert.deepEqual(summary.results.map(row=>row.id),['F-1','F-2','F-3']);
  assert.deepEqual(JSON.parse(fs.readFileSync(shared)),{original:true});
  assert.equal(fs.readFileSync(path.join(run.runDir,'redteam/summary.json'),'utf8'),original);
  assert.equal(fs.existsSync(latest.lock),false);
  const traces=listAgenticTraces(run,'redteam-lab');
  assert.ok(traces.some(trace=>trace.id===`${started.id}-redteam-lab-F-1-agent` && trace.kind==='claude'));
  const nodes=Object.fromEntries(buildAgenticPipeline(run).nodes.map(node=>[node.id,node]));
- assert.equal(nodes['redteam-lab'].status,'degraded');assert.match(nodes['redteam-lab'].detail,/可用 1.*受阻 1/);
+ assert.equal(nodes['redteam-lab'].status,'degraded');assert.match(nodes['redteam-lab'].detail,/可用 2.*受阻 1/);
  assert.equal(nodes['redteam-agent'].status,'pending');assert.equal(nodes.judge.status,'pending');
 });
 
@@ -130,12 +130,49 @@ test('红队节点只接收蓝队确认且完整的交付，最新蓝队运行�
  return import('../server/redteam-lab-retry.mjs').then(({prepareLabRetry})=>{
   prepareLabRetry(run,workspace);
   const selected=JSON.parse(fs.readFileSync(path.join(workspace,'redteam/selection.json')));
-  assert.deepEqual(selected.candidates.map(x=>x.id),['F-1']);assert.equal(selected.excluded[0].id,'F-2');
+  assert.deepEqual(selected.candidates.map(x=>x.id),['F-1','F-3']);assert.equal(selected.excluded[0].id,'F-2');
   assert.ok(fs.existsSync(path.join(workspace,'redteam/blue-handoff/F-1/harness/probe.py')));
   write(`${run.runDir}.meta/node-retries/redteam-lab/new/attempt.json`,{id:'red-new',project:'demo',runId:'one',workspace,status:'completed',startedAt:'2026-11-05'});
-  const roster=labTasks(run);assert.equal(roster.blueHandoffCount,1);assert.equal(roster.blueAttemptId,'original');
-  assert.equal(roster.excluded[0].id,'F-2');assert.deepEqual(roster.tasks.map(x=>x.id),['F-1']);
+  const roster=labTasks(run);assert.equal(roster.blueHandoffCount,2);assert.equal(roster.blueAttemptId,'original');
+  assert.equal(roster.excluded[0].id,'F-2');assert.deepEqual(roster.tasks.map(x=>x.id),['F-1','F-3']);
   write(`${run.runDir}.meta/node-retries/verify/new/attempt.json`,{id:'new',project:'demo',runId:'one',workspace:path.join(repoRoot,'new'),status:'running',startedAt:'2026-11-05'});
   assert.match(retryEligibility(run,'redteam-lab'),/蓝队验证正在运行/);
  });
+});
+
+test('无人值守04自动传递全部确认候选到05，受阻后自动交给08',async t=>{
+ const {repoRoot,run}=fixture(t);
+ const original=path.join(repoRoot,'fixtures-blue');
+ fs.cpSync(path.join(run.runDir,'verify/agent'),original,{recursive:true});
+ const verifyDir=path.join(repoRoot,'scripts/verify');fs.mkdirSync(verifyDir,{recursive:true});
+ fs.writeFileSync(path.join(verifyDir,'phase4_verify_agent.sh'),`#!/bin/bash
+while [ "$1" != "--output" ]; do shift; done
+mkdir -p "$2"
+cp -a '${original}/.' "$2"
+`);
+ const build=path.join(repoRoot,'scripts/redteam/build_lab.py');fs.mkdirSync(path.dirname(build),{recursive:true});
+ fs.writeFileSync(build,`import sys,json
+args=sys.argv[1:];f=json.load(open(args[args.index('--finding')+1]))
+print(json.dumps({'finding_id':f['id'],'status':'blocked','blocked_valid':True,'blocked_reason':'fixture boundary'}))
+sys.exit(2)
+`);
+ const learner=path.join(repoRoot,'scripts/stages/retry_learning.py');fs.mkdirSync(path.dirname(learner),{recursive:true});
+ fs.writeFileSync(learner,`import json,sys
+from pathlib import Path
+args=sys.argv[1:];out=Path(args[args.index('--output')+1])
+(out/'rsi').mkdir(parents=True)
+(out/'rsi/learning-retry.json').write_text(json.dumps({'status':'completed'}))
+`);
+ startNodeRetry({repoRoot,run,node:'verify',models:{audit:'fixture'},cascade:true});
+ let learning;
+ for(let i=0;i<200;i++) {
+  learning=nodeAttempts(run.runDir,'learner').at(-1);
+  if(learning?.status==='completed' && !fs.existsSync(learning.lock))break;
+  await new Promise(resolve=>setTimeout(resolve,50));
+ }
+ const blue=nodeAttempts(run.runDir,'verify').at(-1);
+ const labs=nodeAttempts(run.runDir,'redteam-lab').at(-1);
+ assert.equal(blue.next.node,'redteam-lab');
+ assert.equal(JSON.parse(fs.readFileSync(path.join(labs.workspace,'redteam/selection.json'))).selected,3);
+ assert.equal(labs.next.node,'learner');assert.equal(learning?.status,'completed');
 });

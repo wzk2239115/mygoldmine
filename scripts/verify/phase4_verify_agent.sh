@@ -42,7 +42,8 @@ usage() {
   --source DIR         原始源码目录（只读挂载）
 
 选项:
-  --max N              最多选择多少条（默认 10）
+  --max N              手动单批最多选择多少条（默认 10）
+  --drain              自动排空所有范围内候选，优先高危；受阻或待定最多尝试两次
   --jobs N             同时验证多少条（1–10，默认 10）
   --severity LIST      逗号分隔的严重度（默认 critical,high）
   --finding-id ID      只处理指定候选问题编号（自动流转用）
@@ -71,6 +72,7 @@ RUN_DIR=""
 IMAGE=""
 SOURCE=""
 MAX=10
+DRAIN=0
 JOBS=10
 SEVERITY="critical,high"
 VERIFY_TIMEOUT=300
@@ -91,6 +93,7 @@ while [ "$#" -gt 0 ]; do
         --image) [ "$#" -ge 2 ] || die "--image 需要参数"; IMAGE="$2"; shift ;;
         --source) [ "$#" -ge 2 ] || die "--source 需要参数"; SOURCE="$2"; shift ;;
         --jobs) [ "$#" -ge 2 ] || die "--jobs 需要参数"; JOBS="$2"; shift ;;
+        --drain) DRAIN=1 ;;
         --max) [ "$#" -ge 2 ] || die "--max 需要参数"; MAX="$2"; shift ;;
         --severity) [ "$#" -ge 2 ] || die "--severity 需要参数"; SEVERITY="$2"; shift ;;
         --finding-id) [ "$#" -ge 2 ] || die "--finding-id 需要参数"; FINDING_ID_FILTER="$2"; shift ;;
@@ -153,44 +156,36 @@ ENV_MANIFEST="$REPO_ROOT/env/$PROJECT/env-manifest.json"
 ENV_MANIFEST_EXISTS=0
 [ -f "$ENV_MANIFEST" ] && ENV_MANIFEST_EXISTS=1
 
+# 冻结输入并持久化全量选择去向，未选中候选不会从交接记录消失。
+REPORT_SNAPSHOT="$OUTPUT/source-report.json"
+cp "$REPORT" "$REPORT_SNAPSHOT" || die "无法冻结本批次审计报告"
+REPORT_SHA256="$(sha256sum "$REPORT_SNAPSHOT" | cut -d' ' -f1)"
 JQ_SELECT='
-def items:
-  if (.findings? | type) == "array" and ((.findings | length) > 0) then .findings
-  elif (.vulnerabilities? | type) == "array" then .vulnerabilities
-  elif (.findings? | type) == "array" then .findings
-  else [] end;
+def items: if (.findings? | type) == "array" then .findings
+ elif (.vulnerabilities? | type) == "array" then .vulnerabilities else [] end;
 ($sev | ascii_downcase | split(",") | map(gsub("^\\s+|\\s+$"; ""))) as $sevs
-| [ items | to_entries[]
-    | .value as $v
-    | if ($v | type) != "object" then
-        {malformed: true, index: .key, reason: "not-an-object", preview: ($v | tostring | .[0:200])}
-      else
-        ($v.severity // $v.severity_raw // $v.level // $v.cvss_severity // "unknown") as $s
-        | ($s | tostring | ascii_downcase) as $norm
-        | if ($sevs | index($norm)) != null then
-            {index: .key,
-             orig_id: (($v.id // $v.finding_id // $v.title // $v.name // "") | tostring),
-             title: (($v.title // $v.name // $v.id // "") | tostring),
-             severity: $norm,
-             raw: $v}
-          else empty
-          end
-      end
-  ] as $rows
-| {
-    selected: ([$rows[] | select(.malformed != true) | select($finding_id == "" or .orig_id == $finding_id)][0:$max]),
-    malformed: [$rows[] | select(.malformed == true)]
-  }
+| [items | to_entries[] | .value as $v
+ | if ($v|type)!="object" then {malformed:true,index:.key,reason:"not-an-object"}
+ else {index:.key,orig_id:(($v.id // $v.finding_id // $v.title // "")|tostring),
+ title:(($v.title // $v.id // "")|tostring),
+ severity:(($v.severity // $v.severity_raw // $v.level // $v.cvss_severity // "unknown")|tostring|ascii_downcase),raw:$v} end] as $all
+| [$all[] | select(.malformed!=true) | . as $row | select(($sevs|index($row.severity))!=null) | select($finding_id=="" or .orig_id==$finding_id)] as $eligible
+| ($eligible | if $drain then sort_by(if .severity=="critical" then 0 elif .severity=="high" then 1 elif .severity=="medium" then 2 elif .severity=="low" then 3 else 4 end, .index) else .[0:$max] end) as $selected
+| {schema_version:1,report_sha256:$report_sha,total_findings:($all|length),severity:$sevs,max:$max,
+ selected:$selected,malformed:[$all[]|select(.malformed==true)],
+ deferred:[$all[]|select(.malformed!=true)|. as $row|select(($selected|map(.index)|index($row.index))==null)|
+ {id:.orig_id,title:.title,severity:.severity,state:"pending",
+ reason_code:(if $finding_id!="" and .orig_id!=$finding_id then "finding_filter" elif ($sevs|index($row.severity))==null then "severity_filter" else "batch_limit" end),
+ reason:(if $finding_id!="" and .orig_id!=$finding_id then "未指定此候选，仍待处理" elif ($sevs|index($row.severity))==null then "不在本批次严重度范围，仍待验证" else "超出本批次数量上限，仍待验证" end)}]}
 '
-
-SELECTION_FILE="$OUTPUT/.selection.json"
-jq --arg sev "$SEVERITY" --arg finding_id "$FINDING_ID_FILTER" --argjson max "$MAX" "$JQ_SELECT" "$REPORT" > "$SELECTION_FILE" \
+SELECTION_FILE="$OUTPUT/selection.json"
+jq --arg sev "$SEVERITY" --arg finding_id "$FINDING_ID_FILTER" --arg report_sha "$REPORT_SHA256" --argjson drain "$([ "$DRAIN" -eq 1 ] && echo true || echo false)" --argjson max "$MAX" "$JQ_SELECT" "$REPORT_SNAPSHOT" > "$SELECTION_FILE" \
     || die "解析 audit-report.json 失败: $REPORT"
 
 mapfile -t SELECTED < <(jq -c '.selected[]' "$SELECTION_FILE")
 MALFORMED_JSON="$(jq -c '.malformed // []' "$SELECTION_FILE")"
 SELECTED_COUNT="${#SELECTED[@]}"
-rm -f "$SELECTION_FILE"
+# 保留完整选择清单以核对后续交接。
 
 RECORDS_FILE="$OUTPUT/.findings.ndjson"
 : > "$RECORDS_FILE"
@@ -348,6 +343,7 @@ build_prompt() {
     cat <<EOF
 You are the Phase 4 verify-agent. Verify exactly one finding on the host and leave
 an honest, auditable verdict. Do not scan for new bugs and do not write exploits.
+Previous attempt context: ${PHASE4_RETRY_CONTEXT:-none}. If supplied, read its failure and evidence, then try a different bounded verification approach; do not repeat the same failed action.
 
 project: $PROJECT
 finding: $finding
@@ -461,7 +457,7 @@ verify_one() {
     runner_rc_json="null"
     harness_path="$(find_harness "$sid" || true)"
 
-    if report_valid "$report_json" && load_report "$report_json"; then
+    if [ "$agent_rc" -eq 0 ] && report_valid "$report_json" && load_report "$report_json"; then
         enrich_report_identity "$report_json"
         status="reported"
     else
@@ -563,7 +559,7 @@ for entry in "${SELECTED[@]}"; do
 done
 export PROJECT RUN_DIR RUN_ID_VALUE IMAGE SOURCE MODEL MODEL_RAW OUTPUT ENV_MANIFEST VERIFY_TIMEOUT AGENT_TIMEOUT CLAUDE_BIN VERIFY_RUNNER REPO_ROOT OCCURRENCE_ID SEMANTIC_ID
 export -f log die find_harness write_synth_report enrich_report_identity report_valid load_report invoke_runner build_prompt verify_one
-python3 "$REPO_ROOT/scripts/verify/parallel.py" --jobs "$JOBS" --input "$JOBS_FILE" --output "$OUTPUT" &
+python3 "$REPO_ROOT/scripts/verify/parallel.py" --jobs "$JOBS" --attempts "$([ "$DRAIN" -eq 1 ] && echo 2 || echo 1)" --input "$JOBS_FILE" --output "$OUTPUT" &
 SCHEDULER_PID=$!
 trap 'kill -TERM "$SCHEDULER_PID" 2>/dev/null; wait "$SCHEDULER_PID"; exit 130' INT TERM
 wait "$SCHEDULER_PID"
@@ -620,7 +616,7 @@ jq -n \
         processed: $processed,
         malformed_count: ($malformed | length),
         malformed: $malformed,
-        status: (if ($findings|length)==0 then "no_findings" elif all($findings[]; .verdict=="blocked") then "blocked" elif any($findings[]; .verdict=="blocked") then "partial" else "completed" end),
+        status: (if ($findings|length)==0 and ($malformed|length)>0 then "failed" elif ($findings|length)==0 then "no_findings" elif all($findings[]; .verdict=="blocked") then "blocked" elif any($findings[]; .verdict=="blocked" or .verdict=="inconclusive") then "partial" else "completed" end),
         counts: ($findings | group_by(.verdict) | map({key: (.[0].verdict // "unknown"), value: length}) | from_entries),
         status_counts: ($findings | group_by(.status) | map({key: (.[0].status // "unknown"), value: length}) | from_entries),
         findings: $findings,

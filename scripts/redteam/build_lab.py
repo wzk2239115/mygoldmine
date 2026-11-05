@@ -25,6 +25,8 @@ sys.path.insert(0, str(ROOT / 'scripts/stages'))
 from submission import config as delivery_config, INSTRUCTION as DELIVERY_INSTRUCTION
 from skill_bank import instruction as layered_skill_instruction
 from claude_connection import claude_connection
+from stage_builds import wait_builds
+from owned_process import run_session
 
 
 def language_directive():
@@ -51,6 +53,10 @@ def markdown_reason(path):
         if line:
             return line.lstrip("# ").strip()[:500]
     return ""
+
+
+def images_available(scenario):
+    return all(subprocess.run(['docker','image','inspect',scenario[key]],capture_output=True,text=True,timeout=15).returncode==0 for key in ['victim_image','attacker_image'])
 
 
 def scenario_safety(scenario, lab_dir):
@@ -212,6 +218,7 @@ def run(args):
         "blocked_json_out": str(lab_dir / "blocked.json"),
         "scenario_schema_version": 1,
         "build_only": getattr(args, "build_only", False),
+        "build_deadline": time.time() + getattr(args, "timeout", 1200),
         "supported_modes": sorted(SUPPORTED_MODES),
         "mode_fields": {
             "http": ["target_url", "health", "launch"],
@@ -276,7 +283,7 @@ def run(args):
         log.write(f"# timeout\n{args.timeout}s\n\n# output\n")
         log.flush()
         try:
-            completed = subprocess.run(
+            completed = run_session(
                 command, env=connection_env, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT,
                 text=True, timeout=args.timeout,
             )
@@ -285,6 +292,21 @@ def run(args):
             timed_out = True
             returncode = 124
             log.write(f"\n# TIMEOUT after {args.timeout}s\n")
+    builds=wait_builds(lab_dir)
+    if builds:
+        verification=list(command)
+        verification[-1] += (
+            " 所有已登记镜像任务均已结束。现在仅核对实际构建结果、镜像、隔离和负向控制，完成场景交付；"
+            "禁止重新构建或启动后台任务。构建失败或检查未通过时提交结构化受阻文件，不写可用场景。"
+        )
+        with log_path.open("a",encoding="utf-8") as log:
+            try:
+                completed=run_session(verification,env={**connection_env,'STAGE_BUILD_VERIFY_ONLY':'1'},cwd=ROOT,stdout=log,stderr=subprocess.STDOUT,text=True,timeout=min(args.timeout,300))
+                returncode=completed.returncode;timed_out=False
+            except subprocess.TimeoutExpired:
+                returncode=124;timed_out=True
+    if builds and any(item.get('status')!='completed' or item.get('exitCode')!=0 for item in builds):
+        returncode=1
     if timed_out and not scenario.exists():
         write_blocked_delivery(
             lab_dir, identifier, expected_finding_sha256, expected_source,
@@ -311,9 +333,11 @@ def run(args):
                 expected_source=expected_source,
             )
             scenario_safety(scenario_data, lab_dir)
+            if not images_available(scenario_data):
+                raise ValueError("场景镜像尚未实际构建，不能交付为可用场景")
             scenario_valid = True
             mode = scenario_data.get("mode", "")
-        except (OSError, ValueError, ContractError) as exc:
+        except (OSError, ValueError, ContractError, subprocess.TimeoutExpired) as exc:
             error = f"scenario validation failed: {exc}"
     blocked_json = lab_dir / "blocked.json"
     blocked_md = lab_dir / "BLOCKED.md"
@@ -332,7 +356,7 @@ def run(args):
             blocked_surface = blocked_doc["attacked_surface"]
             missing_capabilities = list(blocked_doc["missing_capabilities"])
             mode = blocked_doc["mode"]
-        except (OSError, ValueError, ContractError) as exc:
+        except (OSError, ValueError, ContractError, subprocess.TimeoutExpired) as exc:
             blocked_path = str(blocked_json)
             blocked_reason = markdown_reason(blocked_md) or str(exc)
             error = f"blocked delivery validation failed: {exc}"
@@ -394,7 +418,7 @@ def main():
     args = parser.parse_args()
     try:
         return run(args)
-    except (OSError, ValueError, ContractError) as exc:
+    except (OSError, ValueError, ContractError, subprocess.TimeoutExpired) as exc:
         status = exc.status if isinstance(exc, ContractError) else "build_failed"
         print(json.dumps({"status": status, "scenario_valid": False, "error": str(exc)}, ensure_ascii=False))
         return 2

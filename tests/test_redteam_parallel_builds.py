@@ -84,7 +84,7 @@ def test_main_flow_waits_for_all_builds_then_uses_isolated_scenarios(tmp_path, m
                 state['finished'] += 1
             return SimpleNamespace(returncode=0, stdout=json.dumps({'scenario_valid': True,
                 'finding_id': identifier, 'scenario': str(scenario)}), stderr='')
-        assert command[1].endswith('agent.py')
+        assert command[1].endswith('auto_repair.py')
         assert state['active'] == 0 and state['finished'] == 4
         scenario = Path(command[command.index('--scenario') + 1])
         assert 'construction/labs/demo' in str(scenario)
@@ -117,7 +117,7 @@ def test_main_flow_runs_agents_and_judges_in_bounded_parallel(tmp_path, monkeypa
     lock = threading.Lock()
 
     def invoke(command, **kwargs):
-        kind = 'agent' if any('agent.py' in str(item) for item in command) else 'judge'
+        kind = 'agent' if any('auto_repair.py' in str(item) for item in command) else 'judge'
         with lock:
             state[kind] += 1
             state[f'peak_{kind}'] = max(state[f'peak_{kind}'], state[kind])

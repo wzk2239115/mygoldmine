@@ -24,7 +24,8 @@ usage() {
   --run-dir DIR            含 audit-report.json 的批量审计产物目录
 
 选项:
-  --max N                  最多选择条数（默认 5）
+  --max N                  手动单批最多选择条数（默认 5）
+  --drain                  自动传递全部符合蓝队确认条件的候选
   --severity LIST          逗号分隔的严重级别（默认 critical,high）
   --finding-id ID          只选择指定候选问题编号（自动流转用）
   --model MODEL            红队模型（默认 $REDTEAM_MODEL 或审计模型）
@@ -51,6 +52,7 @@ PROJECT=""
 RUN_DIR=""
 MAX=5
 SEVERITY="critical,high"
+DRAIN_ARGS=()
 FINDING_ID_FILTER=""
 MODEL="${REDTEAM_MODEL:-${MODEL:-360-proxy/deepseek/deepseek-v4.1-flash}}"
 BASE_URL="${REDTEAM_BASE_URL:-}"
@@ -66,6 +68,7 @@ while [ "$#" -gt 0 ]; do
     case "$1" in
         --project) [ "$#" -ge 2 ] || die "--project 需要参数"; PROJECT="$2"; shift ;;
         --run-dir) [ "$#" -ge 2 ] || die "--run-dir 需要参数"; RUN_DIR="$2"; shift ;;
+        --drain) DRAIN_ARGS=(--drain) ;;
         --max) [ "$#" -ge 2 ] || die "--max 需要参数"; MAX="$2"; shift ;;
         --severity) [ "$#" -ge 2 ] || die "--severity 需要参数"; SEVERITY="$2"; shift ;;
         --finding-id) [ "$#" -ge 2 ] || die "--finding-id 需要参数"; FINDING_ID_FILTER="$2"; shift ;;
@@ -111,7 +114,7 @@ CANDIDATES="$OUTPUT/candidates.json"
 SELECTION="$OUTPUT/selection.json"
 "$PYTHON" "$ROOT/scripts/redteam/blue_handoff.py" \
     --run-dir "$RUN_DIR" --project "$PROJECT" --output "$OUTPUT" \
-    --max "$MAX" --severity "$SEVERITY" --finding-id "$FINDING_ID_FILTER" \
+    --max "$MAX" --severity "$SEVERITY" --finding-id "$FINDING_ID_FILTER" "${DRAIN_ARGS[@]}" \
     > "$OUTPUT/blue-handoff.log"
 SELECT_RC=$?
 [ "$SELECT_RC" -eq 0 ] || die "无法读取蓝队确认和交付产物（returncode=$SELECT_RC）" 3

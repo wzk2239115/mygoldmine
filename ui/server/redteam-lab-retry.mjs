@@ -8,8 +8,7 @@ const write=(file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.
 
 const helper=fileURLToPath(new URL('../../scripts/redteam/blue_handoff.py',import.meta.url));
 function blueSelection(run,output) {
-  const selectedFile=path.join(run.runDir,'redteam/candidates.json');
-  const args=[helper,'--run-dir',run.runDir,'--project',run.project,'--reuse-selection','--max',fs.existsSync(selectedFile)?'10000':'5'];
+  const args=[helper,'--run-dir',run.runDir,'--project',run.project,'--reuse-selection','--refresh-selection','--drain','--severity','critical,high,medium,low,info','--max','10000'];
   if(output)args.push('--output',output);else args.push('--inspect');
   const result=spawnSync('python3',args,{encoding:'utf8',timeout:30000,maxBuffer:2*1024*1024});
   if(result.error)throw Error(`蓝队交付检查失败：${result.error.message}`);

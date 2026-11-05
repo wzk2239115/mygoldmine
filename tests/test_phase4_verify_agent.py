@@ -71,7 +71,8 @@ set -eu
   echo "=== CALL ==="
   printf 'ARG:%s\\n' "$@"
 } >> "$PHASE4_TEST_CLAUDE_CAPTURE"
-""" + body,
+"""
+        + body,
     )
 
 
@@ -140,18 +141,30 @@ def _run_phase4(
         }
     )
     args = [
-        "bash", str(PHASE4),
-        "--project", "demo",
-        "--run-dir", str(run_dir),
-        "--image", "fake:demo",
-        "--source", str(source),
-        "--max", "10",
-        "--severity", "critical,high",
-        "--timeout", "30",
-        "--agent-timeout", "30",
-        "--claude-bin", str(claude_bin),
-        "--model", "360-proxy/deepseek/deepseek-v4.1-flash",
-        "--output", str(tmp_path / "verify-out"),
+        "bash",
+        str(PHASE4),
+        "--project",
+        "demo",
+        "--run-dir",
+        str(run_dir),
+        "--image",
+        "fake:demo",
+        "--source",
+        str(source),
+        "--max",
+        "10",
+        "--severity",
+        "critical,high",
+        "--timeout",
+        "30",
+        "--agent-timeout",
+        "30",
+        "--claude-bin",
+        str(claude_bin),
+        "--model",
+        "360-proxy/deepseek/deepseek-v4.1-flash",
+        "--output",
+        str(tmp_path / "verify-out"),
     ]
     if extra_args:
         args.extend(extra_args)
@@ -286,10 +299,14 @@ def test_phase4_finding_filter_and_identity_are_recorded(tmp_path: Path) -> None
         claude_bin=claude,
         runner=runner,
         extra_args=[
-            "--finding-id", "F-critical",
-            "--occurrence-id", "demo/20260101T000000Z/F-critical",
-            "--semantic-id", "sem-critical",
-            "--run-id", "20260101T000000Z",
+            "--finding-id",
+            "F-critical",
+            "--occurrence-id",
+            "demo/20260101T000000Z/F-critical",
+            "--semantic-id",
+            "sem-critical",
+            "--run-id",
+            "20260101T000000Z",
         ],
     )
 
@@ -306,3 +323,73 @@ def test_phase4_finding_filter_and_identity_are_recorded(tmp_path: Path) -> None
     assert report["occurrence_id"] == "demo/20260101T000000Z/F-critical"
     assert report["semantic_id"] == "sem-critical"
     assert report["run_id"] == "20260101T000000Z"
+
+
+def test_phase4_persists_full_candidate_disposition(tmp_path):
+    run_dir = _fake_report(tmp_path)
+    result = _run_phase4(
+        tmp_path,
+        run_dir,
+        claude_bin=_fake_claude(tmp_path),
+        runner=_fake_runner(tmp_path),
+        extra_args=["--max", "1"],
+    )
+    assert result.returncode == 0, result.stderr
+    plan = json.loads((tmp_path / "verify-out/selection.json").read_text())
+    assert plan["total_findings"] == 3
+    assert len(plan["selected"]) == 1
+    assert {row["reason_code"] for row in plan["deferred"]} == {"severity_filter", "batch_limit"}
+    assert len(plan["selected"]) + len(plan["deferred"]) == 3
+    assert (tmp_path / "verify-out/source-report.json").read_bytes() == (
+        run_dir / "audit-report.json"
+    ).read_bytes()
+
+
+def test_phase4_autonomous_drain_and_bounded_retry(tmp_path):
+    run_dir = _fake_report(tmp_path)
+    result = _run_phase4(
+        tmp_path,
+        run_dir,
+        claude_bin=_fake_claude(tmp_path, write_harness=False),
+        runner=_fake_runner(tmp_path),
+        extra_args=["--drain", "--max", "1", "--severity", "critical,high,medium,low,info"],
+    )
+    assert result.returncode == 0, result.stderr
+    out = tmp_path / "verify-out"
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["selected"] == summary["processed"] == 3
+    assert all(row["attempts"] == 2 and row["retry_exhausted"] for row in summary["findings"])
+    assert len(list((out / "retry-history").glob("*/1/result.json"))) == 3
+
+
+def test_phase4_retry_uses_previous_failure_to_recover_automatically(tmp_path):
+    run_dir = _fake_report(tmp_path)
+    claude = _fake_claude(tmp_path, write_harness=True)
+    code = claude.read_text().replace(
+        "set -eu", 'set -eu\n[ -n "${PHASE4_RETRY_CONTEXT:-}" ] || exit 0', 1
+    )
+    claude.write_text(code)
+    result = _run_phase4(
+        tmp_path,
+        run_dir,
+        claude_bin=claude,
+        runner=_fake_runner(tmp_path),
+        extra_args=["--drain", "--severity", "critical,high,medium,low,info"],
+    )
+    assert result.returncode == 0, result.stderr
+    summary = json.loads((tmp_path / "verify-out/summary.json").read_text())
+    assert summary["counts"] == {"confirmed": 3}
+    assert all(row["attempts"] == 2 and not row["retry_exhausted"] for row in summary["findings"])
+
+def test_failed_agent_cannot_confirm_from_partial_report(tmp_path):
+    run_dir = _fake_report(tmp_path)
+    claude = _write_executable(tmp_path / "partial.sh", """#!/bin/sh
+mkdir -p "$VERIFY_RUN_DIR"
+printf '%s' '{"verdict":"confirmed","reason":"unfinished"}' > "$VERIFY_RUN_DIR/verify-report.json"
+exit 7
+""")
+    result = _run_phase4(tmp_path, run_dir, claude_bin=claude, runner=_fake_runner(tmp_path))
+    assert result.returncode == 0, result.stderr
+    reports = list((tmp_path / "verify-out").rglob("verify-report.json"))
+    assert reports
+    assert all(json.loads(file.read_text())["verdict"] == "blocked" for file in reports)

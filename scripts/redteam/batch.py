@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 import argparse
 import concurrent.futures
-import threading
-import json
 import hashlib
+import importlib.util
+import json
+import os
+import re
 import subprocess
 import sys
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
 import build_state as base  # noqa: E402
+sys.path.insert(0, str(ROOT / "scripts/runner"))
+from auto_repair import ensure_runner
 from model_config import DEFAULT_MODEL  # noqa: E402
 from pipeline_stage import record_stage  # noqa: E402
 from blue_handoff import validate_packet
@@ -26,6 +31,7 @@ from contracts import (  # noqa: E402
 
 CANDIDATES = ROOT / "docs" / "redteam-candidates.json"
 BATCH_ROOT = ROOT / "runs" / "redteam" / "batch"
+HARNESS_MODULES = ("openai",)
 
 
 def load(path, default):
@@ -39,6 +45,62 @@ def output_tail(value, limit):
     if isinstance(value, bytes):
         value = value.decode("utf-8", errors="replace")
     return str(value or "")[-limit:]
+
+
+def missing_harness_modules(modules=HARNESS_MODULES):
+    missing = []
+    for name in modules:
+        try:
+            found = importlib.util.find_spec(name)
+        except (ImportError, AttributeError, ValueError):
+            found = None
+        if found is None:
+            missing.append(name)
+    return missing
+
+
+def harness_missing_module(stderr):
+    pattern = r"ModuleNotFoundError: No module named ['\"]([^'\"]+)['\"]"
+    match = re.search(pattern, str(stderr or ""))
+    return match.group(1).split(".")[0] if match else ""
+
+
+def write_harness_block(batch_dir, candidates, missing, model):
+    results = []
+    for candidate in candidates:
+        project = str(candidate.get("project", ""))
+        identifier = str(candidate.get("id") or candidate.get("finding_id") or "")
+        results.append({
+            "project": project,
+            "id": identifier,
+            "key": base.canon(project, identifier),
+            "status": "blocked_harness_dependency",
+            "error_scope": "harness_dependency",
+            "retry_owner": "runner-environment",
+            "auto_retry": False,
+            "missing_modules": missing,
+            "python": sys.executable,
+            "python_version": sys.version.split()[0],
+            "runner_image": os.environ.get("MYGOLDMINE_RUNNER_IMAGE", ""),
+            "error": "审计运行镜像缺少执行依赖：" + ", ".join(missing),
+        })
+    output = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "model": model,
+        "error_scope": "harness_dependency",
+        "retry_owner": "runner-environment",
+        "results": results,
+    }
+    summary_path = batch_dir / "summary.json"
+    summary_path.write_text(
+        json.dumps(output, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    counts = {}
+    for item in results:
+        counts[item["status"]] = counts.get(item["status"], 0) + 1
+    print(json.dumps({"batch": str(batch_dir), "counts": counts}, ensure_ascii=False, indent=2))
+    return 0
 
 
 def report_snapshot(file):
@@ -229,7 +291,17 @@ def main():
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     batch_dir = Path(args.out_dir).resolve() if args.out_dir else BATCH_ROOT / stamp
     batch_dir.mkdir(parents=True, exist_ok=True)
-    prebuilt = build_parallel(candidates, ledger, snapshot, batch_dir, args) if args.build_labs and not args.dry_run else {}
+    missing = missing_harness_modules() if candidates and not args.dry_run else []
+    if missing:
+        repair = ensure_runner(sys.executable, batch_dir / "runner-repair", args.model)
+        if repair["status"] != "ready":
+            return write_harness_block(batch_dir, candidates, missing, args.model)
+
+    prebuilt = (
+        build_parallel(candidates, ledger, snapshot, batch_dir, args)
+        if args.build_labs and not args.dry_run
+        else {}
+    )
     summary = []
     execution_jobs = []
     stage_lock = threading.Lock()
@@ -245,7 +317,10 @@ def main():
         entry["run_dir"] = str(run_dir)
         record_stage_safe("redteam-agent", job["candidate_id"])
         command = [
-            sys.executable, str(ROOT / "scripts" / "redteam" / "agent.py"),
+            sys.executable, str(ROOT / "scripts/runner/auto_repair.py"),
+            "--python", sys.executable,
+            "--output", str(batch_dir / "runner-executions" / job["candidate_id"]),
+            "--model", args.model, "--execute-agent", "--",
             "--finding", str(job["finding"]),
             "--project", job["project"],
             "--scenario", str(job["scenario"]),
@@ -273,9 +348,20 @@ def main():
             entry.update({"agent_returncode": 1, "status": "agent_error", "stderr": str(exc)})
         if entry.get("agent_timed_out") or entry.get("agent_returncode") != 0:
             result = load(run_dir / "result.json", {})
-            entry["status"] = classify_agent_failure(
-                entry.get("agent_returncode"), result, timed_out=bool(entry.get("agent_timed_out"))
-            )
+            missing = harness_missing_module(entry.get("stderr", ""))
+            if missing or entry.get("agent_returncode") == 78:
+                entry.update({
+                    "status": "blocked_harness_dependency",
+                    "error_scope": "harness_dependency",
+                    "retry_owner": "runner-environment",
+                    "auto_retry": False,
+                    "missing_modules": [missing],
+                    "python": sys.executable,
+                })
+            else:
+                entry["status"] = classify_agent_failure(
+                    entry.get("agent_returncode"), result, timed_out=bool(entry.get("agent_timed_out"))
+                )
         else:
             entry["status"] = "agent_completed"
 
@@ -452,7 +538,11 @@ def main():
     for item in summary:
         print(json.dumps(item, ensure_ascii=False))
     output = {"generated_at": datetime.now(timezone.utc).isoformat(), "model": args.model, "results": summary}
-    (batch_dir / "summary.json").write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    summary_path = batch_dir / "summary.json"
+    summary_path.write_text(
+        json.dumps(output, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     counts = {}
     for item in summary:
         counts[item["status"]] = counts.get(item["status"], 0) + 1

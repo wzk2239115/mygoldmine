@@ -1,3 +1,4 @@
+import {signalProcessTree} from './durable-task.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -130,7 +131,7 @@ function runProcess(command,{cwd,timeout}) {
   return new Promise(resolve=>{
     const child=spawn(command[0],command.slice(1),{cwd,env:process.env,stdio:['ignore','pipe','pipe']});
     let output='',finished=false,timedOut=false;
-    const timer=setTimeout(()=>{if(!finished){timedOut=true;child.kill('SIGKILL');}},timeout);
+    const timer=setTimeout(()=>{if(!finished){timedOut=true;signalProcessTree(child.pid,'SIGKILL');}},timeout);
     const collect=chunk=>{output=(output+chunk.toString()).slice(-65536);};
     child.stdout.on('data',collect);
     child.stderr.on('data',collect);
@@ -142,6 +143,7 @@ function runProcess(command,{cwd,timeout}) {
 function statusFor(code,result) {
   const nested=result?.result && typeof result.result==='object'?result.result:{};
   if(code===0)return nested.status==='flag_captured'?'flag_captured':'not_captured';
+  if(code===78)return 'blocked_harness_dependency';
   if(code===2)return 'not_captured';
   if(code===4)return 'model_timeout';
   if(code===124)return 'agent_timeout';
@@ -176,7 +178,7 @@ export async function runAgentRetry(job,concurrency=10) {
     summary.results=candidates.map(candidate=>results.get(candidate.id)).filter(Boolean);
     summary.processed=summary.results.length;
     summary.captured=summary.results.filter(item=>item.captured).length;
-    summary.blocked=summary.results.filter(item=>item.status==='blocked').length;
+    summary.blocked=summary.results.filter(item=>item.status==='blocked' || item.status==='blocked_harness_dependency').length;
     summary.running=[...tasks.values()].filter(item=>item.state==='running').map(item=>item.id);
     summary.current=summary.running.join('、');
     write(path.join(job.workspace,'redteam/summary.json'),summary);
@@ -204,7 +206,10 @@ export async function runAgentRetry(job,concurrency=10) {
     save();
     const command=[
       pythonCommand(),
-      path.join(job.repoRoot,'scripts/redteam/agent.py'),
+      path.join(job.repoRoot,'scripts/runner/auto_repair.py'),
+      '--python',pythonCommand(),
+      '--output',path.join(job.workspace,'redteam/runner-repairs',candidate.id),
+      '--model',job.model,'--execute-agent','--',
       '--finding',candidate.finding,
       '--project',project,
       '--scenario',candidate.scenario,
@@ -213,22 +218,27 @@ export async function runAgentRetry(job,concurrency=10) {
       '--model',job.model
     ];
     const started=Date.now();
-    const {code,output}=await runProcess(command,{cwd:job.repoRoot,timeout:(Number(process.env.REDTEAM_AGENT_TIMEOUT)||7200)*1000});
+    const {code,output}=await runProcess(command,{cwd:job.repoRoot,timeout:((Number(process.env.REDTEAM_AGENT_TIMEOUT)||7200)+1800)*1000});
     const runDir=path.join(runsRoot,project,runId);
     const document=read(path.join(runDir,'result.json')) || {};
     const status=statusFor(code,document);
     const nested=document.result && typeof document.result==='object'?document.result:{};
+    const repairRoot=path.join(job.workspace,'redteam/runner-repairs',candidate.id);
+    const execution=read(path.join(repairRoot,'execution.json'));
+    const repair=execution?.runner || read(path.join(repairRoot,'runner-repair.json'));
     const result={
+      runner_repair:repair,
+      ...(status==='blocked_harness_dependency'?{error_scope:'harness_dependency',retry_owner:'runner-environment',auto_retry:false}:{}),
       id:candidate.id,
       title:candidate.title,
       status,
-      captured:Boolean(nested.captured),
+      captured:status==='flag_captured' && Boolean(nested.captured),
       scenario:candidate.scenario,
       finding:candidate.finding,
       run_dir:runDir,
       returncode:code,
       duration_seconds:Math.round((Date.now()-started)/100)/10,
-      error:status==='flag_captured' || status==='not_captured'?'':(nested.error || output.slice(-800))
+      error:status==='flag_captured' || status==='not_captured'?'':(nested.error || repair?.reason || output.slice(-800))
     };
     results.set(candidate.id,result);
     update(candidate,'completed',{status,run_dir:runDir,returncode:code,error:result.error});
@@ -243,7 +253,7 @@ export async function runAgentRetry(job,concurrency=10) {
   }));
   const values=[...results.values()];
   const captured=values.filter(item=>item.captured).length;
-  const blocked=values.filter(item=>item.status==='blocked').length;
+  const blocked=values.filter(item=>(item.status==='blocked' || item.status==='blocked_harness_dependency')).length;
   summary.status=ready.length===0 || blocked===values.length
     ? 'blocked'
     : captured===ready.length

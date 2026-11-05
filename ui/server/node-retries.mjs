@@ -36,10 +36,10 @@ export function retryEligibility(run,node) {
   }
   return '';
 }
-export function startNodeRetry({repoRoot,run,node,models}) {
+export function startNodeRetry({repoRoot,run,node,models,cascade=false,inheritedLock=null}) {
   const reason=retryEligibility(run,node);if(reason)fail(reason);
   const lock=path.join(repoRoot,'runs',`.node-retry-${run.project}.lock`);
-  try { fs.mkdirSync(lock); } catch { fail('该项目已有节点重跑任务，请稍后再试'); }
+  if(inheritedLock!==lock) { try { fs.mkdirSync(lock); } catch { fail('该项目已有节点重跑任务，请稍后再试'); } }
   const id=randomUUID();const root=path.join(`${run.runDir}.meta`,'node-retries',node,id);
   try {
     fs.mkdirSync(root,{recursive:true});
@@ -50,10 +50,12 @@ export function startNodeRetry({repoRoot,run,node,models}) {
     if(node==='redteam-agent')prepareAgentRetry(run,workspace);
     if(node==='judge')prepareJudgeRetry(run,workspace);
     const model=models[node==='redteam-lab'||node==='redteam-agent'?'redteam':node] || models.audit;
-    const job={id,node,project:run.project,runId:run.runId,repoRoot,root,workspace,lock,model,status:'running',startedAt:new Date().toISOString(),source:status.target,image:status.env_image};
+    const job={id,node,cascade,models,project:run.project,runId:run.runId,repoRoot,root,workspace,lock,model,status:'running',startedAt:new Date().toISOString(),source:status.target,image:status.env_image};
     write(path.join(root,'attempt.json'),job);
     const fd=fs.openSync(path.join(root,'worker.log'),'a');
-    const child=spawn(process.execPath,[fileURLToPath(import.meta.url),'--worker',path.join(root,'attempt.json')],{cwd:repoRoot,detached:true,stdio:['ignore',fd,fd]});
+    const native=path.join(repoRoot,'ui/server/claude-workflows.mjs');
+    const useNative=cascade && node!=='visual' && process.env.GOLDMINE_NATIVE_WORKFLOW!=='0' && fs.existsSync(native);
+    const child=spawn(process.execPath,[useNative?native:fileURLToPath(import.meta.url),useNative?'--chain':'--worker',path.join(root,'attempt.json')],{cwd:repoRoot,detached:true,stdio:['ignore',fd,fd]});
     child.on('error', error => {
       write(path.join(root,'attempt.json'), {...job,status:'failed',resultStatus:'failed',error:error.message,endedAt:new Date().toISOString()});
       fs.rmSync(lock,{recursive:true,force:true});
@@ -62,7 +64,7 @@ export function startNodeRetry({repoRoot,run,node,models}) {
     return {id,node,status:'running'};
   } catch(error) { fs.rmSync(lock,{recursive:true,force:true});throw error; }
 }
-async function worker(file) {
+export async function worker(file) {
   const job=read(file);let code=1;
   try {
     if(job.node==='learner') {
@@ -77,7 +79,7 @@ async function worker(file) {
     if(job.node==='redteam-agent') {job.resultStatus=await runAgentRetry(job,Number(process.env.REDTEAM_AGENT_JOBS)||10);code=0;return;}
     let args;
     if(job.node==='visual')args=['scripts/mine/visual_report.sh','--project',job.project,'--run-dir',job.workspace,'--model',job.model];
-    else args=['scripts/verify/phase4_verify_agent.sh','--project',job.project,'--run-dir',job.workspace,'--source',job.source,'--image',job.image,'--model',job.model,'--output',path.join(job.workspace,'verify/agent')];
+    else args=['scripts/verify/phase4_verify_agent.sh','--project',job.project,'--run-dir',job.workspace,'--source',job.source,'--image',job.image,'--model',job.model,'--drain','--severity','critical,high,medium,low,info','--output',path.join(job.workspace,'verify/agent')];
     code=await new Promise((resolve,reject)=>{const child=spawn('bash',args,{cwd:job.repoRoot,stdio:'inherit'});child.on('error',reject);child.on('close',c=>resolve(c ?? 1));});
     if(job.node==='visual') {
       const summary=read(path.join(job.workspace,'visual-rendered/visual-summary.json'));
@@ -87,9 +89,54 @@ async function worker(file) {
       job.resultStatus=code!==0 || !summary?'failed':summary.status==='blocked'?'blocked':summary.status==='partial'?'degraded':summary.status==='failed'?'failed':'completed';
     }
   } catch(error) { job.error=error.message; }
-  finally { job.status=code===0?'completed':'failed';job.exitCode=code;job.endedAt=new Date().toISOString();write(file,job);fs.rmSync(job.lock,{recursive:true,force:true});
+  finally { job.status=code===0?'completed':'failed';job.exitCode=code;job.endedAt=new Date().toISOString();write(file,job);
     const originalRun=path.resolve(job.root,'../../..').replace(/\.meta$/,'');
     const collector=path.join(job.repoRoot,'scripts/stages/skill_bank.py');
-    if(fs.existsSync(collector)) await new Promise(resolve=>{const child=spawn('python3',[collector,'collect','--project',job.project,'--root',originalRun],{cwd:job.repoRoot,stdio:'ignore'});child.on('error',resolve);child.on('close',resolve);}); }
+    if(fs.existsSync(collector)) await new Promise(resolve=>{const child=spawn('python3',[collector,'collect','--project',job.project,'--root',originalRun],{cwd:job.repoRoot,stdio:'ignore'});child.on('error',resolve);child.on('close',resolve);});
+    let chained=false;
+    try {
+      if(job.cascade && code===0 && ['verify','redteam-lab','redteam-agent','judge'].includes(job.node)) {
+        const run={runDir:originalRun,project:job.project,runId:job.runId,isLive:false};
+        let next='learner';
+        if(job.node==='verify') {
+          try{if(labCandidates(run).length)next='redteam-lab';}catch(error){job.downstreamNotice=error.message;}
+        }
+        if(job.node==='redteam-lab') {
+          if(agentCandidates(run).some(candidate=>candidate.status==='ready'))next='redteam-agent';
+          else job.downstreamNotice='无可用场景，保留受阻原因并进入08学习';
+        }
+        if(job.node==='redteam-agent') {
+          if(judgeCandidates(run).length)next='judge';
+          else job.downstreamNotice='没有已捕获且来源完整的证据，跳过07，继续08学习';
+        }
+        const child=startNodeRetry({repoRoot:job.repoRoot,run,node:next,models:job.models || {},cascade:true,inheritedLock:job.lock});
+        job.next=child;write(file,job);chained=true;
+      }
+    } catch(error){job.downstreamError=error.message;write(file,job);}
+    finally {if(!chained && !job.workflowOwner)fs.rmSync(job.lock,{recursive:true,force:true});}
+  }
 }
 if(process.argv[2]==='--worker')await worker(process.argv[3]);
+
+export async function followExistingRetry(file) {
+  const initial=read(file);if(!initial || !['redteam-agent','judge'].includes(initial.node))throw Error('不支持接续此节点');
+  const marker=path.join(initial.root,'continuation.json');
+  try {const fd=fs.openSync(marker,'wx');fs.closeSync(fd);}catch{return;}
+  write(marker,{status:'waiting',pid:process.pid});
+  for(let i=0;i<18000;i++) {
+    const job=read(file);
+    if(job?.status==='running' || fs.existsSync(job?.lock || initial.lock)){await new Promise(resolve=>setTimeout(resolve,5000));continue;}
+    if(job?.next){write(marker,{status:'already_chained',next:job.next});return;}
+    if(job?.exitCode!==0){write(marker,{status:'blocked',reason:'上游任务未正常完成'});return;}
+    try {
+      const run={project:job.project,runId:job.runId,runDir:path.resolve(job.root,'../../..').replace(/\.meta$/,''),isLive:false};
+      const next=job.node==='redteam-agent' && judgeCandidates(run).length?'judge':'learner';
+      const models=read(path.join(job.repoRoot,'config/stage-models.json')) || {};
+      const child=startNodeRetry({repoRoot:job.repoRoot,run,node:next,models,cascade:true});
+      if(next==='learner' && job.node==='redteam-agent')job.downstreamNotice='没有已捕获且来源完整的证据，跳过07，继续08学习';
+      job.next=child;write(file,job);write(marker,{status:'started',next:child});return;
+    }catch(error){write(marker,{status:'blocked',reason:error.message});return;}
+  }
+  write(marker,{status:'blocked',reason:'等待接续超过时限，未启动后续任务'});
+}
+if(process.argv[2]==='--follow')await followExistingRetry(process.argv[3]);

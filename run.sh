@@ -42,8 +42,8 @@ usage() {
   --env-agent-rounds N      智能体环境构建轮数（默认 1）
   --env-timeout SEC   单次确定性环境构建超时（默认 3600 秒）
   --skip-verify       跳过第 4 阶段候选问题验证
-  --verify-max N      最多验证多少条候选问题（默认 10）
-  --verify-severity L 验证的严重度（默认 critical,high）
+  --verify-max N      兼容单批上限参数；无人值守模式会排空候选
+  --verify-severity L 验证的严重度（默认全部严重度）
   --verify-parallel N 保留兼容：验证智能体当前串行执行
   --verify-agent-timeout SEC  每条候选问题的验证智能体超时（默认 900 秒）
   --env-model MODEL           环境构建模型（默认同审计）
@@ -55,7 +55,7 @@ usage() {
   --visual-timeout SEC      单张图片超时（默认 300 秒）
   --visual-agent-timeout SEC 智能体辅助场景生成超时（默认 900 秒）
   --skip-redteam      跳过第 5 阶段红队验证和独立审核
-  --redteam-max N     最多进入红队验证的候选问题数（默认 5）
+  --redteam-max N     兼容单批上限参数；无人值守模式会传递全部已确认候选
   --redteam-model M   红队攻击模型（默认同审计）
   --redteam-base-url URL    红队模型服务
   --redteam-api-key KEY     红队模型密钥
@@ -99,7 +99,7 @@ ENV_AGENT_ROUNDS="${ENV_AGENT_ROUNDS:-1}"
 ENV_BUILD_TIMEOUT="${ENV_BUILD_TIMEOUT:-3600}"
 SKIP_VERIFY=0
 VERIFY_MAX=10
-VERIFY_SEVERITY="critical,high"
+VERIFY_SEVERITY="critical,high,medium,low,info"
 VERIFY_PARALLEL=2
 VERIFY_AGENT_TIMEOUT="${VERIFY_AGENT_TIMEOUT:-900}"
 VERIFY_MODEL="${VERIFY_MODEL:-}"
@@ -224,7 +224,7 @@ if [ "$MODE" = "verify" ]; then
     fi
     bash "$REPO_ROOT/scripts/verify/phase4_verify_agent.sh" \
         --project "$PROJECT" --run-dir "$RUN_DIR" --image "$IMAGE" --source "$SOURCE" \
-        --max "$VERIFY_MAX" --severity "$VERIFY_SEVERITY" \
+        --drain --max "$VERIFY_MAX" --severity "$VERIFY_SEVERITY" \
         --timeout 300 --agent-timeout "$VERIFY_AGENT_TIMEOUT" \
         --claude-bin "${CLAUDE_BIN:-claude}" --model "$VERIFY_MODEL" \
         --output "$RUN_DIR/verify/agent"
@@ -333,7 +333,7 @@ if [ "$MODE" = "supervise" ]; then
     fi
     PROJECT="$(printf '%s' "$PROJECT" | tr -c 'A-Za-z0-9._-' '_')"
     STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    ENV_IMAGE=""
+    ENV_IMAGE="${WORKFLOW_ENV_IMAGE:-}"
     ENV_STATUS="unknown"
     ENV_AGENT_STATUS="unknown"
     ENV_AGENT_REASON="unknown"
@@ -577,12 +577,12 @@ PYRECOVERY
 
     if [ "$SKIP_VERIFY" -eq 0 ] && [ -n "$ENV_IMAGE" ] && [ "$REPORTS_COMPLETE" -eq 1 ] && [ "$ENV_STATUS" != "blocked" ]; then
         if docker image inspect "$ENV_IMAGE" >/dev/null 2>&1; then
-            log "第 4 阶段：验证候选问题（最多 $VERIFY_MAX 条，严重度 $VERIFY_SEVERITY）..."
+            log "第 4 阶段：验证候选问题（排空全部候选，严重度 $VERIFY_SEVERITY）..."
             set_stage verify
             bash "$REPO_ROOT/scripts/verify/phase4_verify_agent.sh" \
                 --project "$PROJECT" --run-dir "$RUN_DIR" \
                 --image "$ENV_IMAGE" --source "$TARGET" \
-                --max "$VERIFY_MAX" --severity "$VERIFY_SEVERITY" \
+                --drain --max "$VERIFY_MAX" --severity "$VERIFY_SEVERITY" \
                 --timeout 300 --agent-timeout "$VERIFY_AGENT_TIMEOUT" \
                 --claude-bin "${CLAUDE_BIN:-claude}" --model "$VERIFY_MODEL" \
                 --output "$RUN_DIR/verify/agent" \
@@ -617,11 +617,11 @@ PYRECOVERY
     fi
 
     if [ "$SKIP_REDTEAM" -eq 0 ] && [ -n "$ENV_IMAGE" ] && [ "$REPORTS_COMPLETE" -eq 1 ] && [ "$ENV_STATUS" != "blocked" ]; then
-        log "第 5 阶段：红队批量验证与独立审核（最多 $REDTEAM_MAX 条，模型 $REDTEAM_MODEL）..."
+        log "第 5 阶段：红队批量验证与独立审核（自动传递全部蓝队确认候选，模型 $REDTEAM_MODEL）..."
         set_stage redteam-lab
         PIPELINE_STAGE_FILE="$META/pipeline-stage.json" bash "$REPO_ROOT/scripts/redteam/phase5_redteam.sh" \
             --project "$PROJECT" --run-dir "$RUN_DIR" \
-            --max "$REDTEAM_MAX" --severity "$VERIFY_SEVERITY" \
+            --drain --max "$REDTEAM_MAX" --severity "$VERIFY_SEVERITY" \
             --model "$REDTEAM_MODEL" --base-url "$REDTEAM_BASE_URL" --api-key "$REDTEAM_API_KEY" \
             --build-timeout "$REDTEAM_BUILD_TIMEOUT" --agent-timeout "$REDTEAM_AGENT_TIMEOUT" \
             --judge-timeout "$REDTEAM_JUDGE_TIMEOUT" \
@@ -788,8 +788,8 @@ cat <<EOF
   流程：      第 0 阶段环境构建 -> 批量审计 -> 图文报告 -> 第 4 阶段验证 -> 第 5 阶段红队验证
   环境模式：  $ENV_MODE（跳过=$SKIP_ENV）  智能体模式：$ENV_AGENT（轮数=$ENV_AGENT_ROUNDS）
   图文报告：  最多 $SCENE_MAX 张场景图（跳过=$SKIP_VISUAL）
-  候选验证：  严重度 $VERIFY_SEVERITY，最多 $VERIFY_MAX 条（跳过=$SKIP_VERIFY）
-  红队验证：  最多 $REDTEAM_MAX 条，模型 $REDTEAM_MODEL（跳过=$SKIP_REDTEAM）
+  候选验证：  严重度 $VERIFY_SEVERITY，自动排空全部候选（跳过=$SKIP_VERIFY）
+  红队验证：  自动传递全部蓝队确认候选，模型 $REDTEAM_MODEL（跳过=$SKIP_REDTEAM）
 EOF
 
 if ! kill -0 "$SPID" 2>/dev/null; then

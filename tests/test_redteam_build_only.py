@@ -24,6 +24,7 @@ def test_build_only_keeps_contract_and_passes_stop_boundary_to_skill(tmp_path, m
     monkeypatch.setattr(build_lab, 'claude_connection', lambda _: ('fixture', {}))
     monkeypatch.setattr(build_lab, 'delivery_config', lambda *_: {})
     monkeypatch.setattr(build_lab, 'layered_skill_instruction', lambda *_: '')
+    monkeypatch.setattr(build_lab, 'images_available', lambda _: True)
 
     def invoke(command, **kwargs):
         assert command[command.index('--agent') + 1] == 'redteam-lab-builder'
@@ -40,7 +41,7 @@ def test_build_only_keeps_contract_and_passes_stop_boundary_to_skill(tmp_path, m
         }))
         return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr(build_lab.subprocess, 'run', invoke)
+    monkeypatch.setattr(build_lab, 'run_session', invoke)
     args = SimpleNamespace(project='demo', finding=str(finding), source=str(source), lab_dir=str(lab),
                            dry_run=False, build_only=True, claude='claude', claude_model='fixture', timeout=60)
     assert build_lab.run(args) == 0

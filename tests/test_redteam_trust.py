@@ -208,7 +208,7 @@ def invoke_judge(tmp_path, monkeypatch, verdict):
         commands.append(command)
         return SimpleNamespace(returncode=0, stdout=json.dumps(verdict), stderr="")
 
-    monkeypatch.setattr(judge.subprocess, "run", fake_judge)
+    monkeypatch.setattr(judge, "run_session", fake_judge)
     monkeypatch.setattr(sys, "argv", ["judge.py", "--run-dir", str(lab.run_dir)])
     return judge.main(), commands
 
@@ -291,17 +291,20 @@ def fake_builder_script(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "builder_rc,mode,expected_rc,status,valid",
-    [(0, "http", 0, "built", True), (1, "http", 2, "build_failed", False),
-     (0, "stdio", 2, "build_failed", False)],
+    "builder_rc,mode,expected_rc,status,valid,image_rc",
+    [(0, "http", 0, "built", True, 0), (1, "http", 2, "build_failed", False, 0),
+     (0, "stdio", 2, "build_failed", False, 0), (0, "http", 2, "build_failed", False, 7)],
 )
 def test_build_requires_exit_zero_and_structural_validation(
-    tmp_path, builder_rc, mode, expected_rc, status, valid
+    tmp_path, builder_rc, mode, expected_rc, status, valid, image_rc
 ):
     finding = make_finding(tmp_path)
     source = tmp_path / "source"
     source.mkdir()
     (source / "service.py").write_text("print('fixture')\n", encoding="utf-8")
+    docker = tmp_path / "docker"
+    docker.write_text(f"#!/bin/sh\nexit {image_rc}\n")
+    docker.chmod(0o700)
     completed = subprocess.run(
         [
             sys.executable, str(ROOT / "scripts" / "redteam" / "build_lab.py"),
@@ -310,7 +313,7 @@ def test_build_requires_exit_zero_and_structural_validation(
             "--timeout", "10",
         ],
         capture_output=True, text=True, timeout=20,
-        env={**os.environ, "FAKE_BUILD_RC": str(builder_rc), "FAKE_SCENARIO_MODE": mode},
+        env={**os.environ, "PATH": str(tmp_path) + os.pathsep + os.environ["PATH"], "FAKE_BUILD_RC": str(builder_rc), "FAKE_SCENARIO_MODE": mode},
     )
     assert completed.returncode == expected_rc, completed.stderr
     result = json.loads(completed.stdout)

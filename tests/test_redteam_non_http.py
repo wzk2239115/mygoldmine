@@ -187,6 +187,7 @@ def test_build_lab_preserves_structured_blocker(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(build_lab, "claude_connection", lambda _: ("fixture", {}))
     monkeypatch.setattr(build_lab, "delivery_config", lambda *_: {})
     monkeypatch.setattr(build_lab, "layered_skill_instruction", lambda *_: "")
+    monkeypatch.setattr(build_lab, "images_available", lambda _: True)
 
     def invoke(command, **kwargs):
         document = {
@@ -209,7 +210,7 @@ def test_build_lab_preserves_structured_blocker(tmp_path, monkeypatch, capsys):
         (lab_dir / "BLOCKED.md").write_text("# BLOCKED\n\n没有可执行的真实入口\n", encoding="utf-8")
         return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr(build_lab.subprocess, "run", invoke)
+    monkeypatch.setattr(build_lab, "run_session", invoke)
     args = SimpleNamespace(
         project="demo", finding=str(finding), source=str(source), lab_dir=str(lab_dir),
         blue_handoff="", dry_run=False, build_only=True, claude="fixture",

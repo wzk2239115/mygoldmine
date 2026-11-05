@@ -28,6 +28,13 @@ function fixture(t) {
     results.push({id:finding.id,status:'built',finding:findingFile,scenario});
   }
   write(path.join(runDir,'redteam/summary.json'),{results});
+  const wrapper=path.join(repoRoot,'scripts/runner/auto_repair.py');
+  fs.mkdirSync(path.dirname(wrapper),{recursive:true});
+  fs.writeFileSync(wrapper,`import sys,subprocess
+from pathlib import Path
+args=sys.argv[sys.argv.index('--')+1:]
+sys.exit(subprocess.call([sys.executable,str(Path(__file__).parents[1]/'redteam/agent.py'),*args]))
+`);
   const script=path.join(repoRoot,'scripts/redteam/agent.py');
   fs.mkdirSync(path.dirname(script),{recursive:true});
   fs.writeFileSync(script,`import json,sys,time
@@ -97,6 +104,13 @@ test('红队执行并发上限按参数生效，结果保持候选顺序', async
     return {id:finding.id,status:'built',finding:findingFile,scenario};
   });
   write(path.join(runDir,'redteam/summary.json'),{results});
+  const wrapper=path.join(repoRoot,'scripts/runner/auto_repair.py');
+  fs.mkdirSync(path.dirname(wrapper),{recursive:true});
+  fs.writeFileSync(wrapper,`import sys,subprocess
+from pathlib import Path
+args=sys.argv[sys.argv.index('--')+1:]
+sys.exit(subprocess.call([sys.executable,str(Path(__file__).parents[1]/'redteam/agent.py'),*args]))
+`);
   const script=path.join(repoRoot,'scripts/redteam/agent.py');fs.mkdirSync(path.dirname(script),{recursive:true});
   fs.writeFileSync(script,`import json,sys,time,fcntl
 from pathlib import Path
@@ -138,4 +152,72 @@ test('红队执行重跑拒绝跨运行或跨项目候选', t=>{
   ]});
   assert.deepEqual(agentCandidates(run),[]);
   assert.match(retryEligibility(run,'redteam-agent'),/没有可用红队场景/);
+});
+
+test('页面模式06结束后无完整成功证据时跳过07并自动启动08', async t=>{
+ const {repoRoot,run}=fixture(t);
+ const learner=path.join(repoRoot,'scripts/stages/retry_learning.py');
+ fs.mkdirSync(path.dirname(learner),{recursive:true});
+ fs.writeFileSync(learner,`import sys,json
+from pathlib import Path
+args=sys.argv[1:];output=Path(args[args.index('--output')+1])
+(output/'rsi').mkdir(parents=True,exist_ok=True)
+(output/'rsi/learning-retry.json').write_text(json.dumps({'status':'completed'}))
+`);
+ startNodeRetry({repoRoot,run,node:'redteam-agent',models:{redteam:'fixture',learner:'fixture'},cascade:true});
+ let learning;
+ for(let i=0;i<200;i++){
+  learning=nodeAttempts(run.runDir,'learner').at(-1);
+  if(learning?.status==='completed' && !fs.existsSync(learning.lock))break;
+  await new Promise(resolve=>setTimeout(resolve,50));
+ }
+ assert.equal(learning?.status,'completed');
+ assert.equal(nodeAttempts(run.runDir,'judge').length,0);
+ const execution=nodeAttempts(run.runDir,'redteam-agent').at(-1);
+ assert.equal(execution.next.node,'learner');
+ assert.match(execution.downstreamNotice,/跳过07/);
+ assert.equal(buildAgenticPipeline(run).nodes.find(node=>node.id==='judge').status,'skipped');
+});
+
+test('页面模式完整成功证据衔接06到07再到08',async t=>{
+ const {repoRoot,run}=fixture(t);
+ const agent=path.join(repoRoot,'scripts/redteam/agent.py');
+ let code=fs.readFileSync(agent,'utf8');
+ const pos=code.indexOf('time.sleep(.2)');
+ code=code.slice(0,pos)+`
+(run/'finding.json').write_text(json.dumps(finding))
+(run/'trace.jsonl').write_text('{}')
+(run/'flag.txt').write_text('fixture')
+(run/'scenario.json').write_text('{}')
+if captured:
+ (run/'result.json').write_text(json.dumps({'project':project,'result':{'captured':True,'status':'flag_captured','flag_provenance':{'fixture':True}}}))
+`+code.slice(pos);
+ fs.writeFileSync(agent,code);
+ fs.writeFileSync(path.join(repoRoot,'scripts/redteam/judge.py'),`import sys,json
+from pathlib import Path
+args=sys.argv[1:];run=Path(args[args.index('--run-dir')+1])
+(run/'judge.json').write_text(json.dumps({'verdict':'approved'}))
+`);
+ const learner=path.join(repoRoot,'scripts/stages/retry_learning.py');
+ fs.mkdirSync(path.dirname(learner),{recursive:true});
+ fs.writeFileSync(learner,`import sys,json
+from pathlib import Path
+args=sys.argv[1:];output=Path(args[args.index('--output')+1])
+(output/'rsi').mkdir(parents=True,exist_ok=True)
+(output/'rsi/learning-retry.json').write_text(json.dumps({'status':'completed'}))
+`);
+ startNodeRetry({repoRoot,run,node:'redteam-agent',models:{redteam:'fixture',judge:'judge-fixture',learner:'learner-fixture'},cascade:true});
+ let learning;
+ for(let i=0;i<200;i++){
+  learning=nodeAttempts(run.runDir,'learner').at(-1);
+  if(learning?.status==='completed' && !fs.existsSync(learning.lock))break;
+  await new Promise(resolve=>setTimeout(resolve,50));
+ }
+ const execution=nodeAttempts(run.runDir,'redteam-agent').at(-1);
+ const review=nodeAttempts(run.runDir,'judge').at(-1);
+ assert.equal(execution.next.node,'judge');
+ assert.equal(review.model,'judge-fixture');
+ assert.equal(review.next.node,'learner');
+ assert.equal(learning?.status,'completed');
+ assert.equal(learning.model,'learner-fixture');
 });

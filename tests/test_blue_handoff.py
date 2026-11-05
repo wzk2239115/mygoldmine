@@ -132,7 +132,7 @@ def test_main_flow_passes_blue_packet_only_to_builder_not_attacker(tmp_path, mon
                   'source': {'commit': 'a' * 40}, 'mode': 'http', 'victim_image': 'fixture:victim', 'attacker_image': 'fixture:attacker',
                   'target_url': 'http://victim:8000', 'health': {'path': '/health'}, 'launch': {'command': []}})
             return SimpleNamespace(returncode=0, stdout=json.dumps({'scenario_valid': True, 'finding_id': 'F-1', 'scenario': str(scenario)}), stderr='')
-        assert command[1].endswith('agent.py')
+        assert command[1].endswith('auto_repair.py')
         assert '--blue-handoff' not in command
         finding_file = Path(command[command.index('--finding') + 1])
         assert json.loads(finding_file.read_text()) == findings[0]
@@ -180,7 +180,7 @@ def test_builder_receives_own_checked_packet_before_agent_starts(tmp_path, monke
         assert '不把验证脚本、载荷或证据复制进攻击者镜像或可见路径' in command[-1]
         return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr(build_lab.subprocess, 'run', invoke)
+    monkeypatch.setattr(build_lab, 'run_session', invoke)
     args = SimpleNamespace(project='demo', finding=str(finding), source=str(source), lab_dir=str(lab),
                            blue_handoff=selection['candidates'][0]['blue_handoff'], dry_run=False,
                            build_only=True, claude='fixture', claude_model='fixture', timeout=60)
@@ -226,3 +226,30 @@ def test_reused_scenario_with_different_source_does_not_reach_attacker(tmp_path,
     assert batch.main() == 0
     summary = handoff.read(tmp_path / 'batch/summary.json')
     assert summary['results'][0]['status'] == 'blocked_scenario_stale'
+
+def test_all_candidates_have_a_destination_and_refresh_adds_new_confirmations(tmp_path):
+    run, findings, root = fixture(tmp_path)
+    findings[3]["severity"] = "low"
+    write(run/"audit-report.json", {"project":"demo","findings":findings})
+    write(root/"F-4/finding.json", findings[3])
+    write(run/"redteam/candidates.json", {"candidates":[{"id":"F-1","project":"demo","run_id":"one"}]})
+    selection, _, _ = handoff.collect(run, "demo", maximum=1)
+    assert selection["accounted"] == len(findings)
+    assert {row["id"] for row in selection["deferred"]} == {"F-4"}
+    updated, _, _ = handoff.collect(run, "demo", maximum=10, reuse=True, refresh=True,
+                                    severities=("critical","high","medium","low","info"))
+    assert {row["id"] for row in updated["candidates"]} == {"F-1","F-2","F-3","F-4"}
+
+
+def test_stale_blue_selection_cannot_transfer_old_verdict(tmp_path):
+    run, _, root = fixture(tmp_path)
+    write(root/"selection.json", {"report_sha256":"outdated"})
+    selection, _, _ = handoff.collect(run, "demo")
+    assert selection["selected"] == 0
+    assert "过期" in selection["gate_reason"]
+
+def test_autonomous_handoff_does_not_truncate_confirmed_candidates(tmp_path):
+    run, findings, _ = fixture(tmp_path)
+    selection, _, _ = handoff.collect(run,"demo",maximum=1,drain=True)
+    assert selection["selected"] == len(findings)
+    assert selection["accounted"] == len(findings)

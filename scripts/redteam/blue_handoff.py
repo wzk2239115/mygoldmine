@@ -63,10 +63,14 @@ def blue_source(run, project):
         if (workspace / 'audit-report.json').read_bytes() != (run / 'audit-report.json').read_bytes():
             raise ValueError('蓝队输入的审计报告已过期，请重新验证')
         return workspace / 'verify/agent', latest['id']
-    return run / 'verify/agent', 'original'
+    original = run / 'verify/agent'
+    plan = original / 'selection.json'
+    if plan.exists() and read(plan).get('report_sha256') != sha((run / 'audit-report.json').read_bytes()):
+        raise ValueError('蓝队输入的审计报告已过期，请重新验证')
+    return original, 'original'
 
 
-def collect(run, project, maximum=5, severities=('critical', 'high'), only='', reuse=False):
+def collect(run, project, maximum=5, severities=('critical', 'high'), only='', reuse=False, refresh=False, drain=False):
     if not isinstance(project, str) or not ID.fullmatch(project):
         raise ValueError('项目编号无效')
     run = Path(run).resolve()
@@ -96,6 +100,8 @@ def collect(run, project, maximum=5, severities=('critical', 'high'), only='', r
             if item.get('project') != project or item.get('run_id') != run.name or identifier not in originals or identifier in requested:
                 raise ValueError('红队候选清单含跨运行、重复或无效编号')
             requested.append(identifier)
+    if refresh:
+        requested = None
     try:
         source, attempt = blue_source(run, project)
         summary = read(source / 'summary.json')
@@ -123,16 +129,19 @@ def collect(run, project, maximum=5, severities=('critical', 'high'), only='', r
         source, attempt, manifest, summary = None, '', {}, {}
         binding = {}
         common_error = str(exc)
-    candidates, excluded, payloads = [], [], {}
+    candidates, excluded, deferred, payloads = [], [], [], {}
     for identifier, finding in originals.items():
         if only and identifier != only:
+            deferred.append({'id': identifier, 'reason_code': 'finding_filter', 'reason': '未指定此候选，仍待处理', 'state': 'pending'})
             continue
         if requested is not None and identifier not in requested:
+            deferred.append({'id': identifier, 'reason_code': 'previous_selection', 'reason': '不在复用范围，仍保留在候选总表', 'state': 'pending'})
             continue
         raw_severity = str(finding.get('severity') or finding.get('severity_raw') or 'info').strip().lower()
         raw_severity = 'critical' if raw_severity == 'crit' else 'medium' if raw_severity.startswith('moderate') else raw_severity
         severity = next((level for level in ['critical', 'high', 'medium', 'low', 'info'] if raw_severity.startswith(level)), raw_severity)
         if requested is None and severity not in severities:
+            deferred.append({'id': identifier, 'reason_code': 'severity_filter', 'reason': '不在本批次严重度范围，仍待处理', 'state': 'pending'})
             continue
         error, verdict = common_error, ''
         files = {}
@@ -183,7 +192,7 @@ def collect(run, project, maximum=5, severities=('critical', 'high'), only='', r
                     files[name] = bounded(result / name, result)
             if sum(map(len, files.values())) > MAX_TOTAL:
                 raise ValueError('单条蓝队交付超过 50 MiB')
-            if len(candidates) >= maximum:
+            if not drain and len(candidates) >= maximum:
                 raise ValueError('已确认，但超出本次候选数量上限')
         except (OSError, ValueError, KeyError, TypeError) as exc:
             error = str(exc)
@@ -195,7 +204,7 @@ def collect(run, project, maximum=5, severities=('critical', 'high'), only='', r
     selection = {'schema_version': 1, 'project': project, 'run_id': run.name, 'report_sha256': sha(report_bytes),
                  'report': str(run / 'audit-report.json'), 'max': maximum, 'severity': list(severities), 'total_findings': len(originals), 'matched': len(candidates) + len(excluded),
                  'blue_attempt_id': attempt, 'blue_root': str(source) if source else '', 'selected': len(candidates),
-                 'candidates': candidates, 'excluded': excluded, 'gate_reason': common_error,
+                 'candidates': candidates, 'excluded': excluded, 'deferred': deferred, 'accounted': len(candidates)+len(excluded)+len(deferred), 'gate_reason': common_error,
                  'source': binding, 'image_id': manifest.get('image_id')}
     return selection, payloads, originals
 
@@ -278,6 +287,8 @@ def main():
     parser.add_argument('--project', required=True)
     parser.add_argument('--output')
     parser.add_argument('--inspect', action='store_true')
+    parser.add_argument('--refresh-selection', action='store_true')
+    parser.add_argument('--drain', action='store_true')
     parser.add_argument('--max', type=int, default=5)
     parser.add_argument('--severity', default='critical,high')
     parser.add_argument('--finding-id', default='')
@@ -287,7 +298,7 @@ def main():
         parser.error('严重度参数无效')
     if args.max < 1:
         parser.error('--max 必须为正整数')
-    options = {'maximum': args.max, 'severities': args.severity.split(','), 'only': args.finding_id, 'reuse': args.reuse_selection}
+    options = {'maximum': args.max, 'severities': args.severity.split(','), 'only': args.finding_id, 'reuse': args.reuse_selection, 'refresh': args.refresh_selection, 'drain': args.drain}
     try:
         result = collect(args.run_dir, args.project, **options)[0] if args.inspect else prepare(args.run_dir, args.project, args.output, **options)
         print(json.dumps(result, ensure_ascii=False))
