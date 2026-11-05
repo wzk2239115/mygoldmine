@@ -404,8 +404,8 @@ def run_render(args: argparse.Namespace) -> int:
 def run_follow(args: argparse.Namespace) -> int:
     """--follow: 增量读取 raw.jsonl，实时写人读日志。
 
-    容器运行期间由 run.sh 启动；检测到 --stop-file 后做完最后一次 drain 再退出。
-    坏行/半行不会中断，保证 tail -f 期间日志可读。
+    容器运行期间由 run.sh 启动；检测到 --stop-file 后处理完剩余内容再退出。
+    坏行或半行不会中断，保证持续查看期间日志可读。
     """
     if args.input == "-":
         print("render_claude_log: --follow 需要 --input 文件", file=sys.stderr)
@@ -684,14 +684,14 @@ def self_test() -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="把 Claude Code stream-json 渲染为人读日志（容错，不因坏行中断）"
+        description="把 Claude Code 流式 JSON 事件渲染为人读日志（容错，不因坏行中断）"
     )
-    parser.add_argument("--input", "-i", default="-", help="输入 raw.jsonl，'-' 表示 stdin（默认）")
-    parser.add_argument("--output", "-o", default="-", help="输出渲染日志，'-' 表示 stdout（默认）")
+    parser.add_argument("--input", "-i", default="-", help="输入 raw.jsonl，'-' 表示标准输入（默认）")
+    parser.add_argument("--output", "-o", default="-", help="输出渲染日志，'-' 表示标准输出（默认）")
     parser.add_argument("--no-redact", action="store_true", help="关闭密钥模式脱敏")
     parser.add_argument("--max-text", type=int, default=DEFAULT_MAX_TEXT, help="单条文本最大字符数")
     parser.add_argument("--max-result", type=int, default=DEFAULT_MAX_RESULT, help="单条工具结果最大字符数")
-    parser.add_argument("--max-raw", type=int, default=DEFAULT_MAX_RAW, help="非 JSON/坏行最大字符数")
+    parser.add_argument("--max-raw", type=int, default=DEFAULT_MAX_RAW, help="非 JSON 内容或坏行的最大字符数")
     parser.add_argument("--include-unknown", action="store_true", help="输出未知事件类型（默认跳过）")
     parser.add_argument("--quiet", "-q", action="store_true", help="不打印统计到 stderr")
     parser.add_argument("--self-test", action="store_true", help="运行内置自测并退出")

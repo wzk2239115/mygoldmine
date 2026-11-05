@@ -41,7 +41,7 @@ usage() {
   GIT_SSH_COMMAND        默认已设置 BatchMode，避免 SSH 交互卡住
 
 退出码:
-  0 全部成功或 dry-run；1 有项目失败；3 参数/项目名错误
+  0 全部成功或仅打印计划；1 有项目失败；3 参数或项目名错误
 EOF
 }
 
@@ -265,8 +265,8 @@ if [ "$DRY_RUN" = "1" ]; then
         fi
     done
     echo
-    echo "manifest=$MANIFEST (dry-run 不写入)"
-    echo "=== dry-run complete: no network, no files created ==="
+    echo "manifest=$MANIFEST（仅打印计划，不写入）"
+    echo "=== 计划打印完成：未访问网络，未创建文件 ==="
     exit 0
 fi
 

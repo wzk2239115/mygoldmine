@@ -22,14 +22,14 @@ usage() {
 用法: mine_one_docker.sh [选项]
 
 选项:
-  --dry-run              只打印配置与 docker 命令，不创建目录、不调用模型
-  --build                镜像不存在时自动 docker build
+  --dry-run              只打印配置与 Docker 命令，不创建目录、不调用模型
+  --build                镜像不存在时自动构建 Docker 镜像
   --run-dir DIR          宿主产物目录（默认 runs/<project>/<utc-ts>）
   --target DIR           宿主目标源码目录
-  --timeout SECONDS      墙钟超时（默认 86400）
+  --timeout SECONDS      实际运行时间上限（默认 86400 秒）
   --model MODEL          模型（可写 360-proxy/deepseek/deepseek-v4.1-flash，
                          容器内会转成 deepseek/deepseek-v4.1-flash）
-  --agent AGENT          Claude Code agent（默认 security-orchestrator）
+  --agent AGENT          Claude Code 智能体（默认 security-orchestrator）
   --project NAME         项目名
   --target-url URL       仅用于兼容 parallel_mine 的参数，容器内从 git 读取
   --prompt FILE          使用指定提示词（只读挂载；默认自动生成）
@@ -141,12 +141,17 @@ docker_cmd() {
     c+=(--mount "type=bind,src=${TARGET_REAL},dst=/target,readonly")
     c+=(--mount "type=bind,src=${RUN_DIR},dst=${RUN_DIR}")
     c+=(--mount "type=bind,src=${REPO_ROOT}/scripts,dst=/opt/mygoldmine/scripts,readonly")
+    c+=(--mount "type=bind,src=${REPO_ROOT}/audit_rsi,dst=/opt/mygoldmine/audit_rsi,readonly")
     c+=(--mount "type=bind,src=${REPO_ROOT}/.claude,dst=/opt/mygoldmine/.claude,readonly")
     c+=(--mount "type=bind,src=${REPO_ROOT}/knowledge,dst=/opt/mygoldmine/knowledge")
     [ -d "$REPO_ROOT/rsi" ] && c+=(--mount "type=bind,src=${REPO_ROOT}/rsi,dst=/opt/mygoldmine/rsi,readonly")
     if [ -n "$CUSTOM_PROMPT" ]; then
         c+=(--mount "type=bind,src=${CUSTOM_PROMPT},dst=/opt/custom-audit-prompt.txt,readonly")
         c+=(-e "CUSTOM_PROMPT_FILE=/opt/custom-audit-prompt.txt")
+    fi
+    if [ -n "${RSI_REPAIR_CONTEXT_FILE:-}" ]; then
+        c+=(--mount "type=bind,src=${RSI_REPAIR_CONTEXT_FILE},dst=/opt/rsi-candidate-context.md,readonly")
+        c+=(-e "RSI_REPAIR_CONTEXT_FILE=/opt/rsi-candidate-context.md")
     fi
     c+=(-e "MYGOLDMINE_HOME=/opt/mygoldmine")
     c+=(-e "TARGET_DIR=/target")
@@ -282,6 +287,7 @@ if [ -n "$SANDBOX_CONTAINER" ]; then
         -e JEV_TRIAGE="${JEV_TRIAGE:-1}" -e JEV_PROFILE="${JEV_PROFILE:-infra}" \
         -e JEV_MAX_FILES="${JEV_MAX_FILES:-1500}" -e JEV_WORKERS="${JEV_WORKERS:-8}" \
         -e JEV_TIMEOUT="${JEV_TIMEOUT:-600}" \
+        ${RSI_REPAIR_CONTEXT_FILE:+-e "RSI_REPAIR_CONTEXT_FILE=/opt/rsi-candidate-context.md"} \
         ${AUTH_MODE:+-e "${AUTH_MODE}=${AUTH_VALUE}"} \
         "$SANDBOX_CONTAINER" /opt/mygoldmine/scripts/mine/entrypoint.sh
     rc=$?

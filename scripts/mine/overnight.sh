@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# mygoldmine 整夜挖掘入口（T13）
+# mygoldmine 整夜批量审计入口（T13）
 #
 # 动作：
-#   start    以默认配置在后台启动 5 并发、每项目 6h 的整夜挖掘
-#   stop     停止编排器与所有 worker（保留日志与已完成状态）
+#   start    以默认配置在后台启动 5 并发、每项目 24 小时的整夜批量审计
+#   stop     停止编排器与所有后台处理进程（保留日志与已完成状态）
 #   status   汇总运行中 / 完成 / 失败 / 待运行项目
 #   resume   只对未完成项目重新启动，已完成项目不再触碰
 #
@@ -26,8 +26,8 @@ usage() {
 用法: overnight.sh <start|stop|status|resume> [选项]
 
 动作:
-  start     后台启动整夜挖掘（默认 detach）
-  stop      停止编排器与所有 worker
+  start     后台启动整夜批量审计（默认脱离终端运行）
+  stop      停止编排器与所有后台处理进程
   status    查看运行中 / 完成 / 失败 / 待运行
   resume    只补未完成项目（已完成项目跳过）
 
@@ -55,7 +55,7 @@ usage() {
   --state-dir DIR        状态目录（默认 <runs-root>/.orchestrator）
   --executor FILE        单项目执行器（默认 scripts/mine/mine_one.sh）
   --dry-run              start/resume 只打印计划，不创建目录、不调用模型
-  --foreground           前台运行（默认后台 detach）
+  --foreground           前台运行（默认在后台脱离终端运行）
   -h, --help             显示本帮助
 
 环境变量:

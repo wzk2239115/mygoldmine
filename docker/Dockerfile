@@ -59,6 +59,7 @@ WORKDIR /opt/mygoldmine
 # 审计骨架：skills/agents/hooks 与脚本。目标源码不进入镜像。
 COPY .claude /opt/mygoldmine/.claude
 COPY scripts /opt/mygoldmine/scripts
+COPY audit_rsi /opt/mygoldmine/audit_rsi
 COPY knowledge /opt/mygoldmine/knowledge
 COPY docs /opt/mygoldmine/docs
 COPY README.md TODOLIST.md /opt/mygoldmine/

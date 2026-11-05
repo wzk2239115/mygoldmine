@@ -20,17 +20,17 @@ usage() {
 环境变量:
   TARGET_DIR  目标源码目录（只读挂载，默认 /target）
   RUN_DIR     产物目录（可写挂载，默认 /runs/<project>/<utc-ts>）
-  TIMEOUT     单项目墙钟超时秒数（默认 86400）
+  TIMEOUT     单项目实际运行时间上限（默认 86400 秒）
   MODEL       模型 ID（默认 360-proxy/deepseek/deepseek-v4.1-flash）
   AGENT       审计智能体（默认 security-orchestrator）
   WORK_DIR    可写工作副本（默认 /workspace/repo）
-  PROJECT     项目名（默认取 TARGET_DIR 的 basename）
-  MAX_ATTEMPTS 模型/代理瞬时错误重试次数（默认 2，由 mine_one.sh 使用）
-  AUDIT_IDLE_TIMEOUT 模型无事件上限（默认 180）
-  AUDIT_SETUP_IDLE_TIMEOUT setup/raw 未创建上限（默认 900）
-  JEV_TRIAGE  审计前跑 Jev 初筛（默认 1；0 关闭）
-  JEV_PROFILE Jev profile（默认 infra）
-  JEV_MAX_FILES Jev 最大 unit 数（默认 1500）
+  PROJECT     项目名（默认取 TARGET_DIR 的目录名）
+  MAX_ATTEMPTS 模型或代理瞬时错误重试次数（默认 2，由 mine_one.sh 使用）
+  AUDIT_IDLE_TIMEOUT 模型无事件上限（默认 180 秒）
+  AUDIT_SETUP_IDLE_TIMEOUT 初始化或原始事件文件未创建的上限（默认 900 秒）
+  JEV_TRIAGE  审计前执行 Jev 初筛（默认 1；0 关闭）
+  JEV_PROFILE Jev 配置（默认 infra）
+  JEV_MAX_FILES Jev 最大单元数（默认 1500）
   JEV_WORKERS Jev 并发请求数（默认 8）
   JEV_TIMEOUT Jev 预跑超时秒数（默认 600）
 
@@ -126,14 +126,14 @@ $(python3 "${MYGOLDMINE_HOME}/scripts/config/language.py" --prompt 2>/dev/null |
 1. 使用 ${AGENT} 智能体执行完整审计流程（项目画像、路由/认证分析、按语言与框架的漏洞分析、报告生成）。
 2. 除 Claude 模型 API 与 jev-triage 调用 360 SystemOne 外，不访问公网；
    不读取 ${TARGET_DIR} 之外的宿主路径。
-3. 只做漏洞定位、根因分析、最小复现思路与修复建议；不要编写可直接武器化的 exploit。
+3. 只做漏洞定位、根因分析、最小复现思路与修复建议；不要编写可直接武器化的利用代码。
 4. 开始分析后尽快创建 ${RUN_DIR}/audit-report.md 骨架，每完成一个子任务就增量更新；
    不要等所有子任务结束才写。接近超时时先落盘当前结论再退出。
-5. 必须把机器可读报告写到 ${RUN_DIR}/audit-report.json，至少包含阶段性 findings。
+5. 必须把机器可读报告写到 ${RUN_DIR}/audit-report.json，至少包含阶段性候选问题。
 6. 引用证据时给出具体文件路径与行号；无法核实的 CVE 编号标记为 unverified，不得编造。
 7. 发现密钥时只报告位置与类型，不得把密钥原文写入任何报告或日志。
-8. 若存在 ${RUN_DIR}/triage/jev-infra.json，先读取其中 priority>=0.6、低置信度、
-   或 flags 与 mitigations 冲突的单元；Jev 只做召回，不作为 finding。
+8. 若存在 ${RUN_DIR}/triage/jev-infra.json，先读取其中优先检查分数 priority>=0.6、低置信度、
+   或风险信号 flags 与已有防护措施 mitigations 冲突的单元；Jev 只做召回，不作为候选问题。
 
 ## 交付
 - ${RUN_DIR}/audit-report.md
@@ -144,6 +144,20 @@ EOF
         printf '\n## 优先审计计划（audit-rsi replay policy）\n'
         cat "$plan"
         printf '\n'
+    fi
+    python3 "$MYGOLDMINE_HOME/scripts/mine/repair_context.py" \
+        --root "$MYGOLDMINE_HOME" --project "$PROJECT" \
+        --max-bytes "${RSI_REPAIR_CONTEXT_MAX_BYTES:-65536}" 2>/dev/null || \
+        log "WARN: 已发布挖掘修复读取失败，本次不加载修复规则"
+    if [ -n "${RSI_REPAIR_CONTEXT_FILE:-}" ]; then
+        if [ -f "$RSI_REPAIR_CONTEXT_FILE" ]; then
+            printf '\n'
+            cat "$RSI_REPAIR_CONTEXT_FILE"
+            printf '\n'
+        else
+            log "WARN: 候选挖掘修复上下文不存在，不执行候选审计"
+            return 2
+        fi
     fi
 }
 

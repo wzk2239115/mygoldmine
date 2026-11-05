@@ -95,8 +95,11 @@ start() {
             --mount "type=bind,src=$SOURCE,dst=/target,readonly" \
             --mount "type=bind,src=$RUN_DIR,dst=$RUN_DIR" \
             --mount "type=bind,src=$REPO_ROOT/scripts,dst=/opt/mygoldmine/scripts,readonly" \
+            --mount "type=bind,src=$REPO_ROOT/audit_rsi,dst=/opt/mygoldmine/audit_rsi,readonly" \
             --mount "type=bind,src=$REPO_ROOT/.claude,dst=/opt/mygoldmine/.claude,readonly" \
             --mount "type=bind,src=$REPO_ROOT/knowledge,dst=/opt/mygoldmine/knowledge,readonly" \
+            ${RSI_REPAIR_CONTEXT_FILE:+--mount "type=bind,src=$RSI_REPAIR_CONTEXT_FILE,dst=/opt/rsi-candidate-context.md,readonly"} \
+            ${RSI_REPAIR_CONTEXT_FILE:+-e "RSI_REPAIR_CONTEXT_FILE=/opt/rsi-candidate-context.md"} \
             -e MYGOLDMINE_HOME=/opt/mygoldmine \
             -e TARGET_DIR=/target -e WORK_DIR=/workspace/repo \
             -e RUN_DIR="$RUN_DIR" -e PROJECT="$PROJECT" \

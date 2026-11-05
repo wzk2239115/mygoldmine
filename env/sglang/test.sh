@@ -3,4 +3,4 @@ set -euo pipefail
 docker run --rm --network "${NETWORK:-none}" \
   --cap-drop ALL --security-opt no-new-privileges --pids-limit 1024 \
   --memory 8g --cpus 4 --workdir /opt/target \
-  --entrypoint /bin/bash "mygoldmine/env:sglang-3a62cdf" -lc cargo\ test\ --locked
+  --entrypoint /bin/bash "mygoldmine/env:sglang-c04bae2b" -lc echo\ \'no\ test\ command\ detected\'

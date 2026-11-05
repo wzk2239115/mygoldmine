@@ -8,7 +8,7 @@
   serialization  pickle/torch.load/yaml.load/msgpack/bincode/exec 等
   sandbox        agent 审批、沙箱、容器逃逸、路径约束
 
-输出 canonical finding 结构，供 report normalize/dedup/lint 与 verify-agent 使用。
+输出规范化候选问题结构，供报告归一化、去重、完整性检查和验证智能体使用。
 """
 from __future__ import annotations
 

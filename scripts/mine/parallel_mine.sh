@@ -2,14 +2,14 @@
 # mygoldmine 并行编排器（T12）
 #
 # 职责：
-#   1. 按 targets/manifest.json 选择目标，最多 MAX_PARALLEL 个项目并发挖掘
-#   2. 每项目独立 run 目录与日志，失败重试 1 次（超时不重试）
-#   3. 断点续跑：已有 reports_complete=true 的项目默认跳过
+#   1. 按 targets/manifest.json 选择目标，最多 MAX_PARALLEL 个项目并发批量审计
+#   2. 每个项目使用独立产物目录与日志，失败重试 1 次（超时不重试）
+#   3. 恢复未完成项目：已有 reports_complete=true 的项目默认跳过
 #   4. 单实例锁（flock）、启动前磁盘余量检查、--stop、--status
 #   5. --detach 时用 setsid + nohup 脱离终端，并记录 PID
 #
 # 安全边界：
-#   - 不在实现阶段启动真实 6h 挖掘；测试用 --executor 指向假执行器
+#   - 不在实现阶段启动真实 6h 批量审计；测试用 --executor 指向假执行器
 #   - 不把密钥写入任何产物；子进程只从环境变量继承凭据
 #   - 默认只读取 targets/manifest.json 中 status=ok 的项目
 set -uo pipefail
@@ -27,19 +27,20 @@ usage() {
 
 动作:
   --status               查看编排状态（不启动、不加锁）
-  --stop                 停止正在运行的编排器与所有 worker
+  --stop                 停止正在运行的编排器与所有后台处理进程
   --dry-run              只打印计划，不创建目录、不调用模型
   --detach               后台运行（setsid + nohup），打印 PID 后返回
   --foreground           前台运行（默认；供 --detach 内部使用）
 
 编排参数:
   --max-parallel N       最大并发项目数（默认 $MAX_PARALLEL 或 5）
-  --timeout SECONDS      单项目墙钟超时（默认 $TIMEOUT 或 86400）
+  --timeout SECONDS      单项目实际运行时间上限（默认 $TIMEOUT 或 86400 秒）
   --retries N            失败后重试次数（默认 $MAX_RETRIES 或 1；超时不重试）
   --outer-grace SECONDS  编排层超时相对项目的宽限（默认 $OUTER_GRACE 或 60）
   --min-free-gb N        启动所需磁盘余量 GB（默认 $MIN_FREE_GB 或 20）
   --projects LIST        仅处理逗号分隔的项目，如 vllm,sglang
   --force                忽略已完成记录，全部重跑
+  --skip-mining-repair   跳过批量共享修复的候选重跑与评估
 
 路径与执行:
   --targets-dir DIR      目标根目录（默认 $TARGETS_DIR 或 <repo>/targets）
@@ -58,7 +59,7 @@ usage() {
 状态目录:
   run-info.json          编排器整体状态与项目列表
   projects/<name>.json   单项目状态（pending/running/success/partial/failed/timeout/skipped/stopped）
-  workers/<name>.pid     worker 进程组 PID
+  workers/<name>.pid     后台处理进程组 PID
   logs/<name>.log        单项目执行器日志
   orchestrator.lock      单实例 flock 锁
   orchestrator.pid       编排器 PID
@@ -76,6 +77,7 @@ DETACH=0
 FOREGROUND=0
 WORKER=0
 FORCE=0
+SKIP_MINING_REPAIR="${SKIP_MINING_REPAIR:-0}"
 PROJECTS_FILTER=""
 MAX_PARALLEL="${MAX_PARALLEL:-5}"
 PROJECT_TIMEOUT="${TIMEOUT:-86400}"
@@ -104,6 +106,7 @@ while [ "$#" -gt 0 ]; do
         --foreground) FOREGROUND=1 ;;
         --worker) WORKER=1 ;;
         --force) FORCE=1 ;;
+        --skip-mining-repair) SKIP_MINING_REPAIR=1 ;;
         --max-parallel) [ "$#" -ge 2 ] || die "--max-parallel 需要参数" 3; MAX_PARALLEL="$2"; shift ;;
         --timeout) [ "$#" -ge 2 ] || die "--timeout 需要参数" 3; PROJECT_TIMEOUT="$2"; shift ;;
         --retries) [ "$#" -ge 2 ] || die "--retries 需要参数" 3; MAX_RETRIES="$2"; shift ;;
@@ -318,13 +321,13 @@ write_info() {
         }' > "$tmp" && mv -f "$tmp" "$INFO_FILE"
 }
 
-# ---------- 单项目 worker ----------
+# ---------- 单项目后台处理进程 ----------
 CURRENT_CHILD=""
 
 worker_on_signal() {
     local sig="$1" rc="$2" f tmp
     STOP_REQUESTED=1
-    log "worker $WORKER_PROJECT 收到信号 $sig，终止子进程"
+    log "项目 $WORKER_PROJECT 的后台处理进程收到信号 $sig，终止子进程"
     if [ -n "$CURRENT_CHILD" ] && kill -0 "$CURRENT_CHILD" 2>/dev/null; then
         kill -TERM "$CURRENT_CHILD" 2>/dev/null || true
         sleep 1
@@ -533,7 +536,7 @@ do_stop() {
             pid="$(cat "$pf" 2>/dev/null || true)"
             [ -n "$pid" ] || continue
             if kill -0 "$pid" 2>/dev/null; then
-                echo "发送 TERM 到 worker 进程组 -$pid ($(basename "$pf" .pid))"
+                echo "发送 TERM 到后台处理进程组 -$pid ($(basename "$pf" .pid))"
                 kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
                 stopped=1
             fi
@@ -560,7 +563,7 @@ do_stop() {
         echo "编排器未在 ${wait_s}s 内退出，发送 KILL"
         kill -KILL "$(cat "$PID_FILE" 2>/dev/null)" 2>/dev/null || true
     fi
-    echo "停止请求已处理；保留 $STOP_FILE 供运行中的 worker 检查"
+    echo "停止请求已处理；保留 $STOP_FILE 供运行中的后台处理进程检查"
     return 0
 }
 
@@ -645,9 +648,9 @@ if [ "$DRY_RUN" = "1" ]; then
 fi
 
 if [ "$WORKER" = "1" ]; then
-    [ -n "${WORKER_PROJECT:-}" ] || die "worker 模式缺少 WORKER_PROJECT" 3
-    [ -n "${WORKER_TARGET:-}" ] || die "worker 模式缺少 WORKER_TARGET" 3
-    [ -d "$WORKER_TARGET" ] || die "worker 目标不存在: $WORKER_TARGET" 3
+    [ -n "${WORKER_PROJECT:-}" ] || die "后台处理模式缺少 WORKER_PROJECT" 3
+    [ -n "${WORKER_TARGET:-}" ] || die "后台处理模式缺少 WORKER_TARGET" 3
+    [ -d "$WORKER_TARGET" ] || die "后台处理目标不存在: $WORKER_TARGET" 3
     mkdir -p "$PROJECTS_DIR" "$WORKERS_DIR" "$LOGS_DIR" || die "无法创建状态目录: $STATE_DIR" 5
     [ -x "$EXECUTOR" ] || die "执行器不可执行: $EXECUTOR" 4
     STOP_REQUESTED=0
@@ -716,7 +719,7 @@ trap cleanup EXIT
 on_stop() {
     STOP_REQUESTED=1
     : > "$STOP_FILE"
-    log "收到停止信号，通知所有 worker"
+    log "收到停止信号，通知所有后台处理进程"
     local p pid
     if [ "${#WORKER_PIDS[@]}" -gt 0 ]; then
         for p in "${!WORKER_PIDS[@]}"; do
@@ -798,7 +801,7 @@ while [ "$running" -gt 0 ]; do
     sleep 0.2
 done
 
-# 停止时给 worker 一点收尾时间，超时后强杀进程组
+# 停止时给后台处理进程一点收尾时间，超时后强杀进程组
 if [ "$STOP_REQUESTED" = "1" ]; then
     local_deadline=$(( $(date +%s) + 90 ))
     while [ "$running" -gt 0 ] && [ "$(date +%s)" -lt "$local_deadline" ]; do
@@ -810,6 +813,26 @@ if [ "$STOP_REQUESTED" = "1" ]; then
         kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
         unset 'WORKER_PIDS[$p]'
     done
+fi
+
+SHARED_REPAIR_RC=0
+if [ "$STOP_REQUESTED" = "0" ] && [ "$SKIP_MINING_REPAIR" -eq 0 ] && [ -f "$REPO_ROOT/scripts/rsi/post_validation.sh" ]; then
+    log "开始批量共享修复：汇总红蓝经验并生成候选"
+    bash "$REPO_ROOT/scripts/rsi/post_validation.sh" \
+        --project batch --run-dir "$STATE_DIR/rsi" > "$LOGS_DIR/shared-repair.log" 2>&1
+    SHARED_REPAIR_RC=$?
+    if [ "$SHARED_REPAIR_RC" -eq 0 ]; then
+        PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+            python3 -m audit_rsi mining-repair-drive \
+            --scope shared --manifest "$MANIFEST" \
+            --output "$STATE_DIR/rsi/shared-driver.json" >> "$LOGS_DIR/shared-repair.log" 2>&1
+        SHARED_REPAIR_RC=$?
+    fi
+    if [ "$SHARED_REPAIR_RC" -ne 0 ]; then
+        log "批量共享修复的候选重跑失败：退出码=$SHARED_REPAIR_RC"
+    else
+        log "批量共享修复评估完成：结果见 $STATE_DIR/rsi/shared-driver.json"
+    fi
 fi
 
 ENDED_AT="$(utc_now)"
@@ -839,7 +862,7 @@ echo "info=$INFO_FILE logs=$LOGS_DIR"
 if [ "$STOP_REQUESTED" = "1" ]; then
     exit 143
 fi
-if [ "$count_partial" -gt 0 ] || [ "$count_failed" -gt 0 ] || [ "$count_timeout" -gt 0 ] || [ "$count_stopped" -gt 0 ]; then
+if [ "$SHARED_REPAIR_RC" -ne 0 ] || [ "$count_partial" -gt 0 ] || [ "$count_failed" -gt 0 ] || [ "$count_timeout" -gt 0 ] || [ "$count_stopped" -gt 0 ]; then
     exit 1
 fi
 exit 0

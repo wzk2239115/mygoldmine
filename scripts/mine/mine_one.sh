@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# mygoldmine 单项目挖掘脚本（T08）
+# mygoldmine 单项目批量审计脚本（T08）
 #
 # 职责：
 #   1. 在目标工作副本中链接 mygoldmine 的 .claude
@@ -29,36 +29,36 @@ usage() {
   --run-dir DIR          产物目录（默认 $RUN_DIR 或 ./runs/<project>/<utc-ts>）
   --target DIR           目标工作副本（默认 $TARGET_DIR 或 $WORK_DIR）
   --prompt FILE          提示词文件（默认 $PROMPT_FILE；缺省时自动生成到 /tmp）
-  --timeout SECONDS      墙钟超时（默认 $TIMEOUT 或 86400）
+  --timeout SECONDS      实际运行时间上限（默认 $TIMEOUT 或 86400 秒）
   --model MODEL          模型 ID（默认 $MODEL 或 360-proxy/deepseek/deepseek-v4.1-flash）
   --agent AGENT          审计智能体（默认 $AGENT 或 security-orchestrator）
-  --project NAME         项目名（默认目标目录 basename）
+  --project NAME         项目名（默认目标目录名）
   --target-url URL       目标仓库 URL（默认从 git remote origin 读取）
   --help                 显示本帮助
 
   环境变量:
   RUN_DIR TARGET_DIR WORK_DIR TIMEOUT MODEL AGENT PROJECT PROMPT_FILE
-  MAX_ATTEMPTS           模型/代理瞬时错误重试次数（默认 2）
+  MAX_ATTEMPTS           模型或代理瞬时错误重试次数（默认 2）
   RETRY_DELAY            重试前等待秒数（默认 60，测试可设 0）
-  AUDIT_IDLE_TIMEOUT     模型无事件上限（默认 180）
-  AUDIT_SETUP_IDLE_TIMEOUT setup/raw 未创建上限（默认 900）
+  AUDIT_IDLE_TIMEOUT     模型无事件上限（默认 180 秒）
+  AUDIT_SETUP_IDLE_TIMEOUT 初始化或原始事件文件未创建的上限（默认 900 秒）
   MYGOLDMINE_HOME        mygoldmine 骨架目录（默认仓库根目录）
-  JEV_TRIAGE             审计前跑 Jev 初筛（默认 1；0 关闭）
-  JEV_PROFILE            Jev profile（默认 infra）
-  JEV_MAX_FILES          Jev 最大 unit 数（默认 1500）
+  JEV_TRIAGE             审计前执行 Jev 初筛（默认 1；0 关闭）
+  JEV_PROFILE            Jev 配置（默认 infra）
+  JEV_MAX_FILES          Jev 最大单元数（默认 1500）
   JEV_WORKERS            Jev 并发请求数（默认 8）
   JEV_TIMEOUT            Jev 预跑超时秒数（默认 600）
 
 产物:
-  raw.jsonl              原始 stream-json（每行一个事件）
+  raw.jsonl              原始流式 JSON 事件（每行一个事件）
   claude.rendered.log    人读过程日志
-  claude.stderr.log      Claude CLI stderr（排障用）
+  claude.stderr.log      Claude 命令行工具的错误输出（排障用）
   audit-report.md/json   由 security-orchestrator 写入
   run-meta.json          运行元信息（不含密钥）
 
 退出码:
   0 成功且报告通过质量合同；2 无有效报告；124/125 超时；130/143 被信号中断；
-  3 输入校验失败；4 缺少 claude CLI；5 缺少依赖/脚本；6 产物目录非空
+  3 输入校验失败；4 缺少 Claude 命令行工具；5 缺少依赖或脚本；6 产物目录非空
 EOF
 }
 
@@ -138,6 +138,8 @@ fi
 # 剥离 URL 中的 userinfo，避免把凭据写入 run-meta.json
 TARGET_URL="$(printf '%s' "$TARGET_URL" | sed -E 's#(https?://)[^/@]+@#\1#')"
 COMMIT="$(git -C "$TARGET_REAL" rev-parse HEAD 2>/dev/null || true)"
+BRANCH="${TARGET_BRANCH:-$(git -C "$TARGET_REAL" rev-parse --abbrev-ref HEAD 2>/dev/null || true)}"
+[ -n "$BRANCH" ] || BRANCH="detached"
 
 build_prompt() {
     cat <<EOF
@@ -154,14 +156,14 @@ $(python3 "${MYGOLDMINE_HOME}/scripts/config/language.py" --prompt 2>/dev/null |
 ## 要求
 1. 使用 ${AGENT} 智能体执行完整审计流程（项目画像、路由/认证分析、按语言与框架的漏洞分析、报告生成）。
 2. 只分析本地源码，不访问公网，不读取目标目录之外的宿主路径。
-3. 只做漏洞定位、根因分析、最小复现思路与修复建议；不要编写可直接武器化的 exploit。
+3. 只做漏洞定位、根因分析、最小复现思路与修复建议；不要编写可直接武器化的利用代码。
 4. 开始分析后尽快创建 ${REPORT_MD} 骨架，每完成一个子任务就增量更新；
    不要等所有子任务结束才写。接近超时时先落盘当前结论再退出。
-5. 必须把机器可读报告写到 ${REPORT_JSON}，至少包含阶段性 findings。
+5. 必须把机器可读报告写到 ${REPORT_JSON}，至少包含阶段性候选问题。
 6. 引用证据时给出具体文件路径与行号；无法核实的 CVE 编号标记为 unverified，不得编造。
 7. 发现密钥时只报告位置与类型，不得把密钥原文写入任何报告或日志。
-8. 若存在 ${RUN_DIR}/triage/jev-infra.json，先读取其中 priority>=0.6、低置信度、
-   或 flags 与 mitigations 冲突的单元；Jev 只做召回，不作为 finding。
+8. 若存在 ${RUN_DIR}/triage/jev-infra.json，先读取其中优先检查分数 priority>=0.6、低置信度、
+   或风险信号 flags 与已有防护措施 mitigations 冲突的单元；Jev 只做召回，不作为候选问题。
 
 ## 交付
 - ${REPORT_MD}
@@ -172,6 +174,20 @@ EOF
         printf '\n## 优先审计计划（audit-rsi replay policy）\n'
         cat "$plan"
         printf '\n'
+    fi
+    python3 "$MYGOLDMINE_HOME/scripts/mine/repair_context.py" \
+        --root "$MYGOLDMINE_HOME" --project "$PROJECT" \
+        --max-bytes "${RSI_REPAIR_CONTEXT_MAX_BYTES:-65536}" 2>/dev/null || \
+        log "WARN: 已发布挖掘修复读取失败，本次不加载修复规则"
+    if [ -n "${RSI_REPAIR_CONTEXT_FILE:-}" ]; then
+        if [ -f "$RSI_REPAIR_CONTEXT_FILE" ]; then
+            printf '\n'
+            cat "$RSI_REPAIR_CONTEXT_FILE"
+            printf '\n'
+        else
+            log "WARN: 候选挖掘修复上下文不存在，不执行候选审计"
+            return 2
+        fi
     fi
 }
 
@@ -418,12 +434,12 @@ maybe_jev_triage() {
         log "WARN: 未找到 $script，跳过 Jev 初筛"
         return 0
     fi
-    remaining_budget || { log "墙钟预算已耗尽，跳过 Jev 初筛"; return 0; }
+    remaining_budget || { log "实际运行时间预算已耗尽，跳过 Jev 初筛"; return 0; }
     local jev_budget="$JEV_TIMEOUT"
     [ "$jev_budget" -gt "$REMAINING" ] && jev_budget="$REMAINING"
     mkdir -p "$RUN_DIR/triage" || return 0
     local out="$RUN_DIR/triage/jev-${JEV_PROFILE}.json"
-    log "Jev 初筛: profile=$JEV_PROFILE max_files=$JEV_MAX_FILES workers=$JEV_WORKERS timeout=$jev_budget -> $out"
+    log "Jev 初筛：配置=$JEV_PROFILE 最大文件数=$JEV_MAX_FILES 并发请求数=$JEV_WORKERS 超时=$jev_budget -> $out"
     if timeout --signal=TERM --kill-after=30 "$jev_budget" python3 "$script" \
         --root "$TARGET_REAL" --profile "$JEV_PROFILE" \
         --max-files "$JEV_MAX_FILES" --workers "$JEV_WORKERS" \
@@ -453,6 +469,7 @@ write_meta() {
         --arg project "$PROJECT" \
         --arg target_url "$TARGET_URL" \
         --arg commit "$COMMIT" \
+        --arg branch "$BRANCH" \
         --arg started_at "$STARTED_AT" \
         --arg ended_at "$ended_at" \
         --argjson duration_seconds "$duration" \
@@ -472,6 +489,7 @@ write_meta() {
             project: $project,
             target_url: $target_url,
             commit: $commit,
+            branch: $branch,
             started_at: $started_at,
             ended_at: $ended_at,
             duration_seconds: $duration_seconds,
@@ -557,7 +575,7 @@ while :; do
     if ! remaining_budget; then
         TIMED_OUT=1
         CLAUDE_RC=124
-        log "墙钟预算已耗尽，不再启动新尝试"
+        log "实际运行时间预算已耗尽，不再启动新尝试"
         break
     fi
     attempt_budget="$REMAINING"

@@ -381,9 +381,9 @@ class Recovery:
                     shutil.copy2(artifact, inputs / artifact.name)
                 atomic_json(inputs / "coverage.json", self.state["tasks"])
                 prompt_text = (
-                    "仅汇总已有审计产物，不启动新的扫描或子 Agent。输入目录：" + str(inputs) + "\n"
+                    "仅汇总已有审计产物，不启动新的扫描或子智能体。输入目录：" + str(inputs) + "\n"
                     "阅读所有输入及必要源码证据，去重，保留来源，"
-                    "所有漏洞 verification 保持 unverified。"
+                    "所有漏洞的 verification 字段保持 unverified。"
                     "不能把可信操作者主动配置、设计限制或纯假设直接认定为漏洞。"
                     "仅在证据支持时补充根因、影响和最小本地验证步骤；"
                     "无法补全的条目保留到 hypotheses，说明缺口。"
@@ -399,13 +399,13 @@ class Recovery:
                     + "\n先前最后的进度（仅作线索，须核对源码）：\n"
                     + task.get("recovery_context", "")
                     + (
-                        "\n这是失败任务的独立恢复，只处理上述边界，不重新启动其他边界或子 Agent。"
+                        "\n这是失败任务的独立恢复，只处理上述边界，不重新启动其他边界或子智能体。"
                         "\n尽快落盘阶段性结果；无法核实的内容写入 hypotheses，不要无限追查。"
                         "\n源码 /workspace/repo，知识库 /opt/mygoldmine/knowledge。"
-                        "\n不访问公网，不读取宿主敏感文件，不编写武器化 exploit。"
+                        "\n不访问公网，不读取宿主敏感文件，不编写武器化利用代码。"
                         "\n最终任务 JSON 至少包含 findings, hypotheses, coverage, limitations；"
                         "覆盖信息说明已读文件和未完成部分，"
-                        "所有 finding 必须保留证据及 unverified 状态。"
+                        "所有候选问题必须保留证据及 unverified 状态。"
                     )
                 )
                 agent = "recovery-infra-worker"
@@ -711,8 +711,8 @@ class Recovery:
                 "findings": [],
                 "status": "partial",
                 "limitations": [
-                    "最终报告格式未通过，已有任务产物保留在 artifacts；"
-                    "不能据空 findings 判断无漏洞。"
+                    "最终报告格式未通过，已有任务产物保留在 artifacts 目录；"
+                    "不能根据空候选问题列表判断无漏洞。"
                 ],
                 "task_artifacts": {
                     key: task.get("artifact") for key, task in self.state["tasks"].items()

@@ -25,6 +25,13 @@ rsi/plan.json
 rsi/plan.md
 rsi/verification-*.json
 rsi/verification-*.jsonl
+rsi/redteam-*.jsonl
+rsi/mining-repairs/candidates/
+rsi/mining-repairs/seed-candidates/
+rsi/mining-repairs/agentic/
+rsi/mining-repairs/attempts/
+rsi/mining-repairs/attempt-runs/
+rsi/mining-repairs/cycle.json
 integrations/skillopt_env_build/configs/env_build.generated.yaml
 
 # Phase 0 env build logs
@@ -78,6 +85,22 @@ ui/data/refine-worker.log
 
 ui/data/refine-worker.pid
 
+ui/data/flow-state.json
+
+ui/data/flow-queue.json
+
+ui/data/flow.pause
+
+ui/data/flow.stop
+
+ui/data/.flow-worker.lock
+
+ui/data/flow-worker.log
+
+ui/data/flow-worker.pid
+
+ui/data/flow-build-state.log
+
 rsi/trajectories/
 backups/
 
@@ -86,3 +109,14 @@ backups/
 
 # 阶段技能运行数据与独立评估产物
 rsi/stage-skills/
+
+# 红队实验产物
+labs/*
+!labs/README.md
+!labs/demo/
+!labs/demo/**
+
+# 环境构建运行产物
+env/*/.stage-*
+env/*/*.prev*
+env/*/build-notes.md
