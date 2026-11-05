@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MODE="${1:-train}"
 shift || true
-SKILLOPT_ROOT="${SKILLOPT_ROOT:-$HOME/SkillOpt}"
+SKILLOPT_ROOT="${SKILLOPT_ROOT:-$REPO_ROOT/third_party/SkillOpt}"
 export SKILLOPT_ROOT
 TEMPLATE="$REPO_ROOT/integrations/skillopt_env_build/configs/env_build.template.yaml"
 CONFIG="$REPO_ROOT/integrations/skillopt_env_build/configs/env_build.generated.yaml"

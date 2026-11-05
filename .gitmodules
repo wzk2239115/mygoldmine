@@ -5,3 +5,7 @@
 [submodule "smartbugs-curated"]
 	path = smartbugs-curated
 	url = https://github.com/smartbugs/smartbugs-curated.git
+
+[submodule "third_party/SkillOpt"]
+	path = third_party/SkillOpt
+	url = https://github.com/microsoft/SkillOpt.git

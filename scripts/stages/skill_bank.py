@@ -56,7 +56,7 @@ class SkillBank:
         if not value or value['id']!=cid:raise ValueError('候选不存在')
         if candidate_digest(value)!=cid:raise ValueError('候选内容摘要不匹配')
         return value
-    def propose(self,stage,project,scope,content,evidence,conditions=None):
+    def propose(self,stage,project,scope,content,evidence,conditions=None,provenance=None):
         key=self.key(stage,scope,project);identifier(project)
         if not isinstance(content,str) or not content.strip() or len(content)>12000:raise ValueError('技能规则必须是非空文本，最多 12000 字符')
         if not evidence:raise ValueError('必须引用实际执行证据')
@@ -67,8 +67,10 @@ class SkillBank:
             refs.append({'path':str(p.relative_to(self.repo)),'sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
         conditions=conditions or {}
         if not isinstance(conditions,dict) or set(conditions)-{'machine','python','commit'}:raise ValueError('适用条件仅支持 machine、python、commit')
+        if provenance is not None and not isinstance(provenance,dict):raise ValueError('候选来源说明必须是对象')
         with self.lock():
             candidate={'schema_version':2,'stage':stage,'project':project,'scope':scope,'key':key,'content':content.strip(),'evidence':refs,'conditions':conditions,'parent':self.active().get(key),'created_at':now()}
+            if provenance is not None:candidate['provenance']=provenance
             parent=self.candidate(candidate['parent']) if candidate['parent'] else {}
             candidate['training_projects']=sorted(set(parent.get('training_projects',[parent['project']] if parent else [])) | {project})
             # 相同规则和来源重复提交不制造新版本。
@@ -97,10 +99,13 @@ class SkillBank:
     def feedback(self,run_dir,project):
         run=Path(run_dir).resolve();identifier(project)
         if not run.is_relative_to(self.repo/'runs'):raise ValueError('反馈仅从实际运行目录采集')
+        if (run/'rsi/feedback-snapshot.json').exists():
+            ingest_requests(self,run,project)
+            return read(run/'rsi/stage-feedback/index.json',{}).get('stages',[])
         meta=Path(str(run)+'.meta');status=read(meta/'status.json',{})
         files={
             'environment':[meta/'env-phase.json',meta/'env-phase0.log'],
-            'orchestrator':[run/'report-quality.json',run/'report-quality.log',run/'task-state/security-orchestrator-tasks.json'],
+            'orchestrator':[run/'report-quality.json',run/'report-quality.log',run/'task-state/security-orchestrator-tasks.json',run/'task-artifacts/coverage-ledger.json',run/'task-artifacts/coverage-plan.json',run/'task-artifacts/review-plan.json'],
             'visual':[run/'visual-rendered/visual-summary.json'],
             'verify':[run/'verify/agent/summary.json'],
             'redteam-lab':[run/'redteam/summary.json'],
@@ -108,7 +113,7 @@ class SkillBank:
             'judge':[run/'redteam/summary.json'],
             'learner':[run/'rsi/post-validation.json',run/'rsi/driver.json'],
         }
-        for stage,artifact in [('visual','visual-rendered/visual-summary.json'),('verify','verify/agent/summary.json'),('redteam-lab','redteam/summary.json')]:
+        for stage,artifact in [('visual','visual-rendered/visual-summary.json'),('verify','verify/agent/summary.json'),('redteam-lab','redteam/summary.json'),('redteam-agent','redteam/summary.json'),('judge','judge/summary.json')]:
             retries=[read(p,{}) for p in (meta/'node-retries'/stage).glob('*/attempt.json')]
             retries=[item for item in retries if item.get('workspace')]
             if retries:
@@ -196,11 +201,12 @@ class SkillBank:
             active[candidate['key']]=candidate['id'];write(self.root/'active.json',active)
             write(self.root/'publications'/f'{uuid.uuid4().hex}.json',{'candidate':candidate['id'],'previous':result['baseline'],'evaluation':eid,'created_at':now()})
         return active
-    def advance(self,project):
+    def advance(self,project,candidate_ids=None):
         if os.environ.get('STAGE_SKILL_EVALUATING'):return {'status':'evaluation_in_progress','published':[],'results':[]}
         results=[];published=[]
         for file in sorted((self.root/'candidates').glob('*.json')):
             candidate=read(file,{})
+            if candidate_ids is not None and candidate.get('id') not in candidate_ids:continue
             if candidate.get('project')!=project or self.active().get(candidate.get('key'))==candidate.get('id'):continue
             suite=self.repo/'config/stage-evals'/f"{candidate['stage']}.json"
             if not suite.exists():results.append({'candidate':candidate['id'],'status':'missing_evaluation_suite'});continue
@@ -236,7 +242,7 @@ def infer_project(root):
         if parent.parent.parent.name=='runs' and parent.parent.name=='redteam':return identifier(parent.name)
     return os.environ.get('PROJECT') or os.environ.get('ENV_BUILD_PROJECT') or 'unknown'
 
-def spool_proposal(stage,root,scope,content,evidence,conditions=None):
+def spool_proposal(stage,root,scope,content,evidence,conditions=None,provenance=None):
     root=Path(root).resolve();project=infer_project(root)
     if stage not in STAGES or scope not in ('project','general') or not isinstance(content,str) or not content.strip() or len(content)>12000:raise ValueError('候选阶段、层级或内容无效')
     if not evidence or len(evidence)>5:raise ValueError('需要 1—5 份本次执行证据，优先引用不可变验收凭据')
@@ -248,6 +254,7 @@ def spool_proposal(stage,root,scope,content,evidence,conditions=None):
         if not source.is_relative_to(root) or not source.is_file() or source.stat().st_size>2*1024*1024:raise ValueError('证据须在本次输出目录内，单份不超过 2 MiB')
         snapshot=queue/'evidence'/f'{request_id}-{index}.txt';snapshot.parent.mkdir(parents=True,exist_ok=True);snapshot.write_bytes(source.read_bytes());refs.append(str(snapshot))
     request={'id':request_id,'stage':stage,'project':project,'scope':scope,'content':content,'evidence':refs,'conditions':conditions or {},'created_at':now()}
+    if provenance is not None:request['provenance']=provenance
     write(queue/f'{request_id}.json',request);return request
 
 def ingest_requests(bank,run,project):
@@ -264,7 +271,7 @@ def ingest_requests(bank,run,project):
                 marker=bank.root/'imported'/f"{identifier(request['id'])}.json"
                 if marker.exists():continue
                 try:
-                    value=bank.propose(request['stage'],project,request['scope'],request['content'],request['evidence'],request.get('conditions'))
+                    value=bank.propose(request['stage'],project,request['scope'],request['content'],request['evidence'],request.get('conditions'),request.get('provenance'))
                     write(marker,{'candidate':value['id'],'request':request['id']});results.append(value['id'])
                 except (ValueError,OSError,KeyError) as exc:results.append({'request':request.get('id'),'error':str(exc)})
     return results

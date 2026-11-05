@@ -1,0 +1,12 @@
+{
+  "name": "SkillOpt",
+  "url": "https://github.com/microsoft/SkillOpt.git",
+  "commit": "01e41dbcdf9ea6e20d6428c152c14178bd1c80f3",
+  "version": "0.2.0",
+  "license": "MIT",
+  "source": "third_party/SkillOpt",
+  "requirements": "third_party/SkillOpt/requirements.txt",
+  "integration": "第 08 阶段使用核心技能重写入口 skillopt.optimizer.rewrite.rewrite_skill_from_suggestions",
+  "excluded": ["SkillOpt-Sleep 完整夜间循环", "WebUI", "上游插件", "上游 hook", "自动采用"],
+  "checked_at": "2026-11-05T00:00:00Z"
+}

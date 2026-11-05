@@ -29,3 +29,5 @@ python3 scripts/stages/skill_bank.py rollback --publication <发布记录文件�
 ```
 
 评估日志、结果、候选正文及发布记录在 `rsi/stage-skills/`，不进入代码提交。评估命令是可信执行边界，不应让候选内容自行定义命令或结果判定。
+
+当前仓库没有配置任何阶段评估套件。第 08 阶段产生的 SkillOpt 候选会保留，并在 `rsi/stage-learning-evaluation.json` 或 `skill_bank.py advance` 的记录中显示 `missing_evaluation_suite`；没有可信套件时不会自动发布。测试中的临时评估命令只验证接线，不代表阶段能力已经提高。

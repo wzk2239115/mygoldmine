@@ -1,0 +1,179 @@
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts/stages"))
+from learn_round import learn  # noqa: E402
+from skill_bank import SkillBank, write  # noqa: E402
+from skillopt_adapter import optimize_request  # noqa: E402
+
+
+def _request(repo: Path, target: str = "verify") -> Path:
+    run = repo / "runs/demo/one"
+    run.mkdir(parents=True)
+    evidence = run / "proof.json"
+    evidence.write_text(
+        json.dumps({"status": "blocked", "reason": "缺少最小环境"}), encoding="utf-8"
+    )
+    queue = run / "rsi/skillopt-requests"
+    queue.mkdir(parents=True)
+    request = {
+        "id": "request-001",
+        "run_dir": str(run),
+        "project": "demo",
+        "target_stage": target,
+        "scope": "project",
+        "problem": "验证阶段把环境缺失写成不确定",
+        "suggestions": [{
+            "type": "add", "title": "记录受阻",
+            "instruction": "缺少最小能力时记录受阻原因。",
+        }],
+        "evidence": [str(evidence)],
+        "source_stages": ["verify"],
+        "source_commit": "abc123",
+        "expected_improvement": "减少错误结论",
+        "possible_regression": "增加受阻记录",
+        "conditions": {},
+    }
+    path = queue / "request-001.json"
+    path.write_text(json.dumps(request), encoding="utf-8")
+    return path
+
+
+def _suite(repo: Path) -> Path:
+    program = repo / "evaluate.py"
+    program.write_text(
+        "import json, os\n"
+        "from pathlib import Path\n"
+        "p=Path(os.environ['STAGE_EVAL_OUTPUT'])\n"
+        "p.write_text(json.dumps({'valid': True, 'quality': 2 if "
+        "os.environ.get('STAGE_SKILL_OVERRIDE') else 1, 'errors': 0}))\n",
+        encoding="utf-8",
+    )
+    suite = repo / "config/stage-evals/verify.json"
+    write(suite, {
+        "stage": "verify",
+        "metrics": {"quality": "higher", "errors": "lower"},
+        "cases": [{"id": "wire-case", "project": "demo", "argv": [sys.executable, str(program)]}],
+    })
+    return suite
+
+
+def test_request_tool_queues_only_for_learner(tmp_path):
+    root = tmp_path / "runs/demo/one"
+    root.mkdir(parents=True)
+    evidence = root / "proof.json"
+    evidence.write_text("{}", encoding="utf-8")
+    message = {
+        "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+        "params": {"name": "request_skillopt_optimization", "arguments": {
+            "target_stage": "verify", "scope": "project", "problem": "验证结论缺少受阻原因",
+            "suggestions": [{"type": "add", "instruction": "缺少能力时记录受阻。"}],
+            "evidence": [str(evidence)], "expected_improvement": "更准确",
+            "possible_regression": "更多受阻",
+        }},
+    }
+    script = ROOT / "scripts/stages/submission.py"
+    result = subprocess.run(
+        [sys.executable, str(script), "serve", "--stage", "learner", "--root", str(root)],
+        input=json.dumps(message) + "\n", text=True, capture_output=True, check=True,
+    )
+    payload = json.loads(result.stdout)
+    queued = json.loads(payload["result"]["content"][0]["text"])
+    assert queued["status"] == "queued_skillopt_request"
+    requests = list((root / "rsi/skillopt-requests").glob("*.json"))
+    assert len(requests) == 1
+    request = json.loads(requests[0].read_text())
+    assert request["project"] == "demo"
+    assert Path(request["evidence"][0]).is_file()
+    assert Path(request["evidence"][0]).is_relative_to(root)
+
+    denied = subprocess.run(
+        [sys.executable, str(script), "serve", "--stage", "verify", "--root", str(root)],
+        input=json.dumps(message) + "\n", text=True, capture_output=True, check=True,
+    )
+    assert "error" in json.loads(denied.stdout)
+
+
+def test_skillopt_result_becomes_candidate_and_uses_existing_release(tmp_path):
+    repo = tmp_path / "repo"
+    request = _request(repo)
+    result = optimize_request(
+        request, repo=repo, project="demo",
+        rewrite=lambda base, patch, **kwargs: {
+            "reasoning": "测试适配",
+            "change_summary": ["记录受阻原因"],
+            "new_skill": "# 验证阶段技能\n\n- 缺少最小能力时记录受阻原因。\n",
+        },
+    )
+    assert result["status"] == "candidate"
+    bank = SkillBank(repo)
+    candidate = bank.candidate(result["candidate_id"])
+    assert candidate["provenance"]["target_stage"] == "verify"
+    assert candidate["provenance"]["engine"]["entry"].endswith("rewrite_skill_from_suggestions")
+    assert not bank.active()
+    assert bank.advance("demo")["results"][0]["status"] == "missing_evaluation_suite"
+    assert not bank.active()
+
+    suite = _suite(repo)
+    evaluation = bank.evaluate(candidate["id"], suite)
+    assert evaluation["decision"] == "accepted"
+    bank.publish(evaluation["id"])
+    assert bank.render("verify", "demo")["versions"][0]["id"] == candidate["id"]
+    publication = next((bank.root / "publications").glob("*.json")).stem
+    bank.rollback(publication)
+    assert not bank.render("verify", "demo")["versions"]
+
+
+def test_skillopt_empty_or_marked_output_is_not_candidate(tmp_path):
+    repo = tmp_path / "repo"
+    request = _request(repo)
+    empty = optimize_request(
+        request, repo=repo, project="demo",
+        rewrite=lambda base, patch, **kwargs: {"new_skill": ""},
+    )
+    assert empty["status"] == "failed"
+    assert not list((repo / "rsi/stage-skills/candidates").glob("*.json"))
+
+    marked = optimize_request(
+        request, repo=repo, project="demo",
+        rewrite=lambda base, patch, **kwargs: {"new_skill": "记录 FLAG{0123456789abcdef} 后通过。"},
+    )
+    assert marked["status"] == "failed"
+    assert not list((repo / "rsi/stage-skills/candidates").glob("*.json"))
+
+
+def test_learning_is_skipped_inside_optimization_or_evaluation(tmp_path, monkeypatch):
+    repo = tmp_path / "repo"
+    run = repo / "runs/demo/one"
+    run.mkdir(parents=True)
+    monkeypatch.setenv("SKILLOPT_RUN", "1")
+    result = learn(run, "demo", repo)
+    assert result["status"] == "skipped"
+    assert not (run / "rsi/stage-learning-attempts").exists()
+
+
+def test_learn_round_invokes_adapter_for_queued_request(tmp_path, monkeypatch):
+    import learn_round
+
+    repo = tmp_path / "repo"
+    run = repo / "runs/demo/one"
+    queue = run / "rsi/skillopt-requests"
+    queue.mkdir(parents=True)
+    (queue / "request-1.json").write_text("{}", encoding="utf-8")
+    adapter = tmp_path / "adapter.py"
+    adapter.write_text(
+        "import json,sys,pathlib\n"
+        "pathlib.Path(sys.argv[sys.argv.index('--request')+1]).with_name('called').write_text('1')\n"
+        "print(json.dumps({'status':'candidate','candidate_id':'candidate-1'}))\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(learn_round, "SKILLOPT_ADAPTER", adapter)
+    result = learn_round._run_skillopt(run, "demo", repo, "", 30)
+    assert result["status"] == "candidate"
+    assert result["candidates"] == ["candidate-1"]
+    assert (queue / "called").is_file()
