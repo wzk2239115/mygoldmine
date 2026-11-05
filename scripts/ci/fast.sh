@@ -15,7 +15,9 @@ python3 -m compileall -q \
     scripts/ccui \
     scripts/mine \
     scripts/redteam \
+    scripts/stages \
     scripts/workflow \
+    scripts/ci/check_expression.py \
     .claude/skills/jev-triage
 
 if command -v ruff >/dev/null 2>&1; then
@@ -27,22 +29,45 @@ if command -v ruff >/dev/null 2>&1; then
         scripts/ccui \
         scripts/mine/progress_guard.py \
         scripts/mine/durable_recovery.py \
+        scripts/mine/repair_context.py \
         tests/test_durable_recovery.py \
+        tests/test_mining_repair.py \
+        tests/test_mining_driver.py \
+        tests/test_agentic_propose.py \
+        tests/test_clean_operation.py \
         scripts/mine/check_report.py \
+        scripts/ci/check_expression.py \
+        tests/test_expression_audit.py \
         scripts/workflow/report_quality.py \
+        scripts/workflow/flow_worker.py \
+        scripts/watch/watch.py \
         tests/test_report_contract.py \
+        tests/test_watch_dispatch.py \
+        tests/test_flow_worker.py \
         tests/test_rsi_version.py \
         tests/test_rsi_evaluation.py \
         tests/test_rsi_experience.py \
         tests/test_rsi_verification.py \
         tests/test_rsi_eval_gates.py \
         tests/test_rsi_raw_trace.py \
+        scripts/stages/skillopt_adapter.py \
         tests/test_skillopt_env_build.py \
+        tests/test_skillopt_stage_learning.py \
+        tests/test_phase4_verify_agent.py \
+        tests/test_phase5_redteam.py \
+        tests/test_visual_report.py \
         tests/test_audit_rsi.py \
         tests/test_jev_triage.py
 else
     echo "ruff not installed; skipping"
 fi
+
+echo "== expression coverage =="
+python3 scripts/ci/check_expression.py \
+    --baseline scripts/ci/expression-baseline.json \
+    --allow-unreadable .claude/skills/integer-overflow-analyzer/general.md \
+    --allow-unreadable .claude/skills/numeric-conversion-error-analyzer/general.md \
+    --limit 5
 
 echo "== pytest (deterministic) =="
 python3 -m pytest -q tests
@@ -59,12 +84,23 @@ for file in \
     scripts/skillopt_env_build.sh \
     scripts/ccui/start.sh \
     scripts/env/build_env_agent.sh \
+    scripts/env/phase0_env.sh \
     scripts/env/sandbox.sh \
+    scripts/workflow/flow_worker.sh \
+    scripts/watch/daemon.sh \
+    scripts/watch/heartbeat.sh \
     scripts/verify/run_verify.sh \
     scripts/verify/auto_verify.sh \
+    scripts/verify/phase4_verify_agent.sh \
+    scripts/redteam/phase5_redteam.sh \
+    scripts/rsi/post_validation.sh \
+    scripts/mine/visual_report.sh \
     scripts/mine/mine_one.sh \
     scripts/mine/entrypoint.sh \
     scripts/mine/mine_one_docker.sh \
+    scripts/mine/parallel_mine.sh \
+    scripts/mine/full_audit.sh \
+    scripts/clean.sh \
     scripts/ci/fast.sh; do
     bash -n "$file"
 done

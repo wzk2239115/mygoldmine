@@ -675,9 +675,9 @@ def render_markdown(payload: dict[str, Any]) -> str:
             "",
             "## 读取建议",
             "",
-            "- priority ≥ 0.70：优先用 Read/Grep 深读。",
-            "- 0.40–0.70：人工/LLM 复核，尤其是 flags 命中但 mitigations 未命中的单元。",
-            "- < 0.40：可跳过；若涉及已知 sink 关键词，仍以 ripgrep 结果为准。",
+            "- 优先检查分数（priority）≥ 0.70：优先用 Read/Grep 深入阅读。",
+            "- 0.40–0.70：人工或模型复核，尤其是风险信号（flags）命中但已有防护措施（mitigations）未命中的单元。",
+            "- < 0.40：可跳过；若涉及已知危险操作关键词，仍以 ripgrep 结果为准。",
             "- Jev 只做召回初筛，不作为漏洞结论；最终必须读代码确认。",
             "",
         ]
@@ -746,6 +746,27 @@ def run(args: argparse.Namespace) -> int:
     errors: list[dict[str, str]] = []
     model_returned = ""
     started = time.time()
+
+    progress_path = Path(args.out) if args.out else Path(os.environ.get("RUN_DIR") or root / ".workspace") / "triage" / f"jev-{args.profile}.json"
+    if not progress_path.is_absolute():
+        progress_path = root / progress_path
+    progress_path = progress_path.with_suffix(".progress.json")
+
+    def save_progress(status="running"):
+        progress_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "status": status, "profile": args.profile, "model_requested": args.model,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "planned_requests": len(requests), "workers": args.workers,
+            "processed_units": len(results), "failed_units": len({item["unit"] for item in errors}),
+            "stats": {**stats, "elapsed_ms": int((time.time()-started)*1000)},
+            "units": sorted(results.values(), key=lambda item: item["priority"], reverse=True)[:80],
+        }
+        temporary = progress_path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        temporary.replace(progress_path)
+
+    save_progress()
 
     def apply(
         group: list[Unit],
@@ -822,6 +843,7 @@ def run(args: argparse.Namespace) -> int:
                         errors.append(
                             {"unit": unit.id, "error": str(exc)[:300]}
                         )
+            save_progress()
     cache.flush()
 
     stats["elapsed_ms"] = int((time.time() - started) * 1000)
@@ -855,6 +877,7 @@ def run(args: argparse.Namespace) -> int:
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+    save_progress("completed" if not errors else "partial")
     md_path = out.with_suffix(".md")
     md_path.write_text(render_markdown(payload), encoding="utf-8")
 

@@ -96,15 +96,15 @@ python3 .claude/skills/jev-triage/jev_triage.py \
   --top-k 40
 ```
 
-## Profiles
+## 判断配置
 
-| profile | 主要判断 |
+| 配置名 | 主要判断 |
 |---|---|
 | `infra` | 控制面、认证边界、不可信模型/路径输入、路径白名单、子进程、反序列化、出站 URL、默认暴露 |
-| `auth` | 认证实现、未认证路由、客户端身份信任、fail-open、推理能力暴露 |
-| `input-sink` | 攻击者输入、危险 sink、校验/白名单（反向计分）、外部可达性、风险评分 |
-| `config-trust` | 项目级配置加载、自动加载、子进程/Git hook、无确认生效 |
-| `lora-model` | 客户端控制路径、路径白名单（反向计分）、权重反序列化、adapter resolver |
+| `auth` | 认证实现、未认证路由、客户端身份信任、失败时默认放行、推理能力暴露 |
+| `input-sink` | 攻击者输入、危险操作、校验/白名单（反向计分）、外部可达性、风险评分 |
+| `config-trust` | 项目级配置加载、自动加载、子进程/Git 钩子、无确认生效 |
+| `lora-model` | 客户端控制路径、路径白名单（反向计分）、权重反序列化、适配器解析 |
 | `secrets` | 硬编码凭据、日志/响应泄露、凭据入 URL |
 | `custom` | `--question` / `--choice` / `--score` |
 
@@ -114,35 +114,35 @@ python3 .claude/skills/jev-triage/jev_triage.py \
 
 脚本写两个文件：
 
-- `$RUN_DIR/triage/jev-*.json`（或 `<root>/.workspace/triage/jev-*.json`）：机器可读，包含每个 unit 的 `priority/flags/mitigations/answers`。
-- 同目录 `jev-*.md`：人读 top-k 表。
+- `$RUN_DIR/triage/jev-*.json`（或 `<root>/.workspace/triage/jev-*.json`）：机器可读，包含每个代码单元的 `priority/flags/mitigations/answers`。
+- 同目录 `jev-*.md`：按优先检查分数排列的人工可读表格。
 
 读取策略：
 
-- `priority >= 0.70`：优先 Read/Grep 深读。
-- `0.40 <= priority < 0.70`：人工/LLM 复核，尤其看 `flags` 命中但 `mitigations` 未命中的单元。
-- `< 0.40`：通常可跳过；但 ripgrep 已命中的 sink 关键词仍以确定性证据为准。
+- 优先检查分数 `priority >= 0.70`：优先用 Read/Grep 深入阅读。
+- `0.40 <= priority < 0.70`：人工或模型复核，尤其检查风险信号（`flags`）命中但已有防护措施（`mitigations`）未命中的单元。
+- `< 0.40`：通常可跳过；但 ripgrep 已命中的危险操作关键词仍以确定性证据为准。
 - `confidence` 低或答案接近 0.5：要求 Claude 读代码确认，不要直接下结论。
-- Jev 的 `noul` 概率是**校准置信度**，不是正确性保证；可被代码注释、字符串等 state 内容影响（prompt injection / adversarial content）。
+- Jev 的 `noul` 概率是**校准置信度**，不是正确性保证；可被代码注释、字符串等输入内容影响（提示词注入或对抗性内容）。
 
 ## 与 Claude Code 的结合方式
 
 推荐顺序：
 
 1. `workspace-scanner` / `project-profiler` 得到项目类型与入口。
-2. `ripgrep` 做确定性候选（路由、sink、配置文件名）。
-3. 对候选跑 `jev-triage`（`infra` + `auth` + `input-sink`）。
-4. Claude 只读 top-k + 低置信度 + `flags` 与 `mitigations` 冲突的单元。
-5. 深读后用 `infra-analyst` / 具体 analyzer 形成 finding；Jev 结果只作为 `triage` 证据，不进入最终 severity。
+2. `ripgrep` 找出确定性候选（路由、危险操作、配置文件名）。
+3. 对候选运行 `jev-triage`（`infra` + `auth` + `input-sink`）。
+4. Claude 只读优先检查分数靠前、低置信度以及风险信号与已有防护措施冲突的单元。
+5. 深读后用 `infra-analyst` 或具体分析技能形成候选问题；Jev 结果只作为初筛证据，不进入最终严重度判定。
 
-在 Agentic Infra Track 中可直接把 `$RUN_DIR/triage/jev-infra.json`（或 `.workspace/triage/jev-infra.json`）作为 `infra-analyst` 的输入之一。`mine_one.sh` 已导出 `RUN_DIR`，Docker 也按相同绝对路径挂载，因此容器内写出的 triage 文件会落到宿主 run 目录。
+在智能体基础设施流程中，可直接把 `$RUN_DIR/triage/jev-infra.json`（或 `.workspace/triage/jev-infra.json`）作为 `infra-analyst` 的输入之一。`mine_one.sh` 已导出 `RUN_DIR`，Docker 也按相同绝对路径挂载，因此容器内写出的初筛文件会落到宿主的本次审计运行目录。
 
 ## 性能与成本
 
-- 单请求 1–3 秒（360 代理实测），输入约 1–3k tokens/文件。
-- 价格约 $0.042 / M input tokens，output 免费；2000 个文件、每文件 1.5k tokens 约 $0.13。
-- `--workers 8` 约 4–8 req/s；不要超过 16，360 限制约 1200 req/min。
-- `--batch-size 4` 可把多个文件放进一个 state、为每个文件生成独立 question，减少请求数；但 state 过大会降低准确率，建议只在 top-k 二次排序时用，并抽检。
+- 单请求 1–3 秒（360 代理实测），每个文件输入约 1–3k 个词元。
+- 每百万输入词元约 $0.042，输出免费；2000 个文件、每文件 1.5k 个词元约 $0.13。
+- `--workers 8` 约每秒 4–8 个请求；不要超过 16，360 限制约每分钟 1200 个请求。
+- `--batch-size 4` 可把多个文件放进一次输入、为每个文件生成独立判断，减少请求数；但输入过大会降低准确率，建议只在优先检查分数排序后二次筛选时使用，并抽检。
 - `--cache-dir` 默认缓存答案；同一文件内容不变时重复运行几乎零成本。
 
 ## 安全边界

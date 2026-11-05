@@ -66,3 +66,31 @@ def test_redact_masks_common_secrets() -> None:
     assert "sk-abcdefghijklmnop123456" not in redacted
     assert "supersecret123" not in redacted
     assert "abcdefghijklmnopqrstuvwxyz" not in redacted
+
+
+def test_progress_reports_partial_work_without_network(tmp_path, monkeypatch):
+    import json
+    source = tmp_path/'source'
+    source.mkdir()
+    (source/'good.py').write_text('print(1)')
+    (source/'bad.py').write_text('print(2)')
+    output = tmp_path/'triage/jev-infra.json'
+    progress = output.with_suffix('.progress.json')
+    monkeypatch.setattr(jev, 'resolve_api_key', lambda value: 'test-only')
+    def process(client, cache, group, *args):
+        # The progress file must exist before a remote request is dispatched.
+        assert json.loads(progress.read_text())['status'] == 'running'
+        if group[0].path.endswith('bad.py'):
+            raise RuntimeError('fixture failure')
+        return ({unit.id: {'priority': .8} for unit in group}, {}, 'fixture-model', False)
+    monkeypatch.setattr(jev, 'process_request', process)
+    args = jev.build_parser().parse_args(
+        ["--root", str(source), "--out", str(output), "--no-cache", "--workers", "1"]
+    )
+    jev.run(args)
+    result = json.loads(progress.read_text())
+    assert result['status'] == 'partial'
+    assert result['processed_units'] == 1
+    assert result['failed_units'] == 1
+    assert result['stats']['units'] == 2
+    assert json.loads(output.read_text())['units'][0]['priority'] == .8
