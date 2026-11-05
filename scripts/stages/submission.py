@@ -141,6 +141,9 @@ def serve(stage, root):
             elif method=='ping': result={}
             elif method=='tools/list':
                 tools=[{'name':'propose_skill_update','description':'提交本阶段的通用或仓库专属技能改进候选，引用本次实际执行证据；不会自动发布。','inputSchema':{'type':'object','properties':{'target_stage':{'type':'string','enum':list(STAGES)},'scope':{'type':'string','enum':['general','project']},'content':{'type':'string'},'evidence':{'type':'array','items':{'type':'string'}},'conditions':{'type':'object','properties':{key:{'type':'string'} for key in ('machine','python','commit')},'additionalProperties':False},'provenance':{'type':'object'}},'required':['scope','content','evidence'],'additionalProperties':False}},{'name':'submit_stage_result','description':f'提交 {stage} 阶段交付文件，返回具体修改意见或验收凭据；允许多次调用。','inputSchema':SCHEMA}]
+                if stage=='redteam-lab':
+                    from stage_builds import SCHEMA as build_schema
+                    tools.append({'name':'start_stage_build','description':'登记本场景的持久镜像构建；返回任务文件，宿主机等待真实完成。','inputSchema':build_schema})
                 if stage=='learner':tools.append({'name':'request_skillopt_optimization','description':'提交一个由 SkillOpt 重写的阶段技能请求。只写请求，不直接发布；宿主机随后调用第三方优化引擎并转换为现有候选。','inputSchema':SKILLOPT_SCHEMA})
                 result={'tools':tools}
             elif method=='tools/call':
@@ -153,6 +156,9 @@ def serve(stage, root):
                     if target_stage != stage and stage != 'learner':raise ValueError('只能提炼当前阶段；学习节点可整理八阶段反馈')
                     candidate=spool_proposal(target_stage,root,args['scope'],args['content'],args['evidence'],args.get('conditions'),args.get('provenance'))
                     result={'content':[{'type':'text','text':json.dumps({'status':'queued_candidate','id':candidate['id'],'publication':'requires_independent_evaluation'},ensure_ascii=False)}]}
+                elif params.get('name')=='start_stage_build':
+                    from stage_builds import start_build
+                    task=start_build(stage,root,params.get('arguments',{}));result={'content':[{'type':'text','text':json.dumps(task,ensure_ascii=False)}]}
                 elif params.get('name')=='request_skillopt_optimization':
                     request=request_skillopt_optimization(stage,root,params.get('arguments',{}));result={'content':[{'type':'text','text':json.dumps(request,ensure_ascii=False)}]}
                 elif params.get('name')=='submit_stage_result':

@@ -77,6 +77,9 @@ base_image: ${BASE_IMAGE}
 build_timeout_seconds: ${BUILD_TIMEOUT}
 docker_network: ${NETWORK}
 
+本轮默认最小目标是指定源码可读、Python 可运行和隔离边界成立，不要求完整训练、GPU 或模型加载。
+先验收已有匹配镜像；源码级能力已满足时可诚实交付 partial，列出未验证的导入与训练能力。
+不要为未出现的具体验证需求安装整套 torch、Ray 或 transformers；需要额外能力时由后续候选的隔离环境按证据补齐。
 You own detection, build decisions, failure diagnosis, repair and runtime checks.
 Use scripts/env/build_env.sh as a build tool with --env-dir ${OUT_DIR}, not as a
 substitute for your own inspection and decisions. Do not stop after a dry-run.
@@ -95,6 +98,52 @@ CLAUDE_ARGS=(
 $(python3 "$REPO_ROOT/scripts/stages/submission.py" instruction --stage environment --root "$OUT_DIR")"
 )
 [ -n "$MODEL" ] && CLAUDE_ARGS+=(--model "$MODEL")
-CLAUDE_ARGS+=(-p "$PROMPT")
-
-exec "$CLAUDE_BIN" "${CLAUDE_ARGS[@]}"
+delivery_started="$(date +%s)"
+accepted_delivery() {
+    python3 - "$OUT_DIR" "$delivery_started" <<'PYDELIVERY'
+import hashlib
+import json
+import sys
+from pathlib import Path
+root = Path(sys.argv[1])
+manifest = root / "env-manifest.json"
+if not manifest.is_file():
+    raise SystemExit(1)
+digest = hashlib.sha256(manifest.read_bytes()).hexdigest()
+for path in (root / ".stage-submissions/environment").glob("*.json"):
+    try:
+        value = json.loads(path.read_text())
+        if (path.stat().st_mtime >= float(sys.argv[2])
+                and value.get("decision") == "accepted"
+                and value.get("sha256") == digest):
+            raise SystemExit(0)
+    except (OSError, ValueError):
+        continue
+raise SystemExit(1)
+PYDELIVERY
+}
+export ENV_BUILD_DURABLE=1
+export ENV_BUILD_TASK_OWNER="${ENV_BUILD_TASK_OWNER:-${GOLDMINE_DURABLE_TASK:-$OUT_DIR}}"
+set +e
+timeout --signal=TERM --kill-after=15 "${ENV_BUILD_AGENT_TIMEOUT:-1800}" "$CLAUDE_BIN" "${CLAUDE_ARGS[@]}" -p "$PROMPT"
+agent_rc=$?
+# A headless session may end before a background task. The build remains owned here.
+if [ -f "$OUT_DIR/.build-tasks/current.json" ]; then
+    "${NODE_BIN:-node}" "$REPO_ROOT/ui/server/durable-task.mjs" --wait-build "$OUT_DIR"
+    build_rc=$?
+    if accepted_delivery; then exit 0; fi
+    # Continue with a bounded acceptance session; it cannot launch another build.
+    export ENV_BUILD_VERIFY_ONLY=1
+    timeout --signal=TERM --kill-after=15 300 "$CLAUDE_BIN" "${CLAUDE_ARGS[@]}" -p "${LANGUAGE_DIRECTIVE}
+当前构建任务已经结束（退出码=$build_rc）。仅执行环境验收，不再安装依赖、不修改 Dockerfile、不重建。
+项目=$PROJECT，源码=$SOURCE，输出目录=$OUT_DIR。
+读取 .build-tasks/current.json 指向的真实结果与 env-manifest.json，核对实际镜像及源码，执行必要的最小断网验收，记录未验证的能力和失败。
+partial 是有效的有限能力交付，不要求训练或 GPU 路径就不要扩大目标。
+调用 mcp__stage_delivery__submit_stage_result 提交实际清单，返回真实状态；如果没有可用环境，如实报告受阻。"
+    agent_rc=$?
+fi
+if ! accepted_delivery; then
+    echo '[build_env_agent] 缺少本次清单对应的有效交付回执，不能把会话结束当成验收完成' >&2
+    exit 6
+fi
+exit 0

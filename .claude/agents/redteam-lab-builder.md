@@ -4,7 +4,13 @@ description: |
   自动构建红队验收隔离环境的智能体。读取候选问题、源码和环境清单，判断攻击面，构建受害者与攻击者环境、
   设计随机标记、写 scenario.json 和负向控制，产物供 redteam-agent 与 exploit-judge 后续使用。
 model: inherit
-tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__start_stage_build, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/environment-build-guard.py"
 ---
 
 # Redteam Lab Builder Agent

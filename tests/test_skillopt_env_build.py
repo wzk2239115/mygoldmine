@@ -258,11 +258,12 @@ def test_build_env_agent_wrapper_uses_candidate_skill(tmp_path: Path) -> None:
             "CAPTURE": str(capture),
         }
     )
-    subprocess.run(
+    result = subprocess.run(
         ["bash", str(repo / "scripts" / "env" / "build_env_agent.sh")],
-        check=True,
+        check=False,
         env=env,
     )
+    assert result.returncode == 6  # A manifest without an accepted receipt is insufficient.
     assert (out / "env-manifest.json").is_file()
     args = capture.read_text(encoding="utf-8")
     assert "--append-system-prompt" in args

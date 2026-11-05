@@ -1,0 +1,60 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {spawn} from 'node:child_process';
+import {randomUUID} from 'node:crypto';
+
+const read=file=>{try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}};
+const write=(file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});const temp=file+'.tmp';fs.writeFileSync(temp,JSON.stringify(value,null,2));fs.renameSync(temp,file);};
+const fail=message=>{throw Object.assign(new Error(message),{status:409});};
+const valid=id=>typeof id==='string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/.test(id);
+function paths(repo,project) {
+  if(!valid(project))fail('项目编号无效');
+  return {lock:path.join(repo,'runs',`.learning-cycle-${project}.lock`),guard:path.join(repo,'runs',`.node-retry-${project}.lock`),root:path.join(repo,'rsi/stage-skills/cycles')};
+}
+export function cycleStatus(repo,project) {
+  const {lock,root}=paths(repo,project);
+  const claim=read(path.join(lock,'claim.json'));
+  const rows=fs.existsSync(root)?fs.readdirSync(root).filter(valid).map(id=>read(path.join(root,id,'status.json'))).filter(row=>row?.project===project).sort((a,b)=>String(b.started_at).localeCompare(String(a.started_at))):[];
+  const state=(claim && read(path.join(root,claim.id,'status.json'))) || rows[0];
+  if(!state)return {active:false,status:'not_started'};
+  const active=Boolean(claim?.id===state.id && ['queued','running','stopping'].includes(state.status));
+  return {...state,active,stopRequested:fs.existsSync(path.join(root,state.id,'stop'))};
+}
+export function startCycle({repoRoot,run,liveRuns=[],rounds=3,patience=2,launch=spawn}) {
+  if(!Number.isInteger(rounds)||rounds<1||rounds>100 || !Number.isInteger(patience)||patience<1||patience>100)fail('循环轮数与停止阈值必须在 1 到 100 之间');
+  const {lock,guard,root}=paths(repoRoot,run.project);
+  fs.mkdirSync(path.dirname(lock),{recursive:true});
+  try{fs.mkdirSync(guard);}catch{fail('该项目正在执行节点任务，请等待结束');}
+  let claimed=false;
+  const id=randomUUID();
+  try {
+    if(run.isLive || liveRuns.some(item=>item.project===run.project && item.isLive))fail('该项目正在审计，请等待本轮结束');
+    const meta=read(`${run.runDir}.meta/status.json`);
+    const source=meta?.target;
+    if(!source || !fs.existsSync(source) || !fs.statSync(source).isDirectory() || path.basename(source)!==run.project)fail('缺少有效项目源码目录');
+    try{fs.mkdirSync(lock);}catch{fail('该项目已有学习循环或遗留锁，请先检查状态');}
+    claimed=true;
+    const folder=path.join(root,id);
+    const state={id,project:run.project,status:'queued',started_at:new Date().toISOString(),rounds:[],max_rounds:rounds,patience};
+    write(path.join(folder,'status.json'),state);write(path.join(lock,'claim.json'),{id});
+    const python=process.env.RSI_PYTHON || path.join(path.dirname(process.execPath),'python3');
+    const fd=fs.openSync(path.join(folder,'controller.log'),'a');
+    let child;
+    try{child=launch(python,['scripts/stages/learning_cycle.py','--source',source,'--project',run.project,'--rounds',String(rounds),'--patience',String(patience),'--cycle-id',id,'--claim-token',id],{cwd:repoRoot,detached:true,stdio:['ignore',fd,fd]});}finally{fs.closeSync(fd);}
+    child.on('error',error=>{write(path.join(folder,'status.json'),{...state,status:'failed',error:error.message});if(read(path.join(lock,'claim.json'))?.id===id)fs.rmSync(lock,{recursive:true,force:true});});
+    child.on('exit',code=>{
+      const file=path.join(folder,'status.json');const latest=read(file);
+      if(latest && ['queued','running','stopping'].includes(latest.status)){write(file,{...latest,status:'failed',error:`循环进程提前结束：${code}`});if(read(path.join(lock,'claim.json'))?.id===id)fs.rmSync(lock,{recursive:true,force:true});}
+    });
+    child.unref();
+    return {...state,active:true};
+  }catch(error){if(claimed && (!read(path.join(lock,'claim.json')) || read(path.join(lock,'claim.json'))?.id===id))fs.rmSync(lock,{recursive:true,force:true});throw error;}
+  finally{fs.rmSync(guard,{recursive:true,force:true});}
+}
+export function stopCycle(repo,project) {
+  const state=cycleStatus(repo,project);
+  if(!state.active)fail('没有正在运行的学习循环');
+  const {root}=paths(repo,project);
+  fs.writeFileSync(path.join(root,state.id,'stop'),'stop after current round\n');
+  return {...state,stopRequested:true};
+}

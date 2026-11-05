@@ -5,7 +5,13 @@ description: |
   和已部署项目），输出 env/<project>/Dockerfile、build/run/test 脚本和 env-manifest.json。
   构建失败时如实标记 `partial` 或 `blocked`，不得写成 `ready`。用于给后续 verify-agent 提供可运行环境。
 model: inherit
-tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/environment-build-guard.py"
 ---
 
 # Environment Builder Agent
@@ -84,3 +90,11 @@ next: 可交给 verify-agent
 - 依赖需要私有源/凭据：标记 `blocked`，说明需要什么，不要尝试绕过。
 - 需要 GPU/CUDA 才能构建：标记 `partial` 或 `blocked`，保留 CPU 可验证部分。
 - 构建超时：先区分源访问慢、依赖范围过大、缺少预编译包、编译耗时与无进展；只在原因明确且预算允许时修正后重试，不能仅提高超时原样重跑。保留日志与清单中的真实状态。
+
+## 长构建与验收接续
+
+通过 `build_env.sh` 启动正式构建时，启动器会登记独立持久任务并立即返回任务文件；`queued`、`running` 不是构建完成。使用 `Read` 查看返回的任务文件和输出文件，必要时使用 `Monitor` 观察状态变化；`Task` 不是后台命令输出查询工具，不要调用不存在的 `TaskOutput`。
+
+任务仍在运行时不能再次构建或把现有旧清单当成本次交付。即使本次会话结束，宿主机仍会等待已登记构建；完成后启动有时限的验收会话，不会重复运行构建。收到“仅执行环境验收”提示时，只核对实际结果并提交清单，不能继续扩装依赖。达到最小能力即可交付有证据的部分可用状态。
+
+独立构建需要停止时调用 `node ui/server/durable-task.mjs --stop-build "$ENV_BUILD_OUT_DIR"`，由入口检查所属关系；TaskStop 只停止会话内的监测任务。

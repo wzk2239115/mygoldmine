@@ -14,6 +14,15 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
+# Agent-started builds are supervised outside the Claude session.
+if [ "${ENV_BUILD_DURABLE:-0}" = 1 ] && [ "${ENV_BUILD_TASK_WORKER:-0}" != 1 ]; then
+    direct=0
+    for value in "$@"; do case "$value" in --help|-h|--dry-run|--no-build) direct=1 ;; esac; done
+    if [ "$direct" = 0 ]; then
+        exec "${NODE_BIN:-node}" "$REPO_ROOT/ui/server/durable-task.mjs" --start-build "$REPO_ROOT" "$ENV_BUILD_OUT_DIR" "$@"
+    fi
+fi
+
 log() { printf '[build_env] %s\n' "$*" >&2; }
 die() { printf '[build_env] ERROR: %s\n' "$*" >&2; exit "${2:-1}"; }
 

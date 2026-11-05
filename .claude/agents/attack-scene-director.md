@@ -5,7 +5,7 @@ description: |
   信任边界、分镜和视觉隐喻，调用 image2 生成攻击场景插图，检查并迭代修正。
   不重新判定漏洞，不写武器化利用代码，不把插图当证据。
 model: inherit
-tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
 ---
 
 # Attack Scene Director
@@ -123,3 +123,7 @@ python3 .claude/skills/project-cartographer/scripts/image2.py \
 - 不把 image2 插图当证据；图注和报告里必须标“AI 插图，非漏洞证据”。
 - 不把源码或报告全文放进 image2 绘图提示词。
 - 生成失败时保留 SVG 场景和绘图提示词，不阻塞报告。
+
+## 长任务与完成判定
+
+后台任务已启动不表示当前节点完成。读取实际输出并等待受控命令退出；用 Read 或 Monitor 查询实际状态，不调用不存在的后台输出查询工具。验收必须基于当前任务文件，超时、异常退出或输出尚未完整时，不报告已完成；需要时使用 TaskStop 只停止本会话的对应监测任务。

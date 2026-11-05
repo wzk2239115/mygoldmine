@@ -2,7 +2,6 @@
 import argparse
 import json
 import os
-import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +12,7 @@ sys.path.insert(0, str(ROOT / 'scripts/stages'))
 from submission import config as delivery_config, INSTRUCTION as DELIVERY_INSTRUCTION
 from skill_bank import instruction as layered_skill_instruction
 from claude_connection import claude_connection
+from owned_process import run_session
 
 AGENT = "attack-scene-director"
 
@@ -123,7 +123,9 @@ def main():
             record["dry_run"] = True
             results.append(record)
             continue
-        if image_out.exists() and director_out.exists() and not args.force:
+        prior_log = work_dir / "agent.log"
+        prior_success = prior_log.exists() and prior_log.read_text().startswith("# returncode\n0\n\n# timeout\nFalse\n")
+        if image_out.exists() and director_out.exists() and prior_success and not args.force:
             record["skipped"] = True
             results.append(record)
             continue
@@ -138,42 +140,27 @@ def main():
             "--permission-mode=bypassPermissions",
             "-p", task_prompt(task_path, task),
         ]
-        process = subprocess.Popen(
-            command,
-            cwd=ROOT,
-            env=connection_env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            start_new_session=True,
-        )
         timed_out = False
         try:
-            stdout, stderr = process.communicate(timeout=args.timeout)
-        except subprocess.TimeoutExpired:
+            process = run_session(command, cwd=ROOT, env=connection_env,
+                                  capture_output=True, text=True, timeout=args.timeout)
+            stdout, stderr = process.stdout, process.stderr
+        except subprocess.TimeoutExpired as error:
             timed_out = True
-            try:
-                os.killpg(process.pid, signal.SIGTERM)
-            except ProcessLookupError:
-                pass
-            try:
-                stdout, stderr = process.communicate(timeout=20)
-            except subprocess.TimeoutExpired:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                stdout, stderr = process.communicate()
+            process = subprocess.CompletedProcess(command, 124)
+            stdout = error.stdout or ""
+            stderr = error.stderr or ""
         (work_dir / "agent.log").write_text(
             f"# returncode\n{process.returncode}\n\n# timeout\n{timed_out}\n\n# stdout\n{stdout}\n\n# stderr\n{stderr}\n",
             encoding="utf-8",
         )
         record.update({"returncode": process.returncode, "timed_out": timed_out, "log": str(work_dir / "agent.log")})
-        if not image_out.exists() or not director_out.exists():
+        if timed_out or process.returncode != 0:
+            failed += 1
+            record["error"] = "agent did not complete; partial outputs are not accepted"
+        elif not image_out.exists() or not director_out.exists():
             failed += 1
             record["error"] = "agent did not produce image and director json"
-        elif timed_out:
-            record["warning"] = "agent timed out after producing outputs"
         results.append(record)
     print(json.dumps({"selected": len(selected), "failed": failed, "results": results}, ensure_ascii=False, indent=2))
     return 1 if failed else 0

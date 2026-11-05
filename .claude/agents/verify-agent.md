@@ -5,7 +5,7 @@ description: |
   编写最小化、非武器化的验证脚本，在隔离容器中运行，输出 confirmed/rejected/inconclusive/blocked
   四态结论与证据。不编写可直接武器化的利用代码。
 model: inherit
-tools: Read, Write, Edit, Bash, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
 ---
 
 # Verify Agent
@@ -157,3 +157,7 @@ report: runs/<project>/verify/<id>/verify-report.md
 env: <image> (status=ready|partial|blocked)
 limitations: ...
 ```
+
+## 长任务与完成判定
+
+后台任务已启动不表示当前节点完成。读取实际输出并等待受控命令退出；用 Read 或 Monitor 查询实际状态，不调用不存在的后台输出查询工具。验收必须基于当前任务文件，超时、异常退出或输出尚未完整时，不报告已完成；需要时使用 TaskStop 只停止本会话的对应监测任务。

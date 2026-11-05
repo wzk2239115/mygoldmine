@@ -178,13 +178,17 @@ if [ "$USE_AGENT" -eq 1 ]; then
             ENV_BUILD_OUT_DIR="$ENV_DIR" \
             ENV_BUILD_BASE_IMAGE="$BASE_IMAGE" \
             ENV_BUILD_TIMEOUT="$BUILD_TIMEOUT" \
+            ENV_BUILD_AGENT_TIMEOUT="$AGENT_TIMEOUT" \
             ENV_BUILD_NETWORK="$NETWORK" \
             ENV_BUILD_MODEL="$MODEL" \
             CLAUDE_BIN="$CLAUDE_BIN" \
-            timeout --signal=TERM --kill-after=30 "$AGENT_TIMEOUT" \
+            timeout --signal=TERM --kill-after=30 "$((AGENT_TIMEOUT + BUILD_TIMEOUT + 360))" \
             bash "$BUILD_ENV_AGENT_SCRIPT" \
             > "$META_DIR/env-build-agent-$round.log" 2>&1
         AGENT_RC=$?
+        if [ -f "$ENV_DIR/.build-tasks/current.json" ]; then
+            "${NODE_BIN:-node}" "$REPO_ROOT/ui/server/durable-task.mjs" --wait-build "$ENV_DIR" >> "$META_DIR/env-build-agent-$round.log" 2>&1 || true
+        fi
         AGENT_STATUS="$(read_manifest env_status)"
         AGENT_IMAGE="$(read_manifest image)"
         [ -n "$AGENT_STATUS" ] || AGENT_STATUS="failed"
