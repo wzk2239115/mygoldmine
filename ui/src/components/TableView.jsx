@@ -24,7 +24,7 @@ export default function TableView({ findings, onOpen }) {
     return (
       <div className="table-empty">
         <Inbox size={22} aria-hidden="true" />
-        <span>当前筛选下没有 finding</span>
+        <span>当前筛选下没有候选问题</span>
       </div>
     );
   }

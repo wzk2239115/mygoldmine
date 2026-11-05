@@ -1,8 +1,8 @@
 export function candidateTasks(node) {
-  return node.verification || node.construction || null;
+  return node.verification || node.construction || node.execution || node.scenes || node.review || null;
 }
 export function isCandidateNode(node) {
-  return ['verify', 'redteam-lab'].includes(node.id) || Boolean(candidateTasks(node));
+  return ['verify', 'redteam-lab', 'redteam-agent', 'visual', 'judge'].includes(node.id) || Boolean(candidateTasks(node));
 }
 export function initialTaskSelection(node) {
   return {batchId: candidateTasks(node)?.attemptId || 'original', taskId: null, history: false, traceId: ''};
@@ -19,6 +19,7 @@ export function resolveTaskSelection(node, traces, selection) {
   return {batchId, task, trace};
 }
 export function taskStateLabel(task) {
+  if (task.state === 'blocked') return '等待前置证据';
   if (task.state === 'queued') return '待运行';
   if (task.state === 'running') return '运行中';
   if (['interrupted', 'cancelled'].includes(task.state)) return '已中断';

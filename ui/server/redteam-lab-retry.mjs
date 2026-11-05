@@ -69,8 +69,10 @@ export async function runLabRetry(job, concurrency = 10) {
     let delivery;try{delivery=JSON.parse(result.output);if(!delivery || typeof delivery!=='object' || Array.isArray(delivery))delivery={};}catch{delivery={};}
     const scenario=path.join(lab,'scenario.json');
     const ready=result.code===0 && delivery.scenario_valid===true && delivery.finding_id===candidate.id && delivery.scenario===scenario && fs.existsSync(scenario);
-    const record={id:candidate.id,title:candidate.title,status:ready?'built':'build_failed',scenario:ready?scenario:'',builder_returncode:result.code,
-      error:ready?'':delivery.error || `场景构建未通过检查（退出码 ${result.code}）`,blocked:path.join(lab,'BLOCKED.md')};
+    const blocked=!ready && delivery.finding_id===candidate.id && delivery.blocked_valid===true && delivery.status==='blocked';
+    const record={id:candidate.id,title:candidate.title,status:ready?'built':blocked?'blocked':'build_failed',scenario:ready?scenario:'',builder_returncode:result.code,
+      error:ready?'':delivery.blocked_reason || delivery.error || `场景构建未通过检查（退出码 ${result.code}）`,
+      blocked:delivery.blocked || path.join(lab,'BLOCKED.md'),blockedReason:delivery.blocked_reason || '',missingCapabilities:delivery.missing_capabilities || []};
     results.set(candidate.id,record);Object.assign(candidate,{status:record.status,error:record.error});update(candidate,'completed');save();
     console.log(`[红队场景构建] ${candidate.id}：${ready?'场景可用':'受阻'}；已结束 ${summary.processed}/${summary.selected}`);
   }

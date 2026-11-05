@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { hierarchy, tree as treeLayout } from 'd3-hierarchy';
-import { ChevronRight, Copy, ExternalLink, GitBranch, Layers3, Minus, Plus, RefreshCw, RotateCcw, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Copy, ExternalLink, GitBranch, Layers3, Minus, Plus, RefreshCw, RotateCcw, ShieldAlert } from 'lucide-react';
 import { api } from '../api.js';
 import { copyText, cx, formatDate, truncate } from '../utils.js';
+import ProjectMark from './ProjectMark.jsx';
 
 const STATUS_COLOR = {
   root: '#1c1b16',
@@ -107,11 +108,10 @@ function TreeCanvas({ data, selected, onSelect, zoom, setZoom }) {
   );
 }
 
-export default function MapView({ board, filters, onOpenFinding, onToast }) {
-  const project = useMemo(() => {
-    const projects = board?.projects || [];
-    return projects.find((item) => item.id === filters.project) || projects.find((item) => item.hasReport) || projects[0] || null;
-  }, [board, filters.project]);
+export default function MapView({ board, onOpenFinding, onToast }) {
+  const projects = useMemo(() => board?.projects || [], [board]);
+  const [projectId, setProjectId] = useState('');
+  const project = projects.find((item) => item.id === projectId) || null;
   const runId = project?.latestReportRunId || project?.latestRunId || '';
   const [model, setModel] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -139,19 +139,69 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
   };
 
   useEffect(() => {
-    load();
+    if (project) load();
   }, [project?.id, runId]);
+
+  const openProject = (id) => {
+    setProjectId(id);
+    setModel(null);
+    setError('');
+    setSelected(null);
+    setMode('project');
+  };
+
+  const backToProjects = () => {
+    setProjectId('');
+    setModel(null);
+    setError('');
+    setSelected(null);
+  };
 
   const tree = mode === 'project' ? model?.trees?.project : mode === 'coverage' ? model?.trees?.coverage : (model?.trees?.attacks || []).find((item) => item.finding_id === attackId) || model?.trees?.attacks?.[0];
   const attacks = model?.trees?.attacks || [];
   const selectedFinding = selected?.finding_id ? board?.findings?.find((item) => item.project === project?.id && item.id === selected.finding_id) : null;
 
-  if (!project) return <div className="map-empty">没有可读取的项目。</div>;
+  if (!project) {
+    return (
+      <div className="map-view map-index">
+        <div className="map-head">
+          <div className="map-title">
+            <h2>全部项目</h2>
+            <p>{projects.length} 个目标 · 点击进入项目地图</p>
+          </div>
+        </div>
+        <div className="map-projects">
+          {projects.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="map-project-card"
+              title={`打开 ${item.name} 项目地图`}
+              onClick={() => openProject(item.id)}
+            >
+              <ProjectMark project={item} />
+              <span className="map-project-copy">
+                <strong>{item.name}</strong>
+                <span>{item.direction || item.id}</span>
+              </span>
+              <span className="map-project-findings">
+                {item.findingsCount}
+                <small>findings</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="map-view">
       <div className="map-head">
         <div className="map-title">
+          <button type="button" className="map-back" onClick={backToProjects}>
+            <ArrowLeft size={13} /> 全部项目
+          </button>
           <h2>{model?.project_name || project.name}</h2>
           <p>
             {model?.audit_id || 'audit'} · {model?.direction || project.direction || 'direction unknown'} ·{' '}
@@ -179,7 +229,7 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
       {loading && !model ? <div className="map-loading">正在读取 visual-model.json…</div> : null}
       {error ? (
         <div className="map-empty">
-          <strong>这个 run 还没有视觉模型</strong>
+          <strong>这次审计运行还没有视觉模型</strong>
           <p>{error}</p>
           <code>python3 .claude/skills/project-cartographer/scripts/build_visual_model.py --project {project.id}</code>
         </div>
@@ -191,10 +241,10 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
             <section className="map-stage">
               {model.cover ? (
                 <div className="map-cover">
-                  <img src={`/api/visual/${encodeURIComponent(project.id)}/${encodeURIComponent(runId)}/asset?path=cover.webp`} alt={`${project.name} audit cover`} />
+                  <img src={`/api/visual/${encodeURIComponent(project.id)}/${encodeURIComponent(runId)}/asset?path=cover.webp`} alt={`${project.name} 审计封面`} />
                   <div>
                     <strong>{model.project_name}</strong>
-                    <p>{model.counts?.findings || 0} findings · generated {formatDate(model.generated_at)}</p>
+                    <p>{model.counts?.findings || 0} 条候选问题 · 生成于 {formatDate(model.generated_at)}</p>
                   </div>
                 </div>
               ) : null}
@@ -210,11 +260,11 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
               ) : null}
               <TreeCanvas data={tree} selected={selected} onSelect={setSelected} zoom={zoom} setZoom={setZoom} />
               <div className="map-legend">
-                <span><i className="is-scope" /> scope</span>
-                <span><i className="is-critical" /> critical</span>
-                <span><i className="is-high" /> high</span>
-                <span><i className="is-covered" /> covered</span>
-                <span><i className="is-unknown" /> unknown</span>
+                <span><i className="is-scope" /> 范围</span>
+                <span><i className="is-critical" /> 严重</span>
+                <span><i className="is-high" /> 高危</span>
+                <span><i className="is-covered" /> 已覆盖</span>
+                <span><i className="is-unknown" /> 未知</span>
               </div>
             </section>
 
@@ -223,15 +273,15 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
                 <>
                   <h3>{selected.label}</h3>
                   <dl>
-                    {selected.finding_id ? <><dt>Finding</dt><dd>{selected.finding_id}</dd></> : null}
-                    {selected.severity ? <><dt>Severity</dt><dd>{selected.severity}</dd></> : null}
-                    {selected.status ? <><dt>Status</dt><dd>{selected.status}</dd></> : null}
-                    {selected.path ? <><dt>Path</dt><dd><code>{selected.path}</code></dd></> : null}
-                    {selected.files ? <><dt>Files</dt><dd>{selected.files}</dd></> : null}
+                    {selected.finding_id ? <><dt>候选问题</dt><dd>{selected.finding_id}</dd></> : null}
+                    {selected.severity ? <><dt>严重度</dt><dd>{selected.severity}</dd></> : null}
+                    {selected.status ? <><dt>状态</dt><dd>{selected.status}</dd></> : null}
+                    {selected.path ? <><dt>路径</dt><dd><code>{selected.path}</code></dd></> : null}
+                    {selected.files ? <><dt>文件数</dt><dd>{selected.files}</dd></> : null}
                   </dl>
                   {selectedFinding ? (
                     <button type="button" className="button is-primary" onClick={() => onOpenFinding(selectedFinding)}>
-                      打开 finding <ChevronRight size={14} />
+                      打开候选问题 <ChevronRight size={14} />
                     </button>
                   ) : null}
                   {selected.path ? (
@@ -243,11 +293,11 @@ export default function MapView({ board, filters, onOpenFinding, onToast }) {
               ) : (
                 <>
                   <h3>从结构到证据</h3>
-                  <p>结构树按源码目录和 finding 证据路径生成；覆盖树按审计阶段生成；攻击路径把入口、前置条件、sink 和影响串起来。</p>
+                  <p>结构树按源码目录和候选问题证据路径生成；覆盖树按审计阶段生成；攻击路径把入口、前置条件、危险操作和影响串起来。</p>
                   <div className="map-stat-row">
-                    <div><strong>{model.counts?.findings || 0}</strong><span>findings</span></div>
-                    <div><strong>{model.counts?.critical || 0}</strong><span>critical</span></div>
-                    <div><strong>{model.counts?.high || 0}</strong><span>high</span></div>
+                    <div><strong>{model.counts?.findings || 0}</strong><span>候选问题</span></div>
+                    <div><strong>{model.counts?.critical || 0}</strong><span>严重</span></div>
+                    <div><strong>{model.counts?.high || 0}</strong><span>高危</span></div>
                   </div>
                   {model.url ? <a className="map-source-link" href={model.url} target="_blank" rel="noreferrer">打开上游仓库 <ExternalLink size={12} /></a> : null}
                 </>

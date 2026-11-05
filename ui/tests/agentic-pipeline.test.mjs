@@ -281,5 +281,21 @@ test('蓝队最新批次候选数与日志数分开，部分受阻保留原因�
  assert.equal(nodes.verify.retrySupported,true);
  assert.equal(nodes.visual.retrySupported,true);
  assert.equal(nodes['redteam-lab'].retrySupported,true);
- assert.equal(nodes['redteam-agent'].retrySupported,false);
+ assert.equal(nodes['redteam-agent'].retrySupported,true);
+ assert.equal(nodes.judge.retrySupported,true);
+ assert.match(nodes.judge.retryReason,/项目正在运行/);
+});
+
+test('经验学习读取阶段技能与 SkillOpt 候选，不伪造发布', (t) => {
+  const { runDir, run } = fixture(t);
+  run.isLive = false;
+  writeJson(path.join(runDir, 'rsi/post-validation.json'), { status: 'completed', candidates: 0 });
+  writeJson(path.join(runDir, 'rsi/stage-learning-run.json'), {
+    exit_code: 0,
+    skillopt_candidates: 1,
+    skillopt: { status: 'candidate', requests: 1, candidates: ['candidate-1'] }
+  });
+  const node = buildAgenticPipeline(run).nodes.find((item) => item.id === 'learner');
+  assert.match(node.detail, /阶段技能候选 1/);
+  assert.doesNotMatch(node.detail, /已发布/);
 });

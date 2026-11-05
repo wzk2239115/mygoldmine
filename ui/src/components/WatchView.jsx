@@ -33,6 +33,8 @@ export default function WatchView() {
   const counts = data?.counts || {};
   const repos = data?.repos || [];
   const events = data?.brief?.top || [];
+  const dispatch = data?.dispatch || {};
+  const activeDispatch = dispatch.active || dispatch.live;
 
   return (
     <section className="arch-view watch-view">
@@ -40,7 +42,7 @@ export default function WatchView() {
         <div>
           <span className="arch-kicker">continuous provenance</span>
           <h2>自动狩猎</h2>
-          <p>连接仓库后建立基线，按每次提交审查变化；高风险更新进入待办队列，不直接下结论。</p>
+          <p>连接仓库后建立基线，按分支和提交审查变化；高风险更新自动派发到深度审计，静态评分仍不是漏洞结论。</p>
         </div>
         <button type="button" className="button is-small" onClick={load} disabled={loading}>
           <RefreshCw size={14} className={cx(loading && 'is-spinning')} aria-hidden="true" />
@@ -63,6 +65,20 @@ export default function WatchView() {
 
       {error ? <div className="error-banner" role="alert">{error}</div> : null}
 
+      <div className="watch-dispatch" aria-live="polite">
+        <span>自动派发</span>
+        {activeDispatch ? (
+          <strong>
+            {activeDispatch.project} · {activeDispatch.branch || '分支未知'} · {shortSha(activeDispatch.sha || activeDispatch.commit)}
+            <em className={cx('dispatch-pill', dispatch.alive ? 'is-running' : 'is-idle')}>
+              {dispatch.alive ? '运行中' : '已结束'}
+            </em>
+          </strong>
+        ) : (
+          <strong>空闲，等待新的高风险提交</strong>
+        )}
+      </div>
+
       <div className="watch-grid">
         <div className="arch-panel">
           <div className="arch-panel-head">
@@ -77,7 +93,7 @@ export default function WatchView() {
               <div key={repo.project} className="watch-repo">
                 <div>
                   <strong>{repo.project}</strong>
-                  <span>{repo.last_sha ? shortSha(repo.last_sha) : 'no baseline'}</span>
+                  <span>{repo.branch || 'branch unknown'} · {repo.last_sha ? shortSha(repo.last_sha) : 'no baseline'}</span>
                 </div>
                 <div className="watch-repo-meta">
                   <span>{repo.recent?.length || 0} recent</span>
@@ -102,6 +118,7 @@ export default function WatchView() {
                 <div className="watch-event-top">
                   <span className={cx('watch-verdict', `is-${event.verdict}`)}>{event.verdict}</span>
                   <span className="watch-event-project">{event.project}</span>
+                  {event.branch ? <span className="watch-event-branch">{event.branch}</span> : null}
                   <span className="watch-event-sha"><GitCommitHorizontal size={13} aria-hidden="true" />{shortSha(event.sha)}</span>
                   <span className="watch-event-score">{event.score}</span>
                 </div>

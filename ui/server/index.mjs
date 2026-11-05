@@ -1066,7 +1066,7 @@ async function ensureCcuiSession(run, { force = false, node = 'orchestrator', tr
   if (!trace) {
     return { available: false, reason: 'no recorded trace for this node', traceKind: 'missing' };
   }
-  if (trace.kind !== 'claude') {
+  if (!['claude', 'execution'].includes(trace.kind)) {
     return {
       available: false,
       reason: trace.kind === 'execution'

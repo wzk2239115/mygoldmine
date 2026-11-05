@@ -52,7 +52,7 @@ export default function StageView({ findings, stage, statusTotals = {}, onOpen, 
       ) : (
         <div className="stage-empty">
           <Inbox size={20} aria-hidden="true" />
-          <span>当前筛选下没有 finding</span>
+          <span>当前筛选下没有候选问题</span>
           {stageCount(statusTotals, stage) ? (
             <small>全局还有 {stageCount(statusTotals, stage)} 条，清除筛选后可查看</small>
           ) : (

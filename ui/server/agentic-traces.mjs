@@ -123,7 +123,9 @@ function originalTraces(run, node) {
   if (node === 'learner') {
     const directory=path.join(run.runDir,'rsi/stage-learning-attempts');
     const attempts=fs.existsSync(directory)?fs.readdirSync(directory).map(id=>makeTrace(node,`stage-learning-${id}`,'八阶段技能提炼',path.join(directory,id,'stream.jsonl'),'claude')).filter(Boolean).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)):[];
-    return [...attempts, makeTrace(node, 'stage-learning-pilot', '八阶段技能提炼（试运行）', path.join(run.runDir,'rsi/stage-learning.jsonl'),'claude'), makeTrace(node, 'learner', '挖掘修复经验学习', path.join(run.runDir, 'rsi/learner.jsonl'), 'claude')].filter(Boolean);
+    const skilloptDirectory=path.join(run.runDir,'rsi/skillopt');
+    const skillopt=fs.existsSync(skilloptDirectory)?fs.readdirSync(skilloptDirectory).filter(name=>name.endsWith('.json')).map(name=>makeTrace(node,`skillopt-${name.replace(/\.json$/,'') }`,'SkillOpt 技能重写',path.join(skilloptDirectory,name),'text')).filter(Boolean).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)):[];
+    return [...attempts, ...skillopt, makeTrace(node, 'stage-learning-pilot', '八阶段技能提炼（试运行）', path.join(run.runDir,'rsi/stage-learning.jsonl'),'claude'), makeTrace(node, 'learner', '挖掘修复经验学习', path.join(run.runDir, 'rsi/learner.jsonl'), 'claude')].filter(Boolean);
   }
   return [];
 }
@@ -131,9 +133,23 @@ function originalTraces(run, node) {
 export function listAgenticTraces(run, node) {
   const retries = nodeAttempts(run.runDir, node).reverse().flatMap(attempt => {
     const label = `节点重跑 ${new Date(attempt.startedAt).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai',hour12:false})} · ${attempt.status === 'running' ? '运行中' : attempt.resultStatus === 'degraded' ? '部分完成' : attempt.status === 'completed' ? '已结束' : '失败'}`;
+    const worker=makeTrace(node, `${attempt.id}-worker`, `${label} · 批次日志`, path.join(attempt.root, 'worker.log'));
+    if(node==='learner') {
+      return [...originalTraces({...run,runDir:attempt.workspace},node).map(trace=>({...trace,id:`${attempt.id}-${trace.id}`,label:`${label} · ${trace.label}`})),worker].filter(Boolean);
+    }
+    if(node==='judge') {
+      const root=path.join(attempt.workspace,'judge/runs');
+      const entries=fs.existsSync(root)?fs.readdirSync(root):[];
+      return [worker,...entries.flatMap(id=>[makeTrace(node,`${attempt.id}-judge-${id}`,`${label} · ${id} · 审核会话`,path.join(root,id,'judge.log')),makeTrace(node,`${attempt.id}-judge-${id}-worker`,`${label} · ${id} · 审核执行日志`,path.join(root,id,'judge-worker.log'))])].filter(Boolean);
+    }
+    if(node==='redteam-agent') {
+      const directory=path.join(attempt.workspace,'redteam/agent-runs',run.project);
+      const runs=fs.existsSync(directory)?fs.readdirSync(directory,{withFileTypes:true}).filter(entry=>entry.isDirectory()).map(entry=>entry.name):[];
+      return [worker, ...runs.map(id=>makeTrace(node, `${attempt.id}-redteam-agent-${id}-agent`, `${label} · ${id} · 执行轨迹`, path.join(directory,id,'agent.jsonl'),'execution'))].filter(Boolean);
+    }
     const directory=path.join(attempt.workspace,node==='visual'?'visual/agentic':node==='redteam-lab'?'redteam/labs':'verify/agent/logs');
     const logs=fs.existsSync(directory)?fs.readdirSync(directory).map(id=>node==='visual'?path.join(directory,id,'agent.log'):node==='redteam-lab'?path.join(directory,id,'builder.log'):path.join(directory,id)):[];
-    return [makeTrace(node, `${attempt.id}-worker`, `${label} · 批次日志`, path.join(attempt.root, 'worker.log')), ...logs.map(file => {
+    return [worker, ...logs.map(file => {
       const name=path.basename(file), finding=node==='verify'?name.replace(/\.(agent|runner)\.log$/,''):path.basename(path.dirname(file));
       const kind=node==='verify' && name.endsWith('.runner.log')?'runner':'agent';
       return makeTrace(node, `${attempt.id}-${node}-${finding}-${kind}`, `${label} · ${finding} · ${kind==='runner'?'执行器日志':'智能体轨迹'}`, file);

@@ -10,28 +10,28 @@ export const COLUMNS = [
     id: 'triage',
     code: 'TRIAGE',
     label: '分诊',
-    hint: 'Critical/High 自动进入初筛队列，等待人工判定',
+    hint: '自动分类进入分诊；自动流转后台任务会调用验证智能体',
     tone: 'cool'
   },
   {
     id: 'reproduce',
     code: 'REPRODUCE',
     label: '待验证',
-    hint: 'CVE Tier 候选或 confirmed verify；等待验证（尚未复现）',
+    hint: 'CVE 等级候选或已有确认的验证结论；自动流转会补图文报告并触发红队',
     tone: 'amber'
   },
   {
     id: 'cve',
     code: 'CVE TRACK',
     label: 'CVE 跟踪',
-    hint: '先查已知 CVE/GHSA 去重，再披露/CNA',
+    hint: '先查已知 CVE 和 GHSA 去重，再披露或联系 CNA',
     tone: 'hot'
   },
   {
     id: 'review',
     code: 'REVIEW',
     label: '待验收',
-    hint: '红队捕获 flag、judge 通过并生成图文报告',
+    hint: '红队捕获随机标记、独立审核通过并生成图文报告',
     tone: 'green',
     virtual: true
   },
@@ -45,11 +45,11 @@ export const COLUMNS = [
 ];
 
 export const SEVERITIES = [
-  { id: 'critical', label: 'CRIT', full: 'Critical' },
-  { id: 'high', label: 'HIGH', full: 'High' },
-  { id: 'medium', label: 'MED', full: 'Medium' },
-  { id: 'low', label: 'LOW', full: 'Low' },
-  { id: 'info', label: 'INFO', full: 'Info' }
+  { id: 'critical', label: 'CRIT', full: '严重' },
+  { id: 'high', label: 'HIGH', full: '高危' },
+  { id: 'medium', label: 'MED', full: '中危' },
+  { id: 'low', label: 'LOW', full: '低危' },
+  { id: 'info', label: 'INFO', full: '信息' }
 ];
 
 export const VERDICTS = [

@@ -15,7 +15,8 @@ test('独立重跑隔离产物、拒绝并发并保留原始输入', async t => 
  fs.writeFileSync(path.join(dir,'visual_report.sh'),'sleep 0.2\nexit 1\n');
  const run={runDir,project:'demo',runId:'one',isLive:false};
  assert.match(retryEligibility({...run,isLive:true},'visual'),/正在运行/);
- assert.match(retryEligibility(run,'judge'),/暂不支持/);
+ assert.match(retryEligibility(run,'unknown'),/暂不支持/);
+ assert.match(retryEligibility(run,'judge'),/没有已捕获/);
  assert.match(retryEligibility(run,'verify'),/镜像/);
  const started=startNodeRetry({repoRoot,run,node:'visual',models:{audit:'test'}});
  assert.throws(()=>startNodeRetry({repoRoot,run,node:'visual',models:{audit:'test'}}),/已有节点/);

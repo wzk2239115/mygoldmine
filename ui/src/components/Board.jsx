@@ -127,7 +127,7 @@ export default function Board({ findings, onOpen, onMove, hiddenStatuses = [], s
                 {items.length === 0 ? (
                   <div className="column-empty">
                     <Inbox size={18} aria-hidden="true" />
-                    <span>当前筛选下没有 finding</span>
+                    <span>当前筛选下没有候选问题</span>
                     {statusTotals[column.id] ? (
                       <small>全局还有 {statusTotals[column.id]} 条，清除筛选后可查看</small>
                     ) : (

@@ -79,14 +79,6 @@
     "knownCve": "",
     "note": "dev/RL + 不安全序列化 + IPC 多重前置，默认不可达；邻近 CVE-2025-47277/62164，不建议单独申请。"
   },
-  "verl:FIND-001": {
-    "status": "triage",
-    "verdict": "tp",
-    "cveTier": null,
-    "cveStatus": "blocked",
-    "knownCve": "",
-    "note": "prime_code 对模型输出 exec；仅 code reward + sandbox_fusion.url=null 触发，厂商可能视为训练设计。"
-  },
   "sglang:VULN-025": {
     "status": "inbox",
     "verdict": "unclear",
@@ -158,38 +150,6 @@
     "cveStatus": "known",
     "knownCve": "CVE-2026-15977/15978 family",
     "note": "默认无密钥 fail-open 已被 15977/15978 家族覆盖；除非找到未覆盖端点。"
-  },
-  "verl:AC-001": {
-    "status": "closed",
-    "verdict": "duplicate",
-    "cveTier": null,
-    "cveStatus": "none",
-    "knownCve": "",
-    "note": "与 ROUTE-01/WEB-01 同根因，合并为一条。"
-  },
-  "verl:AC-002": {
-    "status": "closed",
-    "verdict": "duplicate",
-    "cveTier": null,
-    "cveStatus": "none",
-    "knownCve": "",
-    "note": "与 ROUTE-02/WEB-03 同根因，合并为一条。"
-  },
-  "verl:CI-01": {
-    "status": "closed",
-    "verdict": "fp",
-    "cveTier": null,
-    "cveStatus": "none",
-    "knownCve": "",
-    "note": "opt-in、操作者 Hydra 配置，默认 null，无跨信任边界。"
-  },
-  "verl:CI-02": {
-    "status": "closed",
-    "verdict": "fp",
-    "cveTier": null,
-    "cveStatus": "none",
-    "knownCve": "",
-    "note": "受信配置插件机制，默认关闭。"
   },
   "vllm:F-04": {
     "status": "closed",

@@ -38,9 +38,9 @@ const STAGE_ORDER = [
 ];
 
 const STAGE_LABELS = {
-  done: 'done',
-  in_progress: 'running',
-  pending: 'pending'
+  done: '已完成',
+  in_progress: '运行中',
+  pending: '等待'
 };
 
 function StatusIcon({ status, size = 13 }) {
@@ -97,7 +97,7 @@ export default function AgentTopology({ project, runId, projectName, model, live
     return (
       <div className="agent-topology is-loading">
         <Loader2 size={16} className="agent-spin" aria-hidden="true" />
-        正在读取 agent 拓扑…
+        正在读取智能体拓扑…
       </div>
     );
   }
@@ -115,15 +115,15 @@ export default function AgentTopology({ project, runId, projectName, model, live
   }
 
   return (
-    <section className="agent-topology" aria-label="Agent 拓扑">
+    <section className="agent-topology" aria-label="智能体拓扑">
       <div className="agent-topo-head">
         <div>
           <span className="agent-topo-title">
             <Network size={14} aria-hidden="true" />
-            Agent 拓扑
+            智能体拓扑
           </span>
           <span className="agent-topo-sub">
-            {summary.total} 个边界 agent · {summary.completed} 完成
+            {summary.total} 个边界智能体 · {summary.completed} 完成
             {summary.running ? ` · ${summary.running} 运行中` : ''}
             {summary.failed ? ` · ${summary.failed} 失败` : ''}
           </span>
@@ -139,7 +139,7 @@ export default function AgentTopology({ project, runId, projectName, model, live
         <div>
           <strong>{data?.orchestrator?.agent || 'security-orchestrator'}</strong>
           <small>
-            {projectName || project} · {data?.orchestrator?.model || model || 'model pending'}
+            {projectName || project} · {data?.orchestrator?.model || model || '模型待确定'}
           </small>
         </div>
         <span className={cx('agent-state', `is-${data?.orchestrator?.status || 'pending'}`)}>
@@ -165,22 +165,22 @@ export default function AgentTopology({ project, runId, projectName, model, live
                 <span>{agent.description || agent.boundary}</span>
               </div>
               <p className="agent-lane-summary">
-                {agent.summary || (agent.status === 'running' ? 'agent 仍在阅读源码，等待返回…' : '暂无摘要')}
+                {agent.summary || (agent.status === 'running' ? '智能体仍在阅读源码，等待返回…' : '暂无摘要')}
               </p>
               {agent.findings !== null || agent.hypotheses !== null ? (
                 <div className="agent-lane-counts">
-                  {agent.findings !== null ? <span>{agent.findings} findings</span> : null}
-                  {agent.hypotheses !== null ? <span>{agent.hypotheses} hypotheses</span> : null}
+                  {agent.findings !== null ? <span>{agent.findings} 条候选问题</span> : null}
+                  {agent.hypotheses !== null ? <span>{agent.hypotheses} 条假设</span> : null}
                 </div>
               ) : null}
             </article>
           ))}
         </div>
       ) : (
-        <div className="agent-empty">这个 run 还没有启动 boundary agent，或 raw.jsonl 尚未产生 Agent 调用。</div>
+        <div className="agent-empty">这次审计运行还没有启动边界智能体，或 raw.jsonl 尚未产生智能体调用。</div>
       )}
 
-      <div className="agent-stage-row" aria-label="Agentic Infra Track 阶段">
+      <div className="agent-stage-row" aria-label="智能体基础设施审计阶段">
         {stages.map((stage) => (
           <span key={stage.key} className={cx('agent-stage', `is-${stage.status}`)} title={STAGE_LABELS[stage.status]}>
             <span className="agent-stage-dot" aria-hidden="true" />

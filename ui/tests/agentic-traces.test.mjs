@@ -105,3 +105,15 @@ test('多次阶段学习默认打开最新会话，明确的错误编号不回�
   assert.equal(resolveAgenticTrace(run,'learner').id,'stage-learning-new');
   assert.equal(resolveAgenticTrace(run,'learner','not-a-session'),null);
 });
+
+test('经验学习展示 SkillOpt 文本轨迹，但默认仍打开阶段学习会话', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'skillopt-trace-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const run={runDir:path.join(root,'run')};
+  write(path.join(run.runDir,'rsi/stage-learning-attempts/new/stream.jsonl'),claude);
+  write(path.join(run.runDir,'rsi/skillopt/request-1.json'),'{"status":"candidate"}');
+  const traces=listAgenticTraces(run,'learner');
+  const skillopt=traces.find(item=>item.id==='skillopt-request-1');
+  assert.equal(skillopt.kind,'text');
+  assert.equal(resolveAgenticTrace(run,'learner').id,'stage-learning-new');
+});

@@ -28,38 +28,38 @@ export default function StatsStrip({ stats, projects }) {
         <Metric
           label="全部发现"
           value={stats.total}
-          hint="所有最新报告中的原始 finding；不是已确认漏洞数"
+          hint="所有最新报告中的原始候选问题；不是已确认漏洞数"
         />
         <Metric
           label="未处理候选"
           value={status.inbox || 0}
           suffix={`已归档 ${status.archived || 0}`}
-          hint="尚未进入下一阶段；后台自动分类 worker 会把未达门槛的候选问题归档并从这里移走"
+          hint="尚未进入下一阶段；自动分类后台任务会把未达到通过条件的候选问题归档并从这里移走"
         />
         <Metric
           label="分诊中"
           value={status.triage || 0}
           tone="ink"
-          hint="Critical/High 自动入队，等待人工判断可达性与设计意图"
+          hint="严重和高危候选自动入队，等待人工判断可达性与设计意图"
         />
         <Metric
           label="待验证"
           value={status.reproduce || 0}
           tone="amber"
-          hint="CVE Tier 候选或 confirmed verify；等待验证（尚未复现）"
+          hint="CVE 等级候选或已有确认的验证结论；等待验证（尚未复现）"
         />
         <Metric
           label="CVE 跟踪"
           value={stats.cveTrack}
           suffix={`/ ${stats.cveCandidates} 候选`}
           tone="red"
-          hint="已进入 CVE 流程的条目；候选数包含尚未去重的 Tier 1/2"
+          hint="已进入 CVE 流程的条目；候选数包含尚未去重的一级和二级候选"
         />
         <Metric
           label="待验收"
           value={stats.reviewReady || 0}
           tone="green"
-          hint="必须经过红队捕获 flag、judge 审核通过，并生成图文报告"
+          hint="必须经过红队捕获随机标记、独立审核通过，并生成图文报告"
         />
         <Metric
           label="目标运行"

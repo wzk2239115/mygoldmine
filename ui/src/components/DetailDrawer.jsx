@@ -22,7 +22,9 @@ const AUTO_SOURCE_KEYS = {
   severity: 'drawer.sourceSeverity',
   verify: 'drawer.sourceVerify',
   handoff: 'drawer.sourceHandoff',
-  adjudication: 'drawer.sourceAdjudication'
+  adjudication: 'drawer.sourceAdjudication',
+  refine: 'drawer.sourceRefine',
+  flow: 'drawer.sourceFlow'
 };
 
 function DetailSection({ label, children, tone }) {
@@ -255,7 +257,7 @@ export default function DetailDrawer({ finding, board, onClose, onPatch, onToast
                     </button>
                   ))}
                 </div>
-                {finding.routedBy === 'auto' ? (
+                {['auto', 'refine', 'flow'].includes(finding.routedBy) ? (
                   <p className="auto-route" title={finding.autoDetail || finding.autoReason}>
                     {t('drawer.autoRouted')}: {finding.autoReason || 'verify / CVE'}
                     {finding.autoSource ? ` · ${AUTO_SOURCE_KEYS[finding.autoSource] ? t(AUTO_SOURCE_KEYS[finding.autoSource]) : finding.autoSource}` : ''}
@@ -296,7 +298,7 @@ export default function DetailDrawer({ finding, board, onClose, onPatch, onToast
                   <h3>{t('drawer.cveDedup')}</h3>
                   <span>{t(`cve.${finding.cveStatus || 'none'}`)}</span>
                 </div>
-                <p className="field-hint">先查 NVD/GHSA/项目公告确认是否已被覆盖；重复时填写 known CVE 并关闭。</p>
+                <p className="field-hint">先查 NVD、GHSA 和项目公告确认是否已被覆盖；重复时填写已知 CVE 并关闭。</p>
                 <div className="cve-controls">
                   <div className="segmented">
                     <button type="button" className={cx(!finding.cveTier && 'is-active')} onClick={() => patch({ cveTier: null })} disabled={saving}>

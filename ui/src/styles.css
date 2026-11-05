@@ -7575,3 +7575,5 @@ body > .project-import-dialog .project-import-body { flex: 1 1 auto; }
 .lab-tasks .member-open-trace { color: #ef4444; }
 .member-back { margin: 10px 0; }
 @media (max-width: 700px) { .member-roster-body .verify-task-grid { grid-template-columns: 1fr; } }
+
+.jev-panel{margin:16px 22px;padding:16px;border:1px solid var(--border,#444);border-radius:12px;font-size:13px;min-width:0}.jev-panel summary{font-weight:700;cursor:pointer}.jev-panel p{color:var(--muted,#aaa);line-height:1.6}.jev-stats{display:flex;flex-wrap:wrap;gap:16px}.jev-panel progress{width:100%;margin-top:12px}.jev-panel input{margin-left:10px;background:transparent;color:inherit;border:1px solid #555;padding:6px;border-radius:5px}.jev-table-scroll{max-height:400px;overflow:auto}.jev-panel table{width:100%;border-collapse:collapse;text-align:left}.jev-panel th,.jev-panel td{padding:9px;border-bottom:1px solid #444;vertical-align:top;overflow-wrap:anywhere}.jev-panel th{position:sticky;top:0;background:#252525}.jev-panel td small{display:block}.jev-signal{display:block;font-size:12px}

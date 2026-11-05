@@ -110,6 +110,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
               <strong><span className="agentic-node-name"><TeamAgentIcon node={node.id} active={node.status==='running'} />{node.title}</span></strong>
               <code>{node.agent}</code>
               <p>{node.detail}</p>
+              {node.triage ? <span className="agentic-node-scope">Jev 初筛 · {node.triage.processedUnits ?? '待统计'} / {node.triage.stats.units ?? '未知'} 个单元</span> : null}
               {node.environment?.status === 'partial' ? <span className="agentic-node-scope">{node.environment.scope} · 能力受限</span> : null}
               <span className="agentic-node-candidates">{node.candidateSummary}</span>
               <span className="agentic-node-trace">{(node.verification || node.construction) ? `查看 ${(node.verification || node.construction).selectedCount} 条候选` : node.traces?.length ? `查看 ${node.traces.length} 条轨迹` : '暂无轨迹'}</span>

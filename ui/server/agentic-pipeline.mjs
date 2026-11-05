@@ -1,3 +1,7 @@
+import {jevTriage} from './jev-triage.mjs';
+import {judgeTasks} from './judge-tasks.mjs';
+import {sceneTasks} from './scene-tasks.mjs';
+import {agentTasks} from './agent-tasks.mjs';
 import {labTasks} from './lab-tasks.mjs';
 import {verifyTasks} from './verify-tasks.mjs';
 import { stageLearning } from './stage-learning.mjs';
@@ -175,6 +179,8 @@ function redteamNodes(run, summary) {
     labDetail = `${labsReady.length}/${results.length} 个隔离场景可用`;
     labStatus = buildFailed.length === results.length ? 'blocked' : buildFailed.length ? 'degraded' : 'completed';
     if (buildFailed.length) labDetail += ` · ${buildFailed.length} 个场景未就绪`;
+    const blockedReasons = results.map(item => item.blocked_reason).filter(Boolean);
+    if (blockedReasons.length) labDetail += ` · ${blockedReasons.slice(0, 2).join('；')}`;
   } else if (summary?.blue_gate?.excluded?.length && !summary?.candidates?.length) {
     labStatus = 'blocked';
     labDetail = summary.blue_gate.reason;
@@ -238,19 +244,26 @@ function redteamNodes(run, summary) {
   ];
 }
 
-function learnerNode(run, postValidation, learnerLog, driver) {
+function learnerNode(run, postValidation, learnerLog, driver, stageRun) {
   const title = '经验学习';
   const agent = 'mining-repair-learner';
   const artifact = postValidation ? path.join(run.runDir, 'rsi/post-validation.json') : '';
+  const skillopt = stageRun?.skillopt || {};
+  const skilloptCandidates = Number(stageRun?.skillopt_candidates || 0);
+  const skilloptFailure = ['error', 'failed', 'no_candidate'].includes(skillopt.status)
+    && (skillopt.results || []).some(row => ['error', 'failed'].includes(row.status));
+  const skilloptDetail = skillopt.status
+    ? ` · 阶段技能候选 ${skilloptCandidates}${skillopt.status === 'no_request' ? '（本轮未请求重写）' : ''}${skilloptFailure ? '（优化未完成，查看轨迹）' : ''}`
+    : '';
   if (postValidation?.status === 'completed') {
     const candidates = Number(postValidation.candidates || 0);
     const evaluation = driver?.status ? ` · 评估：${driver.status}` : '';
-    return makeNode('learner', title, agent, 'completed', `经验学习完成 · ${candidates} 个修复候选${evaluation}`, artifact);
+    return makeNode('learner', title, agent, 'completed', `经验学习完成 · ${candidates} 个修复候选${evaluation}${skilloptDetail}`, artifact);
   }
   if (learnerLog) {
-    return makeNode('learner', title, agent, run.isLive ? 'running' : 'failed', run.isLive ? '正在生成挖掘修复候选' : '学习日志存在，但没有完成记录', path.join(run.runDir, 'rsi/learner.jsonl'));
+    return makeNode('learner', title, agent, run.isLive ? 'running' : 'failed', (run.isLive ? '正在生成挖掘修复候选' : '学习日志存在，但没有完成记录') + skilloptDetail, path.join(run.runDir, 'rsi/learner.jsonl'));
   }
-  return makeNode('learner', title, agent, 'pending', '等待红蓝验证经验');
+  return makeNode('learner', title, agent, 'pending', '等待红蓝验证经验' + skilloptDetail);
 }
 
 export function buildAgenticPipeline(run) {
@@ -262,6 +275,7 @@ export function buildAgenticPipeline(run) {
   const redteam = readJson(path.join(run.runDir, 'redteam/summary.json'));
   const postValidation = readJson(path.join(run.runDir, 'rsi/post-validation.json'));
   const driver = readJson(path.join(run.runDir, 'rsi/driver.json'));
+  const stageRun = readJson(path.join(run.runDir, 'rsi/stage-learning-run.json'));
   const learnerLog = exists(path.join(run.runDir, 'rsi/learner.jsonl'));
   const nodes = [
     environmentNode(run, status, phase),
@@ -269,7 +283,7 @@ export function buildAgenticPipeline(run) {
     visualNode(run, visual),
     verifyNode(run, verify),
     ...redteamNodes(run, redteam),
-    learnerNode(run, postValidation, learnerLog, driver)
+    learnerNode(run, postValidation, learnerLog, driver, stageRun)
   ];
   for (const node of nodes) {
     node.traces = listAgenticTraces(run, node.id).map((trace) => ({
@@ -340,7 +354,10 @@ export function buildAgenticPipeline(run) {
     notice = `任务在${current.title}阶段中断，后续阶段未执行`;
   }
   for (const node of nodes) {
+    if (node.id === 'orchestrator') node.triage = jevTriage(run);
     if (node.id === 'verify') node.verification = verifyTasks(run);
+    if (node.id === 'visual') node.scenes = sceneTasks(run);
+    if (node.id === 'judge') node.review = judgeTasks(run);
     node.learning = stageLearning(path.resolve(run.runDir, '../../..'), run.project, node.id);
     if (node.id === 'learner') node.detail += ` · 阶段技能待评估 ${node.learning.projectCandidates} 条`;
     node.retrySupported = supportsNodeRetry(node.id);
@@ -351,10 +368,26 @@ export function buildAgenticPipeline(run) {
       node.detail = latest.status === 'running' ? '正在独立重跑此节点' : latest.recovery?.kind === 'aggregation-only' ? '汇总已恢复；候选未重新执行，原始错误记录保留' : '节点重跑已结束；原始流程记录保留';
       node.retryReason = latest.status === 'running' ? '此节点正在重跑' : node.retryReason;
     }
+    if(node.id==='learner' && latest) {
+      const summary=readJson(path.join(latest.workspace,'rsi/learning-retry.json'));
+      const learning=readJson(path.join(latest.workspace,'rsi/stage-learning-run.json'));
+      node.artifact=path.join(latest.workspace,'rsi/learning-retry.json');
+      if(summary)node.detail=`经验学习${summary.status==='failed'?'失败':'已结束'} · SkillOpt 候选 ${summary.learning?.skillopt_candidates || 0} · 发布 ${summary.evaluation?.published?.length || 0} 个版本 · ${summary.evaluation?.status==='no_verified_improvement'?'暂无经验证的改善':summary.evaluation?.status==='learning_failed'?'学习调用失败，未发布':'评估已完成'}`;
+      else if(learning)node.detail=`正在处理学习结果 · SkillOpt 候选 ${learning.skillopt_candidates || 0}`;
+    }
     if(node.id==='redteam-lab')node.construction=labTasks(run);
+    if(node.id==='redteam-agent')node.execution=agentTasks(run);
     if (node.id === 'redteam-lab' && latest) {
       const progress=readJson(path.join(latest.workspace,'redteam/summary.json'));
       if(progress)node.detail=`场景构建 ${progress.processed}/${progress.selected} 已结束 · 可用 ${progress.ready} · 受阻 ${progress.blocked}${progress.running ? ` · 构建中 ${progress.running.length}` : progress.current ? ` · 当前 ${progress.current}` : ''}`;
+    }
+    if(node.id==='judge' && latest) {
+      const progress=readJson(path.join(latest.workspace,'judge/summary.json'));
+      if(progress)node.detail=`独立审核 ${progress.processed}/${progress.selected} 已结束 · 通过 ${progress.approved}${progress.current ? ` · 当前 ${progress.current}` : ''}`;
+    }
+    if(node.id==='redteam-agent' && latest) {
+      const progress=readJson(path.join(latest.workspace,'redteam/summary.json'));
+      if(progress)node.detail=`红队执行 ${progress.processed}/${progress.selected} 已结束 · 捕获 ${progress.captured}${progress.blocked ? ` · 受阻 ${progress.blocked}` : ''}${progress.running ? ` · 执行中 ${progress.running.length}` : ''}`;
     }
     if(node.id==='redteam-lab' && node.construction?.tasks.length) {
       const info=node.construction;node.candidateSummary=`构建中 ${info.running} · 可用 ${info.ready} · 受阻 ${info.blocked}`;

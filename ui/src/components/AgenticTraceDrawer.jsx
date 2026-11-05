@@ -5,7 +5,11 @@ import { api } from '../api.js';
 import { traceVersion } from '../ccui-cache.js';
 import ClaudeSessionEmbed from './ClaudeSessionEmbed.jsx';
 import VerifyTasks from './VerifyTasks.jsx';
+import JevTriage from './JevTriage.jsx';
 import LabTasks from './LabTasks.jsx';
+import SceneTasks from './SceneTasks.jsx';
+import JudgeTasks from './JudgeTasks.jsx';
+import AgentTasks from './AgentTasks.jsx';
 import TeamAgentIcon from './TeamAgentIcon.jsx';
 import {initialTaskSelection, resolveTaskSelection, taskStateLabel, candidateTasks, isCandidateNode} from '../task-selection.js';
 
@@ -47,6 +51,12 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
       setSelection(initialTaskSelection(node));
     }
   }, [batchId, selection.batchId]);
+  useEffect(() => {
+    if (node.id !== 'learner' || !selection.traceId?.endsWith('-worker')) return;
+    const prefix = selection.traceId.slice(0, -7);
+    const session = traces.find(trace => trace.id.startsWith(prefix + '-') && trace.kind === 'claude');
+    if (session) setSelection(current => ({...current, history: true, traceId: session.id}));
+  }, [node.id, traces, selection.traceId]);
   const selectTask = taskId => setSelection({batchId, taskId, history: false, traceId: ''});
   const selectHistory = traceId => setSelection({batchId, taskId: null, history: true, traceId});
   const backToMembers = () => setSelection(initialTaskSelection(node));
@@ -54,7 +64,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
   useEffect(() => { setShowRaw(false); }, [selected?.id]);
 
   useEffect(() => {
-    if (!selected || (selected.kind === 'claude' && !showRaw)) {
+    if (!selected || (['claude', 'execution'].includes(selected.kind) && !showRaw)) {
       setText(null);
       setError('');
       return;
@@ -116,7 +126,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
           {node.learning ? <details className="agentic-learning-info"><summary>下次运行技能</summary><p className="agentic-trace-subtitle">下次运行技能：通用 {node.learning.general ? node.learning.general.slice(0, 8) : '基础规则'} · 仓库专属 {node.learning.project ? node.learning.project.slice(0, 8) : '暂无已验证版本'} · {node.learning.candidates} 个候选待评估</p></details> : null}
           {retryError ? <p className="inline-error" role="alert">{retryError}</p> : null}
           {traces.some((trace) => trace.label.includes('恢复汇总')) ? <p className="agentic-trace-subtitle">本次为已有结果的恢复汇总，未重新扫描；可切换查看原始完整审计。</p> : null}
-          {traces.length > 1 ? (['verify','redteam-lab'].includes(node.id) ? (
+          {traces.length > 1 ? (teamNode ? (
             <details className="verify-other-traces"><summary>日志与历史记录（{traces.length} 份）</summary>
             <label className="agentic-trace-picker">
               <span>选择执行记录</span>
@@ -137,17 +147,21 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
           )) : null}
           </> : null}
         </header>
+        {node.id === 'orchestrator' ? <JevTriage triage={node.triage} /> : null}
         {(selectedTask || selected) ? <div className="agentic-current-task" data-team={node.id === 'verify' ? 'blue' : 'red'} aria-live="polite">
           <div><strong>{selectedTask ? `当前候选：${selectedTask.id}` : '当前执行记录'}</strong><span className={`task-state state-${selectedTask?.state || 'history'}`}>{selectedTask ? taskStateLabel(selectedTask) : '日志与历史记录'}</span></div>
           <p title={selectedTask?.title || selected?.label}>{selectedTask?.title || selected?.label}</p>
         </div> : null}
         <div className={`drawer-body agentic-trace-body ${teamNode && !memberView ? 'member-roster-body' : ''}`}>
           {teamNode && !memberView ? <>
-            <p className="member-roster-hint">选择一位{node.id === 'verify' ? '蓝队验证' : '红队构建'}队员，查看他的执行轨迹。</p>
+            <p className="member-roster-hint">选择一位{node.id === 'verify' ? '蓝队验证' : node.id === 'judge' ? '独立审核' : node.id === 'visual' ? '场景设计' : node.id === 'redteam-agent' ? '红队执行' : '红队构建'}队员，查看他的执行轨迹。</p>
+          {node.id === 'judge' ? <JudgeTasks review={node.review} onSelect={selectTask} /> : null}
+          {node.id === 'visual' ? <SceneTasks scenes={node.scenes} onSelect={selectTask} /> : null}
+          {node.id === 'redteam-agent' ? <AgentTasks execution={node.execution} onSelect={selectTask} /> : null}
           {node.id === 'redteam-lab' ? <LabTasks key={node.construction?.attemptId || 'original'} project={project} runId={runId} construction={node.construction} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
           {node.id === 'verify' ? <VerifyTasks key={node.verification?.attemptId || 'original'} project={project} runId={runId} verification={node.verification} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
             {!(candidateTasks(node)?.tasks || []).length ? <p className="member-roster-hint">当前批次尚未生成队员任务，请等待任务启动或查看启动日志。</p> : null}
-          </> : selected?.kind === 'claude' && !showRaw ? (
+          </> : ['claude', 'execution'].includes(selected?.kind) && !showRaw ? (
             <ClaudeSessionEmbed
               key={selected.id}
               project={project}

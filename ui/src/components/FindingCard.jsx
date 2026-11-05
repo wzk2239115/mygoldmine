@@ -44,9 +44,9 @@ export default function FindingCard({ finding, onOpen, onDragStart, onDragEnd })
       <div className="card-badges">
         <VerdictBadge verdict={finding.verdict} />
         <CveBadge tier={finding.cveTier} knownCve={finding.knownCve} status={finding.cveStatus} />
-        {finding.routedBy === 'auto' ? (
-          <span className="card-auto" title={finding.autoReason || '由 verify/CVE 产物自动流转'}>
-            AUTO
+        {['auto', 'refine', 'flow'].includes(finding.routedBy) ? (
+          <span className="card-auto" title={finding.autoReason || '由自动分类或自动流转产物推进'}>
+            {finding.routedBy === 'flow' ? 'FLOW' : 'AUTO'}
           </span>
         ) : null}
         {finding.reviewReady ? (

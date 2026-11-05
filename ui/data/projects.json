@@ -6,35 +6,20 @@
       "direction": "Inference Engine",
       "url": "https://github.com/vllm-project/vllm",
       "icon": "server",
-      "tone": "blue"
+      "tone": "blue",
+      "logo": "/logos/vllm.png",
+      "logo_source": "https://github.com/vllm-project.png?size=80",
+      "logo_owner": "vllm-project"
     },
     "sglang": {
       "name": "SGLang",
       "direction": "Inference Engine",
       "url": "https://github.com/sgl-project/sglang",
       "icon": "server",
-      "tone": "amber"
-    },
-    "deepseek-harness": {
-      "name": "DeepSeek Harness",
-      "direction": "Agent Harness",
-      "url": "",
-      "icon": "brain",
-      "tone": "violet"
-    },
-    "codex": {
-      "name": "Codex",
-      "direction": "Agent Harness",
-      "url": "https://github.com/openai/codex",
-      "icon": "terminal",
-      "tone": "ink"
-    },
-    "verl": {
-      "name": "verl",
-      "direction": "Training Framework",
-      "url": "https://github.com/volcengine/verl",
-      "icon": "cpu",
-      "tone": "green"
+      "tone": "amber",
+      "logo": "/logos/sglang.png",
+      "logo_source": "https://github.com/sgl-project.png?size=80",
+      "logo_owner": "sgl-project"
     },
     "aud-001-cline": {
       "name": "Cline",
@@ -42,7 +27,10 @@
       "url": "https://github.com/cline/cline",
       "icon": "bot",
       "tone": "blue",
-      "audit_id": "AUD-001"
+      "audit_id": "AUD-001",
+      "logo": "/logos/aud-001-cline.png",
+      "logo_source": "https://github.com/cline.png?size=80",
+      "logo_owner": "cline"
     },
     "aud-002-codex-cli": {
       "name": "Codex CLI",
@@ -50,7 +38,10 @@
       "url": "https://github.com/openai/codex",
       "icon": "bot",
       "tone": "violet",
-      "audit_id": "AUD-002"
+      "audit_id": "AUD-002",
+      "logo": "/logos/aud-002-codex-cli.png",
+      "logo_source": "https://github.com/openai.png?size=80",
+      "logo_owner": "openai"
     },
     "aud-003-gemini-cli": {
       "name": "Gemini CLI",
@@ -58,7 +49,10 @@
       "url": "https://github.com/google-gemini/gemini-cli",
       "icon": "terminal",
       "tone": "violet",
-      "audit_id": "AUD-003"
+      "audit_id": "AUD-003",
+      "logo": "/logos/aud-003-gemini-cli.png",
+      "logo_source": "https://github.com/google-gemini.png?size=80",
+      "logo_owner": "google-gemini"
     },
     "aud-004-openclaw": {
       "name": "OpenClaw",
@@ -66,7 +60,10 @@
       "url": "https://github.com/openclaw/openclaw",
       "icon": "bot",
       "tone": "red",
-      "audit_id": "AUD-004"
+      "audit_id": "AUD-004",
+      "logo": "/logos/aud-004-openclaw.png",
+      "logo_source": "https://github.com/openclaw.png?size=80",
+      "logo_owner": "openclaw"
     },
     "aud-005-opencode": {
       "name": "OpenCode",
@@ -74,7 +71,10 @@
       "url": "https://github.com/anomalyco/opencode",
       "icon": "terminal",
       "tone": "ink",
-      "audit_id": "AUD-005"
+      "audit_id": "AUD-005",
+      "logo": "/logos/aud-005-opencode.png",
+      "logo_source": "https://github.com/anomalyco.png?size=80",
+      "logo_owner": "anomalyco"
     },
     "aud-006-openhands-software-agent-sdk-a-gent-server": {
       "name": "OpenHands Software Agent SDK / A gent Server",
@@ -82,7 +82,10 @@
       "url": "https://github.com/OpenHands/software-agent-sdk",
       "icon": "boxes",
       "tone": "amber",
-      "audit_id": "AUD-006"
+      "audit_id": "AUD-006",
+      "logo": "/logos/aud-006-openhands-software-agent-sdk-a-gent-server.png",
+      "logo_source": "https://github.com/OpenHands.png?size=80",
+      "logo_owner": "OpenHands"
     },
     "aud-007-pi": {
       "name": "Pi",
@@ -90,7 +93,10 @@
       "url": "https://github.com/earendil-works/pi",
       "icon": "bot",
       "tone": "violet",
-      "audit_id": "AUD-007"
+      "audit_id": "AUD-007",
+      "logo": "/logos/aud-007-pi.png",
+      "logo_source": "https://github.com/earendil-works.png?size=80",
+      "logo_owner": "earendil-works"
     },
     "aud-008-aider": {
       "name": "Aider",
@@ -98,7 +104,10 @@
       "url": "https://github.com/Aider-AI/aider",
       "icon": "bot",
       "tone": "red",
-      "audit_id": "AUD-008"
+      "audit_id": "AUD-008",
+      "logo": "/logos/aud-008-aider.png",
+      "logo_source": "https://github.com/Aider-AI.png?size=80",
+      "logo_owner": "Aider-AI"
     },
     "aud-009-continue": {
       "name": "Continue",
@@ -106,7 +115,10 @@
       "url": "https://github.com/continuedev/continue",
       "icon": "bot",
       "tone": "violet",
-      "audit_id": "AUD-009"
+      "audit_id": "AUD-009",
+      "logo": "/logos/aud-009-continue.png",
+      "logo_source": "https://github.com/continuedev.png?size=80",
+      "logo_owner": "continuedev"
     },
     "aud-010-crush": {
       "name": "Crush",
@@ -114,7 +126,10 @@
       "url": "https://github.com/charmbracelet/crush",
       "icon": "bot",
       "tone": "ink",
-      "audit_id": "AUD-010"
+      "audit_id": "AUD-010",
+      "logo": "/logos/aud-010-crush.png",
+      "logo_source": "https://github.com/charmbracelet.png?size=80",
+      "logo_owner": "charmbracelet"
     },
     "aud-011-deerflow": {
       "name": "DeerFlow",
@@ -122,7 +137,10 @@
       "url": "https://github.com/bytedance/deer-flow",
       "icon": "bot",
       "tone": "amber",
-      "audit_id": "AUD-011"
+      "audit_id": "AUD-011",
+      "logo": "/logos/aud-011-deerflow.png",
+      "logo_source": "https://github.com/bytedance.png?size=80",
+      "logo_owner": "bytedance"
     },
     "aud-012-goose": {
       "name": "goose",
@@ -130,7 +148,10 @@
       "url": "https://github.com/aaif-goose/goose",
       "icon": "bot",
       "tone": "ink",
-      "audit_id": "AUD-012"
+      "audit_id": "AUD-012",
+      "logo": "/logos/aud-012-goose.png",
+      "logo_source": "https://github.com/aaif-goose.png?size=80",
+      "logo_owner": "aaif-goose"
     },
     "aud-013-hermes-agent": {
       "name": "Hermes Agent",
@@ -138,7 +159,10 @@
       "url": "https://github.com/NousResearch/hermes-agent",
       "icon": "bot",
       "tone": "violet",
-      "audit_id": "AUD-013"
+      "audit_id": "AUD-013",
+      "logo": "/logos/aud-013-hermes-agent.png",
+      "logo_source": "https://github.com/NousResearch.png?size=80",
+      "logo_owner": "NousResearch"
     },
     "aud-014-kilo-code": {
       "name": "Kilo Code",
@@ -146,7 +170,10 @@
       "url": "https://github.com/Kilo-Org/kilocode",
       "icon": "bot",
       "tone": "ink",
-      "audit_id": "AUD-014"
+      "audit_id": "AUD-014",
+      "logo": "/logos/aud-014-kilo-code.png",
+      "logo_source": "https://github.com/Kilo-Org.png?size=80",
+      "logo_owner": "Kilo-Org"
     },
     "aud-015-kimi-code-cli": {
       "name": "Kimi Code CLI",
@@ -154,7 +181,10 @@
       "url": "https://github.com/MoonshotAI/kimi-code",
       "icon": "bot",
       "tone": "red",
-      "audit_id": "AUD-015"
+      "audit_id": "AUD-015",
+      "logo": "/logos/aud-015-kimi-code-cli.png",
+      "logo_source": "https://github.com/MoonshotAI.png?size=80",
+      "logo_owner": "MoonshotAI"
     },
     "aud-016-mini-swe-agent": {
       "name": "mini-SWE-agent",
@@ -162,7 +192,10 @@
       "url": "https://github.com/SWE-agent/mini-swe-agent",
       "icon": "bot",
       "tone": "violet",
-      "audit_id": "AUD-016"
+      "audit_id": "AUD-016",
+      "logo": "/logos/aud-016-mini-swe-agent.png",
+      "logo_source": "https://github.com/SWE-agent.png?size=80",
+      "logo_owner": "SWE-agent"
     },
     "aud-017-mistral-vibe": {
       "name": "Mistral Vibe",
@@ -170,7 +203,10 @@
       "url": "https://github.com/mistralai/mistral-vibe",
       "icon": "bot",
       "tone": "red",
-      "audit_id": "AUD-017"
+      "audit_id": "AUD-017",
+      "logo": "/logos/aud-017-mistral-vibe.png",
+      "logo_source": "https://github.com/mistralai.png?size=80",
+      "logo_owner": "mistralai"
     },
     "aud-018-nanobot": {
       "name": "nanobot",
@@ -178,7 +214,10 @@
       "url": "https://github.com/HKUDS/nanobot",
       "icon": "bot",
       "tone": "amber",
-      "audit_id": "AUD-018"
+      "audit_id": "AUD-018",
+      "logo": "/logos/aud-018-nanobot.png",
+      "logo_source": "https://github.com/HKUDS.png?size=80",
+      "logo_owner": "HKUDS"
     },
     "aud-019-open-interpreter-rust": {
       "name": "Open Interpreter（当前 Rust 版）",
@@ -186,7 +225,10 @@
       "url": "https://github.com/openinterpreter/openinterpreter",
       "icon": "bot",
       "tone": "ink",
-      "audit_id": "AUD-019"
+      "audit_id": "AUD-019",
+      "logo": "/logos/aud-019-open-interpreter-rust.png",
+      "logo_source": "https://github.com/openinterpreter.png?size=80",
+      "logo_owner": "openinterpreter"
     },
     "aud-020-openhands-agent-canvas": {
       "name": "OpenHands Agent Canvas",
@@ -194,7 +236,10 @@
       "url": "https://github.com/OpenHands/OpenHands",
       "icon": "bot",
       "tone": "green",
-      "audit_id": "AUD-020"
+      "audit_id": "AUD-020",
+      "logo": "/logos/aud-020-openhands-agent-canvas.png",
+      "logo_source": "https://github.com/OpenHands.png?size=80",
+      "logo_owner": "OpenHands"
     },
     "aud-021-openharness-ohmo": {
       "name": "OpenHarness / Ohmo",
@@ -202,7 +247,10 @@
       "url": "https://github.com/HKUDS/OpenHarness",
       "icon": "bot",
       "tone": "blue",
-      "audit_id": "AUD-021"
+      "audit_id": "AUD-021",
+      "logo": "/logos/aud-021-openharness-ohmo.png",
+      "logo_source": "https://github.com/HKUDS.png?size=80",
+      "logo_owner": "HKUDS"
     },
     "aud-022-qwen-code": {
       "name": "Qwen Code",
@@ -210,7 +258,10 @@
       "url": "https://github.com/QwenLM/qwen-code",
       "icon": "bot",
       "tone": "red",
-      "audit_id": "AUD-022"
+      "audit_id": "AUD-022",
+      "logo": "/logos/aud-022-qwen-code.png",
+      "logo_source": "https://github.com/QwenLM.png?size=80",
+      "logo_owner": "QwenLM"
     },
     "aud-023-swe-agent": {
       "name": "SWE-agent",
@@ -218,7 +269,10 @@
       "url": "https://github.com/SWE-agent/SWE-agent",
       "icon": "bot",
       "tone": "amber",
-      "audit_id": "AUD-023"
+      "audit_id": "AUD-023",
+      "logo": "/logos/aud-023-swe-agent.png",
+      "logo_source": "https://github.com/SWE-agent.png?size=80",
+      "logo_owner": "SWE-agent"
     },
     "aud-024-deep-agents": {
       "name": "Deep Agents",
@@ -226,7 +280,10 @@
       "url": "https://github.com/langchain-ai/deepagents",
       "icon": "brain",
       "tone": "green",
-      "audit_id": "AUD-024"
+      "audit_id": "AUD-024",
+      "logo": "/logos/aud-024-deep-agents.png",
+      "logo_source": "https://github.com/langchain-ai.png?size=80",
+      "logo_owner": "langchain-ai"
     },
     "aud-025-agentscope": {
       "name": "AgentScope",
@@ -234,7 +291,10 @@
       "url": "https://github.com/agentscope-ai/agentscope",
       "icon": "boxes",
       "tone": "ink",
-      "audit_id": "AUD-025"
+      "audit_id": "AUD-025",
+      "logo": "/logos/aud-025-agentscope.png",
+      "logo_source": "https://github.com/agentscope-ai.png?size=80",
+      "logo_owner": "agentscope-ai"
     },
     "aud-026-agno": {
       "name": "Agno",
@@ -242,7 +302,10 @@
       "url": "https://github.com/agno-agi/agno",
       "icon": "boxes",
       "tone": "red",
-      "audit_id": "AUD-026"
+      "audit_id": "AUD-026",
+      "logo": "/logos/aud-026-agno.png",
+      "logo_source": "https://github.com/agno-agi.png?size=80",
+      "logo_owner": "agno-agi"
     },
     "aud-027-camel": {
       "name": "CAMEL",
@@ -250,7 +313,10 @@
       "url": "https://github.com/camel-ai/camel",
       "icon": "boxes",
       "tone": "green",
-      "audit_id": "AUD-027"
+      "audit_id": "AUD-027",
+      "logo": "/logos/aud-027-camel.png",
+      "logo_source": "https://github.com/camel-ai.png?size=80",
+      "logo_owner": "camel-ai"
     },
     "aud-028-crewai": {
       "name": "CrewAI",
@@ -258,7 +324,10 @@
       "url": "https://github.com/crewAIInc/crewAI",
       "icon": "boxes",
       "tone": "red",
-      "audit_id": "AUD-028"
+      "audit_id": "AUD-028",
+      "logo": "/logos/aud-028-crewai.png",
+      "logo_source": "https://github.com/crewAIInc.png?size=80",
+      "logo_owner": "crewAIInc"
     },
     "aud-029-google-adk": {
       "name": "Google ADK",
@@ -266,7 +335,10 @@
       "url": "https://github.com/google/adk-python",
       "icon": "boxes",
       "tone": "green",
-      "audit_id": "AUD-029"
+      "audit_id": "AUD-029",
+      "logo": "/logos/aud-029-google-adk.png",
+      "logo_source": "https://github.com/google.png?size=80",
+      "logo_owner": "google"
     },
     "aud-030-langchain": {
       "name": "LangChain",
@@ -274,7 +346,10 @@
       "url": "https://github.com/langchain-ai/langchain",
       "icon": "boxes",
       "tone": "amber",
-      "audit_id": "AUD-030"
+      "audit_id": "AUD-030",
+      "logo": "/logos/aud-030-langchain.png",
+      "logo_source": "https://github.com/langchain-ai.png?size=80",
+      "logo_owner": "langchain-ai"
     },
     "aud-031-langgraph": {
       "name": "LangGraph",
@@ -282,7 +357,10 @@
       "url": "https://github.com/langchain-ai/langgraph",
       "icon": "boxes",
       "tone": "ink",
-      "audit_id": "AUD-031"
+      "audit_id": "AUD-031",
+      "logo": "/logos/aud-031-langgraph.png",
+      "logo_source": "https://github.com/langchain-ai.png?size=80",
+      "logo_owner": "langchain-ai"
     },
     "aud-032-letta": {
       "name": "Letta",
@@ -290,7 +368,10 @@
       "url": "https://github.com/letta-ai/letta",
       "icon": "boxes",
       "tone": "red",
-      "audit_id": "AUD-032"
+      "audit_id": "AUD-032",
+      "logo": "/logos/aud-032-letta.png",
+      "logo_source": "https://github.com/letta-ai.png?size=80",
+      "logo_owner": "letta-ai"
     },
     "aud-033-llamaindex-framework": {
       "name": "LlamaIndex Framework",
@@ -298,7 +379,10 @@
       "url": "https://github.com/run-llama/llama_index",
       "icon": "boxes",
       "tone": "ink",
-      "audit_id": "AUD-033"
+      "audit_id": "AUD-033",
+      "logo": "/logos/aud-033-llamaindex-framework.png",
+      "logo_source": "https://github.com/run-llama.png?size=80",
+      "logo_owner": "run-llama"
     },
     "aud-034-mastra": {
       "name": "Mastra",
@@ -306,7 +390,10 @@
       "url": "https://github.com/mastra-ai/mastra",
       "icon": "boxes",
       "tone": "green",
-      "audit_id": "AUD-034"
+      "audit_id": "AUD-034",
+      "logo": "/logos/aud-034-mastra.png",
+      "logo_source": "https://github.com/mastra-ai.png?size=80",
+      "logo_owner": "mastra-ai"
     },
     "aud-035-metagpt": {
       "name": "MetaGPT",
@@ -314,7 +401,10 @@
       "url": "https://github.com/FoundationAgents/MetaGPT",
       "icon": "boxes",
       "tone": "amber",
-      "audit_id": "AUD-035"
+      "audit_id": "AUD-035",
+      "logo": "/logos/aud-035-metagpt.png",
+      "logo_source": "https://github.com/FoundationAgents.png?size=80",
+      "logo_owner": "FoundationAgents"
     },
     "aud-036-microsoft-agent-framework": {
       "name": "Microsoft Agent Framework",
@@ -322,7 +412,10 @@
       "url": "https://github.com/microsoft/agent-framework",
       "icon": "boxes",
       "tone": "violet",
-      "audit_id": "AUD-036"
+      "audit_id": "AUD-036",
+      "logo": "/logos/aud-036-microsoft-agent-framework.png",
+      "logo_source": "https://github.com/microsoft.png?size=80",
+      "logo_owner": "microsoft"
     },
     "aud-037-openai-agents-sdk": {
       "name": "OpenAI Agents SDK",
@@ -330,7 +423,10 @@
       "url": "https://github.com/openai/openai-agents-python",
       "icon": "boxes",
       "tone": "violet",
-      "audit_id": "AUD-037"
+      "audit_id": "AUD-037",
+      "logo": "/logos/aud-037-openai-agents-sdk.png",
+      "logo_source": "https://github.com/openai.png?size=80",
+      "logo_owner": "openai"
     },
     "aud-038-pydantic-ai": {
       "name": "Pydantic AI",
@@ -338,7 +434,10 @@
       "url": "https://github.com/pydantic/pydantic-ai",
       "icon": "boxes",
       "tone": "violet",
-      "audit_id": "AUD-038"
+      "audit_id": "AUD-038",
+      "logo": "/logos/aud-038-pydantic-ai.png",
+      "logo_source": "https://github.com/pydantic.png?size=80",
+      "logo_owner": "pydantic"
     },
     "aud-039-qwen-agent": {
       "name": "Qwen-Agent",
@@ -346,7 +445,10 @@
       "url": "https://github.com/QwenLM/Qwen-Agent",
       "icon": "boxes",
       "tone": "green",
-      "audit_id": "AUD-039"
+      "audit_id": "AUD-039",
+      "logo": "/logos/aud-039-qwen-agent.png",
+      "logo_source": "https://github.com/QwenLM.png?size=80",
+      "logo_owner": "QwenLM"
     },
     "aud-040-smolagents": {
       "name": "smolagents",
@@ -354,7 +456,10 @@
       "url": "https://github.com/huggingface/smolagents",
       "icon": "boxes",
       "tone": "red",
-      "audit_id": "AUD-040"
+      "audit_id": "AUD-040",
+      "logo": "/logos/aud-040-smolagents.png",
+      "logo_source": "https://github.com/huggingface.png?size=80",
+      "logo_owner": "huggingface"
     },
     "aud-041-strands-agents-harness-sdk": {
       "name": "Strands Agents / Harness SDK",
@@ -362,7 +467,10 @@
       "url": "https://github.com/strands-agents/harness-sdk",
       "icon": "boxes",
       "tone": "blue",
-      "audit_id": "AUD-041"
+      "audit_id": "AUD-041",
+      "logo": "/logos/aud-041-strands-agents-harness-sdk.png",
+      "logo_source": "https://github.com/strands-agents.png?size=80",
+      "logo_owner": "strands-agents"
     },
     "aud-042-vercel-ai-sdk": {
       "name": "Vercel AI SDK",
@@ -370,7 +478,10 @@
       "url": "https://github.com/vercel/ai",
       "icon": "boxes",
       "tone": "green",
-      "audit_id": "AUD-042"
+      "audit_id": "AUD-042",
+      "logo": "/logos/aud-042-vercel-ai-sdk.png",
+      "logo_source": "https://github.com/vercel.png?size=80",
+      "logo_owner": "vercel"
     },
     "aud-043-browser-use": {
       "name": "browser-use",
@@ -378,7 +489,10 @@
       "url": "https://github.com/browser-use/browser-use",
       "icon": "bot",
       "tone": "blue",
-      "audit_id": "AUD-043"
+      "audit_id": "AUD-043",
+      "logo": "/logos/aud-043-browser-use.png",
+      "logo_source": "https://github.com/browser-use.png?size=80",
+      "logo_owner": "browser-use"
     },
     "aud-044-skyvern": {
       "name": "Skyvern",
@@ -386,7 +500,10 @@
       "url": "https://github.com/Skyvern-AI/skyvern",
       "icon": "bot",
       "tone": "violet",
-      "audit_id": "AUD-044"
+      "audit_id": "AUD-044",
+      "logo": "/logos/aud-044-skyvern.png",
+      "logo_source": "https://github.com/Skyvern-AI.png?size=80",
+      "logo_owner": "Skyvern-AI"
     },
     "aud-045-stagehand": {
       "name": "Stagehand",
@@ -394,7 +511,10 @@
       "url": "https://github.com/browserbase/stagehand",
       "icon": "bot",
       "tone": "ink",
-      "audit_id": "AUD-045"
+      "audit_id": "AUD-045",
+      "logo": "/logos/aud-045-stagehand.png",
+      "logo_source": "https://github.com/browserbase.png?size=80",
+      "logo_owner": "browserbase"
     },
     "aud-046-agentscope-runtime": {
       "name": "AgentScope Runtime",
@@ -402,7 +522,10 @@
       "url": "https://github.com/agentscope-ai/agentscope-runtime",
       "icon": "boxes",
       "tone": "red",
-      "audit_id": "AUD-046"
+      "audit_id": "AUD-046",
+      "logo": "/logos/aud-046-agentscope-runtime.png",
+      "logo_source": "https://github.com/agentscope-ai.png?size=80",
+      "logo_owner": "agentscope-ai"
     },
     "aud-047-anthropic-sandbox-runtime": {
       "name": "Anthropic Sandbox Runtime",
@@ -410,7 +533,10 @@
       "url": "https://github.com/anthropics/sandbox-runtime",
       "icon": "shield",
       "tone": "amber",
-      "audit_id": "AUD-047"
+      "audit_id": "AUD-047",
+      "logo": "/logos/aud-047-anthropic-sandbox-runtime.png",
+      "logo_source": "https://github.com/anthropics.png?size=80",
+      "logo_owner": "anthropics"
     },
     "aud-048-opensandbox": {
       "name": "OpenSandbox",
@@ -418,7 +544,10 @@
       "url": "https://github.com/opensandbox-group/OpenSandbox",
       "icon": "shield",
       "tone": "red",
-      "audit_id": "AUD-048"
+      "audit_id": "AUD-048",
+      "logo": "/logos/aud-048-opensandbox.png",
+      "logo_source": "https://github.com/opensandbox-group.png?size=80",
+      "logo_owner": "opensandbox-group"
     },
     "aud-049-dify-plugin-daemon": {
       "name": "Dify Plugin Daemon",
@@ -426,7 +555,10 @@
       "url": "https://github.com/langgenius/dify-plugin-daemon",
       "icon": "shield",
       "tone": "violet",
-      "audit_id": "AUD-049"
+      "audit_id": "AUD-049",
+      "logo": "/logos/aud-049-dify-plugin-daemon.png",
+      "logo_source": "https://github.com/langgenius.png?size=80",
+      "logo_owner": "langgenius"
     },
     "aud-050-dify-sandbox": {
       "name": "Dify Sandbox",
@@ -434,7 +566,10 @@
       "url": "https://github.com/langgenius/dify-sandbox",
       "icon": "shield",
       "tone": "blue",
-      "audit_id": "AUD-050"
+      "audit_id": "AUD-050",
+      "logo": "/logos/aud-050-dify-sandbox.png",
+      "logo_source": "https://github.com/langgenius.png?size=80",
+      "logo_owner": "langgenius"
     },
     "aud-051-e2b-runtime": {
       "name": "E2B Runtime",
@@ -442,7 +577,10 @@
       "url": "https://github.com/e2b-dev/runtime",
       "icon": "shield",
       "tone": "ink",
-      "audit_id": "AUD-051"
+      "audit_id": "AUD-051",
+      "logo": "/logos/aud-051-e2b-runtime.png",
+      "logo_source": "https://github.com/e2b-dev.png?size=80",
+      "logo_owner": "e2b-dev"
     },
     "aud-052-kubernetes-agent-sandbox": {
       "name": "Kubernetes Agent Sandbox",
@@ -450,7 +588,10 @@
       "url": "https://github.com/kubernetes-sigs/agent-sandbox",
       "icon": "shield",
       "tone": "green",
-      "audit_id": "AUD-052"
+      "audit_id": "AUD-052",
+      "logo": "/logos/aud-052-kubernetes-agent-sandbox.png",
+      "logo_source": "https://github.com/kubernetes-sigs.png?size=80",
+      "logo_owner": "kubernetes-sigs"
     },
     "aud-053-microsandbox": {
       "name": "Microsandbox",
@@ -458,7 +599,10 @@
       "url": "https://github.com/superradcompany/microsandbox",
       "icon": "shield",
       "tone": "green",
-      "audit_id": "AUD-053"
+      "audit_id": "AUD-053",
+      "logo": "/logos/aud-053-microsandbox.png",
+      "logo_source": "https://github.com/superradcompany.png?size=80",
+      "logo_owner": "superradcompany"
     },
     "aud-054-nvidia-openshell": {
       "name": "NVIDIA OpenShell",
@@ -466,7 +610,10 @@
       "url": "https://github.com/NVIDIA/OpenShell",
       "icon": "shield",
       "tone": "red",
-      "audit_id": "AUD-054"
+      "audit_id": "AUD-054",
+      "logo": "/logos/aud-054-nvidia-openshell.png",
+      "logo_source": "https://github.com/NVIDIA.png?size=80",
+      "logo_owner": "NVIDIA"
     },
     "aud-055-fastmcp": {
       "name": "FastMCP",
@@ -474,7 +621,10 @@
       "url": "https://github.com/PrefectHQ/fastmcp",
       "icon": "layers",
       "tone": "ink",
-      "audit_id": "AUD-055"
+      "audit_id": "AUD-055",
+      "logo": "/logos/aud-055-fastmcp.png",
+      "logo_source": "https://github.com/PrefectHQ.png?size=80",
+      "logo_owner": "PrefectHQ"
     },
     "aud-056-ibm-contextforge": {
       "name": "IBM ContextForge",
@@ -482,7 +632,10 @@
       "url": "https://github.com/IBM/mcp-context-forge",
       "icon": "layers",
       "tone": "ink",
-      "audit_id": "AUD-056"
+      "audit_id": "AUD-056",
+      "logo": "/logos/aud-056-ibm-contextforge.png",
+      "logo_source": "https://github.com/IBM.png?size=80",
+      "logo_owner": "IBM"
     },
     "aud-057-agentgateway": {
       "name": "Agentgateway",
@@ -490,7 +643,10 @@
       "url": "https://github.com/agentgateway/agentgateway",
       "icon": "bot",
       "tone": "red",
-      "audit_id": "AUD-057"
+      "audit_id": "AUD-057",
+      "logo": "/logos/aud-057-agentgateway.png",
+      "logo_source": "https://github.com/agentgateway.png?size=80",
+      "logo_owner": "agentgateway"
     },
     "aud-058-mcp-python-sdk": {
       "name": "MCP Python SDK",
@@ -498,7 +654,10 @@
       "url": "https://github.com/modelcontextprotocol/python-sdk",
       "icon": "layers",
       "tone": "red",
-      "audit_id": "AUD-058"
+      "audit_id": "AUD-058",
+      "logo": "/logos/aud-058-mcp-python-sdk.png",
+      "logo_source": "https://github.com/modelcontextprotocol.png?size=80",
+      "logo_owner": "modelcontextprotocol"
     },
     "aud-059-mcp-typescript-sdk": {
       "name": "MCP TypeScript SDK",
@@ -506,7 +665,10 @@
       "url": "https://github.com/modelcontextprotocol/typescript-sdk",
       "icon": "layers",
       "tone": "red",
-      "audit_id": "AUD-059"
+      "audit_id": "AUD-059",
+      "logo": "/logos/aud-059-mcp-typescript-sdk.png",
+      "logo_source": "https://github.com/modelcontextprotocol.png?size=80",
+      "logo_owner": "modelcontextprotocol"
     },
     "aud-060-llama-cpp": {
       "name": "llama.cpp",
@@ -514,7 +676,10 @@
       "url": "https://github.com/ggml-org/llama.cpp",
       "icon": "server",
       "tone": "green",
-      "audit_id": "AUD-060"
+      "audit_id": "AUD-060",
+      "logo": "/logos/aud-060-llama-cpp.png",
+      "logo_source": "https://github.com/ggml-org.png?size=80",
+      "logo_owner": "ggml-org"
     },
     "aud-061-sglang": {
       "name": "SGLang",
@@ -522,7 +687,10 @@
       "url": "https://github.com/sgl-project/sglang",
       "icon": "server",
       "tone": "green",
-      "audit_id": "AUD-061"
+      "audit_id": "AUD-061",
+      "logo": "/logos/aud-061-sglang.png",
+      "logo_source": "https://github.com/sgl-project.png?size=80",
+      "logo_owner": "sgl-project"
     },
     "aud-062-vllm": {
       "name": "vLLM",
@@ -530,7 +698,10 @@
       "url": "https://github.com/vllm-project/vllm",
       "icon": "server",
       "tone": "green",
-      "audit_id": "AUD-062"
+      "audit_id": "AUD-062",
+      "logo": "/logos/aud-062-vllm.png",
+      "logo_source": "https://github.com/vllm-project.png?size=80",
+      "logo_owner": "vllm-project"
     },
     "aud-063-executorch": {
       "name": "ExecuTorch",
@@ -538,7 +709,10 @@
       "url": "https://github.com/pytorch/executorch",
       "icon": "server",
       "tone": "blue",
-      "audit_id": "AUD-063"
+      "audit_id": "AUD-063",
+      "logo": "/logos/aud-063-executorch.png",
+      "logo_source": "https://github.com/pytorch.png?size=80",
+      "logo_owner": "pytorch"
     },
     "aud-064-exllamav3": {
       "name": "ExLlamaV3",
@@ -546,7 +720,10 @@
       "url": "https://github.com/turboderp-org/exllamav3",
       "icon": "server",
       "tone": "green",
-      "audit_id": "AUD-064"
+      "audit_id": "AUD-064",
+      "logo": "/logos/aud-064-exllamav3.png",
+      "logo_source": "https://github.com/turboderp-org.png?size=80",
+      "logo_owner": "turboderp-org"
     },
     "aud-065-fastdeploy": {
       "name": "FastDeploy",
@@ -554,7 +731,10 @@
       "url": "https://github.com/PaddlePaddle/FastDeploy",
       "icon": "server",
       "tone": "violet",
-      "audit_id": "AUD-065"
+      "audit_id": "AUD-065",
+      "logo": "/logos/aud-065-fastdeploy.png",
+      "logo_source": "https://github.com/PaddlePaddle.png?size=80",
+      "logo_owner": "PaddlePaddle"
     },
     "aud-066-lightllm": {
       "name": "LightLLM",
@@ -562,7 +742,10 @@
       "url": "https://github.com/ModelTC/LightLLM",
       "icon": "server",
       "tone": "red",
-      "audit_id": "AUD-066"
+      "audit_id": "AUD-066",
+      "logo": "/logos/aud-066-lightllm.png",
+      "logo_source": "https://github.com/ModelTC.png?size=80",
+      "logo_owner": "ModelTC"
     },
     "aud-067-lmdeploy": {
       "name": "LMDeploy",
@@ -570,7 +753,10 @@
       "url": "https://github.com/InternLM/lmdeploy",
       "icon": "server",
       "tone": "green",
-      "audit_id": "AUD-067"
+      "audit_id": "AUD-067",
+      "logo": "/logos/aud-067-lmdeploy.png",
+      "logo_source": "https://github.com/InternLM.png?size=80",
+      "logo_owner": "InternLM"
     },
     "aud-068-mistral-rs": {
       "name": "mistral.rs",
@@ -578,7 +764,10 @@
       "url": "https://github.com/EricLBuehler/mistral.rs",
       "icon": "server",
       "tone": "violet",
-      "audit_id": "AUD-068"
+      "audit_id": "AUD-068",
+      "logo": "/logos/aud-068-mistral-rs.png",
+      "logo_source": "https://github.com/EricLBuehler.png?size=80",
+      "logo_owner": "EricLBuehler"
     },
     "aud-069-mlc-llm": {
       "name": "MLC LLM",
@@ -586,7 +775,10 @@
       "url": "https://github.com/mlc-ai/mlc-llm",
       "icon": "server",
       "tone": "blue",
-      "audit_id": "AUD-069"
+      "audit_id": "AUD-069",
+      "logo": "/logos/aud-069-mlc-llm.png",
+      "logo_source": "https://github.com/mlc-ai.png?size=80",
+      "logo_owner": "mlc-ai"
     },
     "aud-070-mlx-lm": {
       "name": "MLX-LM",
@@ -594,7 +786,10 @@
       "url": "https://github.com/ml-explore/mlx-lm",
       "icon": "server",
       "tone": "amber",
-      "audit_id": "AUD-070"
+      "audit_id": "AUD-070",
+      "logo": "/logos/aud-070-mlx-lm.png",
+      "logo_source": "https://github.com/ml-explore.png?size=80",
+      "logo_owner": "ml-explore"
     },
     "aud-071-mnn": {
       "name": "MNN",
@@ -602,7 +797,10 @@
       "url": "https://github.com/alibaba/MNN",
       "icon": "server",
       "tone": "green",
-      "audit_id": "AUD-071"
+      "audit_id": "AUD-071",
+      "logo": "/logos/aud-071-mnn.png",
+      "logo_source": "https://github.com/alibaba.png?size=80",
+      "logo_owner": "alibaba"
     },
     "aud-072-onnx-runtime-genai": {
       "name": "ONNX Runtime GenAI",
@@ -610,7 +808,10 @@
       "url": "https://github.com/microsoft/onnxruntime-genai",
       "icon": "server",
       "tone": "violet",
-      "audit_id": "AUD-072"
+      "audit_id": "AUD-072",
+      "logo": "/logos/aud-072-onnx-runtime-genai.png",
+      "logo_source": "https://github.com/microsoft.png?size=80",
+      "logo_owner": "microsoft"
     },
     "aud-073-openvino-genai": {
       "name": "OpenVINO GenAI",
@@ -618,7 +819,10 @@
       "url": "https://github.com/openvinotoolkit/openvino.genai",
       "icon": "server",
       "tone": "red",
-      "audit_id": "AUD-073"
+      "audit_id": "AUD-073",
+      "logo": "/logos/aud-073-openvino-genai.png",
+      "logo_source": "https://github.com/openvinotoolkit.png?size=80",
+      "logo_owner": "openvinotoolkit"
     },
     "aud-074-rtp-llm": {
       "name": "RTP-LLM",
@@ -626,7 +830,10 @@
       "url": "https://github.com/alibaba/rtp-llm",
       "icon": "server",
       "tone": "red",
-      "audit_id": "AUD-074"
+      "audit_id": "AUD-074",
+      "logo": "/logos/aud-074-rtp-llm.png",
+      "logo_source": "https://github.com/alibaba.png?size=80",
+      "logo_owner": "alibaba"
     },
     "aud-075-tensorrt-llm": {
       "name": "TensorRT-LLM",
@@ -634,7 +841,10 @@
       "url": "https://github.com/NVIDIA/TensorRT-LLM",
       "icon": "server",
       "tone": "green",
-      "audit_id": "AUD-075"
+      "audit_id": "AUD-075",
+      "logo": "/logos/aud-075-tensorrt-llm.png",
+      "logo_source": "https://github.com/NVIDIA.png?size=80",
+      "logo_owner": "NVIDIA"
     },
     "aud-076-webllm": {
       "name": "WebLLM",
@@ -642,7 +852,10 @@
       "url": "https://github.com/mlc-ai/web-llm",
       "icon": "server",
       "tone": "violet",
-      "audit_id": "AUD-076"
+      "audit_id": "AUD-076",
+      "logo": "/logos/aud-076-webllm.png",
+      "logo_source": "https://github.com/mlc-ai.png?size=80",
+      "logo_owner": "mlc-ai"
     },
     "aud-077-xllm": {
       "name": "xLLM",
@@ -650,7 +863,10 @@
       "url": "https://github.com/xLLM-AI/xllm",
       "icon": "server",
       "tone": "red",
-      "audit_id": "AUD-077"
+      "audit_id": "AUD-077",
+      "logo": "/logos/aud-077-xllm.png",
+      "logo_source": "https://github.com/xLLM-AI.png?size=80",
+      "logo_owner": "xLLM-AI"
     },
     "aud-078-ollama": {
       "name": "Ollama",
@@ -658,7 +874,10 @@
       "url": "https://github.com/ollama/ollama",
       "icon": "server",
       "tone": "red",
-      "audit_id": "AUD-078"
+      "audit_id": "AUD-078",
+      "logo": "/logos/aud-078-ollama.png",
+      "logo_source": "https://github.com/ollama.png?size=80",
+      "logo_owner": "ollama"
     },
     "aud-079-text-embeddings-inference": {
       "name": "Text Embeddings Inference",
@@ -666,7 +885,10 @@
       "url": "https://github.com/huggingface/text-embeddings-inference",
       "icon": "server",
       "tone": "amber",
-      "audit_id": "AUD-079"
+      "audit_id": "AUD-079",
+      "logo": "/logos/aud-079-text-embeddings-inference.png",
+      "logo_source": "https://github.com/huggingface.png?size=80",
+      "logo_owner": "huggingface"
     },
     "aud-080-xinference": {
       "name": "Xinference",
@@ -674,7 +896,10 @@
       "url": "https://github.com/xorbitsai/inference",
       "icon": "server",
       "tone": "blue",
-      "audit_id": "AUD-080"
+      "audit_id": "AUD-080",
+      "logo": "/logos/aud-080-xinference.png",
+      "logo_source": "https://github.com/xorbitsai.png?size=80",
+      "logo_owner": "xorbitsai"
     },
     "aud-081-aibrix": {
       "name": "AIBrix",
@@ -682,7 +907,10 @@
       "url": "https://github.com/vllm-project/aibrix",
       "icon": "server",
       "tone": "amber",
-      "audit_id": "AUD-081"
+      "audit_id": "AUD-081",
+      "logo": "/logos/aud-081-aibrix.png",
+      "logo_source": "https://github.com/vllm-project.png?size=80",
+      "logo_owner": "vllm-project"
     },
     "aud-082-bentoml": {
       "name": "BentoML",
@@ -690,7 +918,10 @@
       "url": "https://github.com/bentoml/BentoML",
       "icon": "server",
       "tone": "green",
-      "audit_id": "AUD-082"
+      "audit_id": "AUD-082",
+      "logo": "/logos/aud-082-bentoml.png",
+      "logo_source": "https://github.com/bentoml.png?size=80",
+      "logo_owner": "bentoml"
     },
     "aud-083-deepspeed-mii": {
       "name": "DeepSpeed-MII",
@@ -698,7 +929,10 @@
       "url": "https://github.com/deepspeedai/DeepSpeed-MII",
       "icon": "server",
       "tone": "ink",
-      "audit_id": "AUD-083"
+      "audit_id": "AUD-083",
+      "logo": "/logos/aud-083-deepspeed-mii.png",
+      "logo_source": "https://github.com/deepspeedai.png?size=80",
+      "logo_owner": "deepspeedai"
     },
     "aud-084-fastchat": {
       "name": "FastChat",
@@ -706,7 +940,10 @@
       "url": "https://github.com/lm-sys/FastChat",
       "icon": "server",
       "tone": "amber",
-      "audit_id": "AUD-084"
+      "audit_id": "AUD-084",
+      "logo": "/logos/aud-084-fastchat.png",
+      "logo_source": "https://github.com/lm-sys.png?size=80",
+      "logo_owner": "lm-sys"
     },
     "aud-085-gpustack": {
       "name": "GPUStack",
@@ -714,7 +951,10 @@
       "url": "https://github.com/gpustack/gpustack",
       "icon": "server",
       "tone": "red",
-      "audit_id": "AUD-085"
+      "audit_id": "AUD-085",
+      "logo": "/logos/aud-085-gpustack.png",
+      "logo_source": "https://github.com/gpustack.png?size=80",
+      "logo_owner": "gpustack"
     },
     "aud-086-koboldcpp": {
       "name": "KoboldCpp",
@@ -722,7 +962,10 @@
       "url": "https://github.com/LostRuins/koboldcpp",
       "icon": "server",
       "tone": "amber",
-      "audit_id": "AUD-086"
+      "audit_id": "AUD-086",
+      "logo": "/logos/aud-086-koboldcpp.png",
+      "logo_source": "https://github.com/LostRuins.png?size=80",
+      "logo_owner": "LostRuins"
     },
     "aud-087-kserve": {
       "name": "KServe",
@@ -730,7 +973,10 @@
       "url": "https://github.com/kserve/kserve",
       "icon": "server",
       "tone": "blue",
-      "audit_id": "AUD-087"
+      "audit_id": "AUD-087",
+      "logo": "/logos/aud-087-kserve.png",
+      "logo_source": "https://github.com/kserve.png?size=80",
+      "logo_owner": "kserve"
     },
     "aud-088-llama-cpp-python": {
       "name": "llama-cpp-python",
@@ -738,7 +984,10 @@
       "url": "https://github.com/abetlen/llama-cpp-python",
       "icon": "server",
       "tone": "violet",
-      "audit_id": "AUD-088"
+      "audit_id": "AUD-088",
+      "logo": "/logos/aud-088-llama-cpp-python.png",
+      "logo_source": "https://github.com/abetlen.png?size=80",
+      "logo_owner": "abetlen"
     },
     "aud-089-llm-d": {
       "name": "llm-d",
@@ -746,7 +995,10 @@
       "url": "https://github.com/llm-d/llm-d",
       "icon": "server",
       "tone": "green",
-      "audit_id": "AUD-089"
+      "audit_id": "AUD-089",
+      "logo": "/logos/aud-089-llm-d.png",
+      "logo_source": "https://github.com/llm-d.png?size=80",
+      "logo_owner": "llm-d"
     },
     "aud-090-lmcache": {
       "name": "LMCache",
@@ -754,7 +1006,10 @@
       "url": "https://github.com/LMCache/LMCache",
       "icon": "server",
       "tone": "amber",
-      "audit_id": "AUD-090"
+      "audit_id": "AUD-090",
+      "logo": "/logos/aud-090-lmcache.png",
+      "logo_source": "https://github.com/LMCache.png?size=80",
+      "logo_owner": "LMCache"
     },
     "aud-091-localai": {
       "name": "LocalAI",
@@ -762,7 +1017,10 @@
       "url": "https://github.com/mudler/LocalAI",
       "icon": "server",
       "tone": "red",
-      "audit_id": "AUD-091"
+      "audit_id": "AUD-091",
+      "logo": "/logos/aud-091-localai.png",
+      "logo_source": "https://github.com/mudler.png?size=80",
+      "logo_owner": "mudler"
     },
     "aud-092-mooncake": {
       "name": "Mooncake",
@@ -770,7 +1028,10 @@
       "url": "https://github.com/kvcache-ai/Mooncake",
       "icon": "server",
       "tone": "ink",
-      "audit_id": "AUD-092"
+      "audit_id": "AUD-092",
+      "logo": "/logos/aud-092-mooncake.png",
+      "logo_source": "https://github.com/kvcache-ai.png?size=80",
+      "logo_owner": "kvcache-ai"
     },
     "aud-093-nvidia-dynamo": {
       "name": "NVIDIA Dynamo",
@@ -778,7 +1039,10 @@
       "url": "https://github.com/ai-dynamo/dynamo",
       "icon": "server",
       "tone": "violet",
-      "audit_id": "AUD-093"
+      "audit_id": "AUD-093",
+      "logo": "/logos/aud-093-nvidia-dynamo.png",
+      "logo_source": "https://github.com/ai-dynamo.png?size=80",
+      "logo_owner": "ai-dynamo"
     },
     "aud-094-ray-serve": {
       "name": "Ray Serve",
@@ -786,7 +1050,10 @@
       "url": "https://github.com/ray-project/ray",
       "icon": "server",
       "tone": "red",
-      "audit_id": "AUD-094"
+      "audit_id": "AUD-094",
+      "logo": "/logos/aud-094-ray-serve.png",
+      "logo_source": "https://github.com/ray-project.png?size=80",
+      "logo_owner": "ray-project"
     },
     "aud-095-tabbyapi": {
       "name": "TabbyAPI",
@@ -794,7 +1061,10 @@
       "url": "https://github.com/theroyallab/tabbyAPI",
       "icon": "server",
       "tone": "amber",
-      "audit_id": "AUD-095"
+      "audit_id": "AUD-095",
+      "logo": "/logos/aud-095-tabbyapi.png",
+      "logo_source": "https://github.com/theroyallab.png?size=80",
+      "logo_owner": "theroyallab"
     },
     "aud-096-triton-inference-server": {
       "name": "Triton Inference Server",
@@ -802,7 +1072,10 @@
       "url": "https://github.com/triton-inference-server/server",
       "icon": "server",
       "tone": "green",
-      "audit_id": "AUD-096"
+      "audit_id": "AUD-096",
+      "logo": "/logos/aud-096-triton-inference-server.png",
+      "logo_source": "https://github.com/triton-inference-server.png?size=80",
+      "logo_owner": "triton-inference-server"
     },
     "aud-097-vllm-ascend": {
       "name": "vLLM Ascend",
@@ -810,7 +1083,10 @@
       "url": "https://github.com/vllm-project/vllm-ascend",
       "icon": "server",
       "tone": "amber",
-      "audit_id": "AUD-097"
+      "audit_id": "AUD-097",
+      "logo": "/logos/aud-097-vllm-ascend.png",
+      "logo_source": "https://github.com/vllm-project.png?size=80",
+      "logo_owner": "vllm-project"
     },
     "aud-098-vllm-jax-tpu-inference": {
       "name": "vLLM JAX / TPU Inference",
@@ -818,7 +1094,10 @@
       "url": "https://github.com/vllm-project/tpu-inference",
       "icon": "server",
       "tone": "ink",
-      "audit_id": "AUD-098"
+      "audit_id": "AUD-098",
+      "logo": "/logos/aud-098-vllm-jax-tpu-inference.png",
+      "logo_source": "https://github.com/vllm-project.png?size=80",
+      "logo_owner": "vllm-project"
     },
     "aud-099-litellm": {
       "name": "LiteLLM",
@@ -826,7 +1105,10 @@
       "url": "https://github.com/BerriAI/litellm",
       "icon": "server",
       "tone": "violet",
-      "audit_id": "AUD-099"
+      "audit_id": "AUD-099",
+      "logo": "/logos/aud-099-litellm.png",
+      "logo_source": "https://github.com/BerriAI.png?size=80",
+      "logo_owner": "BerriAI"
     },
     "aud-100-agent-router-envoy-ai-gateway": {
       "name": "Agent Router（原Envoy AI Gateway ）",
@@ -834,7 +1116,10 @@
       "url": "https://github.com/theagentrouter/agent-router",
       "icon": "bot",
       "tone": "amber",
-      "audit_id": "AUD-100"
+      "audit_id": "AUD-100",
+      "logo": "/logos/aud-100-agent-router-envoy-ai-gateway.png",
+      "logo_source": "https://github.com/theagentrouter.png?size=80",
+      "logo_owner": "theagentrouter"
     },
     "aud-101-bifrost": {
       "name": "Bifrost",
@@ -842,7 +1127,10 @@
       "url": "https://github.com/maximhq/bifrost",
       "icon": "layers",
       "tone": "green",
-      "audit_id": "AUD-101"
+      "audit_id": "AUD-101",
+      "logo": "/logos/aud-101-bifrost.png",
+      "logo_source": "https://github.com/maximhq.png?size=80",
+      "logo_owner": "maximhq"
     },
     "aud-102-higress": {
       "name": "Higress",
@@ -850,7 +1138,10 @@
       "url": "https://github.com/higress-group/higress",
       "icon": "layers",
       "tone": "ink",
-      "audit_id": "AUD-102"
+      "audit_id": "AUD-102",
+      "logo": "/logos/aud-102-higress.png",
+      "logo_source": "https://github.com/higress-group.png?size=80",
+      "logo_owner": "higress-group"
     },
     "aud-103-new-api": {
       "name": "New API",
@@ -858,7 +1149,10 @@
       "url": "https://github.com/QuantumNous/new-api",
       "icon": "layers",
       "tone": "red",
-      "audit_id": "AUD-103"
+      "audit_id": "AUD-103",
+      "logo": "/logos/aud-103-new-api.png",
+      "logo_source": "https://github.com/QuantumNous.png?size=80",
+      "logo_owner": "QuantumNous"
     },
     "aud-104-one-api": {
       "name": "One API",
@@ -866,7 +1160,10 @@
       "url": "https://github.com/songquanpeng/one-api",
       "icon": "layers",
       "tone": "violet",
-      "audit_id": "AUD-104"
+      "audit_id": "AUD-104",
+      "logo": "/logos/aud-104-one-api.png",
+      "logo_source": "https://github.com/songquanpeng.png?size=80",
+      "logo_owner": "songquanpeng"
     },
     "aud-105-portkey-gateway": {
       "name": "Portkey Gateway",
@@ -874,7 +1171,10 @@
       "url": "https://github.com/Portkey-AI/gateway",
       "icon": "layers",
       "tone": "red",
-      "audit_id": "AUD-105"
+      "audit_id": "AUD-105",
+      "logo": "/logos/aud-105-portkey-gateway.png",
+      "logo_source": "https://github.com/Portkey-AI.png?size=80",
+      "logo_owner": "Portkey-AI"
     },
     "aud-106-tensorzero": {
       "name": "TensorZero",
@@ -882,7 +1182,10 @@
       "url": "https://github.com/tensorzero/tensorzero",
       "icon": "layers",
       "tone": "amber",
-      "audit_id": "AUD-106"
+      "audit_id": "AUD-106",
+      "logo": "/logos/aud-106-tensorzero.png",
+      "logo_source": "https://github.com/tensorzero.png?size=80",
+      "logo_owner": "tensorzero"
     },
     "aud-107-dify": {
       "name": "Dify",
@@ -890,7 +1193,10 @@
       "url": "https://github.com/langgenius/dify",
       "icon": "layers",
       "tone": "ink",
-      "audit_id": "AUD-107"
+      "audit_id": "AUD-107",
+      "logo": "/logos/aud-107-dify.png",
+      "logo_source": "https://github.com/langgenius.png?size=80",
+      "logo_owner": "langgenius"
     },
     "aud-108-langflow": {
       "name": "Langflow",
@@ -898,7 +1204,10 @@
       "url": "https://github.com/langflow-ai/langflow",
       "icon": "layers",
       "tone": "red",
-      "audit_id": "AUD-108"
+      "audit_id": "AUD-108",
+      "logo": "/logos/aud-108-langflow.png",
+      "logo_source": "https://github.com/langflow-ai.png?size=80",
+      "logo_owner": "langflow-ai"
     },
     "aud-109-librechat": {
       "name": "LibreChat",
@@ -906,7 +1215,10 @@
       "url": "https://github.com/LibreChat-AI/LibreChat",
       "icon": "layers",
       "tone": "ink",
-      "audit_id": "AUD-109"
+      "audit_id": "AUD-109",
+      "logo": "/logos/aud-109-librechat.png",
+      "logo_source": "https://github.com/LibreChat-AI.png?size=80",
+      "logo_owner": "LibreChat-AI"
     },
     "aud-110-open-webui": {
       "name": "Open WebUI",
@@ -914,7 +1226,10 @@
       "url": "https://github.com/open-webui/open-webui",
       "icon": "layers",
       "tone": "green",
-      "audit_id": "AUD-110"
+      "audit_id": "AUD-110",
+      "logo": "/logos/aud-110-open-webui.png",
+      "logo_source": "https://github.com/open-webui.png?size=80",
+      "logo_owner": "open-webui"
     },
     "aud-111-ragflow": {
       "name": "RAGFlow",
@@ -922,7 +1237,10 @@
       "url": "https://github.com/infiniflow/ragflow",
       "icon": "layers",
       "tone": "green",
-      "audit_id": "AUD-111"
+      "audit_id": "AUD-111",
+      "logo": "/logos/aud-111-ragflow.png",
+      "logo_source": "https://github.com/infiniflow.png?size=80",
+      "logo_owner": "infiniflow"
     },
     "aud-112-autogen": {
       "name": "AutoGen（历史部署）",
@@ -930,7 +1248,10 @@
       "url": "https://github.com/microsoft/autogen",
       "icon": "layers",
       "tone": "red",
-      "audit_id": "AUD-112"
+      "audit_id": "AUD-112",
+      "logo": "/logos/aud-112-autogen.png",
+      "logo_source": "https://github.com/microsoft.png?size=80",
+      "logo_owner": "microsoft"
     },
     "aud-113-daytona": {
       "name": "Daytona（历史公开仓）",
@@ -938,7 +1259,10 @@
       "url": "https://github.com/daytonaio/daytona",
       "icon": "layers",
       "tone": "green",
-      "audit_id": "AUD-113"
+      "audit_id": "AUD-113",
+      "logo": "/logos/aud-113-daytona.png",
+      "logo_source": "https://github.com/daytonaio.png?size=80",
+      "logo_owner": "daytonaio"
     },
     "aud-114-exllamav2": {
       "name": "ExLlamaV2",
@@ -946,7 +1270,10 @@
       "url": "https://github.com/turboderp-org/exllamav2",
       "icon": "layers",
       "tone": "violet",
-      "audit_id": "AUD-114"
+      "audit_id": "AUD-114",
+      "logo": "/logos/aud-114-exllamav2.png",
+      "logo_source": "https://github.com/turboderp-org.png?size=80",
+      "logo_owner": "turboderp-org"
     },
     "aud-115-fastertransformer": {
       "name": "FasterTransformer",
@@ -954,7 +1281,10 @@
       "url": "https://github.com/NVIDIA/FasterTransformer",
       "icon": "layers",
       "tone": "green",
-      "audit_id": "AUD-115"
+      "audit_id": "AUD-115",
+      "logo": "/logos/aud-115-fastertransformer.png",
+      "logo_source": "https://github.com/NVIDIA.png?size=80",
+      "logo_owner": "NVIDIA"
     },
     "aud-116-flowise": {
       "name": "Flowise",
@@ -962,7 +1292,10 @@
       "url": "https://github.com/FlowiseAI/Flowise",
       "icon": "layers",
       "tone": "green",
-      "audit_id": "AUD-116"
+      "audit_id": "AUD-116",
+      "logo": "/logos/aud-116-flowise.png",
+      "logo_source": "https://github.com/FlowiseAI.png?size=80",
+      "logo_owner": "FlowiseAI"
     },
     "aud-117-roo-code": {
       "name": "Roo Code（历史部署）",
@@ -970,7 +1303,10 @@
       "url": "https://github.com/RooCodeInc/Roo-Code",
       "icon": "terminal",
       "tone": "red",
-      "audit_id": "AUD-117"
+      "audit_id": "AUD-117",
+      "logo": "/logos/aud-117-roo-code.png",
+      "logo_source": "https://github.com/RooCodeInc.png?size=80",
+      "logo_owner": "RooCodeInc"
     },
     "aud-118-tgi": {
       "name": "TGI",
@@ -978,7 +1314,10 @@
       "url": "https://github.com/huggingface/text-generation-inference",
       "icon": "layers",
       "tone": "ink",
-      "audit_id": "AUD-118"
+      "audit_id": "AUD-118",
+      "logo": "/logos/aud-118-tgi.png",
+      "logo_source": "https://github.com/huggingface.png?size=80",
+      "logo_owner": "huggingface"
     },
     "aud-119-tensorizer": {
       "name": "Tensorizer",
@@ -986,7 +1325,10 @@
       "url": "https://github.com/coreweave/tensorizer",
       "icon": "layers",
       "tone": "ink",
-      "audit_id": "AUD-119"
+      "audit_id": "AUD-119",
+      "logo": "/logos/aud-119-tensorizer.png",
+      "logo_source": "https://github.com/coreweave.png?size=80",
+      "logo_owner": "coreweave"
     },
     "aud-120-candle": {
       "name": "Candle",
@@ -994,7 +1336,10 @@
       "url": "https://github.com/huggingface/candle",
       "icon": "layers",
       "tone": "amber",
-      "audit_id": "AUD-120"
+      "audit_id": "AUD-120",
+      "logo": "/logos/aud-120-candle.png",
+      "logo_source": "https://github.com/huggingface.png?size=80",
+      "logo_owner": "huggingface"
     },
     "aud-121-flashinfer": {
       "name": "FlashInfer",
@@ -1002,7 +1347,10 @@
       "url": "https://github.com/flashinfer-ai/flashinfer",
       "icon": "layers",
       "tone": "amber",
-      "audit_id": "AUD-121"
+      "audit_id": "AUD-121",
+      "logo": "/logos/aud-121-flashinfer.png",
+      "logo_source": "https://github.com/flashinfer-ai.png?size=80",
+      "logo_owner": "flashinfer-ai"
     },
     "aud-122-ggml": {
       "name": "ggml",
@@ -1010,7 +1358,10 @@
       "url": "https://github.com/ggml-org/ggml",
       "icon": "layers",
       "tone": "violet",
-      "audit_id": "AUD-122"
+      "audit_id": "AUD-122",
+      "logo": "/logos/aud-122-ggml.png",
+      "logo_source": "https://github.com/ggml-org.png?size=80",
+      "logo_owner": "ggml-org"
     },
     "aud-123-llguidance": {
       "name": "llguidance",
@@ -1018,7 +1369,10 @@
       "url": "https://github.com/guidance-ai/llguidance",
       "icon": "layers",
       "tone": "ink",
-      "audit_id": "AUD-123"
+      "audit_id": "AUD-123",
+      "logo": "/logos/aud-123-llguidance.png",
+      "logo_source": "https://github.com/guidance-ai.png?size=80",
+      "logo_owner": "guidance-ai"
     },
     "aud-124-safetensors": {
       "name": "Safetensors",
@@ -1026,7 +1380,10 @@
       "url": "https://github.com/safetensors/safetensors",
       "icon": "layers",
       "tone": "ink",
-      "audit_id": "AUD-124"
+      "audit_id": "AUD-124",
+      "logo": "/logos/aud-124-safetensors.png",
+      "logo_source": "https://github.com/safetensors.png?size=80",
+      "logo_owner": "safetensors"
     },
     "aud-125-tokenizers": {
       "name": "Tokenizers",
@@ -1034,7 +1391,10 @@
       "url": "https://github.com/huggingface/tokenizers",
       "icon": "layers",
       "tone": "amber",
-      "audit_id": "AUD-125"
+      "audit_id": "AUD-125",
+      "logo": "/logos/aud-125-tokenizers.png",
+      "logo_source": "https://github.com/huggingface.png?size=80",
+      "logo_owner": "huggingface"
     },
     "aud-126-transformers": {
       "name": "Transformers",
@@ -1042,7 +1402,10 @@
       "url": "https://github.com/huggingface/transformers",
       "icon": "layers",
       "tone": "green",
-      "audit_id": "AUD-126"
+      "audit_id": "AUD-126",
+      "logo": "/logos/aud-126-transformers.png",
+      "logo_source": "https://github.com/huggingface.png?size=80",
+      "logo_owner": "huggingface"
     },
     "aud-127-xgrammar": {
       "name": "XGrammar",
@@ -1050,7 +1413,17 @@
       "url": "https://github.com/mlc-ai/xgrammar",
       "icon": "layers",
       "tone": "red",
-      "audit_id": "AUD-127"
+      "audit_id": "AUD-127",
+      "logo": "/logos/aud-127-xgrammar.png",
+      "logo_source": "https://github.com/mlc-ai.png?size=80",
+      "logo_owner": "mlc-ai"
+    },
+    "verl": {
+      "name": "verl",
+      "url": "git@github.com:volcengine/verl.git",
+      "logo": "/logos/verl.png",
+      "icon": "layers",
+      "tone": "ink"
     }
   }
 }

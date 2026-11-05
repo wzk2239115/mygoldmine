@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {initialTaskSelection, resolveTaskSelection, taskStateLabel} from '../src/task-selection.js';
-for (const field of ['verification','construction']) test(`${field} 候选选择在并发刷新时保持身份，排队项不显示其他会话`, () => {
+for (const field of ['verification','construction','execution','scenes','review']) test(`${field} 候选选择在并发刷新时保持身份，排队项不显示其他会话`, () => {
   const tasks=[{id:'F-1',traceId:'new-1',state:'running',label:'构建中'},{id:'F-2',traceId:'new-2',state:'queued',label:'排队'}];
   const node={[field]:{attemptId:'new',tasks}};
   const traces=[{id:'old-2'},{id:'new-1'}];
@@ -29,7 +29,7 @@ test('普通节点仍可选择新重跑日志', () => {
   assert.equal(resolveTaskSelection(node,[{id:'old'},{id:'new-worker'}],selection).trace.id,'new-worker');
 });
 
-for(const id of ['verify','redteam-lab']) test(`${id} 尚无任务也不自动显示历史会话`,()=>{
+for(const id of ['verify','redteam-lab','redteam-agent','visual','judge']) test(`${id} 尚无任务也不自动显示历史会话`,()=>{
  const node={id};
  assert.equal(resolveTaskSelection(node,[{id:'old-session'}],initialTaskSelection(node)).trace,null);
 });

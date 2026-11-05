@@ -13,10 +13,10 @@ export default function LiveRunsStrip({ runs, onOpen }) {
   if (!runs?.length) return null;
 
   return (
-    <section className="live-strip" aria-label="正在运行的挖掘任务">
+    <section className="live-strip" aria-label="正在运行的审计任务">
       <div className="live-strip-head">
         <span className="live-pulse" aria-hidden="true" />
-        <strong>实时挖掘</strong>
+        <strong>实时审计</strong>
         <span className="live-count">{runs.length} 个任务</span>
         <span className="live-hint">日志每 4 秒刷新 · 报告生成后自动进入看板</span>
       </div>
@@ -40,7 +40,7 @@ export default function LiveRunsStrip({ runs, onOpen }) {
                     ? <><Loader2 size={13} className="is-spinning" aria-hidden="true" />{stateLabel(run)}</>
                     : <><Radio size={10} aria-hidden="true" />{stateLabel(run)}</>}
                 </span>
-                <span className="live-run-time" title={`${elapsed} / ${timeout || '?'} seconds`}>
+                <span className="live-run-time" title={`已运行 ${elapsed} 秒 / 时限 ${timeout || '未知'} 秒`}>
                   <Clock3 size={11} aria-hidden="true" />
                   {formatDuration(elapsed)}
                   {timeout ? <small> / {formatDuration(timeout)}</small> : null}
@@ -54,7 +54,7 @@ export default function LiveRunsStrip({ runs, onOpen }) {
               ) : null}
               <div className="live-run-line" title={run.lastLogLine || ''}>
                 <Terminal size={11} aria-hidden="true" />
-                <code>{truncate(run.lastLogLine || '等待 agent 输出…', 150)}</code>
+                <code>{truncate(run.lastLogLine || '等待智能体输出…', 150)}</code>
               </div>
               <div className="live-run-foot">
                 <span>{run.logMtime ? `最后输出 ${relativeTime(run.logMtime)}` : '日志尚未生成'}</span>
