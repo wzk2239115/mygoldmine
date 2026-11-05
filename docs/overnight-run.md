@@ -1,4 +1,4 @@
-# 整夜并行挖掘：overnight.sh（T13）
+# 整夜并行批量审计：`overnight.sh`（T13）
 
 `scripts/mine/overnight.sh` 是 `parallel_mine.sh` 的运行入口，固定整夜场景的默认值：
 
@@ -85,18 +85,18 @@ tail -f runs/.orchestrator/logs/orchestrator.log
 bash scripts/mine/overnight.sh stop
 ```
 
-行为：写入 `STOP` 标记，向编排器与 worker 进程组发 `TERM`，等待最多 30 秒后必要时 `KILL`。
+行为：写入 `STOP` 标记，向编排器与后台任务进程组发 `TERM`，等待最多 30 秒后必要时发送 `KILL`。
 已产出的报告、`raw.jsonl`、`claude.rendered.log` 都会保留；未完成项目状态记为 `stopped`。
 
-## 断点续跑：resume
+## 恢复未完成项目：`resume`
 
 ```bash
 bash scripts/mine/overnight.sh resume
 ```
 
-- 从状态目录与 `run-meta.json` 计算未完成项目（`success` / `skipped` 视为完成）
+- 从状态目录与 `run-meta.json` 计算未完成项目（`success` 和 `skipped` 视为完成）
 - 只把未完成项目通过 `--projects a,b` 传给 `parallel_mine.sh`
-- 已完成项目不会产生新 run 目录；全部完成时直接输出“无需 resume”
+- 已完成项目不会产生新运行目录；全部完成时直接输出“无需恢复”
 - 同样支持 `--dry-run` 预览，例如：
 
 ```bash
@@ -117,7 +117,7 @@ for p in targets/*/; do
 done
 ```
 
-每个 run 目录应包含：
+每个审计运行目录应包含：
 
 ```text
 audit-report.md
@@ -135,9 +135,9 @@ run-meta.json
 | 状态 | 含义 | 建议 |
 |------|------|------|
 | `running` + `orchestrator_alive=yes` | 正常执行中 | 继续等待，看项目日志 |
-| `running` + `orchestrator_alive=no` | 进程被 kill -9 等异常退出 | `resume` 续跑 |
+| `running` + `orchestrator_alive=no` | 进程被 `kill -9` 等异常终止 | 用 `resume` 恢复未完成项目 |
 | `finished`，`failed=0` | 全部成功或已完成跳过 | 收报告 |
-| `failed>0` / `timeout>0` | 失败或超时（超时不原地重试） | 看 `logs/<project>.log` 后 `resume` |
+| `failed>0` / `timeout>0` | 失败或超时（超时不原地重试） | 看 `logs/<project>.log` 后执行 `resume` |
 | `stopped>0` | 人工止损 | `resume` 只补这些项目 |
 | `state=not-started` | 尚未启动 | `start` |
 

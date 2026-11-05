@@ -9,7 +9,7 @@
 | 论文 | 核心机制 | 对 Goldmine 的直接启示 |
 |---|---|---|
 | [Self-Harness: Harnesses That Improve Themselves](https://arxiv.org/abs/2606.09498) | 归纳共性弱点 → 最小执行框架修改 → 在参与和未参与调参的项目上检查非回归 | 从红队和验证失败记录中归纳可复用弱点；每轮只修改事先声明的范围，候选不过门禁就不发布。例：`model_timeout` 聚为运行时控制弱点，对应 `audit_rsi/weakness.py`、`audit_rsi/harness.py` |
-| [AgentDevel: Reframing Self-Evolving LLM Agents as Release Engineering](https://arxiv.org/abs/2601.04620) | 单一版本线、可执行诊断、逐项检查“通过→失败”（P→F）和“失败→通过”（F→P） | 不只看平均收益；必须记录每个候选问题和项目的回归，保留不可变候选和回滚能力 |
+| [AgentDevel: Reframing Self-Evolving LLM Agents as Release Engineering](https://arxiv.org/abs/2601.04620) | 单一版本线、可执行诊断、逐项检查“通过→失败”（P→F）和“失败→通过”（F→P） | 不只看平均收益；必须记录每个候选问题和项目的回归，保留确定后不再修改的候选和回滚能力 |
 | [Recursive Self-Improvement through Multi-Agent Self-Supervision](https://arxiv.org/abs/2610.12176) | 多角色工作流搜索与自评估交替，优质团队操作记录写回训练 | 红队攻击者、目标服务执行框架和独立评判器的记录应按角色保留；可研究团队轨迹，但自评不能替代独立证据 |
 | [Model–Harness Co-evolution for Recursive Self-Improvement](https://arxiv.org/abs/2608.13951) | 构建、更新、重建执行框架，保留同一问题的不同验证结果和完整证据 | 同一候选问题的执行框架应保留成功、回归和近失样本；未来模型更新后要重建匹配的执行框架 |
 | [DiscoveryRSI: Recursively Learning to Discover Valuable Hypotheses](https://arxiv.org/abs/2610.23839) | 假设树、贡献评估、执行回放和再次发现 | 候选问题不只是一个标签，还应记录根因、调查决策、替代解释和可证伪性；可研究如何评估每个假设的贡献 |
@@ -56,15 +56,15 @@
 
 截至本轮代码与数据检查：
 
-- 经验池有 986 条问题实例（occurrence）记录，训练支持 91 条，全部为 static；按动作仅 deep_read 25 条、defer 66 条有样本，verify、human_review、duplicate_candidate 均为 0。可用于动作训练的 trusted 样本为 0。
-- 可用于动作训练的 trusted 样本为 0（`trusted_support=0`；现有 20 条人工结论因缺动作记录未进入训练）。发布与结果回写尚未接入 `audit_rsi` CLI，因此不是“生产发布被拒绝”，而是发布链路尚未接入。不能声称已实现生产 RSI 或因果提升。
+- 经验池有 986 条问题实例（occurrence）记录，验证动作训练支持 91 条，全部为 `static`；按动作仅 `deep_read` 25 条、`defer` 66 条有样本，`verify`、`human_review`、`duplicate_candidate` 均为 0。可用于验证动作训练的 `trusted` 样本为 0，验证动作策略仍保持只读建议，不能声称已实现生产 RSI 或因果提升。
+- 挖掘修复已进入主流程：`Claude Code` 的 `mining-repair-learner` 组合验证经验分析、作用域判断和已有知识技能，输出修复 `Markdown`；`mining-repair-drive` 再让候选实际参与隔离挖掘、蓝队验证和红队审核。单项目主流程发布仓库专属修复，批量主流程自动选择留出项目评估共享修复；接受项由下一轮加载并可回滚。静态证据、执行失败或回归均不发布，候选重跑产物与正式历史隔离。
 - 验证报告（`verify-report.json`）和自动状态文件（`auto-state.json`）原先未完整进入经验池，已在本轮修复。
 - 新增红队经验适配（`redteam-experience`）：运行级结果与攻击者逐步工具事件分层，只有来源可重算核验的实际运行或独立评判记录才自动获得可信标签；未捕获来源（`not_captured`）的记录保持未知（unknown）。
 - 新增 `redteam-weakness`：按项目类型、攻击模型、失败类别和严重度对失败进行可重复分组，输出支持数量、成本和候选可修改范围；只归纳弱点，不自动修改执行框架。
 - `verify-flips` 现在带候选非回归门禁：默认要求配对覆盖率 ≥0.8、至少一个“失败→通过”（F→P）、零“通过→失败”（P→F）；门禁接受后仍需候选复核，不自动发布。
 - 新增标签补充计划（`label-plan`）：优先选择完全缺少可用于动作训练的 trusted 样本的项目和动作，过滤无动作记录，保留抽样倾向和安全上下文，用于更高效地补充真实标签。
 - 新增 `harness-propose / harness-validate`：弱点归纳结果可生成带稳定 ID、证据哈希和保留行为的最小候选，身份篡改会被拒绝；候选仅在修复/回归门禁接受时标记为已验证，仍不执行实际修改（`mutation=none`）。
-- 自动路由可以提供按既定规则选择的动作及其选择概率，但不等于探索数据；同动作回放不能证明替代动作会更好。
+- 自动路由可以提供按既定规则选择的动作，以及该动作当时被选中的概率，但不等于探索数据；同动作回放不能证明替代动作会更好。
 - 红队 HTTP 实验环境、flag 来源核验和独立评判器是强证据来源，但当前覆盖和协议范围仍有限。
 
 ## 4. 建议的短期与中期路线
@@ -74,7 +74,7 @@
 1. 持续增加真实验证、实际运行和独立评判标签，按问题实例与语义身份隔离训练和评估，防止同一问题泄漏到两侧。
 2. 为每个动作保留动作前上下文、成本、结果和证据等级。
 3. 增加逐候选问题的修复/回归检查与跨项目 holdout，不只汇报平均收益。**holdout 是留出验证项目，训练和调参时不看它，用来检验跨项目泛化。**
-4. 保持只读建议模式（shadow-only，`recommendation_only=true`、`state_change=none`）：**只给建议，不自动改变生产流程**，直到可信样本支持、留出验证和统计门禁真实满足。
+4. 验证资源学习保持只读建议模式（`shadow`，`recommendation_only=true`、`state_change=none`），直到可信样本支持、留出验证和统计通过条件真实满足；挖掘修复则必须通过独立真实前后运行评估才可发布。
 
 中期：
 

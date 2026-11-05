@@ -1,4 +1,4 @@
-# mygoldmine 项目说明（ralph loop 每轮必读）
+# mygoldmine 项目说明（自动循环每轮必读）
 
 本仓库原名 Vul-AI-V2，是基于 Claude Code 的自动化安全审计框架。不要把本仓库当作目标；
 目标源码会被克隆到 `targets/`，审计产物写到 `runs/`。
@@ -45,4 +45,4 @@ git status --porcelain                # 确认没有把 targets/runs/logs 加入
 - 只分析本地克隆的开源仓库；不扫描公网/生产系统。
 - 不编写可直接武器化的 exploit；只做定位、根因、最小复现思路、修复建议。
 - 密钥只从环境变量读取；日志与 JSON 中不得出现 `sk-`、`api_key`、`Bearer` 等秘密。
-- 实现阶段不要启动真实 6h 挖矿，只允许 `--dry-run` 或小样本冒烟。
+- 实现阶段不要启动持续 6 小时的真实批量审计，只允许 `--dry-run` 或小样本冒烟测试。

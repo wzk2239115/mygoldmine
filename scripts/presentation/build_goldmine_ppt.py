@@ -241,7 +241,7 @@ class Deck:
             shapes.append(arrow(60 + index, x, y, w, h, direction, COLORS["gold"]))
         shapes.append(text_box(70, 3.5, 3.55, 6.35, 0.7, "学习流程持续的条件：有真实经验 → 有可靠答案 → 通过独立检查\n任何一步证据不足，都只保留建议，不强行自动改进", size=14, color=COLORS["ink"], bold=True))
         shapes.append(rect(80, 0.62, 6.25, 12.1, 0.55, COLORS["gold_light"], COLORS["gold"]))
-        shapes.append(text_box(81, 0.86, 6.4, 11.65, 0.28, "当前高等级可信标签为 0：第 06 步尚未开放；图中结果回写是目标工作方式，尚未接入，不是生产现状", size=13, color=COLORS["red"], bold=True))
+        shapes.append(text_box(81, 0.86, 6.4, 11.65, 0.28, "验证动作的可信训练样本为 0，继续保持只读建议；挖掘修复是独立支路，只有通过真实前后运行评估的规则才发布", size=13, color=COLORS["red"], bold=True))
         return slide_xml(shapes), rels
 
     def metrics(self, number, title, metrics, bullets):
@@ -282,63 +282,63 @@ def build():
     art = ROOT / "ui" / "public" / "architecture"
     slides = []
     slides.append(deck.cover(
-        1, "GoldMine\n从漏洞矿藏到可信证据",
-        "RSI × 红队模型 × 可验证的算法闭环",
+        1, "GoldMine\n从候选问题到可信证据",
+        "RSI × 红队模型 × 可验证的算法学习循环",
         ["发现 · 验证 · 学习 · 非回归发布", "算法团队 / 2026-11"],
         art / "overview.webp",
     ))
     slides.append(deck.cards(2, "GoldMine：从源码到可信证据｜谁在执行", [
         ("01 脚本搭好实验场", "选好项目，建立独立工作副本。\n源码只读，所有修改留在沙箱。", COLORS["blue"]),
-        ("02 Agent 找准方向", "先识别项目类型、入口和边界，再缩小需要深读的范围。", COLORS["gold"]),
-        ("03 子 Agent 深入审计", "按检查清单分析源码；审查者去重，报告器负责汇总。", COLORS["green"]),
-        ("04 Worker 整理发现", "合并历史记录、自动分诊；归档只是低优先级，不代表安全。", COLORS["blue"]),
-        ("05 Agent 动手验证", "写最小复现并实际运行，不能把静态猜测直接当成漏洞。", COLORS["gold"]),
+        ("02 智能体找准方向", "先识别项目类型、入口和边界，再缩小需要深读的范围。", COLORS["gold"]),
+        ("03 子智能体深入审计", "按检查清单分析源码；审查者去重，报告器负责汇总。", COLORS["green"]),
+        ("04 后台任务整理发现", "合并历史记录、自动分诊；归档只是低优先级，不代表安全。", COLORS["blue"]),
+        ("05 智能体动手验证", "写最小复现并实际运行，不能把静态猜测直接当成漏洞。", COLORS["gold"]),
         ("06 红队证明并交付", "在隔离环境取得真实证据，独立复核后再交给人工。", COLORS["red"]),
-    ], columns=3, footer="Skill 规定方法和边界，Agent 负责判断，脚本与 Worker 负责稳定执行", body_size=15, title_size=17))
-    slides.append(deck.cards(3, "Skill 不是万能 Agent：它只规定方法和边界", [
-        ("画像 Skill", "告诉 Agent 要看项目类型、入口和信任边界，并推荐合适的分析路线。", COLORS["gold"]),
-        ("分析 Skill", "提供某类漏洞的检查清单；它提供视角，不替 Agent 宣布漏洞成立。", COLORS["green"]),
-        ("报告 Skill", "统一报告字段和表达方式，只汇总已有发现，不补造证据。", COLORS["blue"]),
+    ], columns=3, footer="技能规定方法和边界，智能体负责判断，脚本与后台任务负责稳定执行", body_size=15, title_size=17))
+    slides.append(deck.cards(3, "技能不是万能智能体：它只规定方法和边界", [
+        ("画像技能", "告诉智能体要看项目类型、入口和信任边界，并推荐合适的分析路线。", COLORS["gold"]),
+        ("分析技能", "提供某类漏洞的检查清单；它提供视角，不替智能体宣布漏洞成立。", COLORS["green"]),
+        ("报告技能", "统一报告字段和表达方式，只汇总已有发现，不补造证据。", COLORS["blue"]),
         ("沙箱脚本", "负责隔离、工作副本和环境复用；它不管漏洞判断是否专业。", COLORS["blue"]),
-        ("自动分类 Worker", "负责合并身份、去重和路由；它不能替人工完成最终验收。", COLORS["gold"]),
-        ("红队 Lab Skill", "规定隔离、随机标记和负控；不支持的执行方式必须明确停下。", COLORS["red"]),
-    ], columns=3, footer="具体脚本与 Skill 路径统一放在末页；这里先听懂每个角色负责什么", body_size=15, title_size=17))
-    slides.append(deck.cards(4, "2026 年研究地图：从自我反思走向受控闭环", [
-        ("Self-Harness", "共性弱点 → 最小 harness 修改 → 留出项目非回归。\n下一页：为什么只改外部执行框架。", COLORS["gold"]),
-        ("AgentDevel", "把 agent 当发布制品，逐项检查 P→F / F→P。\n第 6 页：为什么不能只看平均分。", COLORS["blue"]),
+        ("自动分类后台任务", "负责合并身份、去重和路由；它不能替人工完成最终验收。", COLORS["gold"]),
+        ("红队隔离验证技能", "规定隔离、随机标记和负向控制；不支持的执行方式必须明确停下。", COLORS["red"]),
+    ], columns=3, footer="具体脚本与技能路径统一放在末页；这里先听懂每个角色负责什么", body_size=15, title_size=17))
+    slides.append(deck.cards(4, "2026 年研究地图：从自我反思走向受控学习循环", [
+        ("Self-Harness", "共性弱点 → 最小执行框架修改 → 留出项目非回归。\n下一页：为什么只改外部执行框架。", COLORS["gold"]),
+        ("AgentDevel", "把智能体当发布制品，逐项检查 P→F / F→P。\n第 6 页：为什么不能只看平均分。", COLORS["blue"]),
         ("MASS", "多角色工作流搜索，优质团队轨迹写回训练。\n第 7 页：协作经验怎样变成训练数据。", COLORS["green"]),
-        ("HELIX", "模型–harness 共进化，保留 verified siblings。\n第 8 页：为什么执行框架决定能学到什么。", COLORS["gold"]),
-        ("DiscoveryRSI", "假设信用、workflow replay 与 rediscovery。\n第 9 页：怎样让发现能力逐轮增强。", COLORS["blue"]),
+        ("HELIX", "模型与执行框架共同进化，保留已验证的配对方案。\n第 8 页：为什么执行框架决定能学到什么。", COLORS["gold"]),
+        ("DiscoveryRSI", "假设信用、工作流回放与再次发现。\n第 9 页：怎样让发现能力逐轮增强。", COLORS["blue"]),
     ], columns=3, footer="接下来五页逐篇速览；论文结果用于指导设计，不直接外推为 GoldMine 的生产效果"))
     paper_art = ROOT / "docs" / "visuals" / "rsi-papers"
     slides.append(deck.hero(
         5, "Self-Harness：针对共性弱点，最小修改执行框架",
-        ["问题：同一模型反复出现同类失败，人工逐项补丁难以复用", "方法：固定基座模型与评估器，从轨迹归纳弱点，只改外部 harness", "验证：参与和未参与调参的项目都检查非回归；论文报告三组留出通过率提升", "GoldMine：model_timeout → 重试控制候选；weakness.py + harness.py"],
+        ["问题：同一模型反复出现同类失败，人工逐项补丁难以复用", "方法：固定基座模型与评估器，从轨迹归纳弱点，只改外部执行框架", "验证：参与和未参与调参的项目都检查非回归；论文报告三组留出通过率提升", "GoldMine：model_timeout → 重试控制候选；weakness.py + harness.py"],
         paper_art / "self-harness.webp", "论文数值属于 Terminal-Bench 设定，不能外推为 GoldMine 的提升",
     ))
     slides.append(deck.hero(
         6, "AgentDevel：把自我演进做成发布工程",
-        ["问题：平均分变高，可能掩盖原本通过的 case 被改坏", "方法：单一版本线，每轮只产生一个发布候选（RC），配套可执行诊断", "门禁：逐项比较 P→F 回归与 F→P 修复；论文消融中 P→F 从 3.1% 升至 14.8%（移除门禁）", "GoldMine：按 semantic 做 flips，不可变候选保留证据、拒绝与回滚"],
+        ["问题：平均分变高，可能掩盖原本通过的用例被改坏", "方法：单一版本线，每轮只产生一个发布候选（RC），配套可执行诊断", "发布检查：逐项比较 P→F 回归与 F→P 修复；论文消融中 P→F 从 3.1% 升至 14.8%（移除发布检查）", "GoldMine：按同一问题编号比较前后结果，确定后不再修改的候选保留证据、拒绝与回滚"],
         paper_art / "agentdevel.webp", "发布的基本单位是带证据的候选版本，不是一句“模型变好了”",
     ))
     slides.append(deck.hero(
         7, "MASS：让多角色协作轨迹成为训练经验",
-        ["问题：单个 agent 的探索路径有限，团队怎样分工也需要搜索", "方法：同一基座扮演多个角色，交替进行工作流搜索、自评估与训练", "结果：优质团队轨迹写回；论文在四个开放研究基准报告每输出 token 得分为基座 1.2–1.6 倍", "GoldMine：分离 attacker / victim / judge 轨迹；自评不能替代真实 flag 与独立 judge"],
-        paper_art / "mass.webp", "多智能体自评可能强化共同盲点，独立证据必须留在闭环里",
+        ["问题：单个智能体的探索路径有限，团队怎样分工也需要搜索", "方法：同一基座扮演多个角色，交替进行工作流搜索、自评估与训练", "结果：优质团队轨迹写回；论文在四个开放研究基准报告每输出词元得分为基座 1.2–1.6 倍", "GoldMine：分离攻击者、目标和独立审核轨迹；自评不能替代真实随机标记与独立审核"],
+        paper_art / "mass.webp", "多智能体自评可能强化共同盲点，独立证据必须留在学习循环里",
     ))
     slides.append(deck.hero(
-        8, "HELIX：模型与 Harness 共同进化",
-        ["核心观点：harness 不只决定今天怎么执行，也决定明天能留下什么经验", "方法：构建、更新、重建执行框架，使其与模型能力变化相匹配", "数据：保留 verified siblings——成功、回归、近失和替代方案；200 组配对样本形成 438 条学习记录", "GoldMine：保存配对结果与证据来源链；未来模型更新后重新评估并重建 harness"],
+        8, "HELIX：模型与执行框架共同进化",
+        ["核心观点：执行框架不只决定今天怎么执行，也决定明天能留下什么经验", "方法：构建、更新、重建执行框架，使其与模型能力变化相匹配", "数据：保留已验证的配对方案——成功、回归、近失和替代方案；200 组配对样本形成 438 条学习记录", "GoldMine：保存配对结果与证据来源链；未来模型更新后重新评估并重建执行框架"],
         paper_art / "helix.webp", "不是只保留成功答案，而是保留可比较、可回放的完整证据平面",
     ))
     slides.append(deck.hero(
         9, "DiscoveryRSI：让有价值的假设逐轮涌现",
-        ["问题：发现系统不能只积累标签，还要知道哪些假设值得继续探索", "方法：假设树记录替代解释，结合贡献评估、workflow replay 与再次发现", "结果：两轮后论文假设质量评分 4.86 → 5.39，并有初步专家评估", "GoldMine：finding 应保存根因、调查决策、替代解释和可证伪证据，再研究假设信用"],
+        ["问题：发现系统不能只积累标签，还要知道哪些假设值得继续探索", "方法：假设树记录替代解释，结合贡献评估、工作流回放与再次发现", "结果：两轮后论文假设质量评分 4.86 → 5.39，并有初步专家评估", "GoldMine：候选问题应保存根因、调查决策、替代解释和可证伪证据，再研究假设信用"],
         paper_art / "discoveryrsi.webp", "论文面向生命科学发现，不能把分数直接解释为漏洞发现效果",
     ))
     slides.append(deck.cards(10, "为什么需要算法团队", [
-        ("算法团队", "把轨迹变成可学习的数据，把奖励变成可计算的效用，再用验证器与发布门禁约束改进。", COLORS["gold"], art / "cards" / "algorithm.webp"),
-        ("开发团队", "容器、API、UI、任务调度、可靠性与工程交付，让系统稳定可运行。", COLORS["blue"], art / "cards" / "development.webp"),
+        ("算法团队", "把轨迹变成可学习的数据，把奖励变成可计算的效用，再用验证器与发布检查约束改进。", COLORS["gold"], art / "cards" / "algorithm.webp"),
+        ("开发团队", "容器、接口、用户界面、任务调度、可靠性与工程交付，让系统稳定可运行。", COLORS["blue"], art / "cards" / "development.webp"),
         ("安全团队", "威胁情报、漏洞先验、规则、人工裁决与披露规范，让判断足够专业。", COLORS["red"], art / "cards" / "security.webp"),
     ], footer="协作分工，不是能力高低；下一页把算法团队的六项机制逐一落到本项目"))
     slides.append(deck.cards(11, "算法团队到底做什么：把经验变成可信改进", [
@@ -350,7 +350,7 @@ def build():
         ("06 管住每次发布", "改进先当候选；确认有修复、没有改坏旧能力，才允许采用。", COLORS["red"]),
     ], columns=3, footer="技术实现见 verification.py、evaluation.py、release.py；正文只保留需要理解的概念", body_size=15, title_size=17))
     slides.append(deck.hero(
-        12, "挖掘：先找到可疑点，再用证据逐步确认",
+        12, "批量审计：先找到可疑点，再用证据逐步确认",
         ["每个项目都有独立工作副本，原始源码保持只读", "沙箱保留环境和产物，可以继续调查，不必每次重来", "自动扫描只负责找线索；报告必须写清位置、原因和验证思路"],
         art / "mining.webp", "静态分析找到的是“值得检查的候选”，不是已经成立的漏洞",
     ))
@@ -362,7 +362,7 @@ def build():
     evidence_art = ROOT / "docs" / "visuals" / "redteam-evidence"
     slides.append(deck.visual_steps(14, "红队证据链：凭什么相信攻击真的成功？", [
         ("01 先把攻击者关好", "攻击者只能接触实验目标，不能控制宿主机，也碰不到预先藏好的标记。", COLORS["red"], evidence_art / "01-isolation.webp"),
-        ("02 只认真实操作拿到的标记", "flag 是预先藏好的随机标记；只有它出现在真实工具输出里才算，“我成功了”不算。", COLORS["gold"], evidence_art / "02-real-output.webp"),
+        ("02 只认真实操作拿到的标记", "随机标记是预先藏好的；只有它出现在真实工具输出里才算，“我成功了”不算。", COLORS["gold"], evidence_art / "02-real-output.webp"),
         ("03 换一个人独立复核", "另一个审查员检查：打的是不是目标漏洞、标记从哪里来、有没有偷看或作弊。", COLORS["blue"], evidence_art / "03-independent-review.webp"),
         ("04 证据齐全才交给人", "真实标记、审查通过、图文报告，三项齐全，才进入人工验收。", COLORS["green"], evidence_art / "04-human-acceptance.webp"),
     ], "一句话：不听攻击者自己怎么说，只复查它做了什么、留下了什么证据"))
@@ -378,23 +378,23 @@ def build():
     ]))
     slides.append(deck.cards(16, "RSI 学什么：不是背报告，而是记住行动与后果", [
         ("当时知道什么", "保存发现身份和动作前的信息，不能偷看后来才出现的答案。", COLORS["blue"], art / "cards" / "identity-context.webp"),
-        ("实际做了什么", "记录采取了哪个动作，以及花费的时间、调用次数和 token。", COLORS["gold"], art / "cards" / "action-cost.webp"),
+        ("实际做了什么", "记录采取了哪个动作，以及花费的时间、调用次数和词元数。", COLORS["gold"], art / "cards" / "action-cost.webp"),
         ("结果有多可信", "静态分析、实际运行、独立审核和人工结论分开保存，不能互相冒充。", COLORS["green"], art / "cards" / "evidence-outcome.webp"),
     ], footer="只有这样，下一轮才能比较：哪个动作更值得，代价是否合适"))
     slides.append(deck.flywheel(17))
     slides.append(deck.cards(18, "RSI 每一环做什么：已实现与尚未实现", [
         ("01 整理经验与标签", "把行动、成本和结果整理成经验。\n运行与人工可信标签仍不足；静态分析不能冒充它们。", COLORS["blue"]),
         ("02 学习并独立考试", "比较不同动作的净收益，再拿留出项目考试。\n回放只是观测，不是因果证明。", COLORS["gold"]),
-        ("03 只读建议", "当前只给建议，不自动改变流程。\n证据不足时，就停在这一步。", COLORS["muted"]),
+        ("03 只读建议", "验证动作只给建议，不自动改变流程。\n证据不足时，就停在这一步。", COLORS["muted"]),
         ("04 归纳重复失败", "把同类失败分组，寻找可改进的执行环节。\n但聚类不等于已经找到根因。", COLORS["red"]),
-        ("05 生成最小候选", "只生成有范围、有证据的修改提案，不直接改写执行框架。", COLORS["gold"]),
-        ("06 复核后才采用", "候选必须通过修复、回归和发布复核。\n当前没有可信依据进入生产发布。", COLORS["green"]),
+        ("05 生成挖掘修复", "按共享或仓库专属作用域生成候选，未经评估不发布。", COLORS["gold"]),
+        ("06 评估后发布", "真实前后运行确认误报下降且无回归才发布；\n下一轮加载并可回滚。", COLORS["green"]),
     ], columns=3, footer="实现路径统一放在末页；这里先看清每一步能做什么、不能做什么", body_size=15, title_size=17))
-    slides.append(deck.metrics(19, "真实现状：可以学习，但还不能自动改进生产", [
-        ("0", "高等级可信标签：不能生产发布", COLORS["red"]),
-        ("只读", "当前只给建议，不自动改变流程", COLORS["gold"]),
+    slides.append(deck.metrics(19, "真实现状：验证只读，挖掘修复受控发布", [
+        ("0", "验证动作可信训练样本：保持只读", COLORS["red"]),
+        ("分支", "挖掘修复独立评估、发布与加载", COLORS["gold"]),
         ("未证明", "还没有跨项目的可靠提升证据", COLORS["blue"]),
-    ], ["先补真实运行、独立审核与人工标签，再讨论自动改进。", "留出项目是没参与训练的考试题；只读建议模式只给建议、不动生产。"]))
+    ], ["先补真实运行、独立审核与人工标签，再讨论生产效果。", "留出项目是没参与训练的考试题；未评估候选不发布。"]))
     slides.append(deck.cards(20, "GoldMine 怎样逐步增强，而不是一步跳到自动修改", [
         ("短期：补齐真实经验", "积累真实验证和人工结论，让每个动作都能学到可靠结果。", COLORS["green"], art / "cards" / "short-term.webp"),
         ("中期：验证最小改进", "从重复失败生成修改候选，逐项检查是否修复、是否改坏旧能力。", COLORS["gold"], art / "cards" / "mid-term.webp"),
@@ -414,8 +414,8 @@ def build():
         ("红队扩展", "为更多协议实现真实执行器；不支持时明确停下，不伪装成功。", COLORS["red"]),
     ], columns=2, footer="这些是建议目标，不是当前完成度；证据不足时继续保持只读建议"))
     slides.append(deck.hero(
-        23, "让每一次挖掘，都成为下一次更好的证据",
-        ["对分析人员：更少重复搭建，更清晰的证据与趣味化表达", "对算法团队：可学习、可评估、可比较的策略闭环", "对组织：每次成功与失败都沉淀为安全研究资产"],
+        23, "让每一次批量审计，都成为下一次更好的证据",
+        ["对分析人员：更少重复搭建，更清晰的证据与趣味化表达", "对算法团队：可学习、可评估、可比较的策略学习循环", "对组织：每次成功与失败都沉淀为安全研究资产"],
         art / "learning.webp", "GoldMine = 安全研究 × 算法学习 × 工程化证据链",
     ))
     slides.append(deck.cards(24, "论文与实现依据", [
@@ -469,7 +469,7 @@ def build():
             ("rId2", "metadata/core-properties", "docProps/core.xml"),
             ("rId3", "extended-properties", "docProps/app.xml"),
         ]))
-        package.writestr("docProps/core.xml", f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>GoldMine：从漏洞矿藏到可信证据</dc:title><dc:creator>Algorithm Team</dc:creator><cp:lastModifiedBy>Algorithm Team</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">{now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">{now}</dcterms:modified></cp:coreProperties>''')
+        package.writestr("docProps/core.xml", f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>GoldMine：从候选问题到可信证据</dc:title><dc:creator>Algorithm Team</dc:creator><cp:lastModifiedBy>Algorithm Team</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">{now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">{now}</dcterms:modified></cp:coreProperties>''')
         package.writestr("docProps/app.xml", f'''<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>GoldMine Builder</Application><Slides>{len(slides)}</Slides></Properties>''')
         package.writestr("ppt/presentation.xml", presentation)
         package.writestr("ppt/_rels/presentation.xml.rels", rels_xml(presentation_rels))
