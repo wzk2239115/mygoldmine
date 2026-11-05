@@ -1,0 +1,8 @@
+# 运行镜像允许自动补充的 Python 包。
+# 不在此清单中的包不能由自动修复直接加入。
+openai
+PyYAML
+requests
+Pillow
+tree-sitter
+tree-sitter-language-pack

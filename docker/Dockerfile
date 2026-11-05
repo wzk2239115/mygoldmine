@@ -15,11 +15,13 @@
 # 追加 --network host，例如：
 #   docker build --network host -f docker/Dockerfile -t mygoldmine:dev .
 
+FROM node:22-bookworm-slim AS claude-node
+
 FROM python:3.12-slim
 
 ARG UID=1000
 ARG GID=1000
-ARG CLAUDE_CODE_VERSION=2.1.138
+ARG CLAUDE_CODE_VERSION=2.1.318
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -35,15 +37,19 @@ RUN apt-get update \
         git \
         jq \
         ripgrep \
-        nodejs \
-        npm \
         tini \
     && rm -rf /var/lib/apt/lists/*
 
-# tree-sitter 用于多语言结构化分析；language-pack 覆盖主流语言
-RUN python3 -m pip install --no-cache-dir \
-        tree-sitter \
-        tree-sitter-language-pack
+# 新版 Claude Code 要求 Node.js 22 或更高版本。
+COPY --from=claude-node /usr/local/bin/node /usr/local/bin/node
+COPY --from=claude-node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+# 审计运行镜像依赖集中在 runner/requirements.txt。
+# 目标项目依赖由第 0 阶段环境构建负责，不能写进这里。
+COPY runner/requirements.txt /tmp/runner-requirements.txt
+RUN python3 -m pip install --no-cache-dir -r /tmp/runner-requirements.txt
 
 # Claude Code CLI，版本固定，可用 --build-arg CLAUDE_CODE_VERSION 覆盖
 RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
@@ -63,6 +69,10 @@ COPY audit_rsi /opt/mygoldmine/audit_rsi
 COPY knowledge /opt/mygoldmine/knowledge
 COPY docs /opt/mygoldmine/docs
 COPY README.md TODOLIST.md /opt/mygoldmine/
+COPY runner /opt/mygoldmine/runner
+
+# 构建期直接验收运行依赖；缺包时不要产出一个看似可用的镜像。
+RUN python3 /opt/mygoldmine/scripts/runner/smoke_runner.py --command "claude --version"
 
 RUN mkdir -p /workspace/repo /runs /target \
     && chmod +x /opt/mygoldmine/scripts/mine/entrypoint.sh \

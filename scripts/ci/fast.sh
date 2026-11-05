@@ -12,9 +12,11 @@ python3 -m compileall -q \
     audit_rsi \
     rsi_version \
     integrations \
+    scripts/audit \
     scripts/ccui \
     scripts/mine \
     scripts/redteam \
+    scripts/runner \
     scripts/stages \
     scripts/workflow \
     scripts/ci/check_expression.py \
@@ -36,6 +38,14 @@ if command -v ruff >/dev/null 2>&1; then
         tests/test_agentic_propose.py \
         tests/test_clean_operation.py \
         scripts/mine/check_report.py \
+        scripts/audit/check_orchestration.py \
+        tests/test_audit_orchestration_check.py \
+        scripts/runner/smoke_runner.py \
+        .claude/hooks/environment-build-guard.py \
+        tests/test_environment_waiting.py \
+        scripts/runner/validate_requirements.py \
+        tests/test_runner_tools.py \
+        tests/test_redteam_harness_preflight.py \
         scripts/ci/check_expression.py \
         tests/test_expression_audit.py \
         scripts/workflow/report_quality.py \
@@ -93,6 +103,7 @@ for file in \
     scripts/verify/auto_verify.sh \
     scripts/verify/phase4_verify_agent.sh \
     scripts/redteam/phase5_redteam.sh \
+    scripts/runner/build_runner.sh \
     scripts/rsi/post_validation.sh \
     scripts/mine/visual_report.sh \
     scripts/mine/mine_one.sh \
@@ -104,6 +115,10 @@ for file in \
     scripts/ci/fast.sh; do
     bash -n "$file"
 done
+
+echo "== runner dependency repair =="
+python3 -m py_compile scripts/runner/auto_repair.py
+python3 scripts/runner/validate_requirements.py --json
 
 echo "== version store =="
 if [ -d rsi/stages ]; then

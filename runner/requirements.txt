@@ -1,0 +1,8 @@
+# 审计运行镜像的 Python 依赖。
+# 只放审计流程本身需要的包，不放目标项目依赖。
+openai>=2,<3
+PyYAML>=6,<7
+requests>=2.31,<3
+Pillow>=10,<13
+tree-sitter>=0.23,<0.26
+tree-sitter-language-pack>=1,<2
