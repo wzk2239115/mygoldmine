@@ -7,7 +7,7 @@
 - 显式调用：`@.claude/agents/security-orchestrator.md 审计当前项目`
 - 指定 agent 启动：`claude --agent security-orchestrator`
 - 由编排 agent 通过 `Agent` 工具启动子代理。
-- 旧工具名 `Task` 在当前固定的 Claude Code 2.1.138 中仍作为 `Agent` 的别名存在，但新文档和 frontmatter 统一写 `Agent`，避免升级后失效。
+- 宿主机当前使用 `Claude Code 2.1.318`；工具名称以会话实际提供的列表为准。原生工作流通过 `Workflow` 工具执行，不能仅凭提示中的关键词判断是否启动。
 - 子代理在独立上下文运行，只把最终结果返回主对话。
 
 ## 代理清单
@@ -25,6 +25,7 @@
 | 代理 | 职责 | 主要输入 | 主要输出 |
 |---|---|---|---|
 | `environment-builder` | 在第 0 阶段主导源码检测、环境构建、失败修复和运行验收；确定性构建脚本仅作为工具或备用方案 | 源码目录、构建模式、第 0 阶段环境变量 | `env/<project>/env-manifest.json`、镜像、构建日志 |
+| `runner-builder` | 处理审计运行镜像的依赖缺失、解释器或命令问题；只更新受控运行依赖并执行镜像冒烟 | 结构化失败证据、运行依赖清单 | `runner-build.json`、新的运行镜像编号 |
 | `verify-agent` | 对单条候选问题做最小化、非武器化验证 | 候选问题、环境镜像、源码 | `runs/<project>/verify/<id>/verify-report.md|json`、四态结论 |
 
 ### 基础设施分析
@@ -88,7 +89,8 @@ tools: Read, Grep, Glob, Skill, Write
 - 不写可直接武器化的 exploit，不写反弹 shell、持久化或横向移动代码。
 - 不把静态命中、关键词命中或 image2 插图当成已验证漏洞。
 - 不把 `partial`、`blocked`、`inconclusive` 写成 `ready` 或 `confirmed`。
-- `environment-builder`、`verify-agent` 和红队隔离环境需要 Docker 权限，必须在宿主机或专用执行节点运行，不在审计容器内运行。
+- `environment-builder`、`runner-builder`、`verify-agent` 和红队隔离环境需要 Docker 权限，必须在宿主机或专用执行节点运行，不在审计容器内运行。
+- `runner-builder` 只处理审计运行镜像，不接收目标项目依赖缺失或单个红队候选场景失败。
 - 面向人的标题、摘要、影响和修复建议遵循 `docs/expression-guide.md`。
 
 ## 维护方式
@@ -100,3 +102,7 @@ tools: Read, Grep, Glob, Skill, Write
   - Subagents: https://code.claude.com/docs/en/sub-agents
   - Skills: https://code.claude.com/docs/en/skills
   - Hooks: https://code.claude.com/docs/en/hooks
+
+`pipeline-coordinator` 使用 `pipeline-workflow` 技能和保存的原生工作流协调固定节点；候选选择与交付检查仍由现有执行器负责。
+
+环境构建智能体通过持久任务执行长构建，使用读取、监测和指定任务停止工具；宿主机等待真实终态后再接续验收。节点协调只登记或查询任务，不在模型工具调用中长时间阻塞。

@@ -13,7 +13,6 @@
 
 - [vllm](projects/vllm.md)
 - [sglang](projects/sglang.md)
-- [verl](projects/verl.md)
 - [codex](projects/codex.md)
 - [deepseek-harness](projects/deepseek-harness.md)
 - [agentscope-runtime](projects/agentscope-runtime.md) — FastAPI 引擎、沙箱管理器和训练沙箱

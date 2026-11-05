@@ -23,12 +23,6 @@
 - SafeUnpickler 使用白名单。
 - 管理端点只绑定回环地址。
 
-## verl
-
-- `exec` 和 `eval` 只处理受信本地脚本。
-- 训练集群完全受信、无跨租户边界。
-- `torch.load(weights_only=True)`。
-
 ## codex
 
 - 控制面只绑定回环地址且限同一用户。
@@ -71,10 +65,6 @@
 - deepseek VULN-001：与 VULN-002 同 `locateFile` 根因，合并。
 - sglang VULN-001：与 VULN-002 同 `/server_info` 根因，合并。
 - sglang VULN-025：标题/描述不一致，evidence 空、line 0 → UNCLEAR，重写或删除。
-- verl CI-01 / CI-02：`custom_cls.path`/`router_config_path` 默认 null，来源是操作者 Hydra 配置；
-  默认不可达、无跨信任边界 → FP（只有多租户/配置注入场景才重新评估）。
-- verl AC-001 / AC-002：与 ROUTE-01/WEB-01、ROUTE-02/WEB-03 同根因，合并别名。
-
 ## agentscope-runtime（2026-10-27，静态审计）
 
 - 沙箱内 `run_shell_command` / `run_ipython_cell`（`box/shared/routers/generic.py:121-138`）是**设计能力**，不是独立漏洞；
@@ -92,7 +82,7 @@
 
 这些不是目标仓库的漏洞模式，而是 mygoldmine 自身验证流程的误报来源：
 
-- `auto_verify.sh` 把 `exec_module` 关键词命中判成 confirmed → verl CI-01 实际是默认 null、操作者 Hydra 配置的 FP。**关键词命中不是漏洞证明。**
+- `auto_verify.sh` 的关键词命中不能作为漏洞证明。
 - `auto_verify.sh` 把“关键词没搜到”判成 rejected → 关键词缺失同样不是反证。现在只允许 `inconclusive`。
 - 源码链存在、但环境缺失/无法启动时，应标 `blocked` 或 `source-supported`，不能写 confirmed。
 - 默认 HITL / 人工审批 / 回环绑定 / opt-in flag / 测试与示例代码，必须先在 `false_positive_checks` 里排除。
