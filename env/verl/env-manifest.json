@@ -5,192 +5,112 @@
   "commit": "174888f",
   "image": "mygoldmine/env:verl-174888f",
   "base_image": "mygoldmine:dev",
+  "platform": "linux/arm64",
   "mode": "auto",
-  "install_scope": "自定义 Dockerfile：CPU 版 torch 2.13.0 + requirements.txt + 测试依赖 + editable verl；实际安装范围大于 auto 的 --no-deps 最小策略",
   "env_status": "partial",
-  "built_at": "2026-11-03T15:06:23Z",
-  "image_id": "sha256:3fa8cee47eaed743ecde96b5738d6c9bc06a411f0e0c94bbc8faf3126867be7b",
+  "built_at": "2026-11-05T14:26:12Z",
+  "verified_at": "2026-11-05T15:37:35Z",
+  "image_id": "sha256:83a8a4f268e631f5fae316f0d12b4bafb6051cb30ccf1de8d5d700b773b9e1f9",
+  "source_commit_in_image": "174888fcf4b65dea032566a02fd16c5f76fb5b5b",
+  "source_worktree_clean": true,
   "build_exit_code": 0,
   "build_log": "/home/wzk/mygoldmine/env/verl/build.log",
   "build_notes": "/home/wzk/mygoldmine/env/verl/build-notes.md",
-  "platform": {
-    "architecture": "arm64",
-    "os": "linux",
-    "python": "3.12.14",
-    "torch": "2.13.0+cpu"
-  },
   "detected": {
     "languages": [
       "python"
     ],
+    "python_version": "3.12.14",
     "system_packages": []
   },
   "install_commands": [
     {
       "lang": "python",
-      "cmd": "python3 -m pip install --retries 5 --no-deps --index-url https://download.pytorch.org/whl/cpu torch==2.13.0"
-    },
-    {
-      "lang": "python",
-      "cmd": "python3 -m pip install --retries 10 --timeout 120 --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn filelock typing-extensions setuptools sympy mpmath networkx jinja2 MarkupSafe fsspec numpy==2.5.4 packaging==25.0 tensordict==0.10.0 'ray[default]==2.59.0' transformers==5.16.1 pyarrow==26.0.1 pandas==3.1.0 TransferQueue==0.1.11 virtualenv==21.14.5 pytest==9.2.0 pytest-asyncio==1.4.1.post1 pytest-rerunfailures==16.7"
-    },
-    {
-      "lang": "python",
-      "cmd": "python3 -m pip install --retries 10 --timeout 120 --index-url https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn -r requirements.txt"
-    },
-    {
-      "lang": "python",
-      "cmd": "python3 -m pip install --no-deps -e ."
+      "cmd": "python3 -m pip install --no-cache-dir -e . --no-deps"
     }
   ],
+  "reuse": {
+    "reused_existing_image": true,
+    "reused_image_id": "sha256:83a8a4f268e631f5fae316f0d12b4bafb6051cb30ccf1de8d5d700b773b9e1f9",
+    "note": "沿用 2026-11-05T14:26:12Z 已构建镜像；本轮未重建，仅断网复验收并更正与镜像实况不符的 Dockerfile/test.sh 与清单说明。"
+  },
+  "acceptance_target": "最小审计沙箱：源码可读、Python 可运行、隔离边界成立（断网 --network none）",
   "acceptance": [
     {
-      "check": "源码烘焙与工作目录",
-      "command": "test -f /opt/target/verl/__init__.py",
-      "offline": true,
+      "check": "Python 可运行",
+      "command": "python3 -c 'import sys; print(sys.version)'",
       "exit_code": 0,
-      "result": "通过"
-    },
-    {
-      "check": "运行用户",
-      "command": "id",
-      "offline": true,
-      "exit_code": 0,
-      "result": "uid=1000(miner)，非 root"
-    },
-    {
-      "check": "Python 运行时",
-      "command": "python3 -V",
-      "offline": true,
-      "exit_code": 0,
+      "passed": true,
       "result": "Python 3.12.14"
     },
     {
-      "check": "顶层导入",
-      "command": "python3 -c 'import verl; print(verl.__file__)'",
-      "offline": true,
+      "check": "源码可读",
+      "command": "test -r /opt/target/verl/__init__.py",
       "exit_code": 0,
-      "result": "/opt/target/verl/__init__.py（editable 安装）"
+      "passed": true,
+      "result": "可读"
     },
     {
-      "check": "torch CPU 可用性",
-      "command": "python3 -c 'import torch; print(torch.__version__, torch.cuda.is_available())'",
-      "offline": true,
+      "check": "镜像内源码版本与目标一致",
+      "command": "git -C /opt/target rev-parse HEAD",
       "exit_code": 0,
-      "result": "2.13.0+cpu False"
+      "passed": true,
+      "result": "174888fcf4b65dea032566a02fd16c5f76fb5b5b（与目标 commit 一致）"
     },
     {
-      "check": "CPU 单元测试",
-      "command": "python3 -m pytest -q tests/test_protocol_on_cpu.py tests/test_base_config_on_cpu.py tests/test_protocol_v2_on_cpu.py",
-      "offline": true,
+      "check": "工作目录可写",
+      "command": "touch /opt/target/.wtest && rm -f /opt/target/.wtest",
       "exit_code": 0,
-      "result": "79 passed, 1 warning"
+      "passed": true,
+      "result": "可写"
+    },
+    {
+      "check": "包元数据存在",
+      "command": "python3 -m pip show verl",
+      "exit_code": 0,
+      "passed": true,
+      "result": "verl 0.10.0.dev0 (/opt/target)"
+    },
+    {
+      "check": "隔离边界：外网不可达",
+      "command": "python3 socket.create_connection(('1.1.1.1',443))",
+      "exit_code": 0,
+      "passed": true,
+      "result": "连接失败 NETWORK_BLOCKED（隔离生效）"
+    }
+  ],
+  "reuse_verification": {
+    "verified_at": "2026-11-05T15:37:35Z",
+    "image_id": "sha256:83a8a4f268e631f5fae316f0d12b4bafb6051cb30ccf1de8d5d700b773b9e1f9",
+    "note": "本轮再次断网复验收通过；镜像内 git HEAD=174888fcf4b65dea032566a02fd16c5f76fb5b5b 与宿主机目标 worktree 一致且干净；pip list 实为 4 项（pip/tree-sitter/tree-sitter-language-pack/verl），无 torch/Ray/transformers。",
+    "checks": [
+      {"check": "Python 可运行", "exit_code": 0, "passed": true},
+      {"check": "源码可读", "exit_code": 0, "passed": true},
+      {"check": "镜像内源码版本与目标一致 174888f", "exit_code": 0, "passed": true},
+      {"check": "工作目录可写", "exit_code": 0, "passed": true},
+      {"check": "包元数据存在", "exit_code": 0, "passed": true},
+      {"check": "外网不可达（隔离生效）", "exit_code": 0, "passed": true}
+    ]
+  },
+  "diagnostics": [
+    {
+      "check": "顶层导入 verl（非最小目标要求）",
+      "command": "python3 -c 'import verl'",
+      "exit_code": 1,
+      "result": "失败：ModuleNotFoundError: No module named 'packaging'（运行时依赖未安装，属已知限制）"
     }
   ],
   "limitations": [
-    "默认不启用 GPU；GPU/CUDA、NCCL 与多卡分布式路径未验证（需要 --gpus all 的专用节点）",
-    "未安装 GPU 训练/推理后端：vLLM、SGLang、Megatron、TensorRT-LLM、flash-attn 等 extras",
-    "未提供外部依赖服务（Ray 集群、数据库、对象存储、模型权重仓库）",
-    "未运行 tests/ 全量测试；仅验证 3 个 CPU 测试文件（79 个用例）",
-    "镜像内 Ray 未做集群启动验证，仅作为 Python 依赖可导入"
+    "仅源码级最小环境：未安装运行时依赖（torch/Ray/transformers/packaging 等均未安装），import verl 会因缺 packaging 失败",
+    "未验证 CPU 测试：项目测试需要 pytest 及大量运行时依赖，本次未安装",
+    "默认不启用 GPU；GPU/CUDA 路径无法验证（需要 --gpus all 的专用环境）",
+    "未提供外部依赖服务（数据库、Ray 集群、对象存储等）",
+    "镜像实际安装范围仅为 editable --no-deps，不含完整训练/推理栈"
   ],
   "partial_reasons": [
-    "仅验证 CPU 导入与 CPU 单元测试；GPU/CUDA 训练与推理路径无法验证",
-    "未安装 vLLM/SGLang/Megatron/TensorRT-LLM/flash-attn 等可选后端，不能用于完整训练或推理"
+    "最小审计目标（源码可读、Python 可运行、隔离成立）已通过断网验收；包导入与训练/测试能力按需另行补齐"
   ],
   "workdir": "/opt/target",
   "run_script": "/home/wzk/mygoldmine/env/verl/run.sh",
-  "test_script": "/home/wzk/mygoldmine/env/verl/test.sh",
-  "reuse_verification": {
-    "verified_at": "2026-11-04T03:52:21Z",
-    "source_commit": "174888fcf4b65dea032566a02fd16c5f76fb5b5b",
-    "source_dirty": false,
-    "image_id_observed": "sha256:3fa8cee47eaed743ecde96b5738d6c9bc06a411f0e0c94bbc8faf3126867be7b",
-    "platform_observed": "linux/arm64",
-    "base_image_confirmed": "mygoldmine:dev（镜像历史中包含其 ENTRYPOINT/USER/ENV 层）",
-    "checks": [
-      {
-        "command": "test -f /opt/target/verl/__init__.py && id",
-        "offline": true,
-        "exit_code": 0,
-        "result": "源码存在；uid=1000(miner) 非 root"
-      },
-      {
-        "command": "python3 -V",
-        "offline": true,
-        "exit_code": 0,
-        "result": "Python 3.12.14"
-      },
-      {
-        "command": "python3 -c 'import verl; print(verl.__file__)'",
-        "offline": true,
-        "exit_code": 0,
-        "result": "/opt/target/verl/__init__.py"
-      },
-      {
-        "command": "python3 -c 'import torch; print(torch.__version__, torch.cuda.is_available())'",
-        "offline": true,
-        "exit_code": 0,
-        "result": "2.13.0+cpu False"
-      },
-      {
-        "command": "python3 -m pytest -q tests/test_protocol_on_cpu.py tests/test_base_config_on_cpu.py tests/test_protocol_v2_on_cpu.py",
-        "offline": true,
-        "exit_code": 0,
-        "result": "79 passed, 1 warning（2.19s）"
-      }
-    ],
-    "decision": "源码提交、未提交变更状态、平台、基础镜像与验收要求匹配，断网验收通过，直接复用已有镜像，未重新构建"
-  },
-  "reuse_verification_2026_11_05": {
-    "verified_at": "2026-11-05T06:10:28Z",
-    "source_commit": "174888fcf4b65dea032566a02fd16c5f76fb5b5b",
-    "source_dirty": false,
-    "image_id_observed": "sha256:3fa8cee47eaed743ecde96b5738d6c9bc06a411f0e0c94bbc8faf3126867be7b",
-    "platform_observed": "linux/arm64",
-    "source_content_check": {
-      "command": "git ls-files -z | xargs -0 sha256sum | docker run -i ... sha256sum -c",
-      "files_checked": 1295,
-      "result": "全部匹配，退出码 0（子模块 recipe 在宿主与镜像中均为未初始化空目录，一致）"
-    },
-    "checks": [
-      {
-        "command": "test -f /opt/target/verl/__init__.py && id",
-        "offline": true,
-        "exit_code": 0,
-        "result": "源码存在；uid=1000(miner) 非 root"
-      },
-      {
-        "command": "python3 -V",
-        "offline": true,
-        "exit_code": 0,
-        "result": "Python 3.12.14"
-      },
-      {
-        "command": "python3 -c 'import verl; print(verl.__file__)'",
-        "offline": true,
-        "exit_code": 0,
-        "result": "/opt/target/verl/__init__.py"
-      },
-      {
-        "command": "python3 -c 'import torch; print(torch.__version__, torch.cuda.is_available())'",
-        "offline": true,
-        "exit_code": 0,
-        "result": "2.13.0+cpu False"
-      },
-      {
-        "command": "python3 -c 'import ray, transformers, tensordict; ...'",
-        "offline": true,
-        "exit_code": 0,
-        "result": "ray 2.59.0, transformers 5.16.1, tensordict 0.10.0"
-      },
-      {
-        "command": "python3 -m pytest -q tests/test_protocol_on_cpu.py tests/test_base_config_on_cpu.py tests/test_protocol_v2_on_cpu.py",
-        "offline": true,
-        "exit_code": 0,
-        "result": "79 passed, 1 warning（2.21s）"
-      }
-    ],
-    "decision": "源码内容、平台、基础镜像与本次验收要求匹配，断网验收通过，直接复用已有镜像 mygoldmine/env:verl-174888f，未重新构建；env_status 保持工具判定的 partial（CPU 能力已验证，GPU/可选后端未安装）"
-  }
+  "test_script": "/home/wzk/mygoldmine/env/verl/test.sh"
 }
