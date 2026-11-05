@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Phase 4: 在隔离容器中验证一条 finding。
+# 第 4 阶段：在隔离容器中验证一条候选问题。
 #
 # 约定：
-#   - 输入 finding（JSON/Markdown）+ harness（可执行脚本，推荐 .sh/.py）
-#   - harness 可用环境变量：
+#   - 输入候选问题文件（JSON/Markdown）和验证脚本（推荐 .sh/.py）
+#   - 验证脚本可用环境变量：
 #       VERIFY_DIR=/verify  EVIDENCE_DIR=/verify/evidence
 #       TARGET_DIR=/opt/target  SOURCE_DIR=/source-ro
 #       FINDING_FILE=/verify/finding.<ext>  PROJECT=<project>
-#   - harness 写 /verify/verdict.json:
+#   - 验证脚本写 /verify/verdict.json:
 #       {"verdict":"confirmed|rejected|inconclusive|blocked","reason":"...","evidence":["..."],"limitations":["..."]}
-#     也可用退出码：0 confirmed / 10 rejected / 20 inconclusive / 30 blocked
+#     也可用退出码：0 表示已确认，10 表示未通过，20 表示无法确定，30 表示受阻
 #
 # 产物：
 #   verify-report.md / verify-report.json
@@ -29,8 +29,8 @@ usage() {
 必填:
   --project NAME       项目名
   --image IMAGE        环境镜像（建议 mygoldmine/env:<project>-<commit>）
-  --finding FILE       finding 文件（JSON/Markdown）
-  --harness FILE       验证脚本（.sh/.py 或带 shebang 的可执行文件）
+  --finding FILE       候选问题文件（JSON/Markdown）
+  --harness FILE       验证脚本（.sh/.py 或带解释器声明的可执行文件）
 
 选项:
   --run-dir DIR        产物目录（默认 runs/<project>/verify/<id>-<ts>）
@@ -44,7 +44,7 @@ usage() {
   --sandbox NAME       复用持久沙箱；none 模式要求沙箱已断网
   -h, --help           显示帮助
 
-退出码: 0 confirmed；10 rejected；20 inconclusive；30 blocked；3 参数错误
+退出码: 0 已确认；10 未通过；20 无法确定；30 受阻；3 参数错误
 EOF
 }
 
@@ -87,10 +87,10 @@ done
 [ -n "$IMAGE" ] || die "缺少 --image"
 [ -n "$FINDING" ] || die "缺少 --finding"
 [ -n "$HARNESS" ] || die "缺少 --harness"
-[ -f "$FINDING" ] || die "finding 不存在: $FINDING"
-[ -f "$HARNESS" ] || die "harness 不存在: $HARNESS"
-case "$NETWORK" in none|bridge) ;; *) die "network 非法: $NETWORK" ;; esac
-[[ "$TIMEOUT" =~ ^[1-9][0-9]*$ ]] || die "timeout 必须正整数"
+[ -f "$FINDING" ] || die "候选问题文件不存在: $FINDING"
+[ -f "$HARNESS" ] || die "验证脚本不存在: $HARNESS"
+case "$NETWORK" in none|bridge) ;; *) die "网络模式非法: $NETWORK" ;; esac
+[[ "$TIMEOUT" =~ ^[1-9][0-9]*$ ]] || die "超时时间必须是正整数"
 
 PROJECT="$(printf '%s' "$PROJECT" | tr -c 'A-Za-z0-9._-' '_')"
 FINDING="$(realpath "$FINDING")"
@@ -101,10 +101,16 @@ if [ -z "$ENV_MANIFEST" ]; then
 fi
 
 FINDING_ID=""
+FINDING_OCCURRENCE_ID=""
+FINDING_SEMANTIC_ID=""
+FINDING_RUN_ID=""
 case "$FINDING" in
     *.json)
         if jq -e . "$FINDING" >/dev/null 2>&1; then
             FINDING_ID="$(jq -r '.id // .finding_id // .title // empty' "$FINDING" 2>/dev/null | head -1)"
+            FINDING_OCCURRENCE_ID="$(jq -r '.occurrence_id // empty' "$FINDING" 2>/dev/null | head -1)"
+            FINDING_SEMANTIC_ID="$(jq -r '.semantic_id // empty' "$FINDING" 2>/dev/null | head -1)"
+            FINDING_RUN_ID="$(jq -r '.run_id // empty' "$FINDING" 2>/dev/null | head -1)"
         fi ;;
 esac
 [ -n "$FINDING_ID" ] || FINDING_ID="$(basename "${FINDING%.*}")"
@@ -161,6 +167,9 @@ write_report() {
         --arg schema_version "1" \
         --arg project "$PROJECT" \
         --arg finding_id "$FINDING_ID" \
+        --arg occurrence_id "$FINDING_OCCURRENCE_ID" \
+        --arg semantic_id "$FINDING_SEMANTIC_ID" \
+        --arg run_id "$FINDING_RUN_ID" \
         --arg finding_file "$RUN_DIR/finding.$FEXT" \
         --arg image "$IMAGE" \
         --arg image_id "$IMAGE_ID" \
@@ -183,6 +192,9 @@ write_report() {
             schema_version: $schema_version,
             project: $project,
             finding_id: $finding_id,
+            occurrence_id: (if $occurrence_id == "" then null else $occurrence_id end),
+            semantic_id: (if $semantic_id == "" then null else $semantic_id end),
+            run_id: (if $run_id == "" then null else $run_id end),
             finding_file: $finding_file,
             image: $image,
             image_id: $image_id,
@@ -223,7 +235,7 @@ write_report() {
         echo
         echo "## Evidence"
         if [ "$evidence_json" = "[]" ]; then
-            echo "- 无（harness 未写 evidence/）"
+            echo "- 无（验证脚本未写 evidence/）"
         else
             echo "$evidence_json" | jq -r '.[] | "- evidence/\(.)"'
         fi
@@ -250,8 +262,8 @@ write_report() {
 }
 
 if [ "$ENV_STATUS" = "blocked" ]; then
-    write_report "blocked" "环境构建状态为 blocked，无法验证" 30 "false"
-    log "env blocked，直接返回 blocked: $RUN_DIR/verify-report.md"
+    write_report "blocked" "环境构建受阻，无法验证" 30 "false"
+    log "环境构建受阻，验证结论为 blocked: $RUN_DIR/verify-report.md"
     exit 30
 fi
 
@@ -340,13 +352,13 @@ fi
 
 if [ -z "$VERDICT" ]; then
     case "$RC" in
-        0) VERDICT="inconclusive"; REASON="harness 退出 0 但未写 verdict.json，拒绝自动 confirmed" ;;
-        10) VERDICT="rejected"; REASON="harness 退出 10（rejected）" ;;
-        20) VERDICT="inconclusive"; REASON="harness 退出 20（inconclusive）" ;;
-        30) VERDICT="blocked"; REASON="harness 退出 30（blocked）" ;;
+        0) VERDICT="inconclusive"; REASON="验证脚本退出 0 但未写 verdict.json，拒绝自动确认" ;;
+        10) VERDICT="rejected"; REASON="验证脚本退出 10，结论为未通过" ;;
+        20) VERDICT="inconclusive"; REASON="验证脚本退出 20，结论为无法确定" ;;
+        30) VERDICT="blocked"; REASON="验证脚本退出 30，结论为受阻" ;;
         124|137) VERDICT="blocked"; REASON="验证超时" ;;
-        125|126|127) VERDICT="blocked"; REASON="容器/入口执行失败（rc=$RC）" ;;
-        *) VERDICT="inconclusive"; REASON="harness 退出 $RC，未写 verdict.json" ;;
+        125|126|127) VERDICT="blocked"; REASON="容器或入口执行失败（rc=$RC）" ;;
+        *) VERDICT="inconclusive"; REASON="验证脚本退出 $RC，未写 verdict.json" ;;
     esac
 fi
 
@@ -354,14 +366,14 @@ if [ "$VERDICT" = "confirmed" ]; then
     EVIDENCE_COUNT="$(find "$RUN_DIR/evidence" -type f 2>/dev/null | wc -l | tr -d ' ')"
     if [ "$EVIDENCE_COUNT" -eq 0 ]; then
         VERDICT="inconclusive"
-        REASON="confirmed 缺少 evidence/ 文件，按 inconclusive 降级"
+        REASON="已确认结论缺少 evidence/ 文件，降级为无法确定"
     elif [ "$EVIDENCE_CLASS" = "static" ] || [ "$EVIDENCE_CLASS" = "static-pattern" ]; then
         VERDICT="inconclusive"
-        REASON="confirmed 仅基于静态模式，未证明运行时可达；按 inconclusive 降级"
+        REASON="已确认结论仅基于静态模式，未证明运行时可达；降级为无法确定"
     fi
 fi
 
-case "$VERDICT" in confirmed|rejected|inconclusive|blocked) ;; *) VERDICT="inconclusive"; REASON="非法 verdict，按 inconclusive 处理" ;; esac
+case "$VERDICT" in confirmed|rejected|inconclusive|blocked) ;; *) VERDICT="inconclusive"; REASON="非法验证结论，按无法确定处理" ;; esac
 [ -n "$REASON" ] || REASON="未提供原因"
 
 write_report "$VERDICT" "$REASON" "$RC" "$TIMED_OUT"

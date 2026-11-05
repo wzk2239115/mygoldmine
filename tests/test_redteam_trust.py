@@ -131,6 +131,8 @@ def test_container_args_enforce_isolation_and_resource_limits(tmp_path, monkeypa
         assert args[args.index("--cpus") + 1] == "0.5"
     assert any("/flag:ro" in arg for arg in victim)
     assert not any("/flag" in arg for arg in attacker)
+    assert "--user" not in victim
+    assert attacker[attacker.index("--user") + 1] == f"{os.getuid()}:{os.getgid()}"
 
 
 def make_captured_run(tmp_path, monkeypatch):

@@ -5,7 +5,7 @@ description: 专业报告生成技能：汇总各扫描器的发现，生成面�
 
 ## 概述与边界
 
-- 报告中的 finding `title`、summary、impact、remediation 必须使用系统语言（`scripts/config/language.py --prompt`）；英文原始标题保留为 `title_en`。
+- 报告中候选问题的 `title`、`summary`、`impact`、`remediation` 必须使用系统语言（`scripts/config/language.py --prompt`）；英文原始标题保留为 `title_en`。
 - `title` 是必填字段，不得用英文 `type` / `description` 代替。系统语言为中文时，`title` 必须包含中文；只允许代码、路径、CVE、CWE、产品名等专有标识保留英文。
 - 缺 `title`、`root_cause`、`impact`、`reproduction`、`remediation` 或 `evidence` 的报告视为不完整，不得进入复现/验收。
 - 机器可读报告的交付路径以运行提示词中的 `RUN_DIR/audit-report.json` 为准；`.workspace/reports/` 仅为本技能内部默认路径。
@@ -25,9 +25,10 @@ description: 专业报告生成技能：汇总各扫描器的发现，生成面�
 | 未授权路由 | `.workspace/tasks/{UNAUTH_SCANNER_TASK_ID}/unauth-route-scanner.md` | 无需认证的API端点列表 |
 | 普通用户路由 | `.workspace/tasks/{NORMAL_SCANNER_TASK_ID}/normal-route-scanner.md` | 普通用户可访问的API端点列表 |
 | 端点分析结果 | `.workspace/tasks/{ROUTE_ANALYZER_TASK_ID}/route-analysis-group-*.md` | 各端点功能分析 |
-| 漏洞扫描结果（tasks） | `.workspace/tasks/{SCANNER_TASK_ID}/*-analyzer-result*.md` | 各扫描器的漏洞发现结果（tasks目录） |
-| 漏洞扫描结果（findings） | `.workspace/findings/**/*.md` | 各扫描器的漏洞发现结果（findings目录） |
+| 任务目录中的漏洞扫描结果 | `.workspace/tasks/{SCANNER_TASK_ID}/*-analyzer-result*.md` | 各扫描器的漏洞发现结果 |
+| 候选问题目录中的扫描结果 | `.workspace/findings/**/*.md` | 各扫描器的漏洞发现结果 |
 | 靶场扫描结果 | `.workspace/tasks/{VTR_TASK_ID}/vtr-scanner-result*.md` | 靶场类型识别结果 |
+| 覆盖与假设记录 | `.workspace/findings/coverage-ledger.json` | 已识别入口、假设、证据缺口、复审原因和限制 |
 
 **路径说明**：
 - 各产物路径使用明确的任务 ID 变量，与其他技能保持一致：
@@ -40,8 +41,8 @@ description: 专业报告生成技能：汇总各扫描器的发现，生成面�
   - `{VTR_TASK_ID}`: 靶场扫描任务 ID
 - 实际执行时，需要从 `security-orchestrator-tasks.json` 读取各任务的实际 ID（如 `orch-001`, `orch-002` 等）
 - 产物收集策略：
-  - **tasks 目录**：遍历 `.workspace/tasks/` 下所有以 `orch-` 开头的子目录
-  - **findings 目录**：递归扫描 `.workspace/findings/` 下所有 `.md` 文件（漏洞报告）
+  - **任务目录**：遍历 `.workspace/tasks/` 下所有以 `orch-` 开头的子目录
+  - **候选问题目录**：递归扫描 `.workspace/findings/` 下所有 `.md` 文件（漏洞报告）
   - 两个目录的漏洞结果需要合并去重
 
 ## 核心职责
@@ -75,7 +76,7 @@ check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --sh
 
 **读取步骤**：
 1. **读取任务清单**：读取 `.workspace/tasks/security-orchestrator-tasks.json` 获取所有已完成任务列表
-2. **读取 tasks 目录产物**：遍历每个任务目录，根据技能名称（skill字段）和产物文件名识别产物类型：
+2. **读取任务目录产物**：遍历每个任务目录，根据 `skill` 字段和产物文件名识别产物类型：
    - `project-profiler` 技能 → `project-profile.md`（项目基本信息）
    - `web-auth-analyzer` 技能 → `web-auth-analyzer.md`（认证分析结果）
    - `unauth-route-scanner` 技能 → `unauth-route-scanner.md`（未授权路由清单）
@@ -83,22 +84,23 @@ check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --sh
    - `route-deep-analyzer` 技能 → `route-analysis-group-*.md`（端点深度分析结果）
    - 各扫描器技能（`*-analyzer`）→ `*-analyzer-result*.md`（漏洞扫描结果）
    - `vtr-scanner` 技能 → `vtr-scanner-result*.md`（靶场扫描结果）
-3. **读取 findings 目录产物**：递归扫描 `.workspace/findings/` 目录下所有 `.md` 文件（漏洞报告）
+3. **读取候选问题目录产物**：递归扫描 `.workspace/findings/` 目录下所有 `.md` 文件（漏洞报告）
    - 识别文件名模式（如 `sql-injection-*.md`, `xss-*.md` 等）确定漏洞类型
    - 解析 Markdown 文件提取漏洞信息（位置、严重程度、描述等）
 4. **映射任务 ID**：将任务 ID 映射到相应的变量名（如 `orch-001` → `{PROFILE_TASK_ID}`）
+5. **读取覆盖与假设记录**：如果存在 `.workspace/findings/coverage-ledger.json`，统计六种状态和缺失证据；没有完整分母时只写已识别范围，不写全仓库覆盖率，没有可信标签时不写召回率。
 
 **去重逻辑**：
-- **同一SKILL多任务去重**：如果发现多个任务使用相同的SKILL（通过文件名前缀识别，如 `sql-injection-analyzer`）
-- **tasks 与 findings 目录去重**：来自 tasks 目录和 findings 目录的漏洞结果也需要去重
+- **同一技能的多任务去重**：如果发现多个任务使用相同技能（通过文件名前缀识别，如 `sql-injection-analyzer`）
+- **任务目录与候选问题目录去重**：来自两个目录的漏洞结果也需要去重
 - **去重规则**：相同文件路径 + 相同行号 + 相同漏洞类型 = 相同漏洞
 - **冲突处理**：如果多个来源报告了相同的漏洞，只保留一个（优先保留严重程度最高的）
 
 ### 步骤 2: 聚合漏洞
 
 **漏洞收集源**：
-- **tasks 目录**：遍历各 `{SCANNER_TASK_ID}` 目录下的 `*-analyzer-result*.md` 文件
-- **findings 目录**：递归扫描 `.workspace/findings/` 下所有 `.md` 文件
+- **任务目录**：遍历各 `{SCANNER_TASK_ID}` 目录下的 `*-analyzer-result*.md` 文件
+- **候选问题目录**：递归扫描 `.workspace/findings/` 下所有 `.md` 文件
 
 **聚合流程**：
 1. 从两个目录收集所有漏洞
@@ -108,7 +110,7 @@ check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --sh
 5. 分配全局漏洞 ID（VULN-001, VULN-002, 等）
 
 **特殊情况处理**：
-- 若未执行定制扫描（tasks 和 findings 目录下均无漏洞报告），仍需生成报告
+- 若未执行定制扫描（任务目录和候选问题目录下均无漏洞报告），仍需生成报告
 - 统计值为 0，风险级别默认为 Low
 - 在执行摘要中注明"未执行定制扫描（无推荐扫描器或扫描被跳过）"
 
@@ -214,6 +216,20 @@ check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --sh
   "project_analysis": {
     "tech_stack": {},
     "code_statistics": {}
+  },
+
+  "coverage": {
+    "identified_entries": 0,
+    "by_status": {
+      "unchecked": 0,
+      "analyzed": 0,
+      "needs_evidence": 0,
+      "blocked": 0,
+      "counterevidence": 0,
+      "runtime_confirmed": 0
+    },
+    "review_reasons": ["新条件或预算内随机复查"],
+    "limitations": ["没有完整分母时只报告已识别范围，不声称全仓库覆盖率"]
   }
 }
 ```

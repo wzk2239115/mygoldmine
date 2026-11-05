@@ -31,7 +31,7 @@ usage() {
   --base-url URL           模型服务地址（默认 $REDTEAM_BASE_URL）
   --api-key KEY            模型服务密钥（默认 $REDTEAM_API_KEY 或 local）
   --build-timeout SEC      隔离验证环境构建超时（默认 1260 秒）
-  --agent-timeout SEC      红队智能体超时（默认 900 秒）
+  --agent-timeout SEC      红队智能体超时（默认 7200 秒）
   --judge-timeout SEC      独立审核超时（默认 360 秒）
   --judge-claude BIN       独立审核命令行工具（默认 claude）
   --judge-claude-model M   独立审核模型（默认空）
@@ -56,7 +56,7 @@ MODEL="${REDTEAM_MODEL:-${MODEL:-360-proxy/deepseek/deepseek-v4.1-flash}}"
 BASE_URL="${REDTEAM_BASE_URL:-}"
 API_KEY="${REDTEAM_API_KEY:-}"
 BUILD_TIMEOUT=1260
-AGENT_TIMEOUT=900
+AGENT_TIMEOUT=7200
 JUDGE_TIMEOUT=360
 JUDGE_CLAUDE="${REDTEAM_JUDGE_CLAUDE:-claude}"
 JUDGE_CLAUDE_MODEL="${REDTEAM_JUDGE_CLAUDE_MODEL:-}"
@@ -287,7 +287,9 @@ lines += ["", "## Candidates", ""]
 if normalized:
     lines += ["| # | project | id | status | detail |", "| --- | --- | --- | --- | --- |"]
     for index, item in enumerate(normalized, 1):
-        detail = item.get("error") or item.get("validation_status") or ""
+        detail = item.get("blocked_reason") or item.get("error") or item.get("validation_status") or ""
+        if not detail and item.get("missing_capabilities"):
+            detail = "；".join(str(value) for value in item["missing_capabilities"])
         if not detail and item.get("status") == "build_failed":
             detail = item.get("builder_stderr") or ""
         if not detail:

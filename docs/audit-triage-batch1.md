@@ -13,7 +13,7 @@
 
 ## A. 源码级已确认（仍需运行时/条件复核）
 
-- **HIGH · aud-046-agentscope-runtime · INFRA-001** — Unauthenticated /shutdown and /admin/shutdown let any network client kill the agent service
+- **HIGH · aud-046-agentscope-runtime · INFRA-001** — 未认证的 /shutdown 与 /admin/shutdown 允许任意网络客户端终止 Agent 服务
   -  confirmed   
 - **HIGH · aud-046-agentscope-runtime · INFRA-LCP-001** — Sandbox manager control-plane authentication fails open when BEARER_TOKEN is unset (default), exposing create/call_tool/get_info
   -  confirmed   

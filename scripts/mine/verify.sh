@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # mygoldmine 产物校验器（T14）
 #
-# 校验一次（或多次）挖掘产物的完整性：
+# 校验一次（或多次）批量审计产物的完整性：
 #   1. 必需文件存在且非空：raw.jsonl / claude.rendered.log /
 #      audit-report.md / audit-report.json / run-meta.json
-#   2. JSON 可解析：报告、run-meta，以及 raw.jsonl 的每一行
-#   3. run-meta 自洽：exit_code=0、reports_complete=true、未超时/未中断
-#   4. 密钥泄漏扫描：sk-、Bearer、API key/token 赋值、云厂商 key、私钥头
+#   2. JSON 可解析：报告、运行元信息，以及 raw.jsonl 的每一行
+#   3. 运行元信息自洽：exit_code=0、reports_complete=true、未超时且未中断
+#   4. 密钥泄漏扫描：sk-、Bearer、API 密钥或访问令牌赋值、云厂商密钥、私钥头
 #
 # 用法:
 #   verify.sh [选项] [RUN_DIR...]

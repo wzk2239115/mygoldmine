@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # 对一份 audit-report.json 做“简单自动验证”：
-#   1. 归一化不同报告 schema 的 findings
-#   2. 按 severity 选 Top-N
-#   3. 为每条生成源码级 harness（引用文件 + sink 模式）
-#   4. 并行调用 run_verify.sh，只输出静态线索（不作为 confirmed）
+#   1. 归一化不同报告结构中的候选问题
+#   2. 按严重度选择指定数量的候选问题
+#   3. 为每条候选问题生成源码级验证脚本（引用文件和危险操作模式）
+#   4. 并行调用 run_verify.sh，只输出静态线索，不作为已确认结论
 #
-# 这是启发式预筛，不替代 verify-agent 的专用 harness。
-# 关键词命中不是漏洞证明；本脚本不再输出 confirmed/rejected 结论。
+# 这是启发式预筛，不替代验证智能体生成的专用验证脚本。
+# 关键词命中不是漏洞证明；本脚本不再输出已确认或未通过结论。
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,7 +21,7 @@ usage() {
 
 必填:
   --project NAME       项目名
-  --run-dir DIR        挖掘产物目录（需含 audit-report.json）
+  --run-dir DIR        批量审计产物目录（需含 audit-report.json）
 
 选项:
   --image IMAGE        环境镜像（默认读 env/<project>/env-manifest.json 的 image）
@@ -70,7 +70,7 @@ done
 
 [ -n "$PROJECT" ] || die "缺少 --project"
 [ -n "$RUN_DIR" ] || die "缺少 --run-dir"
-RUN_DIR="$(realpath -e "$RUN_DIR" 2>/dev/null)" || die "run-dir 不存在: $RUN_DIR"
+RUN_DIR="$(realpath -e "$RUN_DIR" 2>/dev/null)" || die "产物目录不存在: $RUN_DIR"
 REPORT="$RUN_DIR/audit-report.json"
 [ -s "$REPORT" ] || die "缺少 audit-report.json: $REPORT"
 [[ "$MAX" =~ ^[1-9][0-9]*$ ]] || die "--max 必须正整数"
@@ -136,7 +136,7 @@ def rank:
 
 mapfile -t FINDINGS < <(jq -c --arg sev "$SEVERITY" --argjson max "$MAX" "$JQ_NORM" "$REPORT" 2>/dev/null)
 N=${#FINDINGS[@]}
-[ "$N" -gt 0 ] || die "没有匹配 severity=$SEVERITY 的 finding"
+[ "$N" -gt 0 ] || die "没有匹配 severity=$SEVERITY 的候选问题"
 
 PATTERNS=(
     'exec(' 'eval(' 'compile(' 'pickle.load' 'pickle.loads' 'torch.load'
@@ -173,8 +173,8 @@ def finish(verdict, reason, ev=None, lim=None):
 files = finding.get("files") or []
 pattern = (finding.get("pattern") or "").strip()
 if not files:
-    finish("inconclusive", "finding 未提供可定位文件，无法自动验证",
-           lim=["需要 verify-agent 生成专用 harness"])
+    finish("inconclusive", "候选问题未提供可定位文件，无法自动验证",
+           lim=["需要验证智能体生成专用验证脚本"])
 
 checked, missing = [], []
 for item in files:
@@ -194,11 +194,11 @@ for item in files:
     "\nmissing:\n" + "\n".join(missing) + "\n", encoding="utf-8")
 
 if not checked:
-    finish("blocked", "引用的文件在环境镜像/源码中不存在: " + ", ".join(missing[:8]),
+    finish("blocked", "引用的文件在环境镜像或源码中不存在: " + ", ".join(missing[:8]),
            ev=["files.txt"])
 if not pattern:
-    finish("inconclusive", "引用文件存在，但未提取到可自动检查的 sink 模式",
-           ev=["files.txt"], lim=["需要 verify-agent 生成专用 harness"])
+    finish("inconclusive", "引用文件存在，但未提取到可自动检查的危险操作模式",
+           ev=["files.txt"], lim=["需要验证智能体生成专用验证脚本"])
 
 hits = []
 needle = pattern.lower()
@@ -212,12 +212,12 @@ for p in checked:
 (edir / "grep.txt").write_text("\n".join(hits) + "\n", encoding="utf-8")
 
 if hits:
-    finish("inconclusive", f"静态模式命中 `{pattern}`，但未证明可达/可触发；不是运行时确认",
+    finish("inconclusive", f"静态模式命中 `{pattern}`，但未证明可达或可触发；不是运行时确认",
            ev=["files.txt", "grep.txt"],
-           lim=["仅关键词/源码模式命中", "未启动目标程序", "需要 verify-agent 生成可达性 harness"])
+           lim=["仅关键词或源码模式命中", "未启动目标程序", "需要验证智能体生成可达性验证脚本"])
 finish("inconclusive", f"引用文件存在但未命中模式 `{pattern}`；关键词缺失不等于漏洞不存在",
        ev=["files.txt", "grep.txt"],
-       lim=["仅关键词/源码模式检查", "未启动目标程序", "需要 verify-agent 生成可达性 harness"])
+       lim=["仅关键词或源码模式检查", "未启动目标程序", "需要验证智能体生成可达性验证脚本"])
 PY
 chmod +x "$HARNESS"
 

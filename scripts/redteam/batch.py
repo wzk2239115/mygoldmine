@@ -159,11 +159,39 @@ def build_parallel(candidates, ledger, snapshot, batch_dir, args):
         ready = (rc == 0 and delivery.get("scenario_valid") is True
                  and delivery.get("finding_id") == plan["id"]
                  and delivery.get("scenario") == str(scenario) and scenario.is_file())
+        blocked = (
+            delivery.get("status") == "blocked"
+            and delivery.get("blocked_valid") is True
+            and delivery.get("finding_id") == plan["id"]
+        )
+        if ready:
+            status = "built"
+        elif blocked:
+            status = "blocked"
+        elif delivery.get("status") == "blocked_unstructured":
+            status = "blocked_unstructured"
+        else:
+            status = "build_failed"
         with lock:
-            plan.update({"state": "completed", "status": "built" if ready else "build_failed",
-                         "scenario": str(scenario) if ready else "", "builder_returncode": rc,
-                         "builder_stdout": output_tail(stdout, 1200), "builder_stderr": output_tail(stderr, 1200),
-                         "builder_timed_out": timed_out, "error": "" if ready else delivery.get("error") or "场景构建未通过检查"})
+            plan.update({
+                "state": "completed",
+                "status": status,
+                "scenario": str(scenario) if ready else "",
+                "blocked": delivery.get("blocked", ""),
+                "blocked_reason": delivery.get("blocked_reason", ""),
+                "blocked_surface": delivery.get("blocked_surface", ""),
+                "missing_capabilities": delivery.get("missing_capabilities", []),
+                "mode": delivery.get("mode", ""),
+                "builder_returncode": rc,
+                "builder_stdout": output_tail(stdout, 1200),
+                "builder_stderr": output_tail(stderr, 1200),
+                "builder_timed_out": timed_out,
+                "error": "" if ready else (
+                    delivery.get("blocked_reason")
+                    or delivery.get("error")
+                    or "场景构建未通过检查"
+                ),
+            })
             save()
         return plan
 
@@ -178,12 +206,14 @@ def main():
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--base-url", default="")
     parser.add_argument("--api-key", default="")
-    parser.add_argument("--max-steps", type=int, default=12)
+    parser.add_argument("--max-steps", type=int, default=1000)
     parser.add_argument("--max-tokens", type=int, default=1200)
     parser.add_argument("--build-labs", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--build-jobs", type=int, choices=range(1, 11), default=10)
+    parser.add_argument("--agent-jobs", type=int, choices=range(1, 11), default=10)
+    parser.add_argument("--judge-jobs", type=int, choices=range(1, 11), default=10)
     parser.add_argument("--build-timeout", type=int, default=1260)
-    parser.add_argument("--agent-timeout", type=int, default=900)
+    parser.add_argument("--agent-timeout", type=int, default=7200)
     parser.add_argument("--judge-timeout", type=int, default=360)
     parser.add_argument("--judge-claude", default="claude")
     parser.add_argument("--judge-claude-model", default="")
@@ -201,6 +231,80 @@ def main():
     batch_dir.mkdir(parents=True, exist_ok=True)
     prebuilt = build_parallel(candidates, ledger, snapshot, batch_dir, args) if args.build_labs and not args.dry_run else {}
     summary = []
+    execution_jobs = []
+    stage_lock = threading.Lock()
+
+    def record_stage_safe(node, identifier):
+        with stage_lock:
+            record_stage(node, str(identifier))
+
+    def run_agent_job(job):
+        entry = job["entry"]
+        run_id = job["run_id"]
+        run_dir = ROOT / "runs" / "redteam" / job["project"] / run_id
+        entry["run_dir"] = str(run_dir)
+        record_stage_safe("redteam-agent", job["candidate_id"])
+        command = [
+            sys.executable, str(ROOT / "scripts" / "redteam" / "agent.py"),
+            "--finding", str(job["finding"]),
+            "--project", job["project"],
+            "--scenario", str(job["scenario"]),
+            "--run-id", run_id,
+            "--model", args.model,
+            "--base-url", args.base_url,
+            "--api-key", args.api_key,
+            "--max-steps", str(args.max_steps),
+            "--max-tokens", str(args.max_tokens),
+        ]
+        try:
+            completed = subprocess.run(
+                command, capture_output=True, text=True, cwd=ROOT, timeout=args.agent_timeout,
+            )
+            entry["agent_returncode"] = completed.returncode
+            entry["stdout"] = output_tail(completed.stdout, 1000)
+            entry["stderr"] = output_tail(completed.stderr, 1000)
+        except subprocess.TimeoutExpired as exc:
+            entry.update({
+                "agent_returncode": 124, "agent_timed_out": True,
+                "stdout": output_tail(exc.stdout, 1000),
+                "stderr": output_tail(exc.stderr, 1000),
+            })
+        except OSError as exc:
+            entry.update({"agent_returncode": 1, "status": "agent_error", "stderr": str(exc)})
+        if entry.get("agent_timed_out") or entry.get("agent_returncode") != 0:
+            result = load(run_dir / "result.json", {})
+            entry["status"] = classify_agent_failure(
+                entry.get("agent_returncode"), result, timed_out=bool(entry.get("agent_timed_out"))
+            )
+        else:
+            entry["status"] = "agent_completed"
+
+    def run_judge_job(job):
+        entry = job["entry"]
+        run_dir = ROOT / "runs" / "redteam" / job["project"] / job["run_id"]
+        command = [
+            sys.executable, str(ROOT / "scripts" / "redteam" / "judge.py"),
+            "--run-dir", str(run_dir), "--timeout", str(args.judge_timeout),
+            "--claude", args.judge_claude,
+        ]
+        if args.judge_claude_model:
+            command += ["--claude-model", args.judge_claude_model]
+        record_stage_safe("judge", job["candidate_id"])
+        try:
+            judge = subprocess.run(
+                command, capture_output=True, text=True, cwd=ROOT, timeout=args.judge_timeout,
+            )
+            entry["judge_returncode"] = judge.returncode
+            entry["judge_stdout"] = output_tail(judge.stdout, 1000)
+            entry["judge_stderr"] = output_tail(judge.stderr, 1000)
+            entry["status"] = "judge_approved" if judge.returncode == 0 else "judge_rejected"
+        except subprocess.TimeoutExpired:
+            entry.update({
+                "status": "judge_timeout", "judge_returncode": 124,
+                "judge_timed_out": True,
+            })
+        except OSError as exc:
+            entry.update({"status": "judge_error", "judge_returncode": 1, "judge_stderr": str(exc)})
     for index, candidate in enumerate(candidates, 1):
         project = candidate.get("project", "")
         candidate_id = candidate.get("id", "")
@@ -209,6 +313,8 @@ def main():
         entry = {"project": project, "id": candidate_id, "key": key, "status": "blocked_no_finding"}
         if snapshot is not None:
             entry["report_sha256"] = snapshot["sha256"]
+        if not item:
+            entry["error"] = "候选问题不在本轮报告或发现记录中"
         if item:
             if snapshot is not None:
                 try:
@@ -243,9 +349,12 @@ def main():
             build_attempted = key in prebuilt
             if key in prebuilt:
                 built = prebuilt[key]
-                entry.update({field: built[field] for field in ("builder_returncode", "builder_stdout", "builder_stderr", "builder_timed_out")})
+                entry.update({field: built[field] for field in (
+                    "builder_returncode", "builder_stdout", "builder_stderr", "builder_timed_out",
+                    "blocked", "blocked_reason", "blocked_surface", "missing_capabilities", "mode",
+                )})
                 if built["status"] != "built":
-                    entry.update({"status": "build_failed", "error": built["error"]})
+                    entry.update({"status": built["status"], "scenario": "", "error": built["error"]})
                     summary.append(entry)
                     print(json.dumps(entry, ensure_ascii=False))
                     continue
@@ -265,6 +374,24 @@ def main():
                     entry["builder_returncode"] = builder.returncode
                     entry["builder_stdout"] = output_tail(builder.stdout, 1200)
                     entry["builder_stderr"] = output_tail(builder.stderr, 1200)
+                    try:
+                        delivery = json.loads(builder.stdout)
+                    except (TypeError, ValueError):
+                        delivery = {}
+                    if isinstance(delivery, dict) and delivery.get("status") in {"blocked", "blocked_unstructured"}:
+                        entry.update({
+                            "status": delivery["status"],
+                            "scenario": "",
+                            "blocked": delivery.get("blocked", ""),
+                            "blocked_reason": delivery.get("blocked_reason", ""),
+                            "blocked_surface": delivery.get("blocked_surface", ""),
+                            "missing_capabilities": delivery.get("missing_capabilities", []),
+                            "mode": delivery.get("mode", ""),
+                            "error": delivery.get("error") or delivery.get("blocked_reason") or "场景构建受阻",
+                        })
+                        summary.append(entry)
+                        print(json.dumps(entry, ensure_ascii=False))
+                        continue
                 except subprocess.TimeoutExpired as exc:
                     entry.update({
                         "status": "build_failed", "builder_returncode": 124,
@@ -302,67 +429,28 @@ def main():
                 entry["status"] = "ready"
             else:
                 run_id = f"batch-{stamp}-{index:02d}"
-                agent = [
-                    sys.executable, str(ROOT / "scripts" / "redteam" / "agent.py"),
-                    "--finding", str(finding_path),
-                    "--project", project,
-                    "--scenario", str(resolved_path),
-                    "--run-id", run_id,
-                    "--model", args.model,
-                    "--base-url", args.base_url,
-                    "--api-key", args.api_key,
-                    "--max-steps", str(args.max_steps),
-                    "--max-tokens", str(args.max_tokens),
-                ]
-                run_dir = ROOT / "runs" / "redteam" / project / run_id
-                entry["run_dir"] = str(run_dir)
-                agent_timed_out = False
-                try:
-                    record_stage("redteam-agent", str(candidate_id))
-                    completed = subprocess.run(
-                        agent, capture_output=True, text=True, cwd=ROOT,
-                        timeout=args.agent_timeout,
-                    )
-                    entry["agent_returncode"] = completed.returncode
-                    entry["stdout"] = output_tail(completed.stdout, 1000)
-                    entry["stderr"] = output_tail(completed.stderr, 1000)
-                except subprocess.TimeoutExpired as exc:
-                    agent_timed_out = True
-                    entry.update({
-                        "agent_returncode": 124, "agent_timed_out": True,
-                        "stdout": output_tail(exc.stdout, 1000),
-                        "stderr": output_tail(exc.stderr, 1000),
-                    })
-                if not agent_timed_out and entry["agent_returncode"] == 0:
-                    judge_command = [
-                        sys.executable, str(ROOT / "scripts" / "redteam" / "judge.py"),
-                        "--run-dir", str(run_dir), "--timeout", str(args.judge_timeout),
-                        "--claude", args.judge_claude,
-                    ]
-                    if args.judge_claude_model:
-                        judge_command += ["--claude-model", args.judge_claude_model]
-                    try:
-                        record_stage("judge", str(candidate_id))
-                        judge = subprocess.run(
-                            judge_command,
-                            capture_output=True, text=True, cwd=ROOT, timeout=args.judge_timeout,
-                        )
-                        entry["judge_returncode"] = judge.returncode
-                        entry["judge_stdout"] = output_tail(judge.stdout, 1000)
-                        entry["judge_stderr"] = output_tail(judge.stderr, 1000)
-                        entry["status"] = "judge_approved" if judge.returncode == 0 else "judge_rejected"
-                    except subprocess.TimeoutExpired:
-                        entry.update({
-                            "status": "judge_timeout", "judge_returncode": 124,
-                            "judge_timed_out": True,
-                        })
-                else:
-                    result = load(run_dir / "result.json", {})
-                    entry["status"] = classify_agent_failure(
-                        entry["agent_returncode"], result, timed_out=agent_timed_out
-                    )
+                entry["run_dir"] = str(ROOT / "runs" / "redteam" / project / run_id)
+                execution_jobs.append({
+                    "entry": entry,
+                    "finding": finding_path,
+                    "scenario": resolved_path,
+                    "run_id": run_id,
+                    "project": project,
+                    "candidate_id": candidate_id,
+                })
         summary.append(entry)
-        print(json.dumps(entry, ensure_ascii=False))
+    if execution_jobs:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.agent_jobs) as pool:
+            list(pool.map(run_agent_job, execution_jobs))
+        judge_jobs = [
+            job for job in execution_jobs
+            if not job["entry"].get("agent_timed_out") and job["entry"].get("agent_returncode") == 0
+        ]
+        if judge_jobs:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=args.judge_jobs) as pool:
+                list(pool.map(run_judge_job, judge_jobs))
+    for item in summary:
+        print(json.dumps(item, ensure_ascii=False))
     output = {"generated_at": datetime.now(timezone.utc).isoformat(), "model": args.model, "results": summary}
     (batch_dir / "summary.json").write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     counts = {}

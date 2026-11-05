@@ -95,3 +95,46 @@ def test_main_flow_waits_for_all_builds_then_uses_isolated_scenarios(tmp_path, m
     monkeypatch.setattr(sys, 'argv', ['batch.py', '--candidates', str(file), '--build-jobs', '3'])
     assert batch.main() == 0
     assert state == {'active': 0, 'finished': 4, 'agents': 4}
+
+
+def test_main_flow_runs_agents_and_judges_in_bounded_parallel(tmp_path, monkeypatch):
+    monkeypatch.setattr(batch, 'ROOT', tmp_path)
+    monkeypatch.setattr(batch, 'BATCH_ROOT', tmp_path / 'batches')
+    monkeypatch.setattr(batch, 'record_stage', lambda *args, **kwargs: None)
+    candidates = [{'project': 'demo', 'id': f'F-{i}'} for i in range(4)]
+    file = tmp_path / 'candidates.json'
+    file.write_text(json.dumps({'candidates': candidates}))
+    monkeypatch.setattr(batch.base.finding_ledger, 'build_ledger', lambda: {})
+    monkeypatch.setattr(batch, 'resolve_candidate', lambda candidate, *_: {'raw': {'id': candidate['id'], 'title': candidate['id']}})
+    for candidate in candidates:
+        preferred = tmp_path / 'labs' / 'demo' / candidate['id'] / 'scenario.json'
+        preferred.parent.mkdir(parents=True)
+        preferred.write_text('{}')
+    monkeypatch.setattr(batch, 'resolve_scenario', lambda root, project, finding, data: (
+        tmp_path / 'labs' / 'demo' / finding['id'] / 'scenario.json', {'mode': 'http'}
+    ))
+    state = {'agent': 0, 'judge': 0, 'peak_agent': 0, 'peak_judge': 0}
+    lock = threading.Lock()
+
+    def invoke(command, **kwargs):
+        kind = 'agent' if any('agent.py' in str(item) for item in command) else 'judge'
+        with lock:
+            state[kind] += 1
+            state[f'peak_{kind}'] = max(state[f'peak_{kind}'], state[kind])
+        time.sleep(0.1)
+        with lock:
+            state[kind] -= 1
+        return SimpleNamespace(returncode=0, stdout=json.dumps({'status': 'flag_captured'}), stderr='')
+
+    monkeypatch.setattr(batch.subprocess, 'run', invoke)
+    out = tmp_path / 'out'
+    monkeypatch.setattr(sys, 'argv', [
+        'batch.py', '--candidates', str(file), '--out-dir', str(out),
+        '--no-build-labs', '--agent-jobs', '2', '--judge-jobs', '2',
+    ])
+    assert batch.main() == 0
+    assert state['peak_agent'] == 2
+    assert state['peak_judge'] == 2
+    summary = json.loads((out / 'summary.json').read_text())
+    assert [item['id'] for item in summary['results']] == [item['id'] for item in candidates]
+    assert all(item['status'] == 'judge_approved' for item in summary['results'])
