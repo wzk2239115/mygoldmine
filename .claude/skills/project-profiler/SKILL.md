@@ -24,7 +24,7 @@ python3 ./quick-scan.py {source_dir} --json --output .workspace/tasks/{TASK_ID}/
 - `project_types`：`agent-harness` / `inference-engine` / `training-framework` / `model-serving`（可叠加 Web 类型）
 - `entrypoints.infra`：HTTP/gRPC/CLI/IPC/model/exec 入口（file:line）
 - `trust_boundaries`：http / grpc / model-file / ipc / sandbox / distributed / config ...
-- `recommended_skills`：按类型推荐的流程技能，不再默认只给 web-auth/sensitive-info
+- `recommended_skills`：按项目类型和实际入口推荐的候选技能；入口对应的传统技能也会进入候选池，是否派发仍由覆盖缺口决定
 - `infra_evidence`：类型判定依据
 
 **路由规则**：

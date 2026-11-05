@@ -949,6 +949,16 @@ ENTRY_PATTERNS = {
     "sandbox": ("seccomp", "landlock", "chroot", "bubblewrap", "sandbox", "namespace"),
 }
 
+ENTRY_SKILLS = {
+    "http": ("web-auth-analyzer", "unauth-route-scanner", "sensitive-info-scanner"),
+    "grpc": ("rpc-surface-scanner", "web-auth-analyzer"),
+    "ipc": ("ipc-serialization-analyzer",),
+    "cli": ("command-injection-analyzer",),
+    "exec": ("command-injection-analyzer", "code-injection-analyzer"),
+    "model": ("model-loading-analyzer", "insecure-deserialization-analyzer"),
+    "sandbox": ("sandbox-boundary-analyzer",),
+}
+
 
 def _iter_scan_files(root: Path, max_files: int = 4000):
     seen = 0
@@ -1081,6 +1091,8 @@ def detect_infra(root: Path) -> Dict[str, object]:
         trust.append("grpc")
     if any(e["kind"] == "exec" for e in entrypoints):
         trust.append("process-exec")
+    for entry in entrypoints:
+        skills.extend(ENTRY_SKILLS.get(str(entry.get("kind")), ()))
 
     return {
         "project_types": project_types,
