@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 from skill_bank import SkillBank, ROOT, digest, read, write, now, instruction
 from submission import config
+from owned_process import run_session
 
 SKILLOPT_ADAPTER = Path(__file__).resolve().parent / 'skillopt_adapter.py'
 
@@ -33,7 +34,7 @@ def _run_skillopt(run, project, repo, model, timeout):
         env = dict(os.environ)
         env['PYTHONPATH'] = str(repo) + (os.pathsep + env['PYTHONPATH'] if env.get('PYTHONPATH') else '')
         try:
-            child = subprocess.run(
+            child = run_session(
                 [sys.executable, str(SKILLOPT_ADAPTER), '--request', str(request), '--root', str(repo), '--project', project, '--model', model or ''],
                 cwd=repo, env=env, capture_output=True, text=True,
                 timeout=max(30, int(timeout)),
@@ -99,12 +100,12 @@ def learn(run, project, repo=ROOT, timeout=180, skillopt_timeout=300):
     result = {'log': str(attempt / 'stream.jsonl'), 'project': project, 'input_hash': fingerprint, 'model': model, 'started_at': now()}
     try:
         with (attempt / 'stream.jsonl').open('w') as output, (attempt / 'stderr.log').open('w') as error:
-            child = subprocess.run([os.environ.get('CLAUDE_BIN', 'claude'), '--setting-sources', 'project,local', '--model', model, '--agent', 'stage-skill-learner', '--append-system-prompt', context, '--mcp-config', json.dumps(config('learner', run)), '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose', '-p', prompt], cwd=repo, env=env, stdout=output, stderr=error, timeout=timeout)
+            child = run_session([os.environ.get('CLAUDE_BIN', 'claude'), '--setting-sources', 'project,local', '--model', model, '--agent', 'stage-skill-learner', '--append-system-prompt', context, '--mcp-config', json.dumps(config('learner', run)), '--permission-mode', 'bypassPermissions', '--output-format', 'stream-json', '--verbose', '-p', prompt], cwd=repo, env=env, stdout=output, stderr=error, timeout=timeout)
         result['exit_code'] = child.returncode
     except (subprocess.TimeoutExpired, OSError) as exc:
         result.update(exit_code=124 if isinstance(exc, subprocess.TimeoutExpired) else 1, error=type(exc).__name__)
     result['proposals'] = len(set((run / '.stage-skill-proposals').glob('*.json')) - before)
-    result['skillopt'] = _run_skillopt(run, project, repo, model, skillopt_timeout)
+    result['skillopt'] = _run_skillopt(run, project, repo, model, skillopt_timeout) if result['exit_code']==0 else {'status':'skipped_failed_learning','results':[],'candidates':[]}
     result['skillopt_candidates'] = len(result['skillopt'].get('candidates', []))
     result['ended_at'] = now()
     write(attempt / 'result.json', result)

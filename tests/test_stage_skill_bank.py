@@ -137,3 +137,58 @@ def test_same_rule_and_evidence_bytes_do_not_duplicate_across_output_paths(tmp_p
     duplicate=bank.propose('environment','verl','project',candidate['content'],[str(evidence)])
     assert duplicate['id']==candidate['id']
     assert len(list((bank.root/'candidates').glob('*.json')))==1
+
+def test_cycle_claim_handoff_and_stop_before_first_round(tmp_path):
+    repo=tmp_path/'repo';source=repo/'targets/verl';source.mkdir(parents=True)
+    lock=repo/'runs/.learning-cycle-verl.lock';lock.mkdir(parents=True)
+    write(lock/'claim.json',{'id':'claimed-cycle'})
+    folder=repo/'rsi/stage-skills/cycles/claimed-cycle';folder.mkdir(parents=True)
+    (folder/'stop').write_text('stop')
+    state=cycle(source,'verl',repo=repo,cycle_id='claimed-cycle',claim_token='claimed-cycle')
+    assert state['status']=='stopped'
+    assert not state['rounds']
+    assert not lock.exists()
+
+
+def test_cycle_rejects_wrong_lock_claim(tmp_path):
+    repo=tmp_path/'repo';source=repo/'targets/verl';source.mkdir(parents=True)
+    lock=repo/'runs/.learning-cycle-verl.lock';lock.mkdir(parents=True)
+    write(lock/'claim.json',{'id':'owner'})
+    with pytest.raises(ValueError,match='凭据'):
+        cycle(source,'verl',repo=repo,cycle_id='other',claim_token='other')
+    assert json.loads((lock/'claim.json').read_text())['id']=='owner'
+
+
+def test_native_cycle_repeats_01_after_08_and_does_not_learn_twice(tmp_path, monkeypatch):
+    import learning_cycle as controller
+    repo=tmp_path/'repo';source=repo/'targets/verl';source.mkdir(parents=True)
+    native=repo/'ui/server/claude-workflows.mjs';native.parent.mkdir(parents=True);native.write_text('// fixture')
+    commands=[]
+    class Child:
+        def __init__(self, command, **kwargs):
+            self.pid=123456;commands.append(command)
+            options=json.loads(command[-1]);run=Path(options['runDir'])
+            write(Path(str(run)+'.meta')/'status.json',{'state':'success'})
+        def wait(self, timeout=None):return 0
+    monkeypatch.setattr(controller.subprocess,'Popen',Child)
+    monkeypatch.setattr(controller,'learn',lambda *a,**kw:pytest.fail('08 must not run twice'))
+    monkeypatch.setattr(controller.SkillBank,'feedback',lambda *a:[])
+    state=controller.cycle(source,'verl',rounds=3,patience=2,repo=repo,poll=0)
+    assert state['status']=='no_improvement'
+    assert len(commands)==2
+    assert all(command[1]==str(native) for command in commands)
+    assert json.loads(commands[0][-1])['runDir']!=json.loads(commands[1][-1])['runDir']
+    assert len(state['rounds'])==2
+
+
+def test_workflow_skip_reason_is_frozen_into_learning_feedback(tmp_path):
+    repo=tmp_path/'repo';run=repo/'runs/verl/one';run.mkdir(parents=True)
+    meta=Path(str(run)+'.meta')
+    write(meta/'workflows/w1/state.json',{'id':'w1','startedAt':'2026-11-05'})
+    receipt=meta/'workflows/w1/receipts/judge.json'
+    write(receipt,{'node':'judge','status':'skipped','reason':'没有已捕获且来源完整的证据'})
+    rows=SkillBank(repo).feedback(run,'verl')
+    judge=next(row for row in rows if row['stage']=='judge')
+    assert judge['state']=='skipped'
+    assert judge['reason']=='没有已捕获且来源完整的证据'
+    assert any(ref['path'].endswith('judge.json') for ref in judge['evidence'])

@@ -105,7 +105,7 @@ class SkillBank:
         meta=Path(str(run)+'.meta');status=read(meta/'status.json',{})
         files={
             'environment':[meta/'env-phase.json',meta/'env-phase0.log'],
-            'orchestrator':[run/'report-quality.json',run/'report-quality.log',run/'task-state/security-orchestrator-tasks.json',run/'task-artifacts/coverage-ledger.json',run/'task-artifacts/coverage-plan.json',run/'task-artifacts/review-plan.json'],
+            'orchestrator':[run/'audit-report.json',run/'report-quality.json',run/'report-quality.log',run/'task-state/security-orchestrator-tasks.json',run/'task-artifacts/coverage-ledger.json',run/'task-artifacts/coverage-plan.json',run/'task-artifacts/review-plan.json'],
             'visual':[run/'visual-rendered/visual-summary.json'],
             'verify':[run/'verify/agent/summary.json'],
             'redteam-lab':[run/'redteam/summary.json'],
@@ -119,8 +119,23 @@ class SkillBank:
             if retries:
                 latest=max(retries,key=lambda item:item.get('startedAt',''))
                 files[stage]=[Path(latest['workspace'])/artifact,Path(latest['root'])/'attempt.json']
+        for stage,relative in [('verify','selection.json'),('redteam-lab','selection.json')]:
+            summary=files[stage][0]
+            plan=summary.parent/relative
+            if plan.exists():files[stage].insert(0,plan)
         if run.name.endswith('-recovery') and read(run/'audit-report.json',{}).get('coverage',{}).get('analysis_mode')=='assembly-only' and not any(p.exists() for p in files['environment']):
             original=run.with_name(run.name[:-9]);files['environment']=[Path(str(original)+'.meta')/'env-phase.json',Path(str(original)+'.meta')/'env-phase0.log']
+        workflows=[read(p,{}) for p in (meta/'workflows').glob('*/state.json')]
+        workflow=max(workflows,key=lambda item:item.get('startedAt',''),default={})
+        for stage,paths in files.items():
+            receipt=meta/'workflows'/str(workflow.get('id',''))/'receipts'/(stage+'.json')
+            if not receipt.exists():receipt=run/'rsi/workflow-receipts'/str(workflow.get('id',''))/(stage+'.json')
+            if receipt.is_file():paths.append(receipt)
+            for attempt in (meta/'node-retries'/stage).glob('*/attempt.json'):
+                job=read(attempt,{})
+                if job.get('workflowOwner')==workflow.get('id') and job.get('workspace'):
+                    inputs=Path(job['workspace'])/'workflow-inputs.json'
+                    if inputs.is_file():paths.append(inputs)
         records=[]
         for stage,paths in files.items():
             refs=[]
@@ -139,7 +154,9 @@ class SkillBank:
             if stage in ('redteam-lab','redteam-agent','judge'):
                 results=reported.get('results',[])
                 if results and all('build_failed' in str(row.get('status','')) or 'blocked' in str(row.get('status','')) for row in results):stage_state='blocked'
-            event={'stage':stage,'project':project,'run_id':run.name,'run_dir':str(run),'commit':status.get('commit'),'state':stage_state,'run_state':status.get('state'),'counts':counts,'evidence':refs,'evidence_status':'observed_artifacts' if refs else 'missing','generated_at':now()}
+            receipt=read(meta/'workflows'/str(workflow.get('id',''))/'receipts'/(stage+'.json')) or read(run/'rsi/workflow-receipts'/str(workflow.get('id',''))/(stage+'.json'),{})
+            if receipt.get('status'):stage_state=receipt['status']
+            event={'reason':receipt.get('reason'),'stage':stage,'project':project,'run_id':run.name,'run_dir':str(run),'commit':status.get('commit'),'state':stage_state,'run_state':status.get('state'),'counts':counts,'evidence':refs,'evidence_status':'observed_artifacts' if refs else 'missing','generated_at':now()}
             write(run/'rsi/stage-feedback'/f'{stage}.json',event);records.append(event)
         imported=ingest_requests(self,run,project)
         write(run/'rsi/stage-learning-imports.json',{'imported':imported,'generated_at':now()})
