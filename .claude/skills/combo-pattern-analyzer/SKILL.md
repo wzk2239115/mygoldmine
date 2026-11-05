@@ -528,7 +528,7 @@ def generate_poc(template, matched_chain):
 1. ✅ **必须等待所有维度完成**：combo-pattern-analyzer必须在所有其他analyzer之后执行
 2. ⚠️ **模板扩展性**：支持用户自定义攻击链模板
 3. ⚠️ **误报控制**：标注confidence（HIGH/MEDIUM/LOW）
-4. ⚠️ **性能考虑**：大型项目可能有大量findings，需要优化匹配算法
+4. ⚠️ **性能考虑**：大型项目可能有大量候选问题，需要优化匹配算法
 
 ---
 

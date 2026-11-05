@@ -109,8 +109,8 @@ def mcp_severity(command, args) -> tuple[str, str]:
     args_list = args if isinstance(args, list) else []
     shell_arg = any(str(item).lower() in SHELL_ARGS for item in args_list)
     if shell or shell_arg:
-        return "high", "MCP server 使用 shell 启动或带 -c 参数，可执行任意命令"
-    return "medium", "MCP server 的 command/args 来自仓库配置"
+        return "high", "MCP 服务器 使用 shell 启动或带 -c 参数，可执行任意命令"
+    return "medium", "MCP 服务器 的 command/args 来自仓库配置"
 
 
 def scan_mcp_map(mapping, path: Path, text: str, findings: list[dict], rule: str) -> None:
@@ -199,9 +199,9 @@ def walk_settings(node, path: Path, text: str, findings: list[dict], prefix: str
                     path=path,
                     line=line,
                     evidence=line_text(text.splitlines(), line),
-                    message="配置自动信任项目内所有 MCP server",
+                    message="配置自动信任项目内所有 MCP 服务器",
                     why="打开不可信仓库时会自动加载仓库内的 MCP 配置",
-                    fix="关闭自动信任，改为逐项确认 MCP server",
+                    fix="关闭自动信任，改为逐项确认 MCP 服务器",
                 )
             if key_lower in {"dangerouslyskippermissions", "bypasspermissions"} and value is True:
                 add_finding(

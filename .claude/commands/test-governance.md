@@ -772,7 +772,7 @@ def test_time_dependent_function():
 2. 标记快/慢测：将慢测标记为 `@pytest.mark.slow`
 3. Mock 真实 IO：将文件操作、网络请求替换为 mock
 4. 精简测试数据：使用最小必要数据集
-5. 使用 fixture 缓存：对昂贵的 setup 使用 `scope="session"`
+5. 复用测试夹具：对初始化成本高的 fixture 使用 `scope="session"`
 
 **示例**：
 ```python

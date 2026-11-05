@@ -108,7 +108,7 @@ function calcMultiplier() external view returns (uint256) {
 
 **误报筛查**：
 - [ ] 时间戳是否仅用于 `block.timestamp < deadline` 类判断？
-- [ ] 是否存在 `require(block.timestamp > start)` 形式的门禁逻辑？
+- [ ] 是否存在 `require(block.timestamp > start)` 形式的条件检查逻辑？
 - [ ] 随机结果是否涉及真实价值（可交易资产）？
 - [ ] 代码是否处于测试环境或已弃用分支？
 

@@ -45,35 +45,35 @@ python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
 
 ### 项目结构树
 
-`root -> 源码顶层目录 -> 子目录 -> finding`
+`root -> 源码顶层目录 -> 子目录 -> 候选问题`
 
 - 目录宽度表示文件数量
-- finding 叶子按 severity 着色
-- 证据路径来自 finding 的 `evidence/files/location`，不靠猜
+- 候选问题叶子按严重度着色
+- 证据路径来自候选问题的 `evidence/files/location`，不靠猜
 
 ### 审计覆盖树
 
-`root -> 审计阶段 -> finding`
+`root -> 审计阶段 -> 候选问题`
 
 - 阶段来自报告 `coverage.stages`
-- 没有 coverage 时使用默认阶段
+- 没有覆盖信息时使用默认阶段
 - 灰色表示报告没有明确覆盖状态
 
 ### 攻击路径树
 
-`goal -> entry -> auth/preconditions -> sink -> impact`
+`目标 -> 入口 -> 认证/前置条件 -> 危险操作 -> 影响`
 
 - 只为 Critical/High 生成
-- 字段来自 finding 的 `preconditions/root_cause/impact/evidence`
+- 字段来自候选问题的 `preconditions/root_cause/impact/evidence`
 - 这是解释图，不是新的漏洞结论
 
 ## 攻击场景插图
 
-每个 Critical/High attack tree 会生成一份双栏场景：
+每个 Critical/High 攻击路径树会生成一份双栏场景：
 
 ```text
-攻击者：构造输入 -> 满足前置条件 -> 触发 root cause
-受害者：接收输入 -> 进入敏感路径 -> 到达 sink / 产生 impact
+攻击者：构造输入 -> 满足前置条件 -> 触发根因
+受害者：接收输入 -> 进入敏感路径 -> 到达危险操作 / 产生影响
 中间：信任边界
 ```
 
@@ -94,11 +94,11 @@ python3 .claude/skills/project-cartographer/scripts/render_diagrams.py \
   --out-dir runs/aud-048-opensandbox/20261028T080748Z/visual-rendered
 ```
 
-`--all` 为每个 attack 生成插图；`--dry-run` 只写 prompt，不调用 API。插图 prompt 只使用去标识化的攻击类型和双方动作，不发送源码、端点、密钥或完整报告。
+`--all` 为每条攻击路径生成插图；`--dry-run` 只写绘图提示词，不调用 API。绘图提示词只使用去标识化的攻击类型和双方动作，不发送源码、端点、密钥或完整报告。
 
-## Agentic 场景导演（推荐）
+## 智能体辅助场景设计（推荐）
 
-`attack-scene-director` agent 会先读 finding、verify 报告和证据源码，设计 attacker / victim 分镜，再写 prompt、调用 image2，并检查/迭代。
+`attack-scene-director` 智能体会先读候选问题、验证报告和证据源码，设计攻击者与受害者分镜，再写绘图提示词、调用 image2，并检查结果、按需修正。
 
 ```bash
 python3 .claude/skills/project-cartographer/scripts/render_attack_scenes_agentic.py \
@@ -116,7 +116,7 @@ visual-rendered/scene-<finding>.director.json
 visual-rendered/scene-<finding>.webp
 ```
 
-`scene.director.json` 是 agent 自己写的分镜和 prompt，不是固定模板。需要指定 Claude 模型时用 `--claude-model` 或 `VISUAL_AGENT_MODEL`。
+`scene.director.json` 是智能体自己写的分镜和绘图提示词，不是固定模板。需要指定 Claude 模型时用 `--claude-model` 或 `VISUAL_AGENT_MODEL`。
 
 ## image2 插图
 
@@ -150,17 +150,17 @@ POST /images/generations
 
 凭据读取顺序：`IMAGE_API_KEY`、`OPENCODE_360_KEY`、`ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_API_KEY`、`GLM_API_KEY`、opencode 配置。不要打印或写入密钥。
 
-缓存：按 `model + size + prompt` 哈希存到 `.cache/image2/`。重跑同 prompt 不重复扣费。
+缓存：按模型、尺寸和绘图提示词的哈希存到 `.cache/image2/`。使用相同提示词重新运行时不重复扣费。
 
 ## 插图规则
 
-- 只用于封面、章节页、case card 顶部、攻击场景叙事和氛围
+- 只用于封面、章节页、案例卡片顶部、攻击场景叙事和氛围
 - **不用于**架构图、攻击路径节点、覆盖树、代码/证据截图；攻击路径和双方步骤由 SVG 准确生成
 - 提示词只使用去标识化攻击类型和双方动作；不得包含源码、端点、密钥、完整报告或可复制的利用细节
-- 图里不要生成文字、代码、UI 截图、真实 logo
+- 图里不要生成文字、代码、UI 截图、真实标志
 - 生成后写 WebP，单张控制在几百 KB
-- 记录 prompt、model、尺寸、生成时间；在报告里标注“AI 插图，非漏洞证据”
-- image2 不可用时回退到 SVG 封面，不阻塞报告
+- 记录提示词、模型、尺寸、生成时间；在报告里标注“AI 插图，非漏洞证据”
+- image2 不可用时恢复为 SVG 封面，不阻塞报告
 
 封面提示词骨架：
 
@@ -176,11 +176,11 @@ no code, no screenshots, centered subject, generous clean space for title
 1. 一页项目地图
 2. 一页信任边界
 3. 一页覆盖树
-4. Top findings case cards
+4. 重点候选问题案例卡片
 5. 证据附录
 ```
 
-每张 case card：
+每张案例卡片：
 
 ```text
 [封面/插图] [severity] [finding id]
@@ -195,14 +195,14 @@ no code, no screenshots, centered subject, generous clean space for title
 ## 与流水线集成
 
 - `mine_one_docker.sh` 在容器退出且存在 `audit-report.json` 时自动生成 `visual-model.json`
-- `VISUAL_RENDER=1` 渲染 SVG；`VISUAL_IMAGES=1` 生成插图；`VISUAL_AGENTIC=1` 优先使用 scene director agent，失败可回退到 `render_attack_images.py`
+- `VISUAL_RENDER=1` 渲染 SVG；`VISUAL_IMAGES=1` 生成插图；`VISUAL_AGENTIC=1` 优先使用场景设计智能体，失败可恢复为 `render_attack_images.py`
 - `render_diagrams.py` 可独立生成 SVG 和插图报告
-- UI 的 Map 视图读取 `GET /api/visual/:project/:runId`
+- UI 的地图视图读取 `GET /api/visual/:project/:runId`
 - 报告生成器可在 `audit-report.md` 后追加 `report-illustrated.md` 的链接
 
 ## 准确性要求
 
-- 每个图节点都能追溯到源码路径、finding ID 或 coverage stage
+- 每个图节点都能追溯到源码路径、候选问题 ID 或覆盖阶段
 - 不把 image2 生成的图当作证据
 - 不为了好看编造不存在的服务、端点、调用链
 - 树太大时折叠到包/模块层，避免一次渲染上千节点

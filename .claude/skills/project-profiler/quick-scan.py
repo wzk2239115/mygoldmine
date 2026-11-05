@@ -970,7 +970,7 @@ def _iter_scan_files(root: Path, max_files: int = 4000):
 
 
 def detect_infra(root: Path) -> Dict[str, object]:
-    """检测 AI 基础设施/agent harness 类型、入口与信任边界。"""
+    """检测 AI 基础设施与智能体运行框架的类型、入口和信任边界。"""
     evidence: Dict[str, List[str]] = {k: [] for k in INFRA_SIGNALS}
     scores: Dict[str, int] = {k: 0 for k in INFRA_SIGNALS}
     strong_flag: Dict[str, bool] = {k: False for k in INFRA_SIGNALS}

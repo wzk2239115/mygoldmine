@@ -31,7 +31,7 @@ description: 专业的审计工作流程，通过静态代码分析识别和验�
 - delegatecall 破坏状态一致性
 - Solidity 版本 < 0.8.0 且无 ReentrancyGuard
 
-**Early exit**
+**提前退出**
 若项目代码中完全不包含对外部地址的调用（如 call、delegatecall、transfer 等低层或高层调用），且所有状态变更均在外部交互前完成，则可快速排除重入漏洞风险，结束对该类型漏洞的审计。
 
 **Cases**  

@@ -122,7 +122,7 @@ def method_name(self, param1: str, param2: int) -> Dict[str, Any]:
 # 建议（仅记录，不实施）：合并层级/内联一次性封装/通过组合替代多级继承。
 ```
 
-**B. 新旧混用（Mixed legacy & modern）**
+**B. 新旧实现混用**
 
 ```
 # [REVIEW:MIXED-LEGACY] 同一功能同时使用新旧API/风格（示例：requests v1 + httpx）。

@@ -26,7 +26,7 @@ pub fn close_account(ctx: Context<CloseAccount>) -> Result<()> {
 
 **快速定位保护机制（L3：逐行读）：**
 - 关闭前置检查：是否验证 `account.authority == signer`（权限控制）
-- 状态门禁：是否要求 `account.status == Closed` 或余额归零前提（防提前关闭）
+- 状态检查：是否要求 `account.status == Closed` 或余额归零前提（防提前关闭）
 - 目标地址校验：destination 是否限定为授权地址或原所有者（防资金盗取）
 - 重入防护：账户关闭前是否设置 `is_closing` 标志位（防重入利用）
 - 依赖检查：是否验证无其他合约/账户持有该账户引用（防悬空指针）

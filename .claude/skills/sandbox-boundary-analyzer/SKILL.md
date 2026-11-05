@@ -11,7 +11,7 @@ description: |
 
 ## 输入
 
-- 源码与配置：agent settings、approval policy、sandbox 实现、Docker/k8s、路径解析
+- 源码与配置：智能体设置、审批策略、沙箱实现、Docker/k8s、路径解析
 - `knowledge/projects/<project>.md`、`knowledge/project-types/agent-harness.md`
 
 ## 审阅步骤
@@ -36,17 +36,17 @@ description: |
 ## 输出
 
 写清：边界、可控输入、绕过条件、默认是否可达、`file:line`、证据、修复建议。
-没有完整绕过链的只写 hypothesis。
+没有完整绕过链的只写待核实假设。
 
 ## 误报排除
 
 - 沙箱/审批默认开启，只有文档示例关闭 → 不算默认漏洞。
 - 只绑定回环 + 同用户信任 → 说明威胁模型，降级。
 - 危险选项需要显式 `--dangerously`/确认 → `opt-in`。
-- 路径检查存在 realpath + 前缀校验 + symlink 拒绝 → 需要具体绕过证据。
+- 路径检查包含真实路径解析、前缀校验和符号链接拒绝 → 需要具体绕过证据。
 
 ## 验证
 
-- 只做配置级/benign marker 验证，不写武器化逃逸。
-- 用环境镜像检查实际 sandbox/approval 配置与默认值。
+- 只做配置级或无害标记验证，不写武器化逃逸。
+- 用环境镜像检查实际沙箱与审批配置及默认值。
 - 路径验证只读容器内测试文件，不访问宿主敏感路径。

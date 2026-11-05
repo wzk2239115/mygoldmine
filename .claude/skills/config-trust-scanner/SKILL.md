@@ -7,7 +7,7 @@ description: |
 
 # Config Trust Scanner
 
-> 知识/审阅流程，不含检测脚本。由 `infra-analyst` 读取配置并写成 finding。
+> 知识与审阅流程，不含检测脚本。由 `infra-analyst` 读取配置并写成候选问题。
 
 ## 输入
 
@@ -35,7 +35,7 @@ description: |
 
 ## 输出
 
-canonical finding + 配置证据（文件、行、片段）。对“配置示例”与“产品默认”分开标注。
+输出归一化候选问题和配置证据（文件、行、片段）。对“配置示例”与“产品默认”分开标注。
 
 ## 误报排除
 

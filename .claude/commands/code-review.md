@@ -114,7 +114,7 @@ argument-hint: <file-path> | <directory> | --staged
 - **组件设计**：
   - 检查组件的单一职责原则
   - 验证 Props 和 Emits 的类型定义
-  - 确认组件通信模式（props down、events up）
+  - 确认组件通信模式（属性向下传递、事件向上通知）
   - 检查插槽（slots）和具名插槽的使用
 - **Vue Router**：
   - 验证路由配置和导航守卫的正确使用
@@ -150,7 +150,7 @@ argument-hint: <file-path> | <directory> | --staged
   - 验证函数组件和类组件的选择（优先函数组件）
   - 检查组件的单一职责和可复用性
   - 确认 Props 的类型安全和默认值处理
-  - 验证组件组合模式（children、render props）
+  - 验证组件组合模式（子组件、渲染属性）
 - **状态管理**：
   - 检查状态提升和状态降级的合理性
   - 验证 Context API 的使用（避免过度使用）

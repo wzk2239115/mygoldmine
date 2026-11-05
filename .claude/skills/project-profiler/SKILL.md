@@ -24,18 +24,18 @@ python3 ./quick-scan.py {source_dir} --json --output .workspace/tasks/{TASK_ID}/
 - `project_types`：`agent-harness` / `inference-engine` / `training-framework` / `model-serving`（可叠加 Web 类型）
 - `entrypoints.infra`：HTTP/gRPC/CLI/IPC/model/exec 入口（file:line）
 - `trust_boundaries`：http / grpc / model-file / ipc / sandbox / distributed / config ...
-- `recommended_skills`：按类型给出的 track 技能，不再默认只给 web-auth/sensitive-info
+- `recommended_skills`：按类型推荐的流程技能，不再默认只给 web-auth/sensitive-info
 - `infra_evidence`：类型判定依据
 
 **路由规则**：
 
-- 如果 `project_types` 含上述基础设施类型，走 **Agentic Infra Track**：
-  `infra-analyst`（按 boundary 并行）→ `hypothesis-critic` → `report-generator` →
+- 如果 `project_types` 含上述基础设施类型，使用智能体基础设施流程：
+  `infra-analyst`（按信任边界并行）→ `hypothesis-critic` → `report-generator` →
   `verify-agent` → `knowledge-scribe`。
-- 不要默认先跑 40+ 个 Web analyzer；只按 boundary 选技能。
+- 不要默认先运行 40 多个 Web 分析技能；只按信任边界选择技能。
 - `security-lab` 仍是互斥分类，但只有多信号（README 强信号 + 目录 + flag/submit 文件）
   才判定，单凭 `lab`/`benchmark` 不算。
-- `scripts/experimental/infra_surface_index.py` 只能当索引，不能当 finding。
+- `scripts/experimental/infra_surface_index.py` 只能当索引，不能当候选问题。
 
 **分类约束规则**：
 - 后端HTTP服务、前端WEB应用、智能合约项目可以同时勾选（一个项目可以同时包含多种类型）
@@ -88,7 +88,7 @@ python3 ./quick-scan.py .
 **说明**：
 - `{TASK_ID}` 为当前任务 ID
 - web-auth-analyzer 会根据分析结果自动触发下游任务（unauth-route-scanner / normal-route-scanner）
-- 命中 AI 基础设施特征时，在上述 JSON 的 `tasks` 数组中继续追加 `model-loading-analyzer` / `agent-config-analyzer` 任务，artifact 相同
+- 命中 AI 基础设施特征时，在上述 JSON 的 `tasks` 数组中继续追加 `model-loading-analyzer` / `agent-config-analyzer` 任务，输入产物路径相同
 
 2. 前端 WEB 应用
 

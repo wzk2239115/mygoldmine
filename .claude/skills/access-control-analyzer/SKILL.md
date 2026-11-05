@@ -33,7 +33,7 @@ description: 专业的审计工作流程，通过静态代码分析识别和验�
 - 通过 delegatecall 绕过 immutable 限制
 - 文档声称 "no admin" 但代码有 onlyOwner 函数（误导）
 
-**Early exit**  
+**提前退出**
 如果项目代码中完全不存在特权操作（例如所有函数均为公开且无状态修改权限差异）、未定义任何角色或权限标识（如 owner、admin、governor 等），且业务逻辑不涉及任何条件性访问限制（如仅读取、无状态变更），则可快速退出对该漏洞类型的审计。
 
 **Cases**

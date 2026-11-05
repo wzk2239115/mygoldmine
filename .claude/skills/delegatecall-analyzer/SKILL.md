@@ -8,7 +8,7 @@ description: 专业的审计工作流程，通过静态代码分析识别和验�
 **Attention**  
 当项目使用 delegatecall 指令调用外部或用户可控地址的合约时，需高度警惕。该机制会将目标合约代码在调用者上下文中执行，若目标地址或逻辑未被严格约束，可能导致执行恶意代码、状态变量被覆写或权限被劫持。此类漏洞常见于代理模式（如 UUPS、Transparent Proxy）、模块化合约架构、插件系统或可升级逻辑合约中。
 
-**Early exit**  
+**提前退出**
 若项目代码中完全未使用 delegatecall（或等效机制，如 Solidity 的 delegatecall、EVM 汇编中的 DELEGATECALL 操作码，或 Rust/Move/Go 中对应 EVM/WASM/MoveVM 的底层调用接口），且无代理、模块热插拔、逻辑委托加载等设计，则可快速退出对 Delegatecall 类漏洞的审计。
 
 **Cases**

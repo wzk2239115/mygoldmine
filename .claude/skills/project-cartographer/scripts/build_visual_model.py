@@ -290,7 +290,7 @@ def build_scene(finding, kind):
         victim = [
             f"在 {boundary} 接收并解析输入",
             f"沿 {root} 进入敏感路径",
-            f"到达 sink，造成 {impact}",
+            f"到达危险操作，造成 {impact}",
         ]
     return {
         "kind": kind,
@@ -305,7 +305,7 @@ def build_scene(finding, kind):
         "flow": flow[:5],
         "visual": scene_visual(kind),
         "evidence": paths[:6],
-        "disclaimer": "场景由 finding 字段生成，用于解释；不是新的漏洞结论",
+        "disclaimer": "场景由候选问题字段生成，用于解释；不是新的漏洞结论",
     }
 
 
