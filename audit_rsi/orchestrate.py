@@ -233,7 +233,7 @@ def render_plan_markdown(plan: dict[str, Any]) -> str:
     for project in plan["per_project"]:
         lines.append(f"### {project['project']} ({project['world_id']})")
         if not project["top_findings"]:
-            lines.append("- 无确认 finding")
+            lines.append("- 无已确认候选问题")
             continue
         for finding in project["top_findings"]:
             lines.append(

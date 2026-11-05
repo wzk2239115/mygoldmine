@@ -293,7 +293,7 @@ def main() -> int:
             continue
         review[key] = {
             "score": 100,
-            "reason": "红队捕获 flag · judge approved · 图文报告已生成",
+            "reason": "红队已捕获随机标记 · 独立审核通过 · 图文报告已生成",
             "runtime": "runtime-validated",
             "trace": str(result_path),
             "flag_provenance": provenance,

@@ -436,6 +436,129 @@ def cmd_harness_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _mining_repair_candidate(path: str) -> dict[str, Any]:
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise SystemExit("mining repair candidate must be a JSON object")
+    return payload
+
+
+def cmd_mining_repair_propose(args: argparse.Namespace) -> int:
+    from .mining_repair import (
+        load_finding_ledger,
+        propose_mining_repairs,
+        save_mining_repair_candidates,
+    )
+    from .verification import read_experience
+
+    records = read_experience(args.pool)
+    for additional_pool in args.additional_pool:
+        records.extend(read_experience(additional_pool))
+    candidates = propose_mining_repairs(
+        records,
+        ledger=load_finding_ledger(args.ledger),
+    )
+    report = save_mining_repair_candidates(candidates, args.output)
+    _emit({"output": str(Path(args.output) / "index.json"), **report}, args.json)
+    return 0
+
+
+def cmd_mining_repair_evaluate(args: argparse.Namespace) -> int:
+    from .mining_repair import evaluate_mining_repair
+    from .verification import read_experience, write_json
+
+    candidate = _mining_repair_candidate(args.candidate)
+    payload = evaluate_mining_repair(
+        candidate,
+        read_experience(args.baseline),
+        read_experience(args.candidate_pool),
+        holdout_projects=args.holdout_project,
+    )
+    write_json(args.output, payload)
+    _emit(payload, args.json)
+    return 0
+
+
+def cmd_mining_repair_apply(args: argparse.Namespace) -> int:
+    from .mining_repair import MiningRepairStore
+
+    candidate = _mining_repair_candidate(args.candidate)
+    evaluation = json.loads(Path(args.evaluation).read_text(encoding="utf-8"))
+    version = MiningRepairStore(REPO_ROOT).apply(candidate, evaluation)
+    _emit(version, args.json)
+    return 0
+
+
+def cmd_mining_repair_rollback(args: argparse.Namespace) -> int:
+    from .mining_repair import MiningRepairStore
+
+    version = MiningRepairStore(REPO_ROOT).rollback(args.version)
+    _emit(version, args.json)
+    return 0
+
+
+def cmd_mining_repair_context(args: argparse.Namespace) -> int:
+    from .mining_repair import render_mining_repair_context
+
+    rendered = render_mining_repair_context(
+        REPO_ROOT,
+        args.project,
+        max_bytes=args.max_bytes,
+    )
+    if args.output:
+        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.output).write_text(rendered, encoding="utf-8")
+    else:
+        print(rendered, end="")
+    return 0
+
+
+def cmd_mining_repair_cycle(args: argparse.Namespace) -> int:
+    from .mining_repair import load_finding_ledger, run_mining_repair_cycle
+    from .verification import read_experience, write_json
+
+    payload = run_mining_repair_cycle(
+        read_experience(args.train_pool),
+        read_experience(args.baseline),
+        read_experience(args.candidate_pool),
+        repo_root=REPO_ROOT,
+        ledger=load_finding_ledger(args.ledger),
+        holdout_projects=args.holdout_project,
+        apply_accepted=not args.dry_run,
+    )
+    write_json(args.output, payload)
+    _emit(
+        {
+            "output": args.output,
+            "status": payload["status"],
+            "candidates": payload["candidates"],
+            "accepted": payload["accepted"],
+            "published": payload["published"],
+        },
+        args.json,
+    )
+    return 0
+
+
+def cmd_mining_repair_drive(args: argparse.Namespace) -> int:
+    from .mining_driver import drive_mining_repairs
+
+    payload = drive_mining_repairs(
+        REPO_ROOT,
+        scope=args.scope,
+        project=args.project,
+        target=args.target,
+        baseline_run=args.baseline_run,
+        image=args.image,
+        miner_image=args.miner_image,
+        manifest=args.manifest,
+        output=args.output,
+        max_candidates=args.max_candidates,
+    )
+    _emit(payload, args.json)
+    return 2 if payload["status"] == "error" else 0
+
+
 def _common(sub: argparse.ArgumentParser, pool_default: str) -> None:
     sub.add_argument("--pool", default=pool_default)
     sub.add_argument("--out", default=str(REPO_ROOT / "rsi"))
@@ -678,6 +801,92 @@ def build_parser() -> argparse.ArgumentParser:
     p_harness_validate.add_argument("--output", required=True)
     p_harness_validate.add_argument("--json", action="store_true")
     p_harness_validate.set_defaults(func=cmd_harness_validate)
+
+    repair_pool_default = str(REPO_ROOT / "rsi" / "verification-experience-labeled.jsonl")
+    repair_ledger_default = str(REPO_ROOT / "ui" / "data" / "finding-ledger.json")
+
+    p_repair_propose = sub.add_parser(
+        "mining-repair-propose",
+        help="propose shared and project mining repairs from verified outcomes",
+    )
+    p_repair_propose.add_argument("--pool", default=repair_pool_default)
+    p_repair_propose.add_argument("--additional-pool", action="append", default=[])
+    p_repair_propose.add_argument("--ledger", default=repair_ledger_default)
+    p_repair_propose.add_argument(
+        "--output", default=str(REPO_ROOT / "rsi" / "mining-repairs" / "candidates")
+    )
+    p_repair_propose.add_argument("--json", action="store_true")
+    p_repair_propose.set_defaults(func=cmd_mining_repair_propose)
+
+    p_repair_evaluate = sub.add_parser(
+        "mining-repair-evaluate",
+        help="evaluate a mining repair on two real mining runs",
+    )
+    p_repair_evaluate.add_argument("--candidate", required=True)
+    p_repair_evaluate.add_argument("--baseline", required=True)
+    p_repair_evaluate.add_argument("--candidate-pool", required=True)
+    p_repair_evaluate.add_argument("--holdout-project", action="append", default=[])
+    p_repair_evaluate.add_argument("--output", required=True)
+    p_repair_evaluate.add_argument("--json", action="store_true")
+    p_repair_evaluate.set_defaults(func=cmd_mining_repair_evaluate)
+
+    p_repair_apply = sub.add_parser(
+        "mining-repair-apply",
+        help="publish an evaluated mining repair and retain a rollback version",
+    )
+    p_repair_apply.add_argument("--candidate", required=True)
+    p_repair_apply.add_argument("--evaluation", required=True)
+    p_repair_apply.add_argument("--json", action="store_true")
+    p_repair_apply.set_defaults(func=cmd_mining_repair_apply)
+
+    p_repair_rollback = sub.add_parser(
+        "mining-repair-rollback",
+        help="roll back the latest active mining repair version",
+    )
+    p_repair_rollback.add_argument("--version", required=True)
+    p_repair_rollback.add_argument("--json", action="store_true")
+    p_repair_rollback.set_defaults(func=cmd_mining_repair_rollback)
+
+    p_repair_context = sub.add_parser(
+        "mining-repair-context",
+        help="render published shared and current-project mining repairs",
+    )
+    p_repair_context.add_argument("--project", required=True)
+    p_repair_context.add_argument("--max-bytes", type=int, default=65536)
+    p_repair_context.add_argument("--output", default="")
+    p_repair_context.set_defaults(func=cmd_mining_repair_context)
+
+    p_repair_cycle = sub.add_parser(
+        "mining-repair-cycle",
+        help="propose, independently evaluate and publish mining repairs",
+    )
+    p_repair_cycle.add_argument("--train-pool", required=True)
+    p_repair_cycle.add_argument("--baseline", required=True)
+    p_repair_cycle.add_argument("--candidate-pool", required=True)
+    p_repair_cycle.add_argument("--ledger", default=repair_ledger_default)
+    p_repair_cycle.add_argument("--holdout-project", action="append", default=[])
+    p_repair_cycle.add_argument(
+        "--output", default=str(REPO_ROOT / "rsi" / "mining-repairs" / "cycle.json")
+    )
+    p_repair_cycle.add_argument("--dry-run", action="store_true")
+    p_repair_cycle.add_argument("--json", action="store_true")
+    p_repair_cycle.set_defaults(func=cmd_mining_repair_cycle)
+
+    p_repair_drive = sub.add_parser(
+        "mining-repair-drive",
+        help="run candidates through isolated real mining, verification and red-team stages",
+    )
+    p_repair_drive.add_argument("--scope", choices=["project", "shared"], required=True)
+    p_repair_drive.add_argument("--project", default="")
+    p_repair_drive.add_argument("--target", default="")
+    p_repair_drive.add_argument("--baseline-run", default="")
+    p_repair_drive.add_argument("--image", default="")
+    p_repair_drive.add_argument("--miner-image", default="")
+    p_repair_drive.add_argument("--manifest", default="")
+    p_repair_drive.add_argument("--output", default="")
+    p_repair_drive.add_argument("--max-candidates", type=int, default=1)
+    p_repair_drive.add_argument("--json", action="store_true")
+    p_repair_drive.set_defaults(func=cmd_mining_repair_drive)
 
     return parser
 

@@ -4,42 +4,59 @@
 
 ## 通用
 
-- `torch.load(..., weights_only=True)` + 受信 checkpoint → 不是 RCE。
-- `yaml.load(..., Loader=SafeLoader)` → 不是反序列化 RCE。
-- 只绑定 `127.0.0.1`/unix socket 的管理端点 → 网络不可达，降级。
-- 危险 flag 只在显式 `--dangerously-*`/用户确认后生效 → `opt-in`，不是默认漏洞。
-- allowlist + realpath + 重定向校验都存在的下载/文件路径 → 需要具体绕过证据。
-- 测试/示例/文档中的不安全写法 → 不算产品默认行为。
+- `torch.load(..., weights_only=True)` 且检查点受信：不是远程代码执行。
+- `yaml.load(..., Loader=SafeLoader)`：不是反序列化远程代码执行。
+- 只绑定 `127.0.0.1` 或 Unix 套接字的管理端点：网络不可达，应降级。
+- 危险启动参数只在显式 `--dangerously-*` 或用户确认后生效：可达性为 `opt-in`，不是默认漏洞。
+- 下载或文件路径同时具备白名单、真实路径和重定向校验：需要具体绕过证据。
+- 测试、示例和文档中的不安全写法：不算产品默认行为。
 
 ## vLLM
 
-- `torch.load` 全部 `weights_only=True`。
-- 媒体抓取有 egress allowlist + 私网过滤。
-- dev/RL 端点需要显式 flag。
+- `torch.load` 全部设置 `weights_only=True`。
+- 媒体抓取具备出站白名单和私网过滤。
+- 开发与强化学习端点需要显式启动参数。
 
 ## SGLang
 
-- 配置了 `--api-key`/`--admin-api-key` 且中间件覆盖。
-- SafeUnpickler allowlist。
-- 管理端点只绑定回环。
+- 配置了 `--api-key` 或 `--admin-api-key`，且中间件覆盖。
+- SafeUnpickler 使用白名单。
+- 管理端点只绑定回环地址。
 
 ## verl
 
-- `exec/eval` 只处理受信本地脚本。
+- `exec` 和 `eval` 只处理受信本地脚本。
 - 训练集群完全受信、无跨租户边界。
 - `torch.load(weights_only=True)`。
 
 ## codex
 
-- 控制面只绑定回环且同用户。
+- 控制面只绑定回环地址且限同一用户。
 - 危险配置需显式确认。
-- 沙箱/审批默认开启。
+- 沙箱和审批默认开启。
 
 ## deepseek-harness
 
-- 文件读取有 workspace 前缀校验。
-- 沙箱默认开启。
-- control-plane 只绑定回环。
+- ~~文件读取有工作区前缀校验。~~ **更正 2026-11-02**：与代码不符，不能作为误报理由。`fs-sandbox` 只围栏写（“Reads pass through untouched”），`workspace-files.read` JSDoc 明确 “files outside it are allowed”；读路径无前缀校验，见 INFRA-FS-001。
+- 沙箱默认开启；danger-full-access 需显式选择 profile（`sdk-minimal` 为文档化 opt-in）或在运行时卸载安全插件（见 INFRA-SB-004，那是真 fail-open，不算误报）。
+- 控制面**默认**只绑定回环（`127.0.0.1:3080`），非回环需显式 `--host`；回环端口不按 OS 用户隔离。
+- 工具输出/会话日志明文持久化是既定设计；spill 文件在 0700 mkdtemp、0o600 `wx` 打开 → 不单列。
+
+### 2026-11-02 静态审计确认的误报模式（commit `22ddee37`）
+
+来源：`/home/wzk/mygoldmine/runs/deepseek-harness/20261102T170623Z/`（21 条 rejected）。
+
+- **ACP trusted controller**（INFRA-MCP-003）：ACP README 明确 “ACP clients are trusted controllers”；`session/new|resume` 声明的 stdio MCP command/env 是受信控制器授权，不是未授权输入。
+- **owner 选择的 cwd**（INFRA-SB-002）：`session.create` 的 cwd 由已认证本地 owner 选择，模型无法改 header cwd，无向非 owner 授予 create 的 policy；不要把“cwd 即可写根”当越权。
+- **OAuth PKCE/state**（CP-H1/CP-H2）：state 32 字节随机 + timingSafeEqual + 单次使用（重放 410），callbackOrigin 由 owner 提供且用 S256 PKCE、verifier 仅存服务端；仅防御纵深/DoS。
+- **webhook HMAC**（CP-H6）：webhook-github 先校验 method/content-type，再用 `X-Hub-Signature-256` + secret HMAC（伪造 401），且默认未挂载；未见 Host/Origin fence 不等于可伪造。
+- **MCP URL/URI 来自操作者或服务器**（MCP-H2/H3/H4）：streamable-http 的 URL/header、resource URI、browser/computer-use command 均来自操作者 overlay 或受信服务器；URI 不映射为主机路径。
+- **Windows ACL partial**（SB-H1）：windows-acl 后端只限制写/删，是 README 记录的平台边界，不是实现缺陷；不要把平台差异当逃逸。
+- **fs-sandbox TOCTOU**（FS-H2）：模块自述 “containment, not a security boundary”，TOCTOU 为接受风险且检查后重新 canonicalize；需稳定利用证据才升级。
+- **PTC 实际有界**（PE-NOTE-PTC，原 VULN-006）：`maxPendingCalls`（默认 128）/`maxMessageBytes` 背压 + `Promise.race`，未发现无界队列；不要把“有队列”直接当 OOM。
+- **媒体引用无出站抓取**（FS-VULN-003，原 VULN-003）：media-references 只接受本地绝对路径并 fs.resolve/stat/readBytes，不存在按 `image_url` 下载的逻辑。
+- **会话日志路径已修复**（FS-VULN-004，原 VULN-004）：`session-persistence-jsonl` 的 `encodeSegment` 已中和 `../`、绝对路径、NUL、分隔符与 `.`/`..`。
+- **旧条目归并**：VULN-001/002 → INFRA-FS-001（读路径确实无围栏，不属误报）；VULN-005 → INFRA-CONFIG-001（`GIT_CONFIG_PARAMETERS` 残留面，不属误报）。
 
 ## 维护
 

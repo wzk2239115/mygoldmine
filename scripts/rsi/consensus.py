@@ -211,7 +211,7 @@ def main():
         "",
         f"- 生成时间：{payload['generated_at']}",
         f"- 最少轮次：{args.min_rounds}",
-        "- 只列出在多个独立 run 中重复出现的高/严重 finding；单轮 finding 不进入人工研判优先队列。",
+        "- 只列出在多次独立审计运行中重复出现的高危或严重候选问题；单轮候选问题不进入人工研判优先队列。",
         "",
     ]
     for project in projects:
@@ -232,7 +232,7 @@ def main():
         lines.append(f"## {project}")
         lines.append("")
         lines.append(f"- runs: {len(runs)}")
-        lines.append(f"- findings: {sum(len(run['findings']) for run in runs)}")
+        lines.append(f"- 候选问题：{sum(len(run['findings']) for run in runs)}")
         lines.append(f"- 稳定簇：{len(stable)}（High/Critical {len(high_stable)}）")
         lines.append("")
         if not high_stable:
