@@ -607,7 +607,6 @@ export default function App() {
 
           {!loading && board && view === 'board' && !activeStage ? (
             <section className="pipeline-landing">
-              <AgenticPipeline {...(pipelineTarget || {})} />
               <RefineryStrip
                 stats={scopedStats}
                 stageStats={filteredStats}
@@ -617,6 +616,7 @@ export default function App() {
                 setFilters={setFilters}
                 flow={board?.flowStatus}
                 landing
+                executionChain={<AgenticPipeline {...(pipelineTarget || {})} />}
               />
             </section>
           ) : null}

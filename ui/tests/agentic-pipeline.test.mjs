@@ -299,3 +299,45 @@ test('经验学习读取阶段技能与 SkillOpt 候选，不伪造发布', (t) 
   assert.match(node.detail, /阶段技能候选 1/);
   assert.doesNotMatch(node.detail, /已发布/);
 });
+
+test('运行修复标记仅在当前任务活动时生效，健康检查不显示', t => {
+ const {runDir,run}=fixture(t);
+ const file=path.join(runDir,'redteam/batch/runner-repair/runner-repair.json');
+ writeJson(file,{status:'repairing',missing_modules:['openai']});
+ let node=buildAgenticPipeline(run).nodes.find(n=>n.id==='redteam-agent');
+ assert.equal(node.repair.active,true);
+ assert.deepEqual(node.repair.missingModules,['openai']);
+ assert.ok(node.repair.traceId);
+ run.isLive=false;
+ node=buildAgenticPipeline(run).nodes.find(n=>n.id==='redteam-agent');
+ assert.equal(node.repair.active,false);
+ assert.equal(node.repair.status,'interrupted');
+ writeJson(file,{status:'ready',repaired:true,missing_modules:['openai']});
+ node=buildAgenticPipeline(run).nodes.find(n=>n.id==='redteam-agent');
+ assert.equal(node.repair.status,'ready');
+ assert.equal(node.repair.active,false);
+ writeJson(file,{status:'ready',repaired:false});
+ assert.equal(buildAgenticPipeline(run).nodes.find(n=>n.id==='redteam-agent').repair,null);
+});
+
+
+test('原生工作流状态覆盖历史完成结果，并明确显示待执行节点',t=>{
+ const {runDir,run}=fixture(t);
+ Object.assign(run,{state:'success',isLive:false});
+ writeJson(runDir+'.meta/workflows/one/state.json',{id:'one',startedAt:'2026-11-05',status:'running',current:'redteam-agent',steps:['redteam-agent','judge','learner'],receipts:[]});
+ const data=buildAgenticPipeline(run);
+ assert.equal(data.workflow.status,'running');assert.equal(data.activeNode,'redteam-agent');
+ assert.equal(data.nodes.find(n=>n.id==='redteam-agent').status,'running');
+ assert.equal(data.nodes.find(n=>n.id==='learner').status,'pending');
+ assert.equal(data.nodes.find(n=>n.id==='judge').retryReason,'项目工作流正在运行');
+});
+
+
+test('01构建期间只提供独立调度入口，02—08没有执行轨迹',t=>{
+ const {runDir,run}=fixture(t);
+ writeJson(runDir+'.meta/workflows/one/state.json',{id:'one',startedAt:'2026-11-05',status:'running',current:'environment',steps:['environment','orchestrator','visual','verify','redteam-lab','redteam-agent','judge','learner'],receipts:[]});
+ fs.writeFileSync(runDir+'.meta/workflows/one/raw.jsonl',JSON.stringify({type:'system',subtype:'init'})+'\n');
+ const data=buildAgenticPipeline(run);
+ assert.equal(data.workflow.traces.length,1);
+ for(const node of data.nodes.slice(1)){assert.equal(node.status,'pending');assert.equal(node.traces.length,0,node.id);}
+});

@@ -355,3 +355,17 @@ test('新导入和重新审计均读取启动时的阶段模型配置', async (t
  assert.deepEqual(launches[0].slice(-6),['--model','first','--verify-model','blue-first','--redteam-model','red-first']);
  assert.deepEqual(launches[1].slice(-6),['--model','second','--verify-model','blue-second','--redteam-model','red-second']);
 });
+
+
+test('重新审计选择原生工作流并保留各阶段模型配置',async t=>{
+ const root=await fsp.mkdtemp(path.join(os.tmpdir(),'workflow-import-'));
+ t.after(()=>fsp.rm(root,{recursive:true,force:true}));
+ const target=path.join(root,'targets/demo');await fsp.mkdir(target,{recursive:true});await fsp.writeFile(path.join(target,'source.py'),'pass');
+ await fsp.writeFile(path.join(root,'targets/manifest.json'),JSON.stringify({projects:{demo:{path:target}}}));
+ const native=path.join(root,'ui/server/claude-workflows.mjs');await fsp.mkdir(path.dirname(native),{recursive:true});await fsp.writeFile(native,'// fixture');
+ const calls=[];
+ const importer=createProjectImporter({repoRoot:root,getModelArgs:()=>['--model','audit-model','--verify-model','verify-model'],execute:async(...args)=>{calls.push(args);return {code:0,stdout:'',stderr:''};}});
+ await importer.restart('demo');
+ assert.equal(calls[0][0],process.execPath);assert.equal(calls[0][1][0],native);assert.equal(calls[0][1][1],'--launch');
+ const options=JSON.parse(calls[0][1][2]);assert.equal(options.models.audit,'audit-model');assert.equal(options.models.verify,'verify-model');assert.equal(options.source,target);
+});

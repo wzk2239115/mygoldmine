@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { listAgenticTraces, resolveAgenticTrace, traceSessionPath } from '../server/agentic-traces.mjs';
+import { listAgenticTraces, listWorkflowTraces, resolveAgenticTrace, traceSessionPath } from '../server/agentic-traces.mjs';
 
 function write(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -116,4 +116,29 @@ test('经验学习展示 SkillOpt 文本轨迹，但默认仍打开阶段学习�
   const skillopt=traces.find(item=>item.id==='skillopt-request-1');
   assert.equal(skillopt.kind,'text');
   assert.equal(resolveAgenticTrace(run,'learner').id,'stage-learning-new');
+});
+
+test('运行修复会话和验收结果按本批次定位，不混入其他节点', t => {
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'runner-traces-'));
+  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+  const run={runDir:path.join(root,'runs/demo/one'),project:'demo',runId:'one'};
+  write(path.join(run.runDir,'redteam/batch/runner-repair/agent.jsonl'),claude);
+  write(path.join(run.runDir,'redteam/batch/runner-repair/smoke.json'),'{"ok":true}');
+  const traces=listAgenticTraces(run,'redteam-agent');
+  assert.equal(traces.length,2);
+  assert.equal(traces.find(item=>item.path.endsWith('agent.jsonl')).kind,'claude');
+  assert.equal(listAgenticTraces(run,'judge').length,0);
+});
+
+
+test('整条工作流调度日志不能计入未开始节点的轨迹',t=>{
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'workflow-trace-scope-'));t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
+ const run={runDir:path.join(root,'one')};
+ write(run.runDir+'.meta/workflows/w1/raw.jsonl',claude);
+ write(run.runDir+'.meta/env-build-agent-1.log',claude);
+ assert.equal(listAgenticTraces(run,'environment').length,1);
+ for(const node of ['orchestrator','visual','verify','redteam-lab','redteam-agent','judge','learner'])assert.equal(listAgenticTraces(run,node).length,0,node);
+ assert.equal(listWorkflowTraces(run).length,1);
+ assert.equal(resolveAgenticTrace(run,'workflow','workflow-w1').kind,'claude');
+ assert.equal(resolveAgenticTrace(run,'orchestrator','workflow-w1'),null);
 });

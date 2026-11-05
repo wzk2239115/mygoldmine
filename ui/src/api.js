@@ -48,6 +48,11 @@ async function request(url, options = {}) {
 
 export const api = {
   importWithProgress,
+  startCycle: project => request('/api/targets/'+encodeURIComponent(project)+'/cycle/start', {method:'POST'}),
+  stopCycle: project => request('/api/targets/'+encodeURIComponent(project)+'/cycle/stop', {method:'POST'}),
+  nodeArtifacts: (project,runId,node) => request('/api/runs/'+encodeURIComponent(project)+'/'+encodeURIComponent(runId)+'/nodes/'+encodeURIComponent(node)+'/artifacts'),
+  nodeArtifact: (project,runId,node,id) => request('/api/runs/'+encodeURIComponent(project)+'/'+encodeURIComponent(runId)+'/nodes/'+encodeURIComponent(node)+'/artifacts/'+id),
+  nodeArtifactUrl: (project,runId,node,id) => '/api/runs/'+encodeURIComponent(project)+'/'+encodeURIComponent(runId)+'/nodes/'+encodeURIComponent(node)+'/artifacts/'+id,
   restartNode: (project, runId, node) => request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/nodes/${encodeURIComponent(node)}/restart`, {method: 'POST'}),
   modelSettings: () => request('/api/stage-models'),
   saveModelSettings: (models) => request('/api/stage-models', {method:'POST',body:JSON.stringify({models})}),

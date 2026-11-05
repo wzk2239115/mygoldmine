@@ -33,3 +33,9 @@ for(const id of ['verify','redteam-lab','redteam-agent','visual','judge']) test(
  const node={id};
  assert.equal(resolveTaskSelection(node,[{id:'old-session'}],initialTaskSelection(node)).trace,null);
 });
+
+for(const id of ['orchestrator','environment','learner']) test(id+'默认不打开会话',()=>{
+ const node={id};const traces=[{id:'first'}];
+ assert.equal(resolveTaskSelection(node,traces,initialTaskSelection(node)).trace,null);
+ assert.equal(resolveTaskSelection(node,traces,{...initialTaskSelection(node),history:true,traceId:'first'}).trace.id,'first');
+});

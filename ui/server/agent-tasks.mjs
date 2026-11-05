@@ -25,13 +25,14 @@ export function agentTasks(run) {
    if(position>=0)runDir=path.join(root,'agent-runs',run.project,`agent-retry-${String(attempt.id).slice(0,8)}-${String(position+1).padStart(2,'0')}`);
   }
   const trace=runDir?traces.find(item=>item.path===path.join(runDir,'agent.jsonl')):null;
+  const repair=attempt?read(path.join(root,'runner-repairs',candidate.id,'runner-repair.json')):null;
   const status=result?.status || saved?.status || '';
   const failed=/error|timeout|unhealthy|invalid/.test(status);
-  let state=failed?'failed':result?'completed':saved?.state || (trace?'running':'queued');
+  let state=status.startsWith('blocked')?'blocked':failed?'failed':result?'completed':saved?.state || (trace?'running':'queued');
   if(!active && ['running','queued'].includes(state))state='interrupted';
   const captured=Boolean(result?.captured || status==='flag_captured' || status==='judge_approved');
   return {id:candidate.id,title:candidate.title || titles.get(candidate.id) || candidate.id,state,
-   label:captured?'已捕获随机标记':status.startsWith('blocked')?'受阻':state==='completed'?'未捕获随机标记':'',
+   label:repair?.status==='repairing'?'正在修复运行依赖':captured?'已捕获随机标记':status.startsWith('blocked')?'受阻':state==='completed'?'未捕获随机标记':'',
    reason:result?.error || saved?.error || candidate.reason || '',traceId:trace?.id || '',captured};
  });
  return {attemptId:attempt?.id || 'original',tasks,concurrency:summary.concurrency || null,

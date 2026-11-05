@@ -183,6 +183,11 @@ async function main() {
     await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
     await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"orchestrator\"]').click()");
     await sleep(200);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"),0);
+    assert.ok(await cdp.evaluate("[...document.querySelectorAll('.node-detail-actions button')].some(b=>b.textContent==='查看产物')"));
+    const candidateFlow=pipeline.nodes.find(node=>node.id==='orchestrator').flow;
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.candidate-flow').length"),candidateFlow?1:0);
+    if(candidateFlow)assert.match(await cdp.evaluate("document.querySelector('.candidate-flow summary').innerText"),/候选交接/);
     const triageInfo = pipeline.nodes.find(node=>node.id==='orchestrator').triage;
     assert.equal(await cdp.evaluate("document.querySelectorAll('.jev-panel').length"),triageInfo?1:0);
     if(triageInfo) {
@@ -192,6 +197,11 @@ async function main() {
     }
     await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
     await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"learner\"]').click()");
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"),0);
+    const learnerNode=pipeline.nodes.find(node=>node.id==='learner');
+    if(learnerNode.traces[0]?.kind==='claude') {
+    await cdp.evaluate("[...document.querySelectorAll('.node-detail-actions button')].find(b=>b.textContent==='查看执行轨迹').click()");
+
     for (let i = 0; i < 40; i += 1) {
       if (await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length")) break;
       await sleep(250);
@@ -204,8 +214,14 @@ async function main() {
     const learnerSession = await fetch(`${BASE}/api/runs/${pipelineTarget.id}/${pipelineTarget.latestRunId}/ccui?node=learner`).then((response) => response.json());
     assert.equal(learnerSession.available, true);
     assert.equal(learnerSession.traceKind, 'claude');
+    } else if(!learnerNode.traces.length) {
+      assert.equal(await cdp.evaluate("[...document.querySelectorAll('.node-detail-actions button')].find(b=>b.textContent==='查看执行轨迹').disabled"),true);
+      assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"),0);
+    }
     await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
     await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"environment\"]').click()");
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"),0);
+    await cdp.evaluate("[...document.querySelectorAll('.node-detail-actions button')].find(b=>b.textContent==='查看执行轨迹').click()");
     const environmentNode = pipeline.nodes.find(node => node.id === 'environment');
     assert.equal(await cdp.evaluate(`document.querySelector('.agentic-node[data-node-id="environment"]').classList.contains('is-${environmentNode.status}')`), true);
     if (environmentNode.environment) {
@@ -222,22 +238,22 @@ async function main() {
     }
     assert.equal(await cdp.evaluate(`document.querySelectorAll('${traceSelector}').length`), 1);
     await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-strip.is-landing .refinery-stage').length"), 6);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-strip.is-landing .refinery-stage').length"), 0);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-distribution .severity-critical').length"), 1);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-dist-row').length"), 2);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-distribution .refinery-dist-chip').length"), 9);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.eyebrow').length"), 0);
     assert.equal(await cdp.evaluate("getComputedStyle(document.body).backgroundColor"), 'rgb(255, 255, 255)');
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.rail')).backgroundColor"), 'rgb(247, 247, 248)');
-    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-art')).display"), 'block');
-    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-shade')).display"), 'block');
-    assert.equal(await cdp.evaluate("document.querySelector('.refinery-art').naturalWidth"), 1024);
+    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-art')).display"), 'none');
+    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-shade')).display"), 'none');
+    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-strip.is-landing')).backgroundColor"), 'rgb(27, 29, 32)');
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"设置\"]').click()");
     await cdp.evaluate("document.querySelectorAll('.settings-segment button')[1].click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.documentElement.dataset.theme"), 'dark');
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.rail')).backgroundColor"), 'rgb(23, 23, 23)');
-    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-strip')).backgroundColor"), 'rgb(32, 32, 32)');
+    assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-strip')).backgroundColor"), 'rgb(27, 29, 32)');
     await cdp.evaluate("document.querySelectorAll('.settings-segment button')[0].click()");
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"设置\"]').click()");
     await sleep(150);
@@ -545,46 +561,18 @@ async function main() {
       await cdp.evaluate("document.querySelector('.live-drawer .on-dark').click()");
       await sleep(200);
     }
-    const rawCard = await cdp.evaluate("[...document.querySelectorAll('.refinery-strip.is-landing .refinery-stage')].map(x => x.innerText)");
-    assert.match(rawCard[0], /未处理候选/);
-    assert.match(rawCard[0], new RegExp(String(inbox)));
-    assert.doesNotMatch(rawCard[0], /723/);
 
-    await cdp.evaluate("document.querySelectorAll('.refinery-strip.is-landing .refinery-stage')[0].click()");
-    await sleep(500);
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.stage-view').length"), 1);
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-stage.is-active').length"), 1);
-    assert.match(await cdp.evaluate("document.querySelector('.refinery-stage.is-active').innerText"), /未处理候选/);
-    assert.equal(Number(await cdp.evaluate("document.querySelector('.stage-count').innerText")), inbox);
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.stage-view .finding-card').length"), inbox);
-    if (inbox) {
-      await cdp.evaluate("document.querySelector('.stage-view .finding-card').click()");
-      await sleep(250);
-      assert.equal(await cdp.evaluate("document.querySelectorAll('.detail-drawer').length"), 1);
-      assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.detail-drawer .drawer-head')).backgroundColor"), 'rgb(255, 255, 255)');
-      await cdp.evaluate("document.querySelector('.detail-drawer .on-dark').click()");
-      await sleep(200);
-    }
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-strip.is-landing .refinery-stage').length"), 0);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-execution .agentic-node').length"), 8);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.pipeline-landing > .agentic-pipeline').length"), 0);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-cycle-lines .cycle-return').length"), 1);
+    assert.match(await cdp.evaluate("document.querySelector('.agentic-cycle-caption').innerText"), /评估通过/);
+    assert.match(await cdp.evaluate("document.querySelector('.agentic-cycle-context').innerText"), /连续执行需启动循环任务/);
+    assert.ok(await cdp.evaluate("document.body.innerText.includes('审计进度总览')"));
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-execution .cycle-control').length"), 1);
+    const tops = await cdp.evaluate("[...document.querySelectorAll('.refinery-execution .agentic-node-index')].map(e=>e.getBoundingClientRect().top)");
+    assert.ok(Math.abs(tops[0] - tops[1]) < 1, '同一行节点编号应对齐');
 
-    await cdp.evaluate("document.querySelectorAll('.refinery-strip .refinery-stage')[1].click()");
-    await sleep(500);
-    assert.match(await cdp.evaluate("document.querySelector('.refinery-stage.is-active').innerText"), /分诊/);
-    assert.equal(Number(await cdp.evaluate("document.querySelector('.stage-count').innerText")), triage);
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.stage-view .card-grip').length"), 0);
-    await cdp.evaluate("document.querySelector('.refinery-dist-chip.severity-critical').click()");
-    await sleep(250);
-    const criticalStageCount = Number(await cdp.evaluate("document.querySelector('.stage-count').innerText"));
-    const criticalStripCount = Number(await cdp.evaluate("document.querySelectorAll('.refinery-strip .refinery-stage strong')[1].innerText"));
-    assert.equal(criticalStripCount, criticalStageCount);
-    await cdp.evaluate("document.querySelector('.refinery-dist-chip.severity-critical').click()");
-    await sleep(250);
-
-    await cdp.evaluate("document.querySelector('.project-row').click()");
-    await sleep(500);
-    const projectStageCount = Number(await cdp.evaluate("document.querySelector('.stage-count').innerText"));
-    const projectStripCount = Number(await cdp.evaluate("document.querySelectorAll('.refinery-strip .refinery-stage strong')[1].innerText"));
-    assert.equal(projectStripCount, projectStageCount);
-    assert.ok(projectStageCount <= triage);
   } finally {
     cdp?.close();
     browser.kill('SIGKILL');

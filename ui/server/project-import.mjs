@@ -187,6 +187,16 @@ export function createProjectImporter({
   const projectsFile = path.join(repoRoot, 'ui', 'data', 'projects.json');
   const manifestFile = path.join(targetsRoot, 'manifest.json');
   let queue = Promise.resolve();
+  function auditCommand(target,project,runDir) {
+    const native=path.join(repoRoot,'ui/server/claude-workflows.mjs'),args=getModelArgs();
+    if(process.env.GOLDMINE_NATIVE_WORKFLOW!=='0' && fs.existsSync(native)) {
+      const roles={'--model':'audit','--env-model':'environment','--visual-model':'visual','--verify-model':'verify','--redteam-model':'redteam','--judge-model':'judge'},models={};
+      for(let index=0;index<args.length-1;index++)if(roles[args[index]])models[roles[args[index]]]=args[++index];
+      return {command:process.execPath,args:[native,'--launch',JSON.stringify({runDir,source:target,project,models})]};
+    }
+    return {command:'bash',args:[path.join(repoRoot,'run.sh'),target,'--project',project,'--run-dir',runDir,...args]};
+  }
+
 
   async function importAndStart(input, progress, signal) {
     const check = () => { if (signal?.aborted) throw new ProjectImportError('导入已取消', 499); };
@@ -328,11 +338,8 @@ export function createProjectImporter({
 
     check();
     progress('项目已登记，正在启动完整审计');
-    const started = await run('bash', [
-      path.join(repoRoot, 'run.sh'), target,
-      '--project', request.project,
-      '--run-dir', auditRunDir, ...getModelArgs()
-    ], { cwd: repoRoot, timeout: 45000, onOutput: progress });
+    const launch=auditCommand(target,request.project,auditRunDir);
+    const started = await run(launch.command,launch.args,{cwd:repoRoot,timeout:45000,onOutput:progress});
     if (started.code !== 0) throw processError(started, '项目已导入，但完整审计启动失败');
 
     return {
@@ -385,7 +392,8 @@ export function createProjectImporter({
     const id = runId(now);
     const directory = path.join(repoRoot, 'runs', project, id);
     if (fs.existsSync(directory) || fs.existsSync(`${directory}.meta`)) throw new ProjectImportError('请稍后重试，避免重复启动', 409);
-    const result = await execute('bash', [path.join(repoRoot, 'run.sh'), target, '--project', project, '--run-dir', directory, ...getModelArgs()], {cwd:repoRoot, timeout:45000});
+    const launch=auditCommand(target,project,directory);
+    const result = await execute(launch.command,launch.args,{cwd:repoRoot,timeout:45000});
     if (result.code !== 0) throw processError(result, '审计启动失败');
     return {ok:true,project,name:readJson(projectsFile).projects?.[project]?.name || project,runId:id,runDir:directory,pipeline:'full'};
   }

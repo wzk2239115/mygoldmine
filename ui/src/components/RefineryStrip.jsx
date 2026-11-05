@@ -26,7 +26,7 @@ function Stage({ icon: Icon, label, value, hint, detail, tone, active, onClick, 
   );
 }
 
-export default function RefineryStrip({ stats, stageStats = stats, activeStage, onSelectStage, landing, filters, setFilters, flow }) {
+export default function RefineryStrip({ stats, stageStats = stats, activeStage, onSelectStage, landing, filters, setFilters, flow, executionChain }) {
   const [hovered, setHovered] = useState(null);
   if (!stats) return null;
   const status = stageStats.status || {};
@@ -46,25 +46,20 @@ export default function RefineryStrip({ stats, stageStats = stats, activeStage, 
       ? `自动流转：${flow.paused ? '已暂停' : '运行中'} · 上轮处理 ${flowStats.processed ?? 0} · 待处理 ${flowStats.pending ?? 0} · 受阻 ${flowStats.blocked ?? 0}`
       : '自动流转：未启动（可运行 scripts/workflow/flow_worker.sh start）';
   return (
-    <section className={landing ? "refinery-strip is-landing" : "refinery-strip"} aria-label="自动分类管线">
+    <section className={landing ? "refinery-strip is-landing" : "refinery-strip"} aria-label={landing ? "审计执行链" : "自动分类管线"}>
       <img className="refinery-art" src="/refinery-hero.webp" alt="" aria-hidden="true" />
       <div className="refinery-shade" />
-      {landing ? <header className="refinery-scene-title">
-        <span>GOLDMINE · 审计工作台</span>
-        <h2>审计进度总览</h2>
-        <p>从候选问题到人工验收，查看各阶段的处理进度</p>
-      </header> : null}
-      <div className="refinery-track" aria-label="流程计数">
+      {landing ? <div className="refinery-execution">{executionChain}</div> : <div className="refinery-track" aria-label="流程计数">
         {stages.map((stage, index) => (
           <div className="refinery-node" key={stage.label}>
             <Stage {...stage} active={activeStage === stage.id} onHover={setHovered} onClick={onSelectStage ? () => onSelectStage(stage.id) : undefined} />
             {index < stages.length - 1 ? <ArrowRight className="refinery-arrow" size={15} aria-hidden="true" /> : null}
           </div>
         ))}
-      </div>
-      <div className="refinery-hint" aria-live="polite">
+      </div>}
+      {!landing ? <div className="refinery-hint" aria-live="polite">
         {hovered ? <><strong>{hovered.label}</strong>：{hovered.detail}</> : flowText}
-      </div>
+      </div> : null}
       {filters && setFilters ? (
         <div className="refinery-distribution">
           <div className="refinery-dist-row">

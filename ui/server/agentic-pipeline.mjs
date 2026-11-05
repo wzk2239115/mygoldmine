@@ -1,3 +1,5 @@
+import {attachCandidateFlow} from './candidate-flow.mjs';
+import {cycleStatus} from './learning-cycles.mjs';
 import {jevTriage} from './jev-triage.mjs';
 import {judgeTasks} from './judge-tasks.mjs';
 import {sceneTasks} from './scene-tasks.mjs';
@@ -8,7 +10,7 @@ import { stageLearning } from './stage-learning.mjs';
 import { nodeAttempts, retryEligibility, supportsNodeRetry } from './node-retries.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
-import { listAgenticTraces } from './agentic-traces.mjs';
+import { listAgenticTraces, listWorkflowTraces } from './agentic-traces.mjs';
 
 function readJson(file) {
   try {
@@ -169,6 +171,32 @@ function verifyNode(run, summary) {
   return makeNode('verify', title, agent, 'pending', '等待候选问题和可用环境');
 }
 
+
+function runnerRepairState(run, latest, traces) {
+  const base=latest?.workspace || run.runDir;
+  const records=[];
+  function visit(dir,depth=0) {
+    if(depth>3 || !fs.existsSync(dir))return;
+    for(const entry of fs.readdirSync(dir,{withFileTypes:true})) {
+      const file=path.join(dir,entry.name);
+      if(entry.isDirectory())visit(file,depth+1);
+      else if(entry.isFile() && entry.name==='runner-repair.json') {
+        const value=readJson(file);
+        if(value && (value.repaired || value.missing_modules?.length))records.push({value,time:fs.statSync(file).mtimeMs});
+      }
+    }
+  }
+  ['redteam/runner-repairs','redteam/batch/runner-repair','redteam/batch/runner-executions'].forEach(root=>visit(path.join(base,root)));
+  records.sort((a,b)=>b.time-a.time);
+  const value=records.find(item=>item.value.status==='repairing')?.value || records[0]?.value;
+  if(!value)return null;
+  const active=value.status==='repairing' && (latest?latest.status==='running':run.isLive);
+  const status=value.status==='repairing' && !active?'interrupted':value.status;
+  const labels={repairing:'正在修复运行依赖',ready:'运行依赖已修复',blocked:'运行修复受阻',interrupted:'运行修复已中断'};
+  const trace=traces.find(item=>item.label?.startsWith('运行修复') && item.kind==='claude') || traces.find(item=>item.label?.includes('runner-repair.json'));
+  return {active,status,label:labels[status] || '运行依赖修复',missingModules:value.missing_modules || [],traceId:trace?.id || '',reason:value.reason || ''};
+}
+
 function redteamNodes(run, summary) {
   const results = Array.isArray(summary?.results) ? summary.results : [];
   const buildFailed = results.filter((item) => item.status === 'build_failed' || !item.scenario || (Number(item.builder_returncode) || 0) !== 0);
@@ -218,6 +246,11 @@ function redteamNodes(run, summary) {
   } else if (run.redteamStatus === 'skipped' || run.redteamStatus === 'no_findings') {
     executionStatus = 'skipped';
     executionDetail = labDetail;
+  }
+
+  if(results.length && results.every(item=>item.status==='blocked_harness_dependency')) {
+    executionStatus='blocked';
+    executionDetail='运行依赖修复未通过，红队执行受阻';
   }
 
   const judged = results.filter((item) => item.judge_returncode !== undefined && item.judge_returncode !== null);
@@ -368,6 +401,13 @@ export function buildAgenticPipeline(run) {
       node.detail = latest.status === 'running' ? '正在独立重跑此节点' : latest.recovery?.kind === 'aggregation-only' ? '汇总已恢复；候选未重新执行，原始错误记录保留' : '节点重跑已结束；原始流程记录保留';
       node.retryReason = latest.status === 'running' ? '此节点正在重跑' : node.retryReason;
     }
+    node.continuationPending=Boolean(latest?.cascade && ['redteam-agent','judge'].includes(node.id) && latest.exitCode===0 && !latest.next && !latest.downstreamError && fs.existsSync(latest.lock));
+    if(latest && ['redteam-agent','judge'].includes(node.id)) {
+      const follow=readJson(path.join(latest.root,'continuation.json'));
+      if(follow?.status==='waiting') {
+        try{process.kill(follow.pid,0);node.continuationPending=true;}catch{}
+      }
+    }
     if(node.id==='learner' && latest) {
       const summary=readJson(path.join(latest.workspace,'rsi/learning-retry.json'));
       const learning=readJson(path.join(latest.workspace,'rsi/stage-learning-run.json'));
@@ -377,6 +417,7 @@ export function buildAgenticPipeline(run) {
     }
     if(node.id==='redteam-lab')node.construction=labTasks(run);
     if(node.id==='redteam-agent')node.execution=agentTasks(run);
+    if(node.id==='redteam-agent')node.repair=runnerRepairState(run,latest,node.traces);
     if (node.id === 'redteam-lab' && latest) {
       const progress=readJson(path.join(latest.workspace,'redteam/summary.json'));
       if(progress)node.detail=`场景构建 ${progress.processed}/${progress.selected} 已结束 · 可用 ${progress.ready} · 受阻 ${progress.blocked}${progress.running ? ` · 构建中 ${progress.running.length}` : progress.current ? ` · 当前 ${progress.current}` : ''}`;
@@ -388,6 +429,22 @@ export function buildAgenticPipeline(run) {
     if(node.id==='redteam-agent' && latest) {
       const progress=readJson(path.join(latest.workspace,'redteam/summary.json'));
       if(progress)node.detail=`红队执行 ${progress.processed}/${progress.selected} 已结束 · 捕获 ${progress.captured}${progress.blocked ? ` · 受阻 ${progress.blocked}` : ''}${progress.running ? ` · 执行中 ${progress.running.length}` : ''}`;
+    }
+    if(node.id==='redteam-agent' && node.execution?.tasks.some(task=>task.label==='正在修复运行依赖')) {
+      node.detail+=' · 正在修复运行依赖';
+    }
+    if(node.id==='judge') {
+      const execution=nodeAttempts(run.runDir,'redteam-agent').at(-1);
+      if(execution?.downstreamNotice && (!latest || execution.startedAt>latest.startedAt)) {
+        node.status='skipped';node.detail=execution.downstreamNotice;
+      }
+    }
+    for(const upstream of ['verify','redteam-lab']) {
+      const previous=nodeAttempts(run.runDir,upstream).at(-1);
+      const affected=upstream==='verify'?['redteam-lab','redteam-agent','judge']:['redteam-agent','judge'];
+      if(affected.includes(node.id) && previous?.next?.node==='learner' && previous.downstreamNotice && (!latest || previous.startedAt>latest.startedAt)) {
+        node.status='blocked';node.detail='未启动：'+previous.downstreamNotice;
+      }
     }
     if(node.id==='redteam-lab' && node.construction?.tasks.length) {
       const info=node.construction;node.candidateSummary=`构建中 ${info.running} · 可用 ${info.ready} · 受阻 ${info.blocked}`;
@@ -408,13 +465,25 @@ export function buildAgenticPipeline(run) {
       if (latest?.recovery?.kind === 'aggregation-only') node.recoveryNotice = '汇总已恢复；候选未重新执行，原始错误记录保留';
     }
   }
+  attachCandidateFlow(run,nodes);
+  const workflowRoot=path.join(run.runDir+'.meta','workflows');
+  const workflow=fs.existsSync(workflowRoot)?fs.readdirSync(workflowRoot).map(id=>readJson(path.join(workflowRoot,id,'state.json'))).filter(Boolean).sort((a,b)=>String(b.startedAt).localeCompare(String(a.startedAt)))[0]:null;
+  if(workflow)for(const node of nodes) {
+    const receipt=workflow.receipts?.find(item=>item.node===node.id);
+    if(receipt){node.status=receipt.status;if(receipt.reason)node.detail=receipt.reason;}
+    if(!receipt && workflow.steps?.includes(node.id) && workflow.current!==node.id){node.status='pending';node.detail='等待本次工作流的前置节点';}
+    if(workflow.current===node.id)node.status=workflow.status==='running'?'running':'failed';
+    if(workflow.status==='running')node.retryReason='项目工作流正在运行';
+  }
   return {
+    cycle:cycleStatus(path.resolve(run.runDir,'../../..'),run.project),
+    workflow:workflow?{id:workflow.id,status:workflow.status,current:workflow.current,receipts:workflow.receipts?.length || 0,error:workflow.error,traces:listWorkflowTraces(run).map(({id,label,kind,size,updatedAt})=>({id,label,kind,size,updatedAt}))}:null,
     notice,
     project: run.project,
     projectName: run.projectName,
     runId: run.runId,
     state: run.state,
-    activeNode: run.isLive && activeIndex >= 0 ? active : null,
+    activeNode: workflow?.status==='running'?workflow.current:run.isLive && activeIndex >= 0 ? active : null,
     nodes,
     summary: {
       total: nodes.length,

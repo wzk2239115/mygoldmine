@@ -1,3 +1,5 @@
+import {listNodeArtifacts,nodeArtifact,artifactText,openArtifact} from './node-artifacts.mjs';
+import {startCycle,stopCycle,cycleStatus} from './learning-cycles.mjs';
 import {labTaskReport} from './lab-tasks.mjs';
 import {verifyTaskReport} from './verify-tasks.mjs';
 import { sessionMatchesTrace } from './ccui-cache.mjs';
@@ -1299,6 +1301,19 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+
+    const cycleTarget=pathname.match(/^\/api\/targets\/([^/]+)\/cycle(?:\/(start|stop))?$/);
+    if(cycleTarget) {
+      const project=normalizeProjectId(cycleTarget[1]);
+      const runs=discoverRuns({withFindings:false});
+      const run=runs.filter(item=>item.project===project).sort((a,b)=>String(b.runId).localeCompare(String(a.runId)))[0];
+      if(!run)return sendError(res,404,'项目不存在');
+      if(req.method==='GET' && !cycleTarget[2])return sendJson(res,200,cycleStatus(REPO_ROOT,project));
+      if(req.method==='POST' && cycleTarget[2]==='start')return sendJson(res,201,startCycle({repoRoot:REPO_ROOT,run,liveRuns:runs}));
+      if(req.method==='POST' && cycleTarget[2]==='stop')return sendJson(res,200,stopCycle(REPO_ROOT,project));
+      return sendError(res,405,'请求方式不支持');
+    }
+
     const restartTarget = pathname.match(/^\/api\/targets\/([^/]+)\/restart$/);
     if (req.method === 'POST' && restartTarget) {
       const project = normalizeProjectId(restartTarget[1]);
@@ -1312,6 +1327,7 @@ const server = http.createServer(async (req, res) => {
     const removedTarget = pathname.match(/^\/api\/targets\/([^/]+)$/);
     if (req.method === 'DELETE' && removedTarget) {
       const project = normalizeProjectId(decodeURIComponent(removedTarget[1]));
+      if (fs.existsSync(path.join(REPO_ROOT,'runs',`.node-retry-${project}.lock`)) || fs.existsSync(path.join(REPO_ROOT,'runs',`.learning-cycle-${project}.lock`))) return sendError(res,409,'项目工作流正在运行，请先等待结束');
       const runs = discoverRuns({ withFindings: false });
       if (runs.some(run => run.project === project && run.isLive)) return sendError(res, 409, '项目仍在审计中，请先停止审计后再删除');
       if (!runs.some(run => run.project === project)) return sendError(res, 404, '项目不存在');
@@ -1424,6 +1440,25 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+
+    const artifactMatch=pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/nodes\/([^/]+)\/artifacts(?:\/([a-f0-9]{24}))?$/);
+    if(req.method==='GET' && artifactMatch) {
+      const run=findRun(artifactMatch[1],artifactMatch[2],false);
+      if(!run)return sendError(res,404,'运行不存在');
+      if(!artifactMatch[4])return sendJson(res,200,{items:listNodeArtifacts(run,artifactMatch[3]).map(({file,root,...item})=>item)});
+      const item=nodeArtifact(run,artifactMatch[3],artifactMatch[4]);
+      if(!item)return sendError(res,404,'产物不存在或批次已切换，请刷新');
+      if(url.searchParams.get('download')==='1' || (item.type==='image' && url.searchParams.get('image')==='1')) {
+        const fd=openArtifact(item);
+        const types={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp'};
+        res.setHeader('Content-Type',item.type==='image'?types[path.extname(item.file).toLowerCase()]:'application/octet-stream');
+        res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
+        if(url.searchParams.get('download')==='1')res.setHeader('Content-Disposition',"attachment; filename*=UTF-8''"+encodeURIComponent(path.basename(item.name)));
+        const stream=fs.createReadStream(item.file,{fd,autoClose:true});stream.on('error',()=>res.destroy());stream.pipe(res);return;
+      }
+      return sendJson(res,200,artifactText(item));
+    }
+
     const agentsMatch = pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/agents$/);
     if (req.method === 'GET' && agentsMatch) {
       const run = findRun(agentsMatch[1], agentsMatch[2], false);
@@ -1469,7 +1504,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && retryMatch) {
       const run = findRun(retryMatch[1], retryMatch[2], false);
       if (!run) return sendError(res, 404, '未找到审计运行');
-      return sendJson(res, 201, startNodeRetry({repoRoot: REPO_ROOT, run, node: retryMatch[3], models: modelSettings.get().models}));
+      return sendJson(res, 201, startNodeRetry({repoRoot: REPO_ROOT, run, node: retryMatch[3], models: modelSettings.get().models, cascade: true}));
     }
 
     const labReportMatch = pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/lab-tasks\/([^/]+)\/report$/);

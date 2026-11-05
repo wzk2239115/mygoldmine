@@ -41,6 +41,26 @@ function makeTrace(node, id, label, file, fallback = 'text') {
   };
 }
 
+
+function runnerRepairTraces(run, prefix='') {
+  const roots=['redteam/runner-repairs','redteam/batch/runner-repair','redteam/batch/runner-executions'];
+  const traces=[];
+  function visit(directory,depth) {
+    if(depth>3 || !fs.existsSync(directory))return;
+    for(const entry of fs.readdirSync(directory,{withFileTypes:true})) {
+      const file=path.join(directory,entry.name);
+      if(entry.isDirectory())visit(file,depth+1);
+      else if(entry.isFile() && ['agent.jsonl','runner-repair.json','install.log','smoke.json','execution-first.log','execution-retry.log'].includes(entry.name)) {
+        const relative=path.relative(run.runDir,file);
+        const id=prefix+'runner-'+relative.replace(/[^a-zA-Z0-9._-]/g,'-');
+        traces.push(makeTrace('redteam-agent',id,`运行修复 · ${path.basename(directory)} · ${entry.name==='agent.jsonl'?'智能体会话':entry.name}`,file,entry.name==='agent.jsonl'?'claude':'text'));
+      }
+    }
+  }
+  roots.forEach(root=>visit(path.join(run.runDir,root),0));
+  return traces.filter(Boolean);
+}
+
 function redteamTrace(run, node) {
   const summary = readJson(path.join(run.runDir, 'redteam/summary.json'));
   const results = Array.isArray(summary?.results) ? summary.results : [];
@@ -60,7 +80,7 @@ function redteamTrace(run, node) {
       traces.push(makeTrace(node, `${runId}-${suffix}`, `独立审核 ${runId}`, path.join(item.run_dir, 'judge.log')));
     }
   }
-  return traces.filter(Boolean);
+  return [...traces, ...(node==='redteam-agent'?runnerRepairTraces(run):[])].filter(Boolean);
 }
 
 function originalTraces(run, node) {
@@ -130,7 +150,14 @@ function originalTraces(run, node) {
   return [];
 }
 
+export function listWorkflowTraces(run) {
+  const root=path.join(run.runDir+'.meta','workflows');
+  if(!fs.existsSync(root))return [];
+  return fs.readdirSync(root).map(id=>makeTrace('workflow',`workflow-${id}`,'原生工作流调度会话',path.join(root,id,'raw.jsonl'),'claude')).filter(Boolean).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+}
+
 export function listAgenticTraces(run, node) {
+  if(node==='workflow')return listWorkflowTraces(run);
   const retries = nodeAttempts(run.runDir, node).reverse().flatMap(attempt => {
     const label = `节点重跑 ${new Date(attempt.startedAt).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai',hour12:false})} · ${attempt.status === 'running' ? '运行中' : attempt.resultStatus === 'degraded' ? '部分完成' : attempt.status === 'completed' ? '已结束' : '失败'}`;
     const worker=makeTrace(node, `${attempt.id}-worker`, `${label} · 批次日志`, path.join(attempt.root, 'worker.log'));
@@ -145,7 +172,7 @@ export function listAgenticTraces(run, node) {
     if(node==='redteam-agent') {
       const directory=path.join(attempt.workspace,'redteam/agent-runs',run.project);
       const runs=fs.existsSync(directory)?fs.readdirSync(directory,{withFileTypes:true}).filter(entry=>entry.isDirectory()).map(entry=>entry.name):[];
-      return [worker, ...runs.map(id=>makeTrace(node, `${attempt.id}-redteam-agent-${id}-agent`, `${label} · ${id} · 执行轨迹`, path.join(directory,id,'agent.jsonl'),'execution'))].filter(Boolean);
+      return [worker, ...runnerRepairTraces({...run,runDir:attempt.workspace},attempt.id+'-'), ...runs.map(id=>makeTrace(node, `${attempt.id}-redteam-agent-${id}-agent`, `${label} · ${id} · 执行轨迹`, path.join(directory,id,'agent.jsonl'),'execution'))].filter(Boolean);
     }
     const directory=path.join(attempt.workspace,node==='visual'?'visual/agentic':node==='redteam-lab'?'redteam/labs':'verify/agent/logs');
     const logs=fs.existsSync(directory)?fs.readdirSync(directory).map(id=>node==='visual'?path.join(directory,id,'agent.log'):node==='redteam-lab'?path.join(directory,id,'builder.log'):path.join(directory,id)):[];

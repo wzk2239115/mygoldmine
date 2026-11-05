@@ -14,7 +14,7 @@ export function resolveTaskSelection(node, traces, selection) {
   const task = current.history ? null : tasks.find(item => item.id === current.taskId) || null;
   // Team sessions are opened only after an explicit member or history selection.
   const trace = task ? traces.find(item => item.id === task.traceId) || null
-    : isCandidateNode(node) && !current.history ? null
+    : !current.history ? null
     : traces.find(item => item.id === current.traceId) || traces[0] || null;
   return {batchId, task, trace};
 }
