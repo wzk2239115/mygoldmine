@@ -24,6 +24,17 @@ Claude Code 钩子是用户定义的 shell 命令，在 Claude Code 生命周期
   有关完整的安全最佳实践，请参阅钩子参考文档中的 [安全考虑](/zh-CN/hooks#security-considerations)。
 </Warning>
 
+## 本仓库实际注册的钩子
+
+以下内容以当前 `.claude/settings.json` 为准，不把本文后面的示例当成已启用能力：
+
+- `PreToolUse`：`Write|Edit` 匹配 `protect-tasks-json.py`，阻止直接改写任务文件；`Write` 匹配 `coverage-ledger-guard.py`，写入覆盖记录前校验必要字段。
+- `PostToolUse`：`*` 匹配 `operation-logger.py`，记录实际工具调用。
+- `Stop`：运行 `security-orchestrator-stop.py` 检查任务和产物完整性，并运行 `coverage-ledger-guard.py` 检查覆盖记录、保存恢复进度；覆盖检查连续提示一次后允许结束，不会无限阻止。
+- `PreCompact`：运行 `coverage-ledger-guard.py` 保存当前覆盖记录和未决条目，不阻止压缩。
+
+新增钩子必须限制在对应任务和路径，保存进度并支持用户停止；不要把简单路径匹配说成完整隔离。
+
 ## 钩子事件概述
 
 Claude Code 提供了在工作流的不同点运行的多个钩子事件：

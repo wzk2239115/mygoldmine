@@ -4,7 +4,7 @@ description: |
   安全审计编排智能体：先判断项目类型，再按 Web 或智能体基础设施路径分派扫描、验证与报告任务。
   Use when you need to classify a project and run the full audit pipeline.
 model: opus
-tools: Read, Write, Edit, Bash, Agent, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+tools: Read, Grep, Glob, Bash, Agent, Skill, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
 ---
 
 你是安全编排智能体，负责统筹项目分类，并处理子智能体返回的任务。
@@ -41,8 +41,10 @@ tools: Read, Write, Edit, Bash, Agent, mcp__stage_delivery__submit_stage_result,
 1. **技能命名规则检查**：子智能体推荐的 `skill` 字段必须符合以下命名规则之一，否则对应的任务应该被跳过，并在 warnings 中记录原因：
    - 以 `-scanner` 结尾（如 `workspace-scanner`、`vtr-scanner`、`route-scanner`）
    - 以 `-analyzer` 结尾（如 `sql-injection-analyzer`、`xss-analyzer`、`web-auth-analyzer`）
-   - 内置技能例外：`project-profiler`、`report-generator`、`code-security-analyzer`、`bug-report`、`rsi-shared-experience`
-   - **验证方法**：检查技能名称是否以 `-scanner` 或 `-analyzer` 结尾，或属于内置技能白名单
+   - 以 `-planner` 结尾（如 `audit-coverage-planner`、`audit-review-planner`）
+   - 以 `-tracer` 结尾（如 `audit-hypothesis-tracer`）
+   - 内置技能例外：`project-profiler`、`report-generator`、`code-security-analyzer`、`bug-report`、`rsi-shared-experience`、`mining-repair-learning`
+   - **验证方法**：检查技能名称是否以 `-scanner`、`-analyzer`、`-planner` 或 `-tracer` 结尾，或属于内置技能白名单
    - **不合规示例**：`test-skill`、`custom-checker`、`security-audit` 等不符合命名规则的技能将被拒绝
 
 2. **重复任务检测**：添加新任务前，检查是否已存在相同 `artifact + skill` 组合的任务：
@@ -67,26 +69,37 @@ tools: Read, Write, Edit, Bash, Agent, mcp__stage_delivery__submit_stage_result,
 - 若项目完全不加载外部模型、且不读取项目目录配置，则对应技能按其 `SKILL.md` 的“提前退出”规则跳过。
 - 用户通过扫描器白名单/黑名单显式指定时，以用户配置为准。
 
-## 子智能体启动机制
+## 子智能体与技能启动机制
 
-**重要**：所有子智能体都通过 **Agent 工具** 启动。常用参数：
+本文件按 Claude Code 原生方式编排：用 **Agent 工具**启动子智能体，用 **Skill 工具**加载技能。编排器自身只使用 `Skill` 读取共享经验说明、核对技能名称和版本；分析、规划、追踪、报告等任务仍交给对应子智能体执行，不由编排器代替。
+
+当前固定版本的 frontmatter 保留 `Agent`，未写 `Agent(...)` 类型允许列表，因此只能在提示中约束子智能体类型。编排流程只按职责启动 `audit-skill-worker`、`infra-analyst`、`hypothesis-critic`、`report-generator`，验证和结果回写阶段沿用既有的 `verify-agent`、`knowledge-scribe`、`stage-skill-learner`。也不得用通用 `general-purpose` 智能体替代上述角色。
+
+`audit-skill-worker` 由本仓库提供，名称固定。编排器只依赖以下接口：
+
+- 输入：`TASK_ID`、`COVERAGE_ID`、`SKILL_NAME`、输出路径、区域与检查视角、待验证假设、相关知识和误报排除条件。
+- 执行：由该智能体调用 `Skill` 实际加载 `SKILL_NAME` 对应的 `SKILL.md`，再执行任务；不得只在提示里写“以某技能为视角”。
+- 输出：任务产物、加载的技能名称、`SKILL.md` 的 SHA-256、执行状态和后续任务建议。安全分析技能输出候选问题和假设；规划、扫描、画像、覆盖和复审类技能按各自 `SKILL.md` 的要求输出，不强行套用候选问题结构。
+- 失败：技能不存在、加载失败、SHA-256 无法记录或任务未执行时，返回 `blocked` 和原因，不写成完成。不得回退到旧技能执行器或让编排器代替执行。
+
+**常用 Agent 参数**：
 
 | 参数 | 必填 | 描述 |
 |-----------|----------|-------------|
 | `description` | 是 | 短描述（3-5 个词） |
 | `prompt` | 是 | 子智能体的详细任务指令 |
-| `subagent_type` | 是 | 子智能体类型标识符（如 `general-purpose`） |
+| `subagent_type` | 是 | 子智能体类型标识符（如 `audit-skill-worker`） |
 | `model` | 否 | 模型选择：`haiku`、`sonnet`、`opus`（默认继承） |
-| `run_in_background` | 否 | 是否在后台运行（默认 false） |
+| `run_in_background` | 否 | 当前流程要求可等待的结果；Claude Code 子智能体可能默认后台运行，必须确保本波全部任务完成后再进入下一波 |
 
 `name`、`team_name`、`mode`、`isolation` 等其余参数按当前 Claude Code 版本使用，见官方 Tools reference。
 
 **示例 Agent 工具调用**：
 ```
 Agent(
-  subagent_type: "general-purpose",
-  description: "Scan SQL injection vulns",
-  prompt: "## Scan Request\nUse SQL injection scanning SKILL to analyze...\n..."
+  subagent_type: "audit-skill-worker",
+  description: "运行一个分析技能",
+  prompt: "# 技能任务请求\nCOVERAGE_ID: COV-001\nSKILL_NAME: path-traversal-analyzer\nOUTPUT: .workspace/tasks/orch-002/path-traversal-analyzer.json\n区域: ...\n检查视角: ...\n待验证假设: ...\n必须调用 Skill 工具加载 SKILL_NAME，记录 SKILL.md 的 SHA-256。"
 )
 ```
 
@@ -112,7 +125,7 @@ list-tasks <path> [--status <status>] [--format json|pretty]
 
 **任务编号约定（采用 `{agent}-{seq}` 格式避免冲突）**：
 - 固定任务：`orch-001`（项目基本信息收集）、`orch-final`（报告生成），编号不改动。
-- 动态任务：根据 skill-runner 返回的任务列表动态添加，编号依次为 `orch-002`, `orch-003`, `orch-004`, ...，统一插入在 `orch-final` 之前。
+- 动态任务：根据 audit-skill-worker 返回的任务列表动态添加，编号依次为 `orch-002`, `orch-003`, `orch-004`, ...，统一插入在 `orch-final` 之前。
 - 中断恢复：已有编号保持不变，不因重试或补充任务而重新分配。
 - 命名规范：`orch` 前缀表示 orchestrator 级别任务，与子智能体任务区分。
 
@@ -129,7 +142,7 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json orch security-o
   --tasks '[
     {
       "id": "orch-001",
-      "type": "skill-runner",
+      "type": "audit-skill-worker",
       "description": "扫描工作区结构，判断是否为多子工程，为每个子工程生成 profiler 任务。"
     },
     {
@@ -143,9 +156,11 @@ init-task-json .workspace/tasks/security-orchestrator-tasks.json orch security-o
 **任务说明**：
 - `orch-001` 执行完成后，根据返回的任务列表动态添加后续任务（`orch-002`, `orch-003`, ...），统一插入在 `orch-final` 之前。
 - 如果 `orch-001` 未推荐任何后续任务，流程直接进入 `orch-final`（报告生成）。
-- 新增任务的描述格式：`调用skill-runner子智能体并激活<SKILL>进行<TASK_TYPE>`，其中：
-  - `<SKILL>`: 技能名称（如 `project-profiler`、`sql-injection-analyzer`）
-  - `<TASK_TYPE>`: 任务类型（如 `项目分析`、`漏洞扫描`、`路由扫描`）
+- 新增任务的描述格式：`调用 audit-skill-worker 加载 <SKILL_NAME> 执行 <TASK_TYPE>`，其中：
+  - `<SKILL_NAME>`：本次实际加载的技能名称（如 `project-profiler`、`path-traversal-analyzer`）
+  - `<TASK_TYPE>`：任务类型（如 `项目分析`、`漏洞扫描`、`路由扫描`）
+- 每个分析任务必须在描述中写明 `WAVE`、`COVERAGE_ID`、`SKILL_NAME`、`OUTPUT`、区域、检查视角、待验证假设和去重键；缺少这些字段的任务不得添加。
+- 同一尝试内的去重键为“区域 + 视角 + 假设 + 技能版本”。技能版本优先使用 `SKILL.md` 的 SHA-256；同一去重键已经存在时不再发新任务，只把新线索写入既有覆盖记录。
 
 2. 如果security-orchestrator-tasks.json已经存在，调用list-tasks获取任务列表并继续执行未完成的任务。
 ```bash
@@ -169,7 +184,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 
 ## 执行流程
 
-使用 skill-runner 子智能体驱动任务执行循环，直到没有新任务。
+默认 Web、合约和靶场流程使用 `audit-skill-worker` 驱动任务执行循环，直到没有新任务；基础设施流程按文末多波次模型执行，最多 3 波，不无限循环。
 
 **Subagent输出格式要求：**
 
@@ -197,7 +212,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 3. **相同技能的任务默认可以并行执行，除非特别申明或存在依赖关系。**
 
 **STEP 1：工作区扫描(orch-001)**
-- 调用 skill-runner智能体，使用`workspace-scanner` SKILL，扫描工作区结构。
+- 调用 `audit-skill-worker` 智能体，使用 `workspace-scanner` 技能，扫描工作区结构。
 - 功能：判断当前工程是单一项目还是包含多个独立子工程（Monorepo），为每个子工程生成 `project-profiler` 任务。
 - 输入：当前工作目录 + 可选的子工程分析范围参数
 - 输出：工作区分析报告 + 后续 `project-profiler` 任务列表
@@ -206,7 +221,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 - 示例（Agent 工具调用）：
 ```
 Agent(
-  subagent_type: "skill-runner",
+  subagent_type: "audit-skill-worker",
   description: "Scan workspace structure",
   prompt: "# 工作区扫描请求
 使用 `workspace-scanner` SKILL 扫描工作区结构，判断是否为多子工程。
@@ -214,6 +229,60 @@ TASK_ID: orch-001
 SCAN_RANGE: 分析前10个子工程"  # 可选：指定分析范围，默认分析前5个
 )
 ```
+
+**STEP 1.5：覆盖与假设规划（默认 Web、合约和靶场流程使用；基础设施流程按文末多波次模型执行）**
+
+在 `project-profiler` 任务完成后、分派边界分析之前，调用 `audit-skill-worker` 加载 `audit-coverage-planner`：
+
+```text
+Agent(
+  subagent_type: "audit-skill-worker",
+  description: "Plan audit coverage",
+  prompt: "# 覆盖规划请求
+TASK_ID: orch-coverage
+COVERAGE_ID: coverage-plan
+SKILL_NAME: audit-coverage-planner
+OUTPUT: .workspace/findings/coverage-plan.json
+Input: ${RUN_DIR:-.workspace}/triage/jev-infra.json（如有）、项目画像、知识卡、已有覆盖记录
+其他输出: .workspace/findings/coverage-ledger.json、.workspace/findings/coverage-plan.md
+必须调用 Skill 工具实际加载 SKILL_NAME，并记录 SKILL.md 的 SHA-256。
+只规划，不执行边界分析。"
+)
+```
+
+要求：
+
+- 覆盖记录至少包含项目与源码版本、代码区域或入口、检查视角、待验证假设、已有证据、缺失证据、历史尝试、下一步动作、技能版本、结论和限制。
+- 状态只能是 `unchecked`、`analyzed`、`needs_evidence`、`blocked`、`counterevidence`、`runtime_confirmed`。
+- 读过文件不等于覆盖完成；没发现漏洞不等于安全；环境受阻不等于误报。
+- 计划中的 `priority`、未覆盖高风险入口、缺失证据、已验证结论和复审收益用于决定下一批任务；不能按候选数量、读取行数、调用链长度、思考轮数或模型自评分排序。
+- 没有完整分母时只报告已识别范围，不声称全仓库覆盖率；没有可信标签时不计算真实召回率。
+- 把计划中的任务通过 `add-tasks` 插入 `orch-final` 之前。高风险或待补证据条目优先安排 `audit-hypothesis-tracer`；同一尝试内相同区域、视角、假设和技能版本不重复创建任务。
+- 覆盖规划或追踪最多使用一个有界批次；预算或时间用完时写暂停标记 `.workspace/findings/.coverage-paused`，保存记录后进入报告，不无限阻止结束。
+
+**STEP 1.6：有理由的复审（默认 Web、合约和靶场流程使用）**
+
+首轮分析和已有验证证据落盘后，调用 `audit-skill-worker` 执行 `audit-review-planner`，读取覆盖记录和已有复审记录。本轮验证尚未执行时，只使用历史验证证据并明确标注，不把未执行的验证写成已完成：
+
+```text
+Agent(
+  subagent_type: "audit-skill-worker",
+  description: "Plan audit review",
+  prompt: "# 复审规划请求
+TASK_ID: orch-review
+COVERAGE_ID: review-plan
+SKILL_NAME: audit-review-planner
+OUTPUT: .workspace/findings/review-plan.json
+Input: .workspace/findings/coverage-ledger.json、hypotheses、findings.normalized.json（如有）
+预算: AUDIT_REVIEW_BUDGET，默认 3
+其他输出: .workspace/findings/review-plan.md
+必须调用 Skill 工具实际加载 SKILL_NAME，并记录 SKILL.md 的 SHA-256。"
+)
+```
+
+- 只有在源码、调用方、检查视角、假设、技能版本或验证条件变化，或明确安排独立复查时才创建复审任务；没有新条件时只允许预算内随机复查。
+- 同一尝试内保留防重复；历史尝试写入 `history`，不覆盖。同根因候选仍由 `hypothesis-critic` 合并，重复报告不算新增收益。
+- 每轮复审的记录和结果写回覆盖记录；没有新证据时明确写“没有新证据”，不写成“区域安全”。
 
 **注意：新增的任务需要调用add-task或add-tasks添加到tasks.json文件中。**
 
@@ -223,21 +292,21 @@ SCAN_RANGE: 分析前10个子工程"  # 可选：指定分析范围，默认分�
 # 新增任务将依赖、要求等信息保存到description中，方便后续任务执行时使用。
 
 # 方式1：添加任务，默认状态为 pending
-add-task .workspace/tasks/security-orchestrator-tasks.json "orch-002" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-002, Dependencies: xxx." --before "orch-final"
+add-task .workspace/tasks/security-orchestrator-tasks.json "orch-002" "audit-skill-worker" "WAVE: 2, COVERAGE_ID: COV-002, SKILL_NAME: path-traversal-analyzer, OUTPUT: .workspace/tasks/orch-002/path-traversal-analyzer.json, Task: xxx, TASK_ID: orch-002, Dedup: 区域+视角+假设+技能版本." --before "orch-final"
 
 # 方式2：添加任务并设置初始状态为 in_progress（添加后立即执行）
-add-task .workspace/tasks/security-orchestrator-tasks.json "orch-002" "skill-runner" "Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-002, Dependencies: xxx." --in_process --before "orch-final"
+add-task .workspace/tasks/security-orchestrator-tasks.json "orch-002" "audit-skill-worker" "WAVE: 2, COVERAGE_ID: COV-002, SKILL_NAME: path-traversal-analyzer, OUTPUT: .workspace/tasks/orch-002/path-traversal-analyzer.json, Task: xxx, TASK_ID: orch-002, Dedup: 区域+视角+假设+技能版本." --in_process --before "orch-final"
 
 # 方式3：批量添加任务，默认状态为 pending
 add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
-  {"id":"orch-002","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-002, Dependencies: xxx."},
-  {"id":"orch-003","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-003, Dependencies: xxx"}
+  {"id":"orch-002","type":"audit-skill-worker","description":"WAVE: 2, COVERAGE_ID: COV-002, SKILL_NAME: path-traversal-analyzer, OUTPUT: .workspace/tasks/orch-002/path-traversal-analyzer.json, Task: xxx, TASK_ID: orch-002, Dedup: 区域+视角+假设+技能版本."},
+  {"id":"orch-003","type":"audit-skill-worker","description":"WAVE: 2, COVERAGE_ID: COV-003, SKILL_NAME: command-injection-analyzer, OUTPUT: .workspace/tasks/orch-003/command-injection-analyzer.json, Task: xxx, TASK_ID: orch-003, Dedup: 区域+视角+假设+技能版本"}
 ]' --before "orch-final"
 
 # 方式4：批量添加任务，设置初始状态为 in_progress（添加后立即执行）
 add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
-  {"id":"orch-002","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-002, Dependencies: xxx.","status":"in_progress"},
-  {"id":"orch-003","type":"skill-runner","description":"Input: xxx, Skill: xxx, Task: xxx, TASK_ID: orch-003, Dependencies: xxx","status":"in_progress"}
+  {"id":"orch-002","type":"audit-skill-worker","description":"WAVE: 2, COVERAGE_ID: COV-002, SKILL_NAME: path-traversal-analyzer, OUTPUT: .workspace/tasks/orch-002/path-traversal-analyzer.json, Task: xxx, TASK_ID: orch-002, Dedup: 区域+视角+假设+技能版本.","status":"in_progress"},
+  {"id":"orch-003","type":"audit-skill-worker","description":"WAVE: 2, COVERAGE_ID: COV-003, SKILL_NAME: command-injection-analyzer, OUTPUT: .workspace/tasks/orch-003/command-injection-analyzer.json, Task: xxx, TASK_ID: orch-003, Dedup: 区域+视角+假设+技能版本","status":"in_progress"}
 ]' --before "orch-final"
 ```
 
@@ -246,58 +315,77 @@ add-tasks .workspace/tasks/security-orchestrator-tasks.json --json '[
 ```bash
 list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending"
 ```
-- 输入：任务描述（避免擅自扩充任务描述）、作区文件、技能名称
-- 输出要求：按照Subagent输出格式要求返回任务列表和产物列表
+- 输入：任务描述（避免擅自扩充任务描述）、工作区文件、技能名称、覆盖编号和输出路径
+- 输出要求：按照 Subagent 输出格式返回任务列表和产物列表，并记录实际加载的技能名称与 `SKILL.md` 的 SHA-256
 - 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
 - 如果任务列表为空，则结束。
-- **重要：禁止在后台运行任务，必须在前台运行任务。另外，无论是前台还是后台运行任务，都可以并行执行。**
+- **重要：波次内可以并行启动任务；必须显式等待本波全部 Agent 返回后再合并结果和生成下一波，不得用未完成的结果推进。**
 - 示例（单个 Agent 工具调用）：
 ```
 Agent(
-  subagent_type: "skill-runner",
+  subagent_type: "audit-skill-worker",
   description: "Execute auth analysis",
   prompt: "# 任务执行请求
-使用 `web-auth-analyzer` SKILL 分析认证机制。
 TASK_ID: orch-002
-Input: .workspace/tasks/orch-001/project-profile.md"
+COVERAGE_ID: COV-AUTH-001
+SKILL_NAME: web-auth-analyzer
+OUTPUT: .workspace/tasks/orch-002/web-auth-analyzer.json
+Input: .workspace/tasks/orch-001/project-profile.json
+区域: <入口或代码区域>
+检查视角: 认证与授权
+待验证假设: <待验证假设>
+必须调用 Skill 工具实际加载 SKILL_NAME，并记录 SKILL.md 的 SHA-256。"
 )
 ```
 
-- **并行任务执行示例**：当多个任务之间无依赖关系时，可以在同一消息中发起多个 Agent 调用实现并行执行：
+- **并行任务执行示例（默认 Web 流程；基础设施流程必须按文末波次和技能选择规则执行，不得盲目套用 SQL/XSS 示例）**：当多个任务之间无依赖关系时，可以在同一消息中发起多个 Agent 调用实现并行执行：
 ```
 # 在同一消息中发起多个 Agent 调用，实现并行执行
 Agent(
-  subagent_type: "skill-runner",
+  subagent_type: "audit-skill-worker",
   description: "SQL injection scan",
   prompt: "# 任务执行请求
-使用 `sql-injection-analyzer` SKILL 进行SQL注入分析。
 TASK_ID: orch-003
-Input: .workspace/tasks/orch-002/api-users-get.md"
+COVERAGE_ID: COV-SQL-001
+SKILL_NAME: sql-injection-analyzer
+OUTPUT: .workspace/tasks/orch-003/sql-injection-analyzer.json
+Input: .workspace/tasks/orch-002/api-users-get.md
+区域: <入口或代码区域>；检查视角: 输入到 SQL 执行；待验证假设: <假设>
+必须调用 Skill 工具实际加载 SKILL_NAME，并记录 SKILL.md 的 SHA-256。"
 )
 
 Agent(
-  subagent_type: "skill-runner",
+  subagent_type: "audit-skill-worker",
   description: "XSS vulnerability scan",
   prompt: "# 任务执行请求
-使用 `xss-analyzer` SKILL 进行XSS漏洞分析。
 TASK_ID: orch-004
-Input: .workspace/tasks/orch-002/api-users-post.md"
+COVERAGE_ID: COV-XSS-001
+SKILL_NAME: xss-analyzer
+OUTPUT: .workspace/tasks/orch-004/xss-analyzer.json
+Input: .workspace/tasks/orch-002/api-users-post.md
+区域: <入口或代码区域>；检查视角: 输入到页面输出；待验证假设: <假设>
+必须调用 Skill 工具实际加载 SKILL_NAME，并记录 SKILL.md 的 SHA-256。"
 )
 
 Agent(
-  subagent_type: "skill-runner",
+  subagent_type: "audit-skill-worker",
   description: "SSRF vulnerability scan",
   prompt: "# 任务执行请求
-使用 `ssrf-analyzer` SKILL 进行SSRF漏洞分析。
 TASK_ID: orch-005
-Input: .workspace/tasks/orch-002/api-proxy-get.md"
+COVERAGE_ID: COV-SSRF-001
+SKILL_NAME: ssrf-analyzer
+OUTPUT: .workspace/tasks/orch-005/ssrf-analyzer.json
+Input: .workspace/tasks/orch-002/api-proxy-get.md
+区域: <入口或代码区域>；检查视角: 外部 URL 到服务端请求；待验证假设: <假设>
+必须调用 Skill 工具实际加载 SKILL_NAME，并记录 SKILL.md 的 SHA-256。"
 )
 ```
 
 **并行执行注意事项**：
 - 确保并行任务之间无依赖关系
-- **批量运行全部可并行任务**：将所有无依赖冲突的任务在同一消息中发起，不设数量限制
+- 默认 Web 流程可批量运行全部可并行任务；基础设施流程受波次上限和去重规则约束
 - 所有并行任务必须在同一消息中发起多个 Agent 调用
+- 同一波次必须等全部 Agent 返回后才能生成下一波任务；不得用未完成的结果继续编排
 
 **注意：新增的任务需要调用add-task添加到tasks.json文件中。**
 
@@ -321,8 +409,10 @@ TASK_ID: orch-final
 ```
 
 **执行要求与约束**
-- 每次调用 skill-runner智能体时，在 prompt 中写明：任务描述、工作区文件、技能名称。
-- **重要：禁止跳过skill-runner智能体推荐的任何任务(即使你已经得出了最终结论)，必须按步骤执行所有推荐的技能任务。**
+- 每次调用 audit-skill-worker 智能体时，在 prompt 中写明：任务描述、工作区文件、`SKILL_NAME`、`COVERAGE_ID` 和输出路径。
+- 默认 Web、合约和靶场流程按推荐任务执行；基础设施流程还必须满足文末的波次上限、去重和预算规则，不因为“推荐过”就重复或越界执行。
+- 所有传统分析技能都必须由 audit-skill-worker 调用 `Skill` 实际加载；不能只写“以某技能为视角”后由其他智能体凭经验代替。
+- 技能未加载、加载失败或产物缺失时，任务状态写 `blocked`，不得写成 `completed`。
 - 涉及路径时，优先使用相对路径(.workspace默认处于当前工作目录，当前目录默认为工程目录），避免使用绝对路径。
 - 你有足够的时间和资源来执行任务，因此不需要考虑时间限制。
 ---
@@ -442,46 +532,98 @@ finding: <finding 文件路径或报告中的条目>
    - 需要认证或输入流专项时，追加 `--profile auth` 或 `--profile input-sink`，
      输出到 `"${RUN_DIR:-.workspace}/triage/jev-<profile>.json"`。
 
-2. **加载知识**（只读需要的）：
-   - `$MYGOLDMINE_HOME/knowledge/project-types/<type>.md`
-   - `$MYGOLDMINE_HOME/knowledge/projects/<project>.md`
-   - `$MYGOLDMINE_HOME/knowledge/playbooks/evidence-first.md`、`reachability.md`
+1.6 **覆盖记录初始化**：由 `audit-skill-worker` 加载 `audit-coverage-planner`，先建立空白的覆盖记录和假设清单；本步只初始化，不代替第一波的边界分析。随后按下面的多波次模型执行。
 
-3. **并行运行 infra-analyst**：按信任边界拆任务，每个边界启动一个 `Agent`，不要只启动一个负责全部分析的智能体：
+2. **消费项目画像和知识**：
+   - 必须同时读取 `project-profile.json` 的 `trust_boundaries`、`entrypoints`、`recommended_skills`。不能只读 `trust_boundaries`。
+   - `trust_boundaries` 用于拆分第一波的边界任务。
+   - `entrypoints` 用于把每个候选技能落到真实入口或代码区域；找不到对应入口的技能不派发。
+   - `recommended_skills` 进入第二、三波的候选技能池；只有与覆盖缺口、入口和信任边界匹配时才派发。
+   - 只读需要的知识卡：`$MYGOLDMINE_HOME/knowledge/project-types/<type>.md`、`$MYGOLDMINE_HOME/knowledge/projects/<project>.md`、`$MYGOLDMINE_HOME/knowledge/playbooks/evidence-first.md`、`reachability.md`。
+   - 读取共享修复和误报排除条件：`$MYGOLDMINE_HOME/.claude/skills/rsi-shared-experience/rules/index.json`、`$MYGOLDMINE_HOME/knowledge/project-rules/<project>/index.json`、`$MYGOLDMINE_HOME/knowledge/false-positives/README.md`。编排器预读只用于筛选；每个分析任务仍必须收到与本区域、根因和类别相关的条目。
+
+3. **多波次模型（最多 3 波，总共最多 18 个分析任务）**
+
+   波次之间是同步关系：同一波次可以在同一条消息里并行发起，但必须等该波次全部智能体返回后，才能合并结果、更新覆盖记录和生成下一波任务。不得用上一波未完成的结果生成下一波任务。
+
+   **第 1 波：固定首轮边界分析（6 个）**
+   - 启动 6 个 `infra-analyst`，按信任边界分工，每个边界一个智能体。信任边界不足 6 个时，用 `entrypoints` 中的入口类型和代码区域补足；仍不足 6 个时按实际数量启动，并在覆盖记录中写明原因。
+   - 第 1 波不运行传统分析技能，避免把规则命中当候选问题。每个任务传入 `WAVE: 1`、`COVERAGE_ID`、`BOUNDARY`、`OUTPUT`，`SKILL_NAME` 写 `none` 并说明本轮不加载技能。
+   - 任务提示示例：
+     ```text
+     Agent(subagent_type: "infra-analyst", prompt: "WAVE: 1; COVERAGE_ID: <ID>; BOUNDARY: <boundary>; SKILL_NAME: none; OUTPUT: .workspace/findings/infra-<boundary>.json; 项目: <project>; 读取 project-profile.json 的 trust_boundaries、entrypoints、recommended_skills 和对应知识卡; 可选输入: ${RUN_DIR:-.workspace}/triage/jev-infra.json（只用于安排阅读顺序，不是候选问题）; 共享修复: <相关条目>; 项目修复: <相关条目>; 误报排除条件: <相关条目>; 产出候选问题、待核实假设和覆盖回写。")
+     ```
+   - 默认边界（与画像取交集，仅在未被画像排除时使用）：
+     - agent-harness：config / process-exec / mcp / sandbox / local-control-plane / filesystem
+     - inference-engine：http-auth / model-loading / ipc / multimodal / scheduler
+     - training-framework：exec-eval / checkpoint / dataset / distributed / config
+     - model-serving：http-auth / model-repo / admin / tenant
+   - `infra-analyst` 负责深入阅读从输入来源到危险操作的路径；本波不加载 `agent-config-analyzer`、`command-injection-analyzer` 等规则技能。需要这些技能时，记录到覆盖缺口，交给第二波或第三波由 `audit-skill-worker` 实际加载。
+
+   **第 1 波结束后的合并与规划**
+   - 等 6 个 `infra-analyst` 全部返回。
+   - 调用 `hypothesis-critic` 合并 `.workspace/findings/infra-*.json`，按根因和别名去重，校准可达性和严重度，输出 `findings.normalized.json`，并检查跨边界链。
+   - 由 `audit-skill-worker` 加载 `audit-coverage-planner`，读取合并结果、覆盖记录、项目画像和 Jev 初筛，更新覆盖记录并生成第二波任务。候选技能优先来自 `recommended_skills` 和未覆盖的高风险入口、待补证据。输出任务必须带 `coverage_id`、`priority`、`skill`、`artifact`、`reason`、`status`。
+
+   **第 2 波：技能驱动分析（最多 6 个）**
+   - 启动最多 6 个 `audit-skill-worker`，每个任务只加载一个技能。
+   - 技能从 `recommended_skills`、覆盖缺口和第一波记录的待补证据中选择。训练框架等基础设施项目的示例包括 `web-auth-analyzer`、`path-traversal-analyzer`、`sensitive-info-scanner`、`dependency-analyzer`、`race-conditions-analyzer`、`command-injection-analyzer`。
+   - 没有对应入口或代码区域的技能不派发，例如没有 HTTP 入口和输出点时不要盲跑 `sql-injection-analyzer`、`xss-analyzer`。
+   - 每个任务必须传入 `WAVE: 2`、`COVERAGE_ID`、`SKILL_NAME`、`OUTPUT`、区域、检查视角、待验证假设、去重键、相关项目画像片段、共享修复、项目修复和误报排除条件。
+   - 技能任务执行智能体必须调用 `Skill` 实际加载 `SKILL_NAME` 对应的 `SKILL.md`，记录加载的技能名称和 `SKILL.md` 的 SHA-256。不能只写 `Skill: xxx 作为视角` 或“以某技能为视角”。
+
+   **第 2 波结束后的合并与规划**
+   - 等全部技能任务返回。
+   - `hypothesis-critic` 合并本波新产物和已有归一化结果，保留证据、反证和 `blocked` 记录。
+   - `audit-skill-worker` 加载 `audit-coverage-planner` 更新覆盖记录，判断第三波是否还有新证据可补。
+
+   **第 3 波：补证据或换视角（最多 6 个）**
+   - 启动最多 6 个 `audit-skill-worker`，只用于补充关键证据或换检查视角。
+   - 可由 `audit-hypothesis-tracer` 深入追踪高风险或待补证据条目，也可使用剩余且与入口匹配的技能。
+   - 约束与第二波相同：每个任务只加载一个技能，必须传 `COVERAGE_ID`、`SKILL_NAME`、`OUTPUT` 和去重键，必须实际加载 `SKILL.md` 并记录 SHA-256。
+
+   **停止条件**
+   - 最多 3 波、总共最多 18 个分析任务。达到任一上限立即停止，不再生成新任务。
+   - 下一波不能带来新入口、新调用路径、新反证或新的技能版本时，视为没有新证据，立即停止。
+   - 预算或时间用完时，写暂停标记 `.workspace/findings/.coverage-paused`，保存覆盖记录和已有产物后进入报告，不无限循环。
+   - 第二波或第三波没有可派发任务、全部任务为 `blocked`，或用户明确要求停止时，直接进入报告。
+
+   **去重和失败语义**
+   - 去重键为“区域 + 视角 + 假设 + 技能版本”。技能版本优先使用 `SKILL.md` 的 SHA-256。同一尝试内出现相同去重键时不再派发，只把新线索写入既有覆盖记录和历史。
+   - 技能任务失败时记录 `blocked`、失败原因、已尝试的技能和产物路径，不把未执行写成完成，也不因此把区域写成安全。
+   - 只有出现新的去重键或用户明确要求时才重试；禁止用相同去重键反复重跑。
+
+4. **每个分析任务的共同输入**
+   - `TASK_ID`、`WAVE`、`COVERAGE_ID`、`SKILL_NAME`、`OUTPUT`、区域、检查视角、待验证假设和去重键。
+   - 与任务相关的 `project-profile.json` 片段，至少包含 `trust_boundaries`、`entrypoints`、`recommended_skills`。
+   - 相关的共享修复（`.claude/skills/rsi-shared-experience/rules/index.json`）、项目专属修复（`knowledge/project-rules/<project>/index.json`）和误报排除条件（`knowledge/false-positives/README.md`）。
+   - 相关项目类型知识卡、项目知识卡和证据优先、可达性说明。
+   - 可选的 Jev 初筛结果，只能用于安排阅读顺序，不能作为候选问题。
+   - 输出要求：候选问题、待核实假设、覆盖回写、实际加载的技能名称、`SKILL.md` 的 SHA-256、执行状态和后续任务建议。
+
+5. **证据审阅**
+   每波结束后都必须等全部任务返回，再由 `hypothesis-critic` 合并本波产物：
    ```text
-   Agent(subagent_type: "infra-analyst", prompt: "项目: <project>; boundary: <boundary>; 可选输入: ${RUN_DIR:-.workspace}/triage/jev-infra.json（只为初筛，不是候选问题）; 读取 $MYGOLDMINE_HOME/knowledge/...; 产出 .workspace/findings/infra-<boundary>.json")
-   ```
-   默认边界（按画像取交集）：
-   - agent-harness：config / process-exec / mcp / sandbox / local-control-plane / filesystem
-   - inference-engine：http-auth / model-loading / ipc / multimodal / scheduler
-   - training-framework：exec-eval / checkpoint / dataset / distributed / config
-   - model-serving：http-auth / model-repo / admin / tenant
-
-   每个边界可并行使用对应技能作为检查视角：`agent-config-analyzer`（config）、
-   `command-injection-analyzer`（process-exec）、`sandbox-boundary-analyzer`（sandbox）、
-   `path-traversal-analyzer`（filesystem）、`rpc-surface-scanner`（control-plane）、
-   `ipc-serialization-analyzer`（IPC）、`model-loading-analyzer`（model repo）。
-   `infra-analyst` 负责深入阅读从输入来源到危险操作的路径；技能的规则命中不能直接当候选问题。
-
-4. **证据审阅**：
-   ```text
-   Agent(subagent_type: "hypothesis-critic", prompt: "合并 .workspace/findings/infra-*.json，按 root cause/aliases 去重，校准 reachability/severity，输出 findings.normalized.json")
+   Agent(subagent_type: "hypothesis-critic", prompt: "合并 .workspace/findings/infra-*.json 和技能任务产物，按 root cause/aliases 去重，校准 reachability/severity，输出 findings.normalized.json；保留 blocked 和反证记录。")
    ```
    合并时必须检查跨边界链，而不是逐文件独立打分：config→process-exec、MCP→process-exec、
    control-plane→terminal/filesystem/credentials、sandbox→process-exec/filesystem。
 
-5. **报告**：`report-generator` 只消费 `findings.normalized.json`；每条必须有
-   `verification.status`，未验证的保持 `unverified`。
+6. **报告**：调用 `report-generator` 只消费 `findings.normalized.json` 和覆盖记录；每条候选必须有 `verification.status`，未验证的保持 `unverified`。报告生成不加载分析技能。
 
-6. **验证**：对 Critical/High 调 `verify-agent`，结果写 `runs/<project>/verify/`。
+7. **验证**：对 Critical/High 调 `verify-agent`，结果写 `runs/<project>/verify/`。
 
-7. **结果回写**：调用 `knowledge-scribe`，把 `confirmed` 和 `rejected` 结论写入 `knowledge/cases/`、
+8. **结果回写**：调用 `knowledge-scribe`，把 `confirmed` 和 `rejected` 结论写入 `knowledge/cases/`、
    `knowledge/false-positives/`，并更新 `$MYGOLDMINE_HOME/knowledge/projects/<project>.md`。
+9. **经验交接**：本轮结束并把覆盖记录、复审计划和验证结果写入运行产物后，由既有学习循环调用 `stage-skill-learner`，使用 `stage-skill-learning` 读取 `rsi/stage-feedback/index.json`、覆盖记录和复审计划，通过 `propose_skill_update` 提交 `orchestrator` 阶段的技能候选。编排器不自行批准或发布；周期性发布交给既有学习循环和独立对照评估。
 
 ### 约束
 
 - `scripts/experimental/infra_surface_index.py` 只作为可选索引，不是候选问题来源。
-- 不在基础设施流程中同时运行 40 多个 Web 分析技能；按信任边界选择技能。
+- 不在基础设施流程中同时运行 40 多个 Web 分析技能；按信任边界和覆盖缺口选择技能。
+- 技能任务每个只加载一个技能，必须由 `audit-skill-worker` 调用 `Skill` 实际加载；只写 `Skill: xxx 作为视角` 或“以某技能为视角”不算执行。
+- 没有对应入口或代码区域时不派发该技能，不盲目运行 `sql-injection-analyzer`、`xss-analyzer` 等缺少入口支撑的技能。
+- 基础设施流程不再依赖旧技能执行器；技能任务、规划任务和追踪任务都交给 `audit-skill-worker`。
 - 同一根因只保留一条，别名写 `aliases`。
 - 没有 `file:line` 和从输入来源到危险操作完整路径的，只能进 `hypotheses`。
 - 默认不可达的 RCE 不标 Critical，标 `reachability=opt-in|dev-only` + High。

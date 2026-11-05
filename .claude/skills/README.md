@@ -34,16 +34,22 @@ Agent Skills 将专业知识打包成可发现的功能。每个 Skill 包含一
 
 - `-scanner`：结构化扫描/枚举，如 `workspace-scanner`、`vtr-scanner`
 - `-analyzer`：语义分析与漏洞验证，如 `sql-injection-analyzer`、`model-loading-analyzer`
-- 内置例外：`project-profiler`、`report-generator`、`code-security-analyzer`、`bug-report`
+- `-planner`：覆盖、复审和任务规划，如 `audit-coverage-planner`、`audit-review-planner`
+- `-tracer`：围绕单一假设补齐调用链和证据，如 `audit-hypothesis-tracer`
+- 内置例外：`project-profiler`、`report-generator`、`code-security-analyzer`、`bug-report`、`rsi-shared-experience`、`mining-repair-learning`
 
-新增 skill 必须包含 `SKILL.md`（适用场景、检测步骤、Source/Sink、误报排除、输出格式）；可选 `patterns/`、`quick-scan.py`、`references/`。
+新增 skill 必须包含 `SKILL.md`（适用场景、检测步骤、Source/Sink、误报排除、输出格式）；可选 `patterns/`、`quick-scan.py`、`references/`。`rsi-shared-experience` 只保存经真实前后运行评估发布的共享挖掘修复；仓库专属修复放在 `knowledge/project-rules/<project>/`，不得复制到其他项目。`mining-repair-learner` 使用 `verification-experience-analyzer`、`repair-scope-analyzer` 和 `mining-repair-learning` 组合已有知识及按类别选择的分析技能，输出候选 Markdown，不直接发布。
+`stage-skill-learning` 是内置例外，负责第 08 阶段跨阶段归因和候选提出；需要重写时通过宿主机适配层调用固定版本的 SkillOpt 核心重写入口，候选仍由现有评估、发布和回退管理。它不启用 SkillOpt-Sleep 的完整夜间循环，也不直接修改正式技能。
 
 ### AI 基础设施审计 skill（Phase 1 新增）
 
 | Skill | 适用项目特征 | 检测能力 | 接入方式 |
 |-------|--------------|----------|----------|
 | `model-loading-analyzer` | 使用 transformers / vLLM / SGLang / verl / peft / accelerate；出现 `from_pretrained`、`trust_remote_code`、`auto_map`、`torch.load`；提供模型下载/热更新/LoRA 加载端点 | 模型 ID → 远程代码（`trust_remote_code`、`auto_map`、`get_class_from_dynamic_module`）与权重反序列化（`torch.load(weights_only=False)`） | `project-profiler` 条件推荐 + orchestrator 条件任务；也可显式指定 |
-| `agent-config-analyzer` | 编码 Agent / CLI Agent / MCP 客户端；仓库含 `.mcp.json`、`.codex/config.toml`、`.env`、`AGENTS.md`；有 `approval_policy`、`allow_prefix`、`PrefixRule` | 项目级配置无确认生效、MCP `command`/`args` 任意执行、审批前缀绕过、`core.hooksPath`/`fsmonitor`/clean-process filter 信任链 | 同上 |
+| `agent-config-analyzer` | 编码智能体、命令行智能体或 MCP 客户端；仓库含 `.mcp.json`、`.codex/config.toml`、`.env`、`AGENTS.md`；有 `approval_policy`、`allow_prefix`、`PrefixRule` | 项目级配置无确认生效、MCP `command`/`args` 任意执行、审批前缀绕过、`core.hooksPath`/`fsmonitor`/clean-process filter 信任链 | 同上 |
+| `audit-coverage-planner` | 所有审计项目；项目画像完成后 | 入口、危险操作、信任边界、权限和配置条件；覆盖记录、假设和下一批任务 | `security-orchestrator` 通过原生 `Skill` 加载；计划由编排器写入任务文件 |
+| `audit-hypothesis-tracer` | 覆盖记录中需要补调用链、可达性、防护或影响证据的条目 | 输入来源 → 处理过程 → 危险操作 → 防护条件 → 影响；更新覆盖状态和历史 | `audit-skill-worker` 或 `infra-analyst` 按条目加载原生 `Skill` |
+| `audit-review-planner` | 首轮分析后、出现新条件或安排独立复查时 | 选择旧区域、记录复审原因、预算内随机复查、保留历史尝试 | `security-orchestrator` 通过原生 `Skill` 加载 |
 
 两个 skill 的 `quick-scan.py` 只依赖 Python 标准库，不依赖 tree-sitter，可直接在宿主机或容器内运行：
 

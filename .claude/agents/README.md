@@ -16,8 +16,8 @@
 
 | 代理 | 职责 | 主要输入 | 主要输出 |
 |---|---|---|---|
-| `security-orchestrator` | 判断项目类型，按 Web 或智能体基础设施路径分派扫描、验证和报告任务 | 代码仓库、可选扫描器范围 | `.workspace/tasks/security-orchestrator-tasks.json`、审计报告 |
-| `skill-runner` | 加载并执行一个指定技能，返回后续任务推荐 | `TASK_ID`、工作区文件、技能名 | `.workspace/tasks/<TASK_ID>/`、`summary.md`、任务 JSON |
+| `security-orchestrator` | 判断项目类型，按 Web 或智能体基础设施路径分派扫描、验证和报告任务；项目画像后先做覆盖与假设规划，再安排有理由的复审 | 代码仓库、可选扫描器范围 | `.workspace/tasks/security-orchestrator-tasks.json`、覆盖与假设记录、审计报告 |
+| `skill-runner` | 兼容入口：按旧任务格式加载并执行一个指定技能，返回后续任务推荐；安全审计默认技能加载已改用原生 Skill 工具 | `TASK_ID`、工作区文件、技能名 | `.workspace/tasks/<TASK_ID>/`、`summary.md`、任务 JSON |
 | `report-generator` | 汇总上游结果，生成人工可读和机器可读报告 | 任务清单、候选问题与验证结果 | `.workspace/reports/audit-report.md|json` |
 
 ### 环境与验证
@@ -31,8 +31,9 @@
 
 | 代理 | 职责 | 主要输入 | 主要输出 |
 |---|---|---|---|
-| `infra-analyst` | 按信任边界阅读源码，产出带 `file:line` 的候选问题和待核实假设 | 项目画像、信任边界、知识卡 | `.workspace/findings/infra-<boundary>.json|md` |
-| `hypothesis-critic` | 合并、去重、挑战证据，校准可达性和严重度 | `infra-*.json`、知识卡、可选验证报告 | `.workspace/reports/findings.normalized.json`、审阅记录 |
+| `infra-analyst` | 使用原生 Grep、Glob 和 Skill 工具，按信任边界阅读源码，产出带 `file:line` 的候选问题和待核实假设 | 项目画像、信任边界、`recommended_skills`、覆盖记录、知识卡 | `.workspace/findings/infra-<boundary>.json|md`、覆盖记录更新 |
+| `audit-skill-worker` | 在第 2、3 波按推荐技能和覆盖缺口加载传统分析技能，产出带证据的候选问题和覆盖更新 | 技能名、信任边界或覆盖缺口、项目画像、知识卡 | `.workspace/findings/` 中的候选问题、覆盖记录更新 |
+| `hypothesis-critic` | 合并、去重、挑战证据，校准可达性和严重度 | `infra-*.json`、技能分析结果、知识卡、可选验证报告 | `.workspace/reports/findings.normalized.json`、审阅记录 |
 
 ### 红队与裁判
 
@@ -47,6 +48,7 @@
 |---|---|---|---|
 | `knowledge-scribe` | 把已验证经验写回知识库 | 归一化候选问题、验证报告、本次审计运行的元信息 | `knowledge/cases/`、项目知识卡、误报记录、CVE 卡片 |
 | `mining-repair-learner` | 组合验证经验、作用域、证据和项目知识等技能，生成挖掘修复 | 带证据的种子候选、红蓝经验、相关技能与知识 | `rsi/mining-repairs/agentic/*.md`，不直接发布 |
+| `stage-skill-learner` | 综合八阶段反馈并选择目标阶段；需要重写时提交 SkillOpt 请求 | 阶段反馈索引、覆盖记录、复审计划、验证与审核结果 | `rsi/stage-learning-run.json`、`rsi/skillopt-requests/*.json`，不直接发布 |
 | `attack-scene-director` | 把候选问题设计成攻击场景插图；插图不作为证据 | 报告 JSON、视觉模型、可选验证报告 | 场景设计 JSON、绘图提示词、image2 插图 |
 | `diff-auditor` | 审查单次提交的供应链风险；只读证据，不执行仓库代码 | 项目、提交哈希、仓库路径、静态报告 | `llm-audit.json` |
 
@@ -68,14 +70,15 @@ description: |
   一句话职责。
   Use when ...
 model: inherit
-tools: Read, Write, Edit, Bash
+tools: Read, Grep, Glob, Skill, Write
 ---
 ```
 
 - `name` 使用小写字母和连字符，必须与文件名一致。
 - `description` 写清职责和触发场景，避免空泛的“专家”描述。
 - `model` 默认 `inherit`；只有需要更强推理的编排 agent 固定 `opus`。
-- `tools` 使用当前工具名。只有真正启动子代理的 agent 才加入 `Agent`，例如 `security-orchestrator`。
+- `tools` 使用当前工具名。读取源码和检索优先使用原生 `Grep`、`Glob`，加载技能使用原生 `Skill`；只有真正启动子代理的 agent 才加入 `Agent`，例如 `security-orchestrator`。
+- `skill-runner` 仅保留为兼容入口，不再作为安全审计的默认技能加载器；安全审计由原生 `Skill` 工具实际加载传统分析技能。
 - 不在 frontmatter 里写 `Task`；它只是旧别名。
 - 任务管理命令统一由 `.claude/skills/task-manage/SKILL.md` 提供，不要在多个 agent 里重复维护完整命令表。
 

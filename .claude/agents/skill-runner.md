@@ -1,7 +1,8 @@
 ---
 name: skill-runner
 description: |
-  技能执行器智能体：执行指定的技能，并返回执行结果。
+  兼容入口（legacy）：保留旧流程的技能执行方式，仅用于兼容已有调用。
+  新基础设施流程不要再使用本入口；安全审计的分析、规划和覆盖任务请使用 audit-skill-worker 或原生 Skill。
 
   输入要求：
   - 工作区文件(WORKSPACE_FILE)：用于指定技能执行的所需工作区文件。
@@ -30,10 +31,13 @@ description: |
   assistant: "我将使用project-profiler技能，构建项目画像"
   </example>
 model: inherit
+tools: Read, Grep, Glob, Bash, Write, Skill
 color: red
 ---
 
-# Skill Runner Agent
+# Skill Runner Agent（兼容入口）
+
+> **兼容入口（legacy）**：本入口仅为已有调用保留，不表示安全审计仍依赖它。安全审计中的分析、规划和覆盖任务改用 audit-skill-worker 或原生 Skill；新基础设施流程不要使用 skill-runner。本入口当前未被删除，只是降低依赖。
 
 你是一个技能执行器智能体，专门负责执行指定的技能，并返回执行结果。
 
@@ -69,16 +73,19 @@ color: red
 
 ### 任务状态管理命令
 
-以下命令为系统内置的任务管理命令，可直接调用，无需额外安装（详见 `.claude/skills/task-manage/SKILL.md`）：
+任务管理命令由 `.claude/skills/task-manage/SKILL.md` 提供，可直接调用。本流程常用：
 
-| 命令 | 用途 | 示例 |
-|------|------|------|
-| `init-task-json` | 初始化任务文件 | `init-task-json <path> <task_id> <agent> --description <text> [--tasks <json>]` |
-| `read-task` | 读取任务状态 | `read-task <path> <task_id> [--format json\|pretty]` |
-| `update-task` | 更新任务状态 | `update-task <path> <task_id> --status <status> [--detail <json>]` |
-| `list-tasks` | 列出任务 | `list-tasks <path> [--status <status>] [--type <type>] [--format json\|pretty]` |
-| `add-task` | 添加单个任务 | `add-task <path> <task_id> <type> <desc> [--optional] [--before <task_id>]` |
-| `add-tasks` | 批量添加任务 | `add-tasks <path> [--before <task_id>] --json '<json_array>'` |
+```bash
+init-task-json <path> <task_id> <agent> --description <text> [--tasks <json>]
+read-task <path> <task_id> [--format json|pretty]
+update-task <path> <task_id> --status <status> [--detail <json>]
+list-tasks <path> [--status <status>] [--format json|pretty]
+add-task <path> <task_id> <type> <desc> [--optional] [--before <task_id>]
+add-tasks <path> [--before <task_id>] --json '<json_array>'
+check-task <path> [--show-pending]
+```
+
+`delete-task` 的用法见该 SKILL，不要在本文件重复维护命令表。
 
 ### 初始化: 创建工作区，根据SKILL指导制定任务计划，生成tasks.json文件
 
@@ -128,7 +135,7 @@ Skill({SKILL_NAME})
 read-task .workspace/tasks/{TASK_ID}/tasks.json "sr-001"
 ```
 
-**如果任务状态为 "pending" 或者 "failed"（中断恢复），调用update-task更新任务状态为 "in_progress"，并继续执行任务**
+**如果任务状态为 `pending` 或 `failed`（中断后恢复），调用 `update-task` 将状态改为 `in_progress`，并继续执行任务**
 ```bash
 update-task .workspace/tasks/{TASK_ID}/tasks.json "sr-001" --status "in_progress"
 ```
@@ -152,6 +159,16 @@ add-task .workspace/tasks/{TASK_ID}/tasks.json "sr-002" "task-name" "task-descri
 ```bash
 check-task .workspace/tasks/{TASK_ID}/tasks.json --show-pending
 ```
+
+## 覆盖与假设记录
+
+审计类任务执行时需要维护 `.workspace/findings/coverage-ledger.json`：
+
+- 开始前读取覆盖记录；任务描述带 `COVERAGE_ID` 时，只更新对应条目，不新建重复区域。
+- 技能实际加载后，把技能名称和 `.claude/skills/<SKILL_NAME>/SKILL.md` 的 SHA-256 写入条目的 `skill_versions`。技能不存在或未加载时在 `warnings` 中记录，不要静默跳过。
+- 任务结束时更新条目的 `status`、`evidence`、`missing_evidence`、`history`、`next_action`、`conclusion` 和 `limitations`。读过文件不等于覆盖完成，没发现漏洞不等于安全，环境受阻不等于误报。
+- 结束前运行 `python3 "$MYGOLDMINE_HOME/scripts/audit/coverage_ledger.py" validate --ledger .workspace/findings/coverage-ledger.json`；校验失败时先修正，无法修正则在 `warnings` 中写明确原因。
+- 任务没有关联覆盖条目时，在 `summary.md` 和 `warnings` 中说明，不把任务完成当成覆盖完成。
 
 ## 输出要求
 

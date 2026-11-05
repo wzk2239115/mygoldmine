@@ -128,6 +128,69 @@ async function main() {
     assert.deepEqual(await cdp.evaluate("[...document.querySelectorAll('.agentic-pipeline .agentic-node > strong')].map((node) => node.innerText)"), [
       '环境构建', '安全审计编排', '攻击场景设计', '蓝队验证', '红队场景构建', '红队执行', '独立审核', '经验学习'
     ]);
+    await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"redteam-agent\"]').click()");
+    await sleep(250);
+    assert.match(await cdp.evaluate("document.querySelector('.agentic-trace-drawer').innerText"), /红队执行 · 队员/);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"), 0);
+    const executionTasks = pipeline.nodes.find(node=>node.id==='redteam-agent').execution?.tasks || [];
+    assert.equal(await cdp.evaluate("document.querySelectorAll('[aria-label=\"红队执行队员\"] .verify-task').length"), executionTasks.length);
+    if(executionTasks.length) {
+      await cdp.evaluate("document.querySelector('[aria-label=\"红队执行队员\"] .verify-task button').click()");
+      await sleep(300);
+      assert.ok((await cdp.evaluate("document.querySelector('.agentic-current-task').innerText")).includes(executionTasks[0].id));
+      const ownTrace = pipeline.nodes.find(node=>node.id==='redteam-agent').traces.find(trace=>trace.id===executionTasks[0].traceId);
+      if(ownTrace && ['claude','execution'].includes(ownTrace.kind)) {
+        for(let i=0;i<40;i++) {
+          if(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"))break;
+          await sleep(250);
+        }
+        assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"),1);
+        assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-text-trace').length"),0);
+      }
+      await cdp.evaluate("document.querySelector('.member-back').click()");
+      assert.equal(await cdp.evaluate("document.querySelectorAll('[aria-label=\"红队执行队员\"] .verify-task').length"), executionTasks.length);
+    }
+    console.log('红队执行队员列表、个人轨迹入口和返回列表检查通过');
+    await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
+    await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"visual\"]').click()");
+    await sleep(200);
+    assert.match(await cdp.evaluate("document.querySelector('.agentic-trace-drawer').innerText"), /攻击场景设计 · 队员/);
+    const sceneTasks = pipeline.nodes.find(node=>node.id==='visual').scenes?.tasks || [];
+    assert.equal(await cdp.evaluate("document.querySelectorAll('[aria-label=\"攻击场景设计队员\"] .verify-task').length"),sceneTasks.length);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"),0);
+    if(sceneTasks.length) {
+      await cdp.evaluate("document.querySelector('[aria-label=\"攻击场景设计队员\"] .verify-task button').click()");
+      await sleep(200);
+      assert.ok((await cdp.evaluate("document.querySelector('.agentic-current-task').innerText")).includes(sceneTasks[0].id));
+      await cdp.evaluate("document.querySelector('.member-back').click()");
+    }
+    console.log('场景设计队员列表、个人会话入口和返回列表检查通过');
+    await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
+    await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"judge\"]').click()");
+    await sleep(200);
+    assert.match(await cdp.evaluate("document.querySelector('.agentic-trace-drawer').innerText"), /独立审核 · 队员/);
+    const reviewTasks = pipeline.nodes.find(node=>node.id==='judge').review?.tasks || [];
+    assert.equal(await cdp.evaluate("document.querySelectorAll('[aria-label=\"独立审核队员\"] .verify-task').length"),reviewTasks.length);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"),0);
+    if(reviewTasks.length) {
+      await cdp.evaluate("document.querySelector('[aria-label=\"独立审核队员\"] .verify-task button').click()");
+      await sleep(200);
+      assert.ok((await cdp.evaluate("document.querySelector('.agentic-current-task').innerText")).includes(reviewTasks[0].id));
+      if(!reviewTasks[0].traceId)assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"),0);
+      await cdp.evaluate("document.querySelector('.member-back').click()");
+    }
+    console.log('独立审核队员列表、个人会话入口和返回列表检查通过');
+    await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
+    await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"orchestrator\"]').click()");
+    await sleep(200);
+    const triageInfo = pipeline.nodes.find(node=>node.id==='orchestrator').triage;
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.jev-panel').length"),triageInfo?1:0);
+    if(triageInfo) {
+      assert.equal(await cdp.evaluate("document.querySelector('.jev-panel').open"),false);
+      await cdp.evaluate("document.querySelector('.jev-panel summary').click()");
+      assert.match(await cdp.evaluate("document.querySelector('.jev-panel').innerText"),/不是漏洞概率/);
+    }
+    await cdp.evaluate("document.querySelector('.agentic-trace-drawer button[aria-label=\"关闭轨迹\"]').click()");
     await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"learner\"]').click()");
     for (let i = 0; i < 40; i += 1) {
       if (await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length")) break;
@@ -137,6 +200,7 @@ async function main() {
     assert.match(await cdp.evaluate("document.querySelector('.agentic-trace-drawer').innerText"), /经验学习 · 执行轨迹/);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"), 1);
     assert.match(await cdp.evaluate("document.querySelector('.agentic-trace-drawer .ccui-frame').getAttribute('src')"), /\/ccui\/session\//);
+    assert.equal(pipeline.nodes.find(node=>node.id==='learner').retrySupported,true);
     const learnerSession = await fetch(`${BASE}/api/runs/${pipelineTarget.id}/${pipelineTarget.latestRunId}/ccui?node=learner`).then((response) => response.json());
     assert.equal(learnerSession.available, true);
     assert.equal(learnerSession.traceKind, 'claude');
@@ -226,6 +290,7 @@ async function main() {
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"系统架构\"]').click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '系统架构');
+    assert.match(await cdp.evaluate("document.body.innerText"), /红队执行提供队员列表/);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card').length"), 5);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-stage, .arch-component').length"), 0);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-overview img').length"), 6);
@@ -276,6 +341,15 @@ async function main() {
             assert.match(detailText, /flags/);
             assert.match(detailText, /认证边界、子进程执行或危险反序列化/);
             assert.match(detailText, /只用于安排检查/);
+            assert.match(detailText, /读过文件不等同于覆盖完成/);
+            assert.match(detailText, /假设追踪/);
+            assert.match(detailText, /复审只在源码、调用方、视角、假设、技能版本或验证条件变化时创建新尝试/);
+            assert.match(detailText, /原生检索和技能加载工具（Grep、Glob、Skill）/);
+            assert.match(detailText, /第 1 波固定启动 6 个 infra-analyst/);
+            assert.match(detailText, /第 2、3 波最多各启动 6 个 audit-skill-worker/);
+            assert.match(detailText, /最多执行 3 波、共 18 个分析任务/);
+            assert.match(detailText, /不用任务数量推算召回率/);
+            assert.match(detailText, /skill-runner 只作为兼容入口/);
           }
           if (zoneIndex === 0 && index === 3) {
             assert.equal(await cdp.evaluate("document.querySelector('#arch-detail-title').innerText"), '持续更新报告与完整性检查');
@@ -312,8 +386,8 @@ async function main() {
             assert.equal(await cdp.evaluate("document.querySelector('#arch-detail-title').innerText"), expectedTitle);
             assert.match(detailText, /只能在攻击容器中执行命令/);
             assert.match(detailText, /不能读取宿主机文件、直接读取随机标记文件或操作 Docker/);
-            assert.match(detailText, /目前只执行 HTTP 服务场景/);
-            assert.match(detailText, /暂不执行/);
+            assert.match(detailText, /执行器支持 HTTP、固定命令行和进程内库调用三种原语/);
+            assert.match(detailText, /结构化 blocked\.json/);
           }
           await cdp.evaluate("document.querySelector('.arch-detail-back').click()");
           await sleep(100);
@@ -346,9 +420,9 @@ async function main() {
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-step > svg').length"), 4);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-loop-links span').length"), 2);
     assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-loop-links').innerText"), /发布后的新结果/);
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-node').length"), 2);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-node').length"), 3);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-track > svg').length"), 2);
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-node > svg').length"), 1);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-rsi-branch-node > svg').length"), 2);
 
     for (let index = 0; index < 6; index += 1) {
       await cdp.evaluate(`document.querySelectorAll('.arch-rsi-loop .arch-stage')[${index}].click()`);

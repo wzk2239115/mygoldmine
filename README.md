@@ -19,6 +19,7 @@
 - Python ≥ 3.9
 - `tree-sitter`、`tree-sitter-language-pack`、`jq`、`git`、`bash`
 - 一键检查：`bash ./check-dependencies.sh`（缺失项会给出安装提示）
+- 第 08 阶段技能优化：本地固定检出 `third_party/SkillOpt`（0.2.0，提交 `01e41dbc`，MIT，要求 Python ≥3.10），核心依赖 `openai`、`pyyaml`；不启用 SkillOpt-Sleep、WebUI、插件或自动采用。
 
 ## 安装
 
@@ -117,6 +118,7 @@ bash scripts/workflow/flow_worker.sh start
 
 - 六个阶段：未处理候选 / 分诊 / 待验证 / CVE 跟踪 / 待验收 / 已关闭。
 - 审计运行：首页“正式执行链”固定展示环境构建、安全审计编排、攻击场景设计、蓝队验证、红队场景构建、红队执行、独立审核和经验学习八个节点，分别读取最新一次运行的真实产物，区分已完成、降级、受阻、失败、运行中、未开始和已跳过；项目筛选可切换查看对象。点击任一节点可查看对应的只读执行轨迹，多次调用可按轮次、候选或红队运行选择；原生 Claude 流式日志复用第三方 Claude Code 会话界面，旧文本日志和红队独立模型循环分别展示文本与结构化轨迹，不混为 Claude 会话。正在执行的一次审计运行（run）会在看板顶部显示实时状态条，打开后也可查看同一执行链，或切换到 CCUI 对话和“智能体拓扑”查看内部并行分派关系。运行视图不会自动重新加载嵌入页面；有新轨迹时只显示“有新内容 · 更新”按钮，避免阅读位置被刷新打断。
+- 阶段技能学习：第 08 阶段读取八阶段反馈、覆盖记录、复审计划和验证结果，先归因再选择目标；需要重写时由宿主机调用本地 SkillOpt 核心重写入口生成候选，再由现有评估、发布和回退入口决定是否生效。未配置可信评估套件时只保留候选，不宣称能力已经提高。
 - 卡片：严重度、源码级成立/误报/重复（TP/FP/DUP）、CVE 分级和证据数；点击卡片或使用键盘打开详情，在详情中修改状态与判定。
 - 详情：摘要、证据和智能体输出；可查看原始报告、证据路径和 `claude.rendered.log` 尾部。
 - 筛选：目标、严重度、判定、仅显示 CVE 候选和关键词搜索；默认展示全部候选问题（finding），不再分精选、CVE 和全部三档。
@@ -284,6 +286,10 @@ STEP 4: 报告生成 (report-generator)
 │   └── security-orchestrator-tasks.json  # 任务清单
 ├── results/                               # 扫描结果
 ├── findings/                              # 漏洞发现
+│   ├── coverage-ledger.json               # 覆盖与假设记录
+│   ├── coverage-plan.json / .md           # 下一批检查任务
+│   ├── review-plan.json / .md             # 有理由的复审计划
+│   └── hypotheses/                        # 单条假设的证据与缺口
 └── reports/
     ├── audit-report.md                    # 可读报告
     └── audit-report.json                  # 机器可读报告
@@ -314,6 +320,9 @@ STEP 4: 报告生成 (report-generator)
 | sensitive-info-scanner | 硬编码敏感信息、泄露函数探测 | 代码目录 | sensitive.md / sensitive.json | Go、Node、Python、Java 等；支持 Go env/os.Getenv | 业务语义确认需人工 |
 | workspace-scanner | 目录与子工程识别 | 工作区 | 结构化清单 | 通用 | 风险判定需下游 |
 | project-profiler | 技术栈画像、推荐扫描器 | 子工程 | 画像结果 | 通用 | 风险判定需下游 |
+| audit-coverage-planner | 识别入口、危险操作、信任边界、权限和配置条件，规划下一批检查 | 项目画像、知识卡、Jev 初筛 | 覆盖记录、假设清单、覆盖计划 | 通用 | 不执行扫描，不声称全仓库覆盖率 |
+| audit-hypothesis-tracer | 围绕单一假设补齐调用链、可达性、防护和影响证据 | 覆盖条目、源码、知识卡 | 更新后的覆盖记录、假设文件 | 通用 | 不把静态命中当漏洞 |
+| audit-review-planner | 按新条件或预算内随机复查安排旧区域复审 | 覆盖记录、历史尝试、技能版本 | 复审计划、复审任务 | 通用 | 不把重复报告算新增收益 |
 | **blockchain-goldmine-analyzer** | **合约编程语言识别、应用场景推断、审计建议生成** | **合约项目** | **audit-profile.md** | **Solidity、Rust、Move、Vyper、Go** | **不做深度审计，仅提供审计方向和清单** |
 
 ## 任务管理提示
@@ -452,7 +461,8 @@ GoldMine 不再把规则扫描器当结论，而是结合轻量索引、知识�
 ```text
 project-profiler --json（轻量画像）
   → knowledge/project-types/<type>.md + knowledge/projects/<project>.md
-  → infra-analyst × N（config / process-exec / mcp / sandbox / control-plane / filesystem 并行读代码）
+  → 第 1 波：infra-analyst × 6（config / process-exec / mcp / sandbox / control-plane / filesystem 并行读代码，使用原生 `Grep`、`Glob`、`Skill`）
+  → 第 2、3 波：audit-skill-worker × 最多各 6（按 recommended_skills 和覆盖缺口选择技能，由原生 Skill 加载传统分析技能）
   → hypothesis-critic（按 root cause/aliases 去重、跨边界链校准）
   → report-generator（canonical findings）
   → 宿主 run.sh：visual_report → verify-agent（Top Critical/High）
@@ -462,9 +472,12 @@ project-profiler --json（轻量画像）
   → 独立前后运行评估 → 发布规则 → 下一次挖掘加载
 ```
 
+安全审计编排最多执行 3 波、共 18 个分析任务；第 2、3 波只在覆盖记录仍有缺口时启动，没有新增缺口时停止。传统分析技能由原生 Skill 工具实际加载，`skill-runner` 只作为兼容入口保留，不再是安全审计的默认技能加载器。受阻或失败的分析任务保留原因并计入批次汇总，任务数量不代表已验证召回率，也不会自动发布候选或修复。
+
 新增智能体：
 
 - `.claude/agents/infra-analyst.md`
+- `.claude/agents/audit-skill-worker.md`
 - `.claude/agents/hypothesis-critic.md`
 - `.claude/agents/knowledge-scribe.md`
 - `.claude/agents/diff-auditor.md`（单次提交的供应链审查）
@@ -530,7 +543,7 @@ bash run.sh /path/to/source
 | 批量审计 | 在持久沙箱内使用 Claude Code 审计 | `<run>/claude.rendered.log`、`audit-report.md/json`、`<run>.meta/sandbox.json` |
 | 视觉报告 | `visual_report.sh` 生成图文报告与攻击场景图 | `<run>/visual-rendered/report-illustrated.md`、`scene-*.webp`、`visual-summary.json` |
 | 第 4 阶段 | `verify-agent` 为优先检查候选问题编写验证程序（harness），并由隔离的 `run_verify.sh` 执行 | `<run>/verify/agent/summary.md`、`<run>.meta/verify.log` |
-| 第 5 阶段 | 红队 `batch.py` 构建隔离环境、运行攻击端，再由独立 `judge.py` 审核 | `<run>/redteam/summary.md`、`<run>.meta/redteam.log` |
+| 第 5 阶段 | 红队 `batch.py` 构建隔离环境、按候选并行运行攻击端，再由独立 `judge.py` 审核 | `<run>/redteam/summary.md`、`<run>.meta/redteam.log` |
 | 第 6 阶段 | `Claude Code` 学习节点组合多个技能生成修复 `Markdown`，`mining-repair-drive` 在独立目录重跑挖掘与红蓝验证；接受项发布并由下一轮加载 | `<run>/rsi/learner.jsonl`、`driver.json`、`rsi/mining-repairs/agentic/` |
 
 批量审计后可以继续进入同一 `/workspace/repo` 调试和验证，不必重新搭环境：
@@ -633,7 +646,7 @@ bash scripts/redteam/phase5_redteam.sh \
 ```
 
 它复用 `batch.py` 构建隔离环境、运行攻击端并调用 `judge.py`；只有真实工具输出捕获随机标记
-且独立审核结论为 `approved`，才进入待人工验收队列。失败、`blocked` 或审核结论为 `rejected` 时都保留结构化状态。
+且独立审核结论为 `approved`，才进入待人工验收队列。场景构建器支持 HTTP 服务、固定命令行和进程内库调用三种执行原语，库调用和命令行场景由攻击者提供 `/input` 输入，受害端只执行场景固定入口。失败、`blocked` 或审核结论为 `rejected` 时都保留结构化状态，受阻交付使用 `blocked.json`。
 
 两个智能体定义在 `.claude/agents/environment-builder.md` 和 `.claude/agents/verify-agent.md`。
 
@@ -705,3 +718,7 @@ python3 scripts/mine/check_report.py --report runs/<project>/<run>/audit-report.
 MIT
 
 异常退出后的产物保留、超时与恢复未完成项目见 [批量审计异常恢复](docs/durable-recovery.md)。
+
+### 沙箱源码准备与复用
+
+沙箱创建操作按运行目录加锁，容器启动后同步复制源码，复制成功才写入工作副本就绪标记并返回。持久沙箱中的审计入口检查就绪标记后直接复用工作副本，不再清空或二次复制；停止后再次启动保留已有修改。复制失败不发布就绪状态，并停止新建容器。旧版或未准备完成的沙箱缺少标记时拒绝启动审计，需用新的运行目录重建，原工作副本保留。独立临时容器仍由入口准备源码，清理失败会直接报错。

@@ -1,46 +1,66 @@
-# Training Framework 审计知识卡
+# 训练框架（Training Framework）审计知识卡
 
 ## 适用项目
 
-verl、DeepSpeed、Megatron-LM、Ray RLlib、FSDP/GRPO/PPO 训练框架。
+verl、DeepSpeed、Megatron-LM、Ray RLlib，以及 FSDP、GRPO、PPO 训练框架。
 
 ## 核心信任边界
 
-1. **模型输出执行**：`exec`/`eval` 模型生成代码、reward/grader、代码沙箱。
-2. **数据/配置**：dataset 路径、YAML/JSON 配置、Hydra、环境变量、HDFS/S3 路径。
-3. **Checkpoint**：`torch.load`、`pickle`、merge/split 脚本、resume。
-4. **分布式**：Ray、NCCL、ZeroMQ、worker/router、driver 信任。
-5. **训练服务**：reward loop 反向代理、worker HTTP、OpenAI-compatible 端点。
-6. **依赖/脚本**：`requirements*.txt` 未固定版本、`curl | sh`、shell 脚本、CI。
+1. **模型输出执行**：通过 `exec` 或 `eval` 执行模型生成代码、奖励评分和代码沙箱。
+2. **数据与配置**：数据集路径、YAML 和 JSON 配置、Hydra、环境变量、HDFS 和 S3 路径。
+3. **检查点**：`torch.load`、`pickle`、合并与拆分脚本、恢复训练。
+4. **分布式执行**：Ray、NCCL、ZeroMQ、工作进程、路由进程和驱动进程信任。
+5. **训练服务**：奖励循环反向代理、工作进程 HTTP 服务和兼容 OpenAI 接口的端点。
+6. **依赖与脚本**：`requirements*.txt` 未固定版本、`curl | sh`、Shell 脚本和持续集成。
+
+## 传统安全风险交叉
+
+训练框架除了 `exec`、检查点反序列化和进程间通信，还要在存在对应入口时检查以下传统风险。只有找到入口、调用方或配置条件才安排技能任务，不因为项目类型命中就无条件加载。
+
+| 检查方向 | 技能 | 触发条件 | 证据重点 |
+|---|---|---|---|
+| HTTP 认证与绑定 | `web-auth-analyzer`、`unauth-route-scanner` | 奖励循环反向代理、工作进程 HTTP、兼容 OpenAI 接口的端点、监控或管理接口 | 绑定地址、认证中间件、`api_key` 默认值、未认证可达路径 |
+| 路径穿越与数据集/检查点路径 | `path-traversal-analyzer` | 数据集、模型、检查点或日志路径来自配置、请求、HDFS 或 S3 | 路径拼接、规范化、根目录约束、符号链接处理 |
+| 敏感信息与令牌 | `sensitive-info-scanner` | 配置模板、启动脚本、日志、环境变量或接口响应 | 明文令牌、`api_key`、凭据、内网地址、日志泄露 |
+| 依赖与供应链 | `dependency-analyzer` | `requirements*.txt`、锁文件、安装脚本或持续集成配置 | 未固定版本、远程脚本直接执行、构建脚本、来源校验 |
+| 竞态与异步队列 | `race-conditions-analyzer` | 异步工作进程、队列、共享检查点目录或并发奖励评分 | 锁粒度、共享状态、任务重试、检查点写入顺序 |
+| 命令注入与启动脚本 | `command-injection-analyzer` | 训练命令、启动脚本、HDFS/S3 命令、`subprocess` 或 `os.system` | 用户或配置可控参数、shell 模式、参数拼接 |
+
+## 多波次安排
+
+- 第一波由基础设施分析智能体（`infra-analyst`）按信任边界深挖 `exec`、检查点、进程间通信、模型加载和沙箱边界。
+- 后续波次读取项目画像的推荐技能（`recommended_skills`）和覆盖缺口，再选择上表中的传统技能。每波最多 6 个任务，总波次最多 3 波，本次审计运行的分析任务总数最多 18 个。
+- 同一“区域 + 视角 + 假设 + 技能版本”只安排一次；重复项记录原因后跳过。
+- 这些是覆盖规划的执行规则；当前只描述已识别范围和限制，不声称全仓库覆盖或真实召回率。
 
 ## 高价值问题
 
-- 模型生成代码/答案是否进入 `exec`/`eval`，默认是否有沙箱？
-- `load_module`/`exec_module`/`load_class_from_fqn` 是否接受任意路径/类名？
-- checkpoint/模型合并是否 `torch.load(weights_only=False)` 或 `pickle.load`？
-- reward router / worker 是否绑定可路由 IP 且无 api_key？
-- Ray/NCCL/ZMQ 消息是否来自不可信节点？是否有认证/序列化校验？
-- dataset/model 路径是否可穿越到受信根之外？HDFS/S3 命令是否拼接用户输入？
-- 训练脚本/文档是否引导 `curl | sh` 或未固定版本依赖？
+- 模型生成的代码或答案是否进入 `exec` 或 `eval`，默认是否有沙箱？
+- `load_module`、`exec_module`、`load_class_from_fqn` 是否接受任意路径或类名？
+- 检查点或模型合并是否调用 `torch.load(weights_only=False)` 或 `pickle.load`？
+- 奖励路由进程或工作进程是否绑定可路由 IP 且没有 `api_key`？
+- Ray、NCCL、ZMQ 消息是否来自不可信节点？是否有认证和序列化校验？
+- 数据集或模型路径是否可穿越到受信根之外？HDFS 和 S3 命令是否拼接用户输入？
+- 训练脚本或文档是否引导执行 `curl | sh` 或安装未固定版本依赖？
 
 ## 常见 CWE
 
-CWE-95（eval 注入）、CWE-78、CWE-502、CWE-306、CWE-22、CWE-400、CWE-362、CWE-829。
+CWE-95（`eval` 注入）、CWE-78、CWE-502、CWE-306、CWE-22、CWE-400、CWE-362、CWE-829。
 
 ## 误报排除
 
-- `exec`/`eval` 只在明确的可信本地脚本中使用，且不接收模型/用户输入 → 不报。
-- `torch.load(weights_only=True)` + 受信 checkpoint → 不报 RCE。
-- 训练集群完全受信、无跨租户边界 → 需说明威胁模型，降级。
-- 供应链卫生问题（未 pin 版本）不要和 RCE 同级；通常 Medium/Low。
+- `exec` 和 `eval` 只在明确的可信本地脚本中使用，且不接收模型或用户输入：不报。
+- `torch.load(weights_only=True)` 且检查点受信：不报远程代码执行。
+- 训练集群完全受信且无跨租户边界：需说明威胁模型并降级。
+- 未固定版本等供应链卫生问题不要和远程代码执行同级；通常为中危或低危。
 
 ## 验证配方
 
-- 用环境镜像运行最小 Python 导入/单测，确认 sink 可达。
-- 对 exec/eval 只用 benign marker，不执行外部载荷。
-- 对 reward router/worker 起本地服务，`curl 127.0.0.1` 检查认证。
-- 对路径问题只验证 realpath 边界，不读写宿主敏感文件。
+- 用环境镜像运行最小 Python 导入或单元测试，确认危险数据终点可达。
+- 对 `exec` 和 `eval` 只生成无害标记，不执行外部载荷。
+- 对奖励路由进程或工作进程启动本地服务，`curl 127.0.0.1` 检查认证。
+- 对路径问题只验证真实路径边界，不读写宿主机敏感文件。
 
 ## 输出要求
 
-必须区分“训练节点内部信任”与“跨租户/网络可达”。默认配置、需要哪些启动参数、是否只在特定 dataset/reward 模式下触发，都要写清。
+必须区分“训练节点内部信任”与“跨租户或网络可达”。默认配置、需要哪些启动参数、是否只在特定数据集或奖励模式下触发，都要写清。
