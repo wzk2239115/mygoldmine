@@ -283,3 +283,44 @@ def test_import_records_source_version_for_clock_independent_cache(tmp_path: Pat
     assert sidecar["sourceFile"] == str(raw.resolve())
     assert sidecar["sourceSize"] == before.st_size
     assert sidecar["sourceMtimeNs"] == str(before.st_mtime_ns)
+
+
+def test_redteam_execution_converts_only_recorded_tools(tmp_path):
+    run = _run(tmp_path)
+    raw = run / "agent.jsonl"
+    events = [
+        {"step": 1, "role": "assistant", "content": json.dumps({"thought": "检查入口", "action": "shell", "command": "echo planned"})},
+        {"step": 1, "role": "tool", "command": "echo actual", "output": "actual", "returncode": 0},
+    ]
+    raw.write_text("".join(json.dumps(event) + "\n" for event in events))
+    first = ccui.convert_run(run, tmp_path / "home", "demo", raw_path=raw)
+    assert first
+    rows = [json.loads(line) for line in first[1].read_text().splitlines()]
+    blocks = [block for row in rows for block in row.get("message", {}).get("content", []) if isinstance(block, dict)]
+    tools = [block for block in blocks if block.get("type") == "tool_use"]
+    assert len(tools) == 1
+    assert tools[0]["input"]["command"] == "echo actual"
+    result = next(block for block in blocks if block.get("type") == "tool_result")
+    assert result["tool_use_id"] == tools[0]["id"]
+    assert result["content"] == "actual"
+    events.append({"step": 2, "role": "assistant", "content": "继续检查"})
+    raw.write_text("".join(json.dumps(event) + "\n" for event in events))
+    second = ccui.convert_run(run, tmp_path / "home", "demo", raw_path=raw)
+    assert second[0] == first[0]
+
+
+def test_redteam_execution_shows_only_the_executed_plan(tmp_path):
+    run = _run(tmp_path)
+    raw = run / "agent.jsonl"
+    first = json.dumps({"thought": "第一步", "action": "shell", "command": "echo first"}, ensure_ascii=False)
+    second = json.dumps({"thought": "第二步", "action": "shell", "command": "echo second"}, ensure_ascii=False)
+    events = [
+        {"step": 1, "role": "assistant", "content": first + "\n" + second},
+        {"step": 1, "role": "tool", "command": "echo first", "output": "first", "returncode": 0},
+    ]
+    raw.write_text("".join(json.dumps(event, ensure_ascii=False) + "\n" for event in events))
+    converted = ccui.execution_events(events)
+    text = converted[0]["message"]["content"][0]["text"]
+    assert "echo first" in text
+    assert "echo second" not in text
+    assert "另有 1 个计划动作未执行" in text

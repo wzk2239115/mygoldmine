@@ -31,4 +31,12 @@ if [ "${REFINE_WORKER:-1}" = "1" ] && [ -x "$ROOT/scripts/workflow/refine_worker
   bash "$ROOT/scripts/workflow/refine_worker.sh" start || true
 fi
 
+if [ "${FLOW_WORKER:-0}" = "1" ] && [ -x "$ROOT/scripts/workflow/flow_worker.sh" ]; then
+  bash "$ROOT/scripts/workflow/flow_worker.sh" start || true
+fi
+
+if [ "${WATCH_WORKER:-1}" = "1" ] && [ -x "$ROOT/scripts/watch/daemon.sh" ]; then
+  bash "$ROOT/scripts/watch/daemon.sh" start || true
+fi
+
 exec node server/index.mjs "$@"

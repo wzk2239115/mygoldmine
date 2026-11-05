@@ -81,11 +81,52 @@ def head_sha(repo):
     return completed.stdout.strip()
 
 
+def resolve_head(repo):
+    """Return ``(ref, sha)`` for the newest commit known to the watcher.
+
+    ``git fetch`` only advances remote-tracking refs such as ``origin/main``;
+    it never moves the local branch ``HEAD``. Watching the local ``HEAD`` would
+    therefore report "no change" forever. Prefer the configured upstream of the
+    current branch, then common remote refs, and fall back to local ``HEAD``.
+    """
+    completed = git(repo, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"])
+    candidates = []
+    if completed.returncode == 0 and completed.stdout.strip():
+        candidates.append(completed.stdout.strip())
+    candidates += ["origin/HEAD", "origin/main", "origin/master"]
+    for ref in candidates:
+        verified = git(repo, ["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"])
+        if verified.returncode == 0 and verified.stdout.strip():
+            return ref, verified.stdout.strip()
+    return "HEAD", head_sha(repo)
+
+
+def commits_between(repo, base, head, since=""):
+    """List commits in ``base..head`` (or reachable from ``head`` if no base).
+
+    ``since`` filters by commit date, so startup catch-up can cover a bounded
+    window instead of replaying the whole history.
+    """
+    args = ["rev-list", "--reverse"]
+    if since:
+        args.append(f"--since={since}")
+    args.append(f"{base}..{head}" if base else head)
+    completed = git(repo, args)
+    if completed.returncode != 0:
+        raise RuntimeError(completed.stderr.strip() or "git rev-list failed")
+    return completed.stdout.split()
+
+
 def is_ancestor(repo, ancestor, descendant):
     if not ancestor:
         return True
     completed = git(repo, ["merge-base", "--is-ancestor", ancestor, descendant])
     return completed.returncode == 0
+
+
+def is_shallow(repo):
+    completed = git(repo, ["rev-parse", "--is-shallow-repository"])
+    return completed.returncode == 0 and completed.stdout.strip() == "true"
 
 
 def commit_meta(repo, sha):

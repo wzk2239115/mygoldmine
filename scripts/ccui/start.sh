@@ -28,8 +28,8 @@ while [ "$#" -gt 0 ]; do
   --port PORT       CloudCLI 端口（默认 3001 或 CCUI_PORT）
   --host HOST       绑定地址（默认 127.0.0.1 或 CCUI_HOST）
   --home DIR        合成 HOME（默认 runs/ccui-home）
-  --no-import       不重新导入 mygoldmine runs
-  --include-smoke   也导入 smoke* 测试 run
+  --no-import       不重新导入 mygoldmine 的审计运行记录
+  --include-smoke   也导入 smoke* 测试运行记录
   --rebuild         强制重建 CloudCLI 前后端
   --no-platform     关闭平台模式（回到常规注册/登录流程）
   -h, --help        显示帮助

@@ -120,6 +120,80 @@ def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
     temp.replace(path)
 
 
+def _action_objects(content: str) -> list[dict[str, Any]]:
+    decoder = json.JSONDecoder()
+    remaining = content.strip()
+    actions: list[dict[str, Any]] = []
+    while remaining:
+        try:
+            value, end = decoder.raw_decode(remaining)
+        except ValueError:
+            break
+        if not isinstance(value, dict):
+            break
+        actions.append(value)
+        remaining = remaining[end:].strip()
+    return actions
+
+
+def execution_events(events):
+    """Adapt recorded model-loop messages without turning proposals into tool calls."""
+    converted = []
+    for index, event in enumerate(events):
+        if event.get("type"):
+            converted.append(event)
+            continue
+        if event.get("role") == "assistant":
+            content = str(event.get("content") or "")
+            actions = _action_objects(content)
+            parts = []
+            if actions:
+                action = actions[0]
+                if action.get("thought"):
+                    parts.append(str(action["thought"]))
+                if action.get("action"):
+                    proposal = action.get("command") or action.get("answer") or action["action"]
+                    parts.append("计划动作（是否执行以工具记录为准）：\n" + str(proposal))
+                if len(actions) > 1:
+                    parts.append(f"本轮另有 {len(actions) - 1} 个计划动作未执行，已忽略。")
+            else:
+                parts.append(content)
+            converted.append({
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "\n\n".join(parts)}],
+                },
+            })
+        elif event.get("role") == "tool":
+            tool_id = f"redteam-tool-{index}"
+            converted.append({
+                "type": "assistant",
+                "message": {
+                    "role": "assistant",
+                    "content": [{
+                        "type": "tool_use",
+                        "id": tool_id,
+                        "name": "Bash",
+                        "input": {"command": str(event.get("command") or "")},
+                    }],
+                },
+            })
+            converted.append({
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [{
+                        "type": "tool_result",
+                        "tool_use_id": tool_id,
+                        "content": str(event.get("output") or ""),
+                        "is_error": event.get("returncode", 0) != 0,
+                    }],
+                },
+            })
+    return converted
+
+
 def convert_run(
     run_dir: Path,
     home: Path,
@@ -151,6 +225,17 @@ def convert_run(
     if not events:
         return None
 
+    is_execution = any(
+        event.get("role") in {"assistant", "tool"} and not event.get("type")
+        for event in events
+    )
+    events = execution_events(events)
+    if is_execution:
+        events.insert(0, {
+            "type": "system",
+            "subtype": "init",
+            "session_id": str(uuid.uuid5(uuid.NAMESPACE_URL, str(raw_path.resolve()))),
+        })
     session_id = _session_id(events)
     cwd = _project_cwd(run_dir, project)
     started_raw = str(meta.get("started_at") or "")
@@ -175,7 +260,15 @@ def convert_run(
     rows: list[dict[str, Any]] = [
         {
             "type": "user",
-            "message": {"role": "user", "content": _header_text(meta, run_dir.name, project)},
+            "message": {
+                "role": "user",
+                "content": (
+                    "红队执行记录：以下为结构化模型循环的会话展示，计划动作不代表已执行；"
+                    "实际执行以工具调用和返回结果为准。"
+                    if is_execution
+                    else _header_text(meta, run_dir.name, project)
+                ),
+            },
             "uuid": header_uuid,
             "parentUuid": None,
             "sessionId": session_id,
