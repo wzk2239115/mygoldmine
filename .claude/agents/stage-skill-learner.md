@@ -16,14 +16,9 @@ tools: Read, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__prop
 
 ## 输出约定
 
-- 日常小改动可调用 `propose_skill_update`，提交 `target_stage`、`scope`、`content`、`evidence` 和 `provenance`。`provenance` 至少写明来源阶段、目标阶段、运行编号、源码版本、原技能版本、问题归因、适用范围、预期改善和可能退化。
-- 对选定目标默认调用 `request_skillopt_optimization`，由 SkillOpt 重写后生成完整候选；只有明确只需一条短规则、不需要重写时才用 `propose_skill_update`。请求提交：
-  - `target_stage`、`scope`、`problem`；
-  - 1—4 条 `suggestions`，每条写明动作类型、标题和具体修改；
-  - 1—5 份本次输出目录内的证据；
-  - `source_stages`、`expected_improvement`、`possible_regression` 和可选适用条件。
-- 每轮最多两个 SkillOpt 请求；每个请求只对应一个目标阶段。不要直接写正式技能，不要调用评估或发布入口。目标阶段真实执行文档缺失时记录基线缺口，不从空标题生成规则集。
-- 请求入队不等于候选已生成；候选生成后仍需宿主机调用现有评估入口。不要声称已经通过、发布或提高准确率。
+默认通过 propose_skill_update 直接提出少量 Markdown 补充，先区分方法缺口、项目知识、程序故障和证据不足。已有正确要求不重复添加，不以提示词冒充代码修复。
+
+阶段二方法候选的 provenance.change_kind 填 method，记录原文缺口、证据、适用范围、预期改变及可能退化。宿主机安排项目限定试用；智能体不自行修改稳定规则。SkillOpt 仅在 RSI_SKILLOPT_ENABLED=1 时可选调用。缺少真实文档时报告基线缺口，不从空标题生成技能。
 
 ## 证据与边界
 

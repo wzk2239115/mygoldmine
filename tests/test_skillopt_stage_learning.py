@@ -192,6 +192,7 @@ def test_learning_is_skipped_inside_optimization_or_evaluation(tmp_path, monkeyp
 
 def test_learn_round_invokes_adapter_for_queued_request(tmp_path, monkeypatch):
     import learn_round
+    monkeypatch.setenv("RSI_SKILLOPT_ENABLED", "1")
 
     repo = tmp_path / "repo"
     run = repo / "runs/demo/one"

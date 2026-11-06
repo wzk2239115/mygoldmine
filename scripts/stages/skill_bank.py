@@ -106,6 +106,12 @@ class SkillBank:
             if any(str(context.get(k,''))!=str(v) for k,v in candidate['conditions'].items()):continue
             pins.append({'scope':scope,'id':cid,'key':key})
             parts.append(('通用阶段技能' if scope=='general' else f'{project} 仓库专属阶段技能')+f'（版本 {cid}）：\n'+candidate['content'])
+        from exploration import trial_text
+        trial=trial_text(self,stage,project,active)
+        if trial:
+            row=read(self.repo/'rsi/exploration'/project/'trial.json',{})
+            pins.append({'scope':'project_trial','id':row['candidate'],'key':'trial/orchestrator/'+project})
+            parts.append(trial)
         return {'stage':stage,'project':project,'versions':pins,'context':context,'text':'\n\n'.join(parts)}
     def feedback(self,run_dir,project):
         run=Path(run_dir).resolve();identifier(project)

@@ -40,6 +40,8 @@ if command -v ruff >/dev/null 2>&1; then
         scripts/mine/check_report.py \
         scripts/audit/check_orchestration.py \
         scripts/audit/read_coverage.py \
+        scripts/stages/exploration.py \
+        tests/test_exploration.py \
         scripts/workflow/delivery_contract.py \
         scripts/workflow/project_admission.py \
         tests/test_project_admission.py \

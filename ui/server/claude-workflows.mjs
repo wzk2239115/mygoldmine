@@ -276,7 +276,10 @@ export function createState({runDir,source,project,models,image='mygoldmine:dev'
   fs.mkdirSync(runDir,{recursive:true});
   const folder=path.join(runDir+'.meta','workflows',id);fs.mkdirSync(folder,{recursive:true});
   const file=path.join(folder,'state.json');
-  const baselineFile=path.join(folder,'stage-skills-baseline.json');write(baselineFile,read(path.join(repo,'rsi/stage-skills/active.json')) || {});
+  const baselineFile=path.join(folder,'stage-skills-baseline.json'),baseline=read(path.join(repo,'rsi/stage-skills/active.json')) || {};
+  const trial=read(path.join(repo,'rsi/exploration',project,'trial.json'));
+  if(trial?.candidate)baseline['trial/orchestrator/'+project]=trial.candidate;
+  write(baselineFile,baseline);
   models={audit:'360-proxy/deepseek/deepseek-v4.1-flash',...models};
   const state={id,baselineFile,engine:'claude-workflow',status:'running',repoRoot:repo,runDir,source,project,models,image,start,steps:stages.slice(stages.indexOf(start)),receipts:[],lock,initialJob,startedAt:new Date().toISOString()};
   write(path.join(lock,'workflow-owner.json'),{id,file});save(file,state);

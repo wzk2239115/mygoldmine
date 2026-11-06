@@ -158,7 +158,13 @@ docker_cmd() {
     c+=(-e "WORK_DIR=/workspace/repo")
     c+=(-e "RUN_DIR=${RUN_DIR}")
     c+=(-e "PROJECT=${PROJECT}")
-    c+=(-e "STAGE_SKILL_OVERRIDE=${STAGE_SKILL_OVERRIDE:-}" -e "STAGE_SKILL_BASELINE=${STAGE_SKILL_BASELINE:-}")
+    local baseline_target=""
+    if [ -n "${STAGE_SKILL_BASELINE:-}" ]; then
+        [ -f "$STAGE_SKILL_BASELINE" ] || die "技能版本快照不存在" 5
+        c+=(--mount "type=bind,src=$STAGE_SKILL_BASELINE,dst=/opt/rsi-stage-baseline.json,readonly")
+        baseline_target=/opt/rsi-stage-baseline.json
+    fi
+    c+=(-e "STAGE_SKILL_OVERRIDE=${STAGE_SKILL_OVERRIDE:-}" -e "STAGE_SKILL_BASELINE=$baseline_target")
     c+=(-e "TIMEOUT=${TIMEOUT}")
     c+=(-e "AUDIT_IDLE_TIMEOUT=${AUDIT_IDLE_TIMEOUT:-180}")
     c+=(-e "MODEL=${CLAUDE_MODEL}")
@@ -273,11 +279,17 @@ if [ -n "$SANDBOX_CONTAINER" ]; then
     [ -z "$CUSTOM_PROMPT" ] || die "持久沙箱暂不支持独立 --prompt 挂载" 3
     [ "$(docker container inspect "$SANDBOX_CONTAINER" --format '{{.State.Status}}' 2>/dev/null || true)" = "running" ] \
         || die "持久沙箱未运行: $SANDBOX_CONTAINER" 4
+    baseline_target=""
+    if [ -n "${STAGE_SKILL_BASELINE:-}" ]; then
+        [ -f "$STAGE_SKILL_BASELINE" ] || die "技能版本快照不存在" 5
+        baseline_target="/tmp/mygoldmine-stage-baseline-$$.json"
+        docker cp "$STAGE_SKILL_BASELINE" "$SANDBOX_CONTAINER:$baseline_target" >/dev/null || die "无法传入技能版本快照" 5
+    fi
     log "进入持久沙箱: project=$PROJECT container=$SANDBOX_CONTAINER timeout=${TIMEOUT}s model=$CLAUDE_MODEL"
     docker exec --workdir /workspace/repo \
         -e MYGOLDMINE_HOME=/opt/mygoldmine \
         -e TARGET_DIR=/target -e WORK_DIR=/workspace/repo -e WORKSPACE_PREPARED=1 \
-        -e STAGE_SKILL_OVERRIDE="${STAGE_SKILL_OVERRIDE:-}" -e STAGE_SKILL_BASELINE="${STAGE_SKILL_BASELINE:-}" \
+        -e STAGE_SKILL_OVERRIDE="${STAGE_SKILL_OVERRIDE:-}" -e STAGE_SKILL_BASELINE="$baseline_target" \
         -e RUN_DIR="$RUN_DIR" -e PROJECT="$PROJECT" \
         -e TIMEOUT="$TIMEOUT" -e AUDIT_IDLE_TIMEOUT="${AUDIT_IDLE_TIMEOUT:-180}" \
         -e MODEL="$CLAUDE_MODEL" -e AGENT="$AGENT" \

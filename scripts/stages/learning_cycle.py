@@ -60,7 +60,11 @@ def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
                         raise TimeoutError('本轮原生工作流超过控制器时限，已停止')
                 else:
                     started=subprocess.run(command,cwd=repo,stdout=log,stderr=subprocess.STDOUT,timeout=120)
-            if started.returncode:raise RuntimeError('本轮工作流失败，请查看轮次日志；未自动重复失败任务')
+            if started.returncode:
+                if run.exists():
+                    from exploration import feedback
+                    feedback(repo,run,run,project,reports=[])
+                raise RuntimeError('本轮工作流失败，请查看轮次日志；未自动重复失败任务')
             begin=time.monotonic()
             while True:
                 status=read(Path(str(run)+'.meta')/'status.json',{})
@@ -89,14 +93,14 @@ def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
                 advancement=read(effective/'rsi/stage-learning-evaluation.json') or bank.advance(project)
             evaluations=advancement['results']
             published=[cid for key,cid in bank.active().items() if before_round.get(key)!=cid]
-            state['rounds'].append({'index':index+1,'run_dir':str(run),'feedback_run_dir':str(effective),'state':status.get('state'),'evaluations':evaluations,'published':published})
+            state['rounds'].append({'index':index+1,'run_dir':str(run),'feedback_run_dir':str(effective),'state':status.get('state'),'evaluations':evaluations,'published':published,'exploration':advancement.get('exploration')})
             write(root/'status.json',state)
-            stale=0 if published else stale+1
+            stale=0 if published or advancement.get('interesting') else stale+1
             if (root/'stop').exists():state['status']='stopped';break
             if not continuous and stale>=patience:state['status']='no_improvement';break
             if continuous:
                 state['waiting_until']=time.time()+cooldown
-                state['wait_reason']='本轮没有发布改善，保留当前技能版本后继续审计' if not published else '等待下一轮'
+                state['wait_reason']='本轮有探索进展或项目试用，继续观察；不代表稳定发布' if advancement.get('interesting') else '本轮没有稳定发布，保留当前技能版本继续探索' if not published else '等待下一轮'
                 write(root/'status.json',state)
                 while time.time()<state['waiting_until'] and not (root/'stop').exists():
                     time.sleep(min(5,max(0,state['waiting_until']-time.time())))

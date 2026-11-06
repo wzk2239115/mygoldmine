@@ -259,7 +259,7 @@ const RSI_BRANCH_COMPONENTS = [
     icon: Sparkles,
     title: '阶段技能优化（SkillOpt）',
     tone: 'violet',
-    body: '第 08 阶段综合八阶段反馈、覆盖记录、复审计划和验证结果，先归因再选择目标；需要重写时调用本地固定版本的 SkillOpt 核心重写入口，结果转换为现有技能候选。',
+    body: '第 08 阶段综合八阶段反馈、覆盖记录、复审计划和验证结果，先归因再选择目标；默认生成必要的 Markdown 补充；阶段二结合读取覆盖和严格报告反馈调整探索预算，方法候选先项目限定试用，保留稳定版本。SkillOpt 为显式启用的可选改写工具。',
     code: 'scripts/stages/skillopt_adapter.py → third_party/SkillOpt'
   }
 ];

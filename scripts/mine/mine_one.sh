@@ -238,7 +238,7 @@ print_dry_run() {
     echo "python3 ${REPO_ROOT}/scripts/mine/progress_guard.py --raw ${RAW} --idle ${AUDIT_IDLE_TIMEOUT:-180} --setup-idle ${AUDIT_SETUP_IDLE_TIMEOUT:-900} --wall <remaining> -- \\"
     echo "  ${CLAUDE_BIN} --verbose --output-format=stream-json \\"
     echo "               --permission-mode=bypassPermissions \\"
-    echo "               --disallowed-tools WebSearch,WebFetch \\"
+    echo "               [阶段二允许文档检索；其他阶段保留原工具限制]"
     echo "               --agent ${AGENT} \\"
     echo "  < ${PROMPT_FILE:-<auto-prompt>} >> ${RAW} 2>> ${ERR_LOG}"
     echo
@@ -290,6 +290,7 @@ if [ "$AGENT" = "security-orchestrator" ]; then
     export MYGOLDMINE_READ_COVERAGE_PROJECT="$PROJECT"
     export MYGOLDMINE_READ_COVERAGE_VERSION="$COMMIT"
     python3 "$REPO_ROOT/scripts/audit/read_coverage.py" init || die "无法初始化阶段二读取记录" 5
+    python3 "$REPO_ROOT/scripts/stages/exploration.py" --project "$PROJECT" --run "$RUN_DIR" || die "无法准备探索计划" 5
 fi
 
 # 提示词：外部未提供时生成临时文件，退出时清理
@@ -600,6 +601,8 @@ while :; do
         log "第 ${ATTEMPTS} 次尝试（剩余 ${attempt_budget}s）"
     fi
 
+    NETWORK_READ_ARGS=(--disallowed-tools WebSearch,WebFetch)
+    [ "$AGENT" = "security-orchestrator" ] && NETWORK_READ_ARGS=()
     (
         cd "$TARGET_REAL" || exit 3
         exec python3 "$REPO_ROOT/scripts/mine/progress_guard.py" \
@@ -608,7 +611,7 @@ while :; do
             --setup-idle "${AUDIT_SETUP_IDLE_TIMEOUT:-900}" --wall "$attempt_budget" -- \
             "$CLAUDE_BIN" --verbose --output-format=stream-json \
                 --permission-mode=bypassPermissions \
-                --disallowed-tools WebSearch,WebFetch \
+                "${NETWORK_READ_ARGS[@]}" \
                 --mcp-config "$(python3 "$REPO_ROOT/scripts/stages/submission.py" config --stage orchestrator --root "$RUN_DIR")" \
                 --append-system-prompt "$(python3 "$REPO_ROOT/scripts/stages/submission.py" instruction --stage orchestrator --root "$RUN_DIR")" \
                 --agent "$AGENT"
