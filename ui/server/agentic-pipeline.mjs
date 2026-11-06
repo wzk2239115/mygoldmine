@@ -473,11 +473,12 @@ export function buildAgenticPipeline(run) {
     if(receipt){node.status=receipt.status;if(receipt.reason)node.detail=receipt.reason;}
     if(!receipt && workflow.steps?.includes(node.id) && workflow.current!==node.id){node.status='pending';node.detail='等待本次工作流的前置节点';}
     if(workflow.current===node.id)node.status=workflow.status==='running'?'running':'failed';
+    if(workflow.admission?.status==='queued' && !receipt){node.status='pending';node.detail='项目排队中，等待运行名额';}
     if(workflow.status==='running')node.retryReason='项目工作流正在运行';
   }
   return {
     cycle:cycleStatus(path.resolve(run.runDir,'../../..'),run.project),
-    workflow:workflow?{id:workflow.id,status:workflow.status,current:workflow.current,receipts:workflow.receipts?.length || 0,error:workflow.error,traces:listWorkflowTraces(run).map(({id,label,kind,size,updatedAt})=>({id,label,kind,size,updatedAt}))}:null,
+    workflow:workflow?{id:workflow.id,admission:workflow.admission,status:workflow.status,current:workflow.current,receipts:workflow.receipts?.length || 0,error:workflow.error,traces:listWorkflowTraces(run).map(({id,label,kind,size,updatedAt})=>({id,label,kind,size,updatedAt}))}:null,
     notice,
     project: run.project,
     projectName: run.projectName,

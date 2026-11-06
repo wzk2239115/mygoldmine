@@ -1,3 +1,4 @@
+import {recoverProjectQueue} from './project-admission.mjs';
 import {reportBundle,markdownBundle} from './report-export.mjs';
 import {verifiedReports} from './verified-reports.mjs';
 import {visualRoot,visualAsset} from './visual-assets.mjs';
@@ -1812,4 +1813,5 @@ server.on('upgrade', (req, clientSocket, head) => {
 server.listen(PORT, HOST, () => {
   console.log(`[vul-ai-board] http://${HOST}:${PORT}`);
   console.log(`[vul-ai-board] repo=${REPO_ROOT}`);
+  recoverProjectQueue(REPO_ROOT);
 });

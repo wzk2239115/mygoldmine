@@ -104,6 +104,7 @@ export default function AgenticPipeline({ project, runId: defaultRunId, reportRu
         {viewRunId && viewRunId!==defaultRunId?<button type="button" className="cycle-control" onClick={()=>setViewRunId('')}>返回最新运行</button>:null}
       </div>
       {data?.cycle ? <p className="cycle-progress" role="status">已完成 {data.cycle.completed_rounds || 0} 轮审计 · 循环{CYCLE_LABELS[data.cycle.status] || data.cycle.status}{data.cycle.active ? ` · 本次第 ${data.cycle.current_round || 0} 轮` : ''}{data.cycle.waiting_until?` · ${data.cycle.wait_reason || '等待下一轮'}`:null}{data.cycle.error ? ` · ${data.cycle.error}` : ''}{data.cycle.stopRequested?' · 本轮结束后停止':null}</p> : null}
+      {data?.workflow?.admission?.status==='queued' ? <p role="status">项目排队中 · 第 {data.workflow.admission.position} 位 · 同时最多运行 {data.workflow.admission.limit} 个项目</p> : null}
       {data?.workflow?.status==='failed' && data.workflow.error ? <div className="inline-error" role="alert">工作流已停止：{data.workflow.error}</div>:null}
       {error ? <div className="inline-error"  role="alert">{error}</div> : null}
       {data ? (

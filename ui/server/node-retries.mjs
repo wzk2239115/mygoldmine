@@ -1,3 +1,4 @@
+import {awaitProjectSlot,releaseProjectSlot} from './project-admission.mjs';
 import {judgeCandidates,prepareJudgeRetry,runJudgeRetry} from './judge-retry.mjs';
 import {labCandidates,prepareLabRetry,runLabRetry} from './redteam-lab-retry.mjs';
 import {agentCandidates,prepareAgentRetry,runAgentRetry} from './redteam-agent-retry.mjs';
@@ -67,6 +68,7 @@ export function startNodeRetry({repoRoot,run,node,models,cascade=false,inherited
 export async function worker(file) {
   const job=read(file);let code=1;
   try {
+    if(!job.workflowOwner)await awaitProjectSlot(job.repoRoot,job.id,job.project,file,{onStatus:admission=>{job.admission=admission;write(file,job);}});
     if(job.node==='learner') {
       const source=path.resolve(job.root,'../../..').replace(/\.meta$/,'');
       const bundledPython=path.join(path.dirname(process.execPath),'python3');
@@ -89,7 +91,9 @@ export async function worker(file) {
       job.resultStatus=code!==0 || !summary?'failed':summary.status==='blocked'?'blocked':summary.status==='partial'?'degraded':summary.status==='failed'?'failed':'completed';
     }
   } catch(error) { job.error=error.message; }
-  finally { job.status=code===0?'completed':'failed';job.exitCode=code;job.endedAt=new Date().toISOString();write(file,job);
+  finally { if(!job.workflowOwner)releaseProjectSlot(job.repoRoot,job.id,job.project,file);
+    job.admission={...job.admission,status:'released'};
+    job.status=code===0?'completed':'failed';job.exitCode=code;job.endedAt=new Date().toISOString();write(file,job);
     const originalRun=path.resolve(job.root,'../../..').replace(/\.meta$/,'');
     const collector=path.join(job.repoRoot,'scripts/stages/skill_bank.py');
     if(fs.existsSync(collector)) await new Promise(resolve=>{const child=spawn('python3',[collector,'collect','--project',job.project,'--root',originalRun],{cwd:job.repoRoot,stdio:'ignore'});child.on('error',resolve);child.on('close',resolve);});

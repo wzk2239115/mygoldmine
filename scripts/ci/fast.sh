@@ -41,6 +41,8 @@ if command -v ruff >/dev/null 2>&1; then
         scripts/audit/check_orchestration.py \
         scripts/audit/read_coverage.py \
         scripts/workflow/delivery_contract.py \
+        scripts/workflow/project_admission.py \
+        tests/test_project_admission.py \
         tests/test_delivery_contract.py \
         tests/test_audit_read_coverage.py \
         tests/test_audit_orchestration_check.py \

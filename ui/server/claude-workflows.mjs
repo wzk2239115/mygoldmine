@@ -1,3 +1,4 @@
+import {awaitProjectSlot,releaseProjectSlot} from './project-admission.mjs';
 import {launchTask,taskStatus,waitTask,stopTask,taskLive} from './durable-task.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -329,6 +330,7 @@ export async function coordinate(file) {
   const stop=()=>{interrupted=true;stopOwnedBuild(read(file) || state);const registered=read(file)?.activeTask;if(registered)stopTask(registered);terminateTree(activePid);const latest=read(file);if(latest?.activeAttempt)terminateTree(read(latest.activeAttempt)?.workerPid);};
   process.on('SIGTERM',stop);process.on('SIGINT',stop);
   try {
+    await awaitProjectSlot(repo,state.id,state.project,file,{cancelled:()=>interrupted,onStatus:admission=>{state.admission=admission;save(file,state);}});
     let emptyAttempts=0;
     while(state.receipts.length<state.steps.length) {
       const args={steps:state.steps.slice(state.receipts.length).map(node=>({node,title:titles[stages.indexOf(node)]})),command:`${quote(process.execPath)} ${quote(self)} --request-step ${quote(file)}`};
@@ -363,6 +365,8 @@ export async function coordinate(file) {
         delete state.activeAttempt;
       }
     }
+    releaseProjectSlot(repo,state.id,state.project,file);
+    state.admission={...state.admission,status:'released'};
     state.endedAt=new Date().toISOString();save(file,state);
     if(state.start==='environment') {
       const status=read(state.runDir+'.meta/status.json') || {};
