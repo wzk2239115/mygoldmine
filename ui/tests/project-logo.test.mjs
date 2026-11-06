@@ -34,3 +34,11 @@ test('错误图片与非托管仓库地址不会保存为图标',async t=>{
  assert.equal(projectLogo(root,'demo'),'');
  assert.equal(await queueProjectLogo(root,'other','https://github.com.evil/owner/repo',()=>{throw Error('must not fetch');}),'');
 });
+
+test('同一仓库的 SSH 与 HTTPS 地址具有相同身份，其他仓库不得混用',async()=>{
+ const {repositoryIdentity}=await import('../server/project-import.mjs');
+ assert.equal(repositoryIdentity('git@github.com:iioter/iotgateway.git'),repositoryIdentity('https://github.com/iioter/iotgateway.git'));
+ assert.equal(repositoryIdentity('ssh://git@github.com/Owner/Repo.git'),repositoryIdentity('https://github.com/owner/repo'));
+ assert.notEqual(repositoryIdentity('https://github.com/owner/a'),repositoryIdentity('https://github.com/owner/b'));
+ assert.notEqual(repositoryIdentity('https://github.com.evil/owner/repo'),repositoryIdentity('https://github.com/owner/repo'));
+});

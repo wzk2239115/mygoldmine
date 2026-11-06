@@ -61,6 +61,15 @@ function githubSource(value) {
   };
 }
 
+export function repositoryIdentity(value) {
+  const raw=String(value || '').trim().replace(/^git@github\.com:/i,'https://github.com/');
+  try {
+    const url=new URL(raw),parts=url.pathname.split('/').filter(Boolean);
+    if(url.hostname.toLowerCase()==='github.com' && !url.port && parts.length===2 && ['https:','ssh:'].includes(url.protocol))return 'github.com/'+parts.join('/').replace(/\.git$/i,'').toLowerCase();
+  }catch{}
+  return raw.replace(/\.git$/i,'');
+}
+
 export function parseProjectImport(body = {}) {
   const kind = text(body.kind, 20);
   if (!['local', 'github'].includes(kind)) {
@@ -253,7 +262,7 @@ export function createProjectImporter({
         progress('正在检查已有仓库，保留当前内容');
         const origin = await gitValue(run, target, ['remote', 'get-url', 'origin']);
         if (!origin) throw new ProjectImportError('目标目录已存在但不是 Git 仓库，请换一个项目标识', 409);
-        if (origin.replace(/\.git$/i, '') !== request.source.replace(/\.git$/i, '')) {
+        if (repositoryIdentity(origin) !== repositoryIdentity(request.source)) {
           throw new ProjectImportError('该项目标识已对应另一个仓库，请换一个项目标识', 409);
         }
         const existingCommit = await gitValue(run, target, ['rev-parse', '--verify', 'HEAD']);
