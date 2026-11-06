@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """把第 08 阶段的改进请求交给 SkillOpt，并转换为现有技能候选。"""
+
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -26,6 +28,51 @@ FORBIDDEN = (
 )
 
 
+BASE_AGENTS = {
+    "environment": "environment-builder",
+    "orchestrator": "security-orchestrator",
+    "visual": "attack-scene-director",
+    "verify": "verify-agent",
+    "redteam-lab": "redteam-lab-builder",
+    "judge": "exploit-judge",
+    "learner": "stage-skill-learner",
+}
+
+
+def execution_baseline(repo, stage, rendered):
+    """读取真实执行文档；现行阶段指导是补充层，不替代原始智能体与技能。"""
+    agent = BASE_AGENTS.get(stage)
+    primary = repo / ".claude/agents" / (agent + ".md") if agent else None
+    if primary is None or not primary.is_file():
+        raise ValueError(
+            "目标阶段没有可确认的 Markdown 执行基线；先记录代码或基线缺口，不从空标题生成技能"
+        )
+    paths = [primary]
+    text = primary.read_text()
+    for relative in re.findall(r"\.claude/skills/[A-Za-z0-9_/-]+/SKILL\.md", text):
+        file = repo / relative
+        if file.is_file() and file not in paths:
+            paths.append(file)
+    if stage == "orchestrator":
+        file = repo / ".claude/skills/audit-coverage-planner/SKILL.md"
+        if file.is_file() and file not in paths:
+            paths.append(file)
+    documents = []
+    parts = []
+    for file in paths:
+        actual = file.resolve(strict=True)
+        if not actual.is_relative_to(repo):
+            raise ValueError("Markdown 基线越出项目目录")
+        data = actual.read_bytes()
+        documents.append(
+            {"path": str(file.relative_to(repo)), "sha256": hashlib.sha256(data).hexdigest()}
+        )
+        parts.append("# 执行文档：" + str(file.relative_to(repo)) + "\n" + data.decode())
+    if rendered.get("text"):
+        parts.append("# 当前生效的补充规则\n" + rendered["text"])
+    return "\n\n".join(parts), documents
+
+
 def skillopt_root(repo: Path) -> Path:
     return Path(os.environ.get("SKILLOPT_ROOT") or repo / "third_party/SkillOpt").resolve()
 
@@ -38,7 +85,10 @@ def skillopt_metadata(repo: Path) -> dict[str, Any]:
         try:
             commit = subprocess.run(
                 ["git", "-C", str(root), "rev-parse", "HEAD"],
-                capture_output=True, text=True, timeout=10, check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
             ).stdout.strip()
         except (OSError, subprocess.TimeoutExpired):
             commit = ""
@@ -57,13 +107,15 @@ def _configure_skillopt(model: str | None) -> str:
     selected = model or os.environ.get("RSI_LEARNER_MODEL") or DEFAULT_MODEL
     model_name, env = claude_connection(selected)
     os.environ.update(env)
-    os.environ.update({
-        "OPTIMIZER_BACKEND": "claude_chat",
-        "OPTIMIZER_DEPLOYMENT": model_name,
-        "CLAUDE_CLI_BIN": os.environ.get("CLAUDE_BIN", "claude"),
-        "CLAUDE_PERMISSION_MODE": "dontAsk",
-        "CLAUDE_SETTING_SOURCES": "project,local",
-    })
+    os.environ.update(
+        {
+            "OPTIMIZER_BACKEND": "claude_chat",
+            "OPTIMIZER_DEPLOYMENT": model_name,
+            "CLAUDE_CLI_BIN": os.environ.get("CLAUDE_BIN", "claude"),
+            "CLAUDE_PERMISSION_MODE": "dontAsk",
+            "CLAUDE_SETTING_SOURCES": "project,local",
+        }
+    )
     return model_name
 
 
@@ -77,6 +129,7 @@ def _rewrite_function(repo: Path, model: str | None):
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
     from skillopt.optimizer.rewrite import rewrite_skill_from_suggestions
+
     return rewrite_skill_from_suggestions, model_name
 
 
@@ -88,11 +141,13 @@ def _suggestions(request: Mapping[str, Any]) -> list[dict[str, str]]:
         instruction = str(item.get("instruction") or "").strip()
         if not instruction:
             continue
-        result.append({
-            "type": str(item.get("type") or "add"),
-            "title": str(item.get("title") or "阶段技能改进")[:120],
-            "instruction": instruction[:2000],
-        })
+        result.append(
+            {
+                "type": str(item.get("type") or "add"),
+                "title": str(item.get("title") or "阶段技能改进")[:120],
+                "instruction": instruction[:2000],
+            }
+        )
     return result[:4]
 
 
@@ -154,17 +209,27 @@ def optimize_request(
     result_dir = run_dir / "rsi/skillopt"
     result_file = result_dir / f"{identifier(request.get('id') or request_path.stem)}.json"
     prior = read(result_file, {})
-    if prior.get("status") == "candidate" and prior.get("candidate_id"):
-        return prior
-
     bank = SkillBank(repo)
     base = bank.render(stage, target_project)
-    base_text = base.get("text") or f"# {stage} 阶段技能\n"
+    base_text, base_documents = execution_baseline(repo, stage, base)
+    if (
+        prior.get("status") == "candidate"
+        and prior.get("candidate_id")
+        and prior.get("base_documents") == base_documents
+        and prior.get("base_versions") == base.get("versions", [])
+    ):
+        return prior
     suggestions = _suggestions(request)
     if not suggestions:
         raise ValueError("改进请求没有可执行的修改建议")
     patch = {
-        "reasoning": str(request.get("problem") or "第 08 阶段根据多阶段反馈提出修改"),
+        "reasoning": (
+            str(request.get("problem") or "第 08 阶段根据多阶段反馈提出修改")
+            + "\n基线包含真实执行文档，仅作只读参考。"
+            "new_skill 保留已有补充规则并整合本次必要小改动，"
+            "不要重写整套文档，不重复已有规则，不更改输出状态枚举、隔离和证据门槛。"
+            "涉及执行器程序故障时仅说明修复需求，不声称 Markdown 已修复程序。"
+        ),
         "revise_suggestions": suggestions,
     }
     started = time.monotonic()
@@ -192,6 +257,8 @@ def optimize_request(
             "source_run": run_dir.name,
             "source_commit": request.get("source_commit") or "",
             "base_versions": base.get("versions", []),
+            "base_documents": base_documents,
+            "change_mode": "stage_addendum",
             "problem": str(request.get("problem") or ""),
             "change": suggestions,
             "scope": scope,
@@ -200,8 +267,13 @@ def optimize_request(
             "engine": {**meta, "backend": "claude_chat", "model": model_name},
         }
         candidate = bank.propose(
-            stage, target_project, scope, content, evidence,
-            request.get("conditions") or {}, provenance=provenance,
+            stage,
+            target_project,
+            scope,
+            content,
+            evidence,
+            request.get("conditions") or {},
+            provenance=provenance,
         )
         result = {
             "status": "candidate",
@@ -212,11 +284,14 @@ def optimize_request(
             "model": model_name,
             "skillopt": meta,
             "base_versions": base.get("versions", []),
+            "base_documents": base_documents,
+            "change_mode": "stage_addendum",
             "suggestions": suggestions,
             "reasoning": str(response.get("reasoning") or ""),
             "change_summary": (
                 response.get("change_summary")
-                if isinstance(response.get("change_summary"), list) else []
+                if isinstance(response.get("change_summary"), list)
+                else []
             ),
             "new_skill": content,
             "attempts": attempts,
@@ -246,9 +321,18 @@ def main() -> None:
     parser.add_argument("--project", default="")
     parser.add_argument("--model", default="")
     args = parser.parse_args()
-    print(json.dumps(optimize_request(
-        args.request, repo=args.root, project=args.project, model=args.model or None,
-    ), ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            optimize_request(
+                args.request,
+                repo=args.root,
+                project=args.project,
+                model=args.model or None,
+            ),
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

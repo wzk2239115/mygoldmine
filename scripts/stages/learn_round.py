@@ -84,11 +84,12 @@ def learn(run, project, repo=ROOT, timeout=180, skillopt_timeout=300):
     model, env = module.claude_connection(model)
     prompt = (
         f'项目：{project}。读取 {run}/rsi/stage-feedback/index.json，使用 stage-skill-learning 技能综合各阶段反馈。'
-        '仅按反馈索引中的实际证据路径读取文件；缺失文件明确记录，不猜测路径或搜索其他批次。'
+        '证据仅按反馈索引中的实际路径读取；目标阶段执行文档按仓库固定路径读取。缺失文件明确记录，不猜测证据路径或搜索其他批次。'
         '先读阶段摘要，每份大日志只读相关片段；不要全量重读轨迹。'
         '最多补读六个证据文件后收敛，选择证据充分的目标立即提交请求；若不充分则明确无候选并结束。'
         '只需七阶段综合归因，不需要逐条复核每个漏洞，不重新搜集验证报告已包含的执行证据。'
-        '先归因并选择最多两个证据最充分的目标阶段。对选定目标默认调用 request_skillopt_optimization，'
+        '先区分方法缺口、项目知识、程序执行故障和证据不足；只有方法缺口进入技能优化。'
+        '先读目标阶段现行 agent／skill 正文，已有要求不能重复添加。选择最多两个证据最充分的目标，必要时调用 request_skillopt_optimization，'
         '提交问题归因、修改建议、证据、预期改善、可能退化和适用条件；只有明确只需一条短规则、'
         '不需要重写时才用 propose_skill_update。'
         '项目标识使用调用方提供的项目目录标识，报告中的品牌名称不是项目标识。'

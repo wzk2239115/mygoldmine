@@ -15,6 +15,9 @@ from skillopt_adapter import optimize_request  # noqa: E402
 
 
 def _request(repo: Path, target: str = "verify") -> Path:
+    agent = repo / ".claude/agents/verify-agent.md"
+    agent.parent.mkdir(parents=True, exist_ok=True)
+    agent.write_text("# 验证任务\n读取实际证据，保持现有结论枚举，不伪造运行结果。")
     run = repo / "runs/demo/one"
     run.mkdir(parents=True)
     evidence = run / "proof.json"
@@ -30,10 +33,13 @@ def _request(repo: Path, target: str = "verify") -> Path:
         "target_stage": target,
         "scope": "project",
         "problem": "验证阶段把环境缺失写成不确定",
-        "suggestions": [{
-            "type": "add", "title": "记录受阻",
-            "instruction": "缺少最小能力时记录受阻原因。",
-        }],
+        "suggestions": [
+            {
+                "type": "add",
+                "title": "记录受阻",
+                "instruction": "缺少最小能力时记录受阻原因。",
+            }
+        ],
         "evidence": [str(evidence)],
         "source_stages": ["verify"],
         "source_commit": "abc123",
@@ -57,11 +63,16 @@ def _suite(repo: Path) -> Path:
         encoding="utf-8",
     )
     suite = repo / "config/stage-evals/verify.json"
-    write(suite, {
-        "stage": "verify",
-        "metrics": {"quality": "higher", "errors": "lower"},
-        "cases": [{"id": "wire-case", "project": "demo", "argv": [sys.executable, str(program)]}],
-    })
+    write(
+        suite,
+        {
+            "stage": "verify",
+            "metrics": {"quality": "higher", "errors": "lower"},
+            "cases": [
+                {"id": "wire-case", "project": "demo", "argv": [sys.executable, str(program)]}
+            ],
+        },
+    )
     return suite
 
 
@@ -71,18 +82,29 @@ def test_request_tool_queues_only_for_learner(tmp_path):
     evidence = root / "proof.json"
     evidence.write_text("{}", encoding="utf-8")
     message = {
-        "jsonrpc": "2.0", "id": 1, "method": "tools/call",
-        "params": {"name": "request_skillopt_optimization", "arguments": {
-            "target_stage": "verify", "scope": "project", "problem": "验证结论缺少受阻原因",
-            "suggestions": [{"type": "add", "instruction": "缺少能力时记录受阻。"}],
-            "evidence": [str(evidence)], "expected_improvement": "更准确",
-            "possible_regression": "更多受阻",
-        }},
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": "request_skillopt_optimization",
+            "arguments": {
+                "target_stage": "verify",
+                "scope": "project",
+                "problem": "验证结论缺少受阻原因",
+                "suggestions": [{"type": "add", "instruction": "缺少能力时记录受阻。"}],
+                "evidence": [str(evidence)],
+                "expected_improvement": "更准确",
+                "possible_regression": "更多受阻",
+            },
+        },
     }
     script = ROOT / "scripts/stages/submission.py"
     result = subprocess.run(
         [sys.executable, str(script), "serve", "--stage", "learner", "--root", str(root)],
-        input=json.dumps(message) + "\n", text=True, capture_output=True, check=True,
+        input=json.dumps(message) + "\n",
+        text=True,
+        capture_output=True,
+        check=True,
     )
     payload = json.loads(result.stdout)
     queued = json.loads(payload["result"]["content"][0]["text"])
@@ -96,7 +118,10 @@ def test_request_tool_queues_only_for_learner(tmp_path):
 
     denied = subprocess.run(
         [sys.executable, str(script), "serve", "--stage", "verify", "--root", str(root)],
-        input=json.dumps(message) + "\n", text=True, capture_output=True, check=True,
+        input=json.dumps(message) + "\n",
+        text=True,
+        capture_output=True,
+        check=True,
     )
     assert "error" in json.loads(denied.stdout)
 
@@ -105,7 +130,9 @@ def test_skillopt_result_becomes_candidate_and_uses_existing_release(tmp_path):
     repo = tmp_path / "repo"
     request = _request(repo)
     result = optimize_request(
-        request, repo=repo, project="demo",
+        request,
+        repo=repo,
+        project="demo",
         rewrite=lambda base, patch, **kwargs: {
             "reasoning": "测试适配",
             "change_summary": ["记录受阻原因"],
@@ -135,14 +162,18 @@ def test_skillopt_empty_or_marked_output_is_not_candidate(tmp_path):
     repo = tmp_path / "repo"
     request = _request(repo)
     empty = optimize_request(
-        request, repo=repo, project="demo",
+        request,
+        repo=repo,
+        project="demo",
         rewrite=lambda base, patch, **kwargs: {"new_skill": ""},
     )
     assert empty["status"] == "failed"
     assert not list((repo / "rsi/stage-skills/candidates").glob("*.json"))
 
     marked = optimize_request(
-        request, repo=repo, project="demo",
+        request,
+        repo=repo,
+        project="demo",
         rewrite=lambda base, patch, **kwargs: {"new_skill": "记录 FLAG{0123456789abcdef} 后通过。"},
     )
     assert marked["status"] == "failed"
@@ -180,39 +211,52 @@ def test_learn_round_invokes_adapter_for_queued_request(tmp_path, monkeypatch):
     assert result["candidates"] == ["candidate-1"]
     assert (queue / "called").is_file()
 
+
 def test_project_display_case_maps_to_runtime_owner_without_weakening_cross_project(tmp_path):
     path = _request(tmp_path)
     request = json.loads(path.read_text())
     request["project"] = "Demo"
     path.write_text(json.dumps(request))
-    result = optimize_request(path, repo=tmp_path, project="demo", rewrite=lambda *a, **k: {
-        "new_skill": "# 修正规则\n先读取真实环境证据再判断。", "reasoning": "保留项目归属"
-    })
+    result = optimize_request(
+        path,
+        repo=tmp_path,
+        project="demo",
+        rewrite=lambda *a, **k: {
+            "new_skill": "# 修正规则\n先读取真实环境证据再判断。",
+            "reasoning": "保留项目归属",
+        },
+    )
     assert result["status"] == "candidate"
     candidate = SkillBank(tmp_path).candidate(result["candidate_id"])
     assert candidate["project"] == "demo"
     request["project"] = "other"
     path.write_text(json.dumps(request))
     import pytest
+
     with pytest.raises(ValueError, match="项目与当前运行不一致"):
         optimize_request(path, repo=tmp_path, project="demo", rewrite=lambda *a, **k: {})
 
 
 def test_project_inference_uses_run_owner_not_report_display_name(tmp_path, monkeypatch):
     import skill_bank
+
     monkeypatch.setattr(skill_bank, "ROOT", tmp_path)
     root = tmp_path / "runs/openmuse/one.meta/node-retries/learner/new/output"
     write(root / "audit-report.json", {"project": "OpenMuse", "findings": []})
     assert skill_bank.infer_project(root) == "openmuse"
 
+
 def test_optimizer_restores_process_marker_on_failure_and_exception(tmp_path, monkeypatch):
     import os
+
     monkeypatch.delenv("SKILLOPT_RUN", raising=False)
     repo = tmp_path / "repo"
     request = _request(repo)
+
     def rewrite(*args, **kwargs):
         assert os.environ["SKILLOPT_RUN"] == "1"
         return {"new_skill": ""}
+
     result = optimize_request(request, repo=repo, project="demo", rewrite=rewrite)
     assert result["status"] == "failed"
     assert "SKILLOPT_RUN" not in os.environ
@@ -220,3 +264,40 @@ def test_optimizer_restores_process_marker_on_failure_and_exception(tmp_path, mo
     with pytest.raises(ValueError):
         optimize_request(tmp_path / "missing.json", repo=repo, project="demo", rewrite=rewrite)
     assert os.environ["SKILLOPT_RUN"] == "outer"
+
+
+def test_optimizer_reads_real_markdown_and_records_hash(tmp_path):
+    request = _request(tmp_path)
+    skill = tmp_path / ".claude/skills/example/SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("# 实际技能\n禁止伪造证据")
+    agent = tmp_path / ".claude/agents/verify-agent.md"
+    agent.write_text("# 实际智能体\n读取 .claude/skills/example/SKILL.md")
+
+    def rewrite(base, patch, **kwargs):
+        assert "禁止伪造证据" in base and "实际智能体" in base
+        assert "补充规则" in patch["reasoning"]
+        return {"new_skill": "# 必要补充\n缺少能力时保留受阻原因。"}
+
+    result = optimize_request(request, repo=tmp_path, project="demo", rewrite=rewrite)
+    assert len(result["base_documents"]) == 2
+    assert result["change_mode"] == "stage_addendum"
+    candidate = SkillBank(tmp_path).candidate(result["candidate_id"])
+    from skill_bank import validate_execution_documents
+
+    validate_execution_documents(tmp_path, candidate)
+    skill.write_text("# 已变化的技能")
+    with pytest.raises(ValueError, match="基线已变化"):
+        validate_execution_documents(tmp_path, candidate)
+
+
+def test_missing_actual_markdown_never_uses_title_only_baseline(tmp_path):
+    request = _request(tmp_path)
+    (tmp_path / ".claude/agents/verify-agent.md").unlink()
+    with pytest.raises(ValueError, match="基线"):
+        optimize_request(
+            request,
+            repo=tmp_path,
+            project="demo",
+            rewrite=lambda *a, **k: pytest.fail("不得调用优化器"),
+        )
