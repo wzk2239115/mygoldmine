@@ -11,6 +11,7 @@ import sys
 import json
 import logging
 import base64
+import hashlib
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -19,7 +20,7 @@ from typing import Dict, Any, Optional
 BASE64_DISABLED = os.environ.get('OPERATION_LOGGER_BASE64_DISABLED', '').lower() in ('1', 'true', 'yes')
 
 # 配置：使用当前工作目录下的 .workspace/logs
-LOG_DIR = Path.cwd() / ".workspace" / "logs"
+LOG_DIR = Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state"))) / "mygoldmine/operation-logs" / "unscoped"
 LOG_FILE = LOG_DIR / "operations.log"
 JSON_LOG_FILE = LOG_DIR / "operations.jsonl"
 # 简单日志轮转策略
@@ -130,6 +131,22 @@ def log_operation(data: Dict[str, Any]) -> None:
         data: 从 stdin 读取的 JSON 数据
     """
     try:
+        global LOG_DIR, LOG_FILE, JSON_LOG_FILE, logger
+        session = hashlib.sha256(str(data.get("session_id") or "unknown").encode()).hexdigest()[:24]
+        base = Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state")))
+        destination = base / "mygoldmine/operation-logs" / session
+        if LOG_DIR != destination:
+            destination.mkdir(parents=True, exist_ok=True)
+            LOG_DIR = destination
+            LOG_FILE = LOG_DIR / "operations.log"
+            JSON_LOG_FILE = LOG_DIR / "operations.jsonl"
+            logger = logging.getLogger("operation-session-" + session)
+            logger.setLevel(logging.INFO)
+            logger.propagate = False
+            if not logger.handlers:
+                handler = logging.FileHandler(LOG_FILE)
+                handler.setFormatter(logging.Formatter("%(message)s"))
+                logger.addHandler(handler)
         # 轮转检查，避免日志无限增长
         rotate_file(LOG_FILE)
         rotate_file(JSON_LOG_FILE)

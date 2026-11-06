@@ -152,6 +152,14 @@ function statusFor(code,result) {
   return 'agent_error';
 }
 
+export function executionSummaryStatus(values,readyCount) {
+  const executed=values.filter(item=>['flag_captured','not_captured'].includes(item.status));
+  const errors=values.filter(item=>!['flag_captured','not_captured','blocked','blocked_harness_dependency'].includes(item.status));
+  if(errors.length)return 'failed';
+  if(!readyCount || !executed.length)return 'blocked';
+  return values.every(item=>item.captured) ? 'completed' : 'degraded';
+}
+
 export async function runAgentRetry(job,concurrency=10) {
   if(!Number.isInteger(concurrency) || concurrency<1 || concurrency>10)throw new Error('并发数必须在 1 到 10 之间');
   const selection=read(path.join(job.workspace,'redteam/agent-selection.json'));
@@ -228,6 +236,8 @@ export async function runAgentRetry(job,concurrency=10) {
     const repair=execution?.runner || read(path.join(repairRoot,'runner-repair.json'));
     const result={
       runner_repair:repair,
+      target_trigger_count:nested.target_trigger_count ?? null,
+      verification_reason:nested.verification_reason || '',
       ...(status==='blocked_harness_dependency'?{error_scope:'harness_dependency',retry_owner:'runner-environment',auto_retry:false}:{}),
       id:candidate.id,
       title:candidate.title,
@@ -252,17 +262,34 @@ export async function runAgentRetry(job,concurrency=10) {
     }
   }));
   const values=[...results.values()];
-  const captured=values.filter(item=>item.captured).length;
-  const blocked=values.filter(item=>(item.status==='blocked' || item.status==='blocked_harness_dependency')).length;
-  summary.status=ready.length===0 || blocked===values.length
-    ? 'blocked'
-    : captured===ready.length
-      ? 'completed'
-      : captured>0
-        ? 'degraded'
-        : 'failed';
+  summary.status=executionSummaryStatus(values,ready.length);
   summary.current='';
   summary.running=[];
   save();
   return summary.status;
+}
+
+export function recoverExecutionAggregation(file) {
+ file=path.resolve(file);
+ const job=read(file);
+ if(!job || job.node!=='redteam-agent' || job.status!=='completed' || job.exitCode!==0 || job.resultStatus!=='failed')throw Error('只能恢复正常执行结束但汇总失败的红队批次');
+ const expected=path.join(job.repoRoot,'runs',job.project,job.runId+'.meta','node-retries','redteam-agent',job.id);
+ if(path.dirname(file)!==expected || job.root!==expected || job.workspace!==path.join(expected,'output'))throw Error('批次路径与项目不匹配');
+ const summaryFile=path.join(job.workspace,'redteam/summary.json'),summary=read(summaryFile);
+ if(summary?.stage!=='redteam-agent' || summary.status!=='failed' || !Array.isArray(summary.results) || !summary.results.length || summary.running?.length)throw Error('批次汇总尚未完整结束');
+ const status=executionSummaryStatus(summary.results,summary.ready);
+ if(status!=='degraded')throw Error('包含真实执行异常或没有可恢复的未复现结果');
+ for(const row of summary.results) {
+  if(row.status==='blocked' || row.status==='blocked_harness_dependency')continue;
+  if(row.error || ![0,2].includes(row.returncode) || !row.run_dir || !fs.realpathSync(row.run_dir).startsWith(fs.realpathSync(job.workspace)+path.sep))throw Error('执行结果来源或退出码无效');
+  const result=read(path.join(row.run_dir,'result.json'))?.result;
+  if(result?.status!==row.status || Boolean(result.captured)!==Boolean(row.captured))throw Error('执行原始结果与汇总不符');
+ }
+ const archive=path.join(job.root,'aggregation-recovery',String(Date.now()));
+ fs.mkdirSync(archive,{recursive:true});
+ fs.copyFileSync(file,path.join(archive,'attempt.json'));
+ fs.copyFileSync(summaryFile,path.join(archive,'summary.json'));
+ write(summaryFile,{...summary,status,aggregationRecovery:{previousStatus:summary.status,archive}});
+ write(file,{...job,resultStatus:status,aggregationRecovery:{previousResultStatus:job.resultStatus,archive}});
+ return {status,archive,attempt:file,modelInvoked:false};
 }

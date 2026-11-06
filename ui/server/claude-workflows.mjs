@@ -1,3 +1,5 @@
+import {isOperationLog,snapshotOperationLog} from './operation-log-snapshot.mjs';
+import {verificationReports} from './verification-delivery.mjs';
 import {awaitProjectSlot,releaseProjectSlot} from './project-admission.mjs';
 import {launchTask,taskStatus,waitTask,stopTask,taskLive} from './durable-task.mjs';
 import fs from 'node:fs';
@@ -59,13 +61,15 @@ export function manifest(roots,{verification=false}={}) {
       for(const name of fs.readdirSync(file).sort())visit(path.join(file,name),boundary);return;
     }
     if(!stat.isFile())throw artifactError('产物类型无效：'+file,'artifact_type');
+    if(isOperationLog(file)){files.push(snapshotOperationLog(file,repo));return;}
     files.push({file,size:stat.size,sha256:hash(file)});
-    if(verification && path.basename(file)==='verify-report.json' && [path.dirname(file),path.dirname(path.dirname(file))].includes(boundary))references.push({file,boundary});
+
   }
   for(const root of [...new Set(roots)].sort()){
     const absolute=path.resolve(root);
     let stat;try{stat=fs.lstatSync(absolute);}catch{throw artifactError('产物已缺失：'+absolute,'artifact_missing');}
     const boundary=fs.realpathSync(stat.isDirectory()?absolute:path.dirname(absolute));
+    if(verification && stat.isDirectory())references.push(...verificationReports(absolute));
     visit(absolute,boundary);
   }
   for(const item of references)verificationAttachments(item.file,item.boundary);
@@ -276,15 +280,28 @@ export function createState({runDir,source,project,models,image='mygoldmine:dev'
   fs.mkdirSync(runDir,{recursive:true});
   const folder=path.join(runDir+'.meta','workflows',id);fs.mkdirSync(folder,{recursive:true});
   const file=path.join(folder,'state.json');
-  const baselineFile=path.join(folder,'stage-skills-baseline.json'),baseline=read(path.join(repo,'rsi/stage-skills/active.json')) || {};
-  const trial=read(path.join(repo,'rsi/exploration',project,'trial.json'));
-  if(trial?.candidate)baseline['trial/orchestrator/'+project]=trial.candidate;
-  write(baselineFile,baseline);
+  const baselineFile=path.join(folder,'stage-skills-baseline.json');write(baselineFile,read(path.join(repo,'rsi/stage-skills/active.json')) || {});
   models={audit:'360-proxy/deepseek/deepseek-v4.1-flash',...models};
   const state={id,baselineFile,engine:'claude-workflow',status:'running',repoRoot:repo,runDir,source,project,models,image,start,steps:stages.slice(stages.indexOf(start)),receipts:[],lock,initialJob,startedAt:new Date().toISOString()};
   write(path.join(lock,'workflow-owner.json'),{id,file});save(file,state);
   if(start==='environment')write(runDir+'.meta/status.json',{project,target:source,env_image:image,state:'starting',run_dir:runDir,started_at:state.startedAt});
   return file;
+}
+export function migrateOperationLogs(file) {
+  const state=read(file);
+  if(!state || state.repoRoot!==repo || !['failed','stopped'].includes(state.status) || alive(state.coordinatorPid))throw Error('只能迁移已停止工作流的操作日志');
+  const changes=[],receipts=state.receipts.map(receipt=>({...receipt,outputs:receipt.outputs.map(item=>{
+    if(!isOperationLog(item.file))return item;
+    const snapshot=snapshotOperationLog(item.file,repo,item);
+    changes.push({source:item.file,snapshot:snapshot.file,size:item.size,sha256:item.sha256});return snapshot;
+  })}));
+  for(const receipt of receipts)verifyManifest(receipt.outputs);
+  if(!changes.length)return {changed:0};
+  const archive=path.join(path.dirname(file),'recovery-history','operation-log-'+randomUUID());
+  fs.mkdirSync(archive,{recursive:true});write(path.join(archive,'state.json'),state);
+  write(path.join(archive,'migration.json'),{changes,checkedAt:new Date().toISOString(),method:'verified-frozen-prefix'});
+  state.receipts=receipts;state.deliveryMigrations=[...(state.deliveryMigrations || []),{archive,changes}];save(file,state);
+  return {changed:changes.length,archive};
 }
 export function resumeState(file) {
   const state=read(file);
@@ -390,6 +407,8 @@ if(process.argv[1] && path.resolve(process.argv[1])===self) {
       process.exitCode=(await coordinate(file)).status==='completed'?0:1;
     } else if(process.argv[2]==='--coordinate') {
       process.exitCode=(await coordinate(process.argv[3])).status==='completed'?0:1;
+    } else if(process.argv[2]==='--migrate-operation-logs') {
+      console.log(JSON.stringify(migrateOperationLogs(path.resolve(process.argv[3]))));
     } else if(process.argv[2]==='--resume') {
       const file=path.resolve(process.argv[3]),state=resumeState(file);
       const fd=fs.openSync(path.join(path.dirname(file),'controller.log'),'a');

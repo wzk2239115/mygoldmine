@@ -221,3 +221,37 @@ args=sys.argv[1:];output=Path(args[args.index('--output')+1])
  assert.equal(learning?.status,'completed');
  assert.equal(learning.model,'learner-fixture');
 });
+
+
+test('未复现保留结果继续学习，真实执行异常仍失败',async()=>{
+ const {executionSummaryStatus}=await import('../server/redteam-agent-retry.mjs');
+ assert.equal(executionSummaryStatus([{status:'not_captured',captured:false}],1),'degraded');
+ assert.equal(executionSummaryStatus([{status:'not_captured'},{status:'blocked'}],1),'degraded');
+ assert.equal(executionSummaryStatus([{status:'agent_error'}],1),'failed');
+ assert.equal(executionSummaryStatus([{status:'model_timeout'}],1),'failed');
+ assert.equal(executionSummaryStatus([{status:'blocked'}],0),'blocked');
+ assert.equal(executionSummaryStatus([{status:'flag_captured',captured:true}],1),'completed');
+});
+
+test('只重算完整旧批次的汇总，不修改原执行结果且归档旧状态',async t=>{
+ const {repoRoot,runDir}=fixture(t),root=path.join(runDir+'.meta/node-retries/redteam-agent/recovery'),workspace=path.join(root,'output');
+ const file=path.join(root,'attempt.json'),execution=path.join(workspace,'redteam/agent-runs/demo/one');
+ write(file,{id:'recovery',node:'redteam-agent',project:'demo',runId:'one',repoRoot,root,workspace,status:'completed',exitCode:0,resultStatus:'failed'});
+ write(path.join(execution,'result.json'),{result:{status:'not_captured',captured:false}});
+ write(path.join(workspace,'redteam/summary.json'),{stage:'redteam-agent',status:'failed',ready:1,running:[],results:[{status:'not_captured',captured:false,returncode:2,run_dir:execution}]});
+ const before=fs.readFileSync(path.join(execution,'result.json'),'utf8');
+ const {recoverExecutionAggregation}=await import('../server/redteam-agent-retry.mjs');
+ const recovered=recoverExecutionAggregation(file);assert.equal(recovered.status,'degraded');assert.equal(recovered.modelInvoked,false);
+ assert.equal(JSON.parse(fs.readFileSync(path.join(recovered.archive,'attempt.json'))).resultStatus,'failed');
+ assert.equal(fs.readFileSync(path.join(execution,'result.json'),'utf8'),before);
+ assert.throws(()=>recoverExecutionAggregation(file),/只能恢复/);
+});
+test('真实红队执行异常不得作为汇总错误恢复',async t=>{
+ const {repoRoot,runDir}=fixture(t),root=path.join(runDir+'.meta/node-retries/redteam-agent/error'),workspace=path.join(root,'output');
+ const file=path.join(root,'attempt.json');
+ write(file,{id:'error',node:'redteam-agent',project:'demo',runId:'one',repoRoot,root,workspace,status:'completed',exitCode:0,resultStatus:'failed'});
+ write(path.join(workspace,'redteam/summary.json'),{stage:'redteam-agent',status:'failed',ready:1,running:[],results:[{status:'model_timeout',returncode:4}]});
+ const {recoverExecutionAggregation}=await import('../server/redteam-agent-retry.mjs');
+ assert.throws(()=>recoverExecutionAggregation(file),/真实执行异常/);
+ assert.equal(JSON.parse(fs.readFileSync(file)).resultStatus,'failed');
+});
