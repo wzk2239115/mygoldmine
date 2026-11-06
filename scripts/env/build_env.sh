@@ -292,7 +292,7 @@ fi
 
 if has_lang java && [ "$MODE" != "none" ]; then
     local_java="$(java_prefix)"
-    add_sys default-jdk
+    add_sys default-jdk-headless
     if [ -f "$JAVA_DIR/pom.xml" ]; then
         add_sys maven
         case "$MODE" in
@@ -330,9 +330,10 @@ gen_dockerfile() {
             echo "ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo"
         fi
         if [ "${#SYS_PKGS[@]}" -gt 0 ]; then
-            echo "RUN apt-get update \\"
-            echo " && apt-get install -y --no-install-recommends ${SYS_PKGS[*]} \\"
-            echo " && rm -rf /var/lib/apt/lists/*"
+            echo "RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,target=/var/lib/apt/lists,sharing=locked rm -f /etc/apt/apt.conf.d/docker-clean \\"
+            echo " && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=60 update \\"
+            echo " && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=60 -o Binary::apt::APT::Keep-Downloaded-Packages=true install -y --no-install-recommends ${SYS_PKGS[*]} \\"
+            echo " && true"
         fi
         for tc in "${TOOLCHAIN_CMDS[@]}"; do
             echo "RUN $tc"
@@ -478,6 +479,7 @@ if ! docker image inspect "$BASE_IMAGE" >/dev/null 2>&1; then
     die "基础镜像不存在: $BASE_IMAGE" 20
 fi
 
+python3 "$REPO_ROOT/scripts/env/download_policy.py" "$ENV_DIR/Dockerfile" || die "无法准备依赖下载策略" 20
 log "开始构建（超时 ${BUILD_TIMEOUT}s，网络 $NETWORK）..."
 : > "$BUILD_LOG"
 set +e

@@ -273,7 +273,8 @@ enrich_report_identity() {
 
 report_valid() {
     local report="$1"
-    [ -f "$report" ] && jq -e '.verdict' "$report" >/dev/null 2>&1
+    [ -f "$report" ] && jq -e '.verdict' "$report" >/dev/null 2>&1 || return 1
+    python3 "$REPO_ROOT/scripts/workflow/delivery_contract.py" verification --path "$report" --boundary "$(dirname "$report")" >/dev/null 2>&1
 }
 
 load_report() {
@@ -301,7 +302,9 @@ invoke_runner() {
     case "$harness" in
         "$run_dir"/*)
             rel="${harness#"$run_dir"/}"
-            rm -rf "$stage_root"
+            if [ -d "$stage_root" ]; then
+                mv "$stage_root" "$stage_root.previous.$(date +%s).$$"
+            fi
             mkdir -p "$stage_root"
             shopt -s dotglob nullglob
             for child in "$run_dir"/*; do
@@ -333,7 +336,10 @@ invoke_runner() {
             mkdir -p "$(dirname "$run_dir/$rel")"
             cp -a "$stage_root/$rel" "$run_dir/$rel"
         fi
-        rm -rf "$stage_root"
+        # 保留模型原始产物与依赖，不能为执行一次验证删除已有记录。
+        if [ -d "$stage_root/harness" ]; then
+            cp -an "$stage_root/harness/." "$run_dir/harness/"
+        fi
     fi
     return "$rc"
 }

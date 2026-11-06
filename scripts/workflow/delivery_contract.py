@@ -97,8 +97,10 @@ def runtime_environment(directory):
         "portable": False,
         "configuration": fields,
         "entries": entries,
-        "notice": ("仅记录配置、文件摘要和链接文本，不解析容器解释器链接，"
-                   "不把环境文件作为验证证据；重建时使用原镜像及环境定义。"),
+        "notice": (
+            "仅记录配置、文件摘要和链接文本，不解析容器解释器链接，"
+            "不把环境文件作为验证证据；重建时使用原镜像及环境定义。"
+        ),
     }
     snapshot["sha256"] = fingerprint(snapshot)
     return snapshot
@@ -174,18 +176,60 @@ def runtime_environment_marker(directory):
     return config.is_file() and not config.is_symlink()
 
 
+def recover_verification_delivery(report, source):
+    """只从报告字节完全相同的执行目录补齐附件，不生成日志或覆盖既有内容。"""
+    import shutil
+
+    report, source = Path(report).resolve(), Path(source).resolve()
+    original = source / report.name
+    if not original.is_file() or file_hash(original) != file_hash(report):
+        raise ValueError("恢复源报告与当前报告摘要不同，禁止迁移")
+    checked = validate_verification_report(original, source)
+    files = [Path(name) for name in checked["files"]]
+    for name in ("verdict.json",):
+        if (source / name).is_file():
+            files.append(source / name)
+    restored = []
+    for file in files:
+        relative = file.relative_to(source)
+        target = report.parent / relative
+        if not target.resolve().is_relative_to(report.parent):
+            raise ValueError("恢复目标越界")
+        if target.exists():
+            if target.is_symlink() or file_hash(target) != file_hash(file):
+                raise ValueError("恢复目标已有不同内容，禁止覆盖")
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(file, target, follow_symlinks=False)
+            restored.append({"path": str(relative), "sha256": file_hash(target)})
+    validate_verification_report(report, report.parent)
+    receipt = {
+        "schema_version": 1,
+        "source": str(source),
+        "report_sha256": file_hash(report),
+        "restored": restored,
+    }
+    (report.parent / "delivery-recovery.json").write_text(
+        json.dumps(receipt, ensure_ascii=False, indent=2) + "\n"
+    )
+    return receipt
+
+
 def main():
     parser = argparse.ArgumentParser(description="统一阶段交付契约")
-    parser.add_argument("action", choices=["project", "runtime", "verification"])
+    parser.add_argument("action", choices=["project", "runtime", "verification", "recover"])
     parser.add_argument("--expected")
     parser.add_argument("--path")
     parser.add_argument("--boundary")
+    parser.add_argument("--source")
     args = parser.parse_args()
     try:
         if args.action == "project":
             value = {"project": report_project(json.load(sys.stdin), args.expected)}
         elif args.action == "runtime":
             value = runtime_environment(args.path)
+        elif args.action == "recover":
+            value = recover_verification_delivery(args.path, args.source)
         else:
             value = validate_verification_report(args.path, args.boundary)
         print(json.dumps(value, ensure_ascii=False))

@@ -110,3 +110,47 @@ def test_environment_cannot_replace_evidence(tmp_path):
 def test_container_mount_references_are_resolved_only_within_candidate_root(tmp_path):
     file = verification(tmp_path, harness="/verify/verify.sh")
     assert contract.validate_verification_report(file, tmp_path)["files"]
+
+
+def test_recovery_restores_complete_matching_execution(tmp_path):
+    import shutil
+
+    source, target = tmp_path / "source", tmp_path / "target"
+    source.mkdir()
+    target.mkdir()
+    report = verification(source, artifacts={"stdout": "harness.stdout.log"})
+    (source / "harness.stdout.log").write_text("actual stdout")
+    shutil.copy2(report, target / report.name)
+    result = contract.recover_verification_delivery(target / report.name, source)
+    assert (target / "harness.stdout.log").read_text() == "actual stdout"
+    assert result["restored"]
+    assert contract.validate_verification_report(target / report.name, target)
+
+
+def test_recovery_rejects_different_report_and_conflicting_files(tmp_path):
+    import shutil
+
+    source, target = tmp_path / "source", tmp_path / "target"
+    source.mkdir()
+    target.mkdir()
+    report = verification(source)
+    shutil.copy2(report, target / report.name)
+    (target / "verify.sh").write_text("different script")
+    with pytest.raises(ValueError, match="禁止覆盖"):
+        contract.recover_verification_delivery(target / report.name, source)
+    (target / report.name).write_text("{}")
+    with pytest.raises(ValueError, match="摘要不同"):
+        contract.recover_verification_delivery(target / report.name, source)
+
+
+def test_download_policy_is_generic_and_idempotent():
+    spec = importlib.util.spec_from_file_location("download_policy", ROOT / "scripts/env/download_policy.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    source = "FROM base\nRUN apt-get update && apt-get install -y default-jdk unzip && rm -rf /var/lib/apt/lists/*\nCOPY . /source\n"
+    result = module.apply(source)
+    assert "default-jdk-headless unzip" in result
+    assert "--mount=type=cache" in result
+    assert "Acquire::Retries=3" in result
+    assert result == module.apply(result)
+    assert "COPY . /source" in result
