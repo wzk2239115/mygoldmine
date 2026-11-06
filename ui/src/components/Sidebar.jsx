@@ -148,7 +148,6 @@ export default function Sidebar({ board, filters, setFilters, facets, onImported
                 {project.commit ? ` · ${String(project.commit).slice(0, 8)}` : ''}
               </small>
             </span>
-            <span className="project-total">{project.curatedCount || 0}</span>
           </button>
           <div className="project-row-actions">
           <button type="button" className="project-restart" aria-label={`重新审计 ${project.name}`} title="使用当前源码重新运行完整审计，保留历史记录" disabled={project.isLive || Boolean(restartBusy)} onClick={() => restart(project)}><RotateCcw size={13} aria-hidden="true" />{restartBusy === project.id ? '正在启动…' : project.isLive ? '审计进行中' : '重新审计'}</button>
