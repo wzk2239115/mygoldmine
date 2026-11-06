@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts/stages"))
 from learn_round import learn  # noqa: E402
@@ -177,3 +179,44 @@ def test_learn_round_invokes_adapter_for_queued_request(tmp_path, monkeypatch):
     assert result["status"] == "candidate"
     assert result["candidates"] == ["candidate-1"]
     assert (queue / "called").is_file()
+
+def test_project_display_case_maps_to_runtime_owner_without_weakening_cross_project(tmp_path):
+    path = _request(tmp_path)
+    request = json.loads(path.read_text())
+    request["project"] = "Demo"
+    path.write_text(json.dumps(request))
+    result = optimize_request(path, repo=tmp_path, project="demo", rewrite=lambda *a, **k: {
+        "new_skill": "# 修正规则\n先读取真实环境证据再判断。", "reasoning": "保留项目归属"
+    })
+    assert result["status"] == "candidate"
+    candidate = SkillBank(tmp_path).candidate(result["candidate_id"])
+    assert candidate["project"] == "demo"
+    request["project"] = "other"
+    path.write_text(json.dumps(request))
+    import pytest
+    with pytest.raises(ValueError, match="项目与当前运行不一致"):
+        optimize_request(path, repo=tmp_path, project="demo", rewrite=lambda *a, **k: {})
+
+
+def test_project_inference_uses_run_owner_not_report_display_name(tmp_path, monkeypatch):
+    import skill_bank
+    monkeypatch.setattr(skill_bank, "ROOT", tmp_path)
+    root = tmp_path / "runs/openmuse/one.meta/node-retries/learner/new/output"
+    write(root / "audit-report.json", {"project": "OpenMuse", "findings": []})
+    assert skill_bank.infer_project(root) == "openmuse"
+
+def test_optimizer_restores_process_marker_on_failure_and_exception(tmp_path, monkeypatch):
+    import os
+    monkeypatch.delenv("SKILLOPT_RUN", raising=False)
+    repo = tmp_path / "repo"
+    request = _request(repo)
+    def rewrite(*args, **kwargs):
+        assert os.environ["SKILLOPT_RUN"] == "1"
+        return {"new_skill": ""}
+    result = optimize_request(request, repo=repo, project="demo", rewrite=rewrite)
+    assert result["status"] == "failed"
+    assert "SKILLOPT_RUN" not in os.environ
+    monkeypatch.setenv("SKILLOPT_RUN", "outer")
+    with pytest.raises(ValueError):
+        optimize_request(tmp_path / "missing.json", repo=repo, project="demo", rewrite=rewrite)
+    assert os.environ["SKILLOPT_RUN"] == "outer"

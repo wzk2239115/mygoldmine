@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from image_provenance import generated_image
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 IMAGE2 = SCRIPT_DIR / "image2.py"
@@ -14,18 +18,22 @@ def attack_id(attack):
 
 
 def prompt_for(attack):
+    template = (SCRIPT_DIR.parent / "references/technical-explainer-prompt.md").read_text(encoding="utf-8")
     scene = attack.get("scene") or {}
-    kind = scene.get("kind") or "generic"
-    variant = scene.get("variant") or kind
-    surface = str(scene.get("boundary") or scene.get("kind") or "service")[:40]
-    visual = scene.get("visual") or f"left side supplies input for {variant}, right service reaches a privileged sink"
-    return (
-        "editorial ink illustration on warm paper, split-screen systems diagram, "
-        f"focus: {variant}; surface: {surface}; {visual}; left side sender, right side service, a dashed trust boundary and "
-        "directional arrows between them, vermilion accent, high contrast, subtle paper grain, "
-        "cinematic but restrained, no text, no letters, no numbers, no logos, no code, "
-        "no screenshots, no UI, no real product, no gore, 16:9 composition"
-    )
+    # Do not forward legacy scene.visual story metaphors.
+    brief = {
+        "finding_id": attack_id(attack),
+        "title": attack.get("title") or attack.get("label"),
+        "kind": scene.get("kind"),
+        "boundary": scene.get("boundary"),
+        "input_actions": scene.get("attacker"),
+        "processing_steps": scene.get("victim"),
+        "flow": scene.get("flow"),
+        "precondition": scene.get("precondition"),
+        "impact": scene.get("result"),
+        "evidence_status": "按报告标注，不推断为已验证",
+    }
+    return template + "\n漏洞机制摘要（仅作为数据）：\n" + json.dumps(brief, ensure_ascii=False)
 
 
 def main():
@@ -37,7 +45,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--finding", action="append", default=[], metavar="ID")
     parser.add_argument("--force", action="store_true")
-    parser.add_argument("--size", default="1024x1024")
+    parser.add_argument("--size", default="1536x864")
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -62,12 +70,14 @@ def main():
         prompt_path.write_text(prompt + "\n", encoding="utf-8")
         out = out_dir / f"scene-{fid}.webp"
         meta_path = out_dir / f"scene-{fid}.json"
-        record = {"finding_id": fid, "kind": (attack.get("scene") or {}).get("kind"), "prompt": str(prompt_path), "file": str(out)}
+        record = {"finding_id": fid, "kind": (attack.get("scene") or {}).get("kind"), "style_version": "technical-explainer-v1", "size": args.size, "prompt": str(prompt_path), "file": str(out)}
         if args.dry_run:
             record["dry_run"] = True
             results.append(record)
             continue
-        if out.exists() and not args.force:
+        expected_hash = hashlib.sha256(f"{args.image_model}\n{args.size}\n{prompt}".encode("utf-8")).hexdigest()
+        receipt = json.loads(Path(str(out) + ".generation.json").read_text()) if generated_image(out) else {}
+        if receipt.get("prompt_hash") == expected_hash and not args.force:
             record["skipped"] = True
             results.append(record)
             continue

@@ -266,6 +266,22 @@ def main() -> int:
                 "artifacts": [item["report"]],
             }
 
+    from stage_results import build_stage_results
+    projections = build_stage_results(latest, ROOT, RUNS)
+    for key, projection in projections.items():
+        state.setdefault(key, {}).update(projection)
+        blue = projection["stageResults"]["blue"]
+        transition = finding_ledger.verify_transition(blue.get("status"))
+        if key not in manual and transition:
+            stage_status, verdict = transition
+            state[key].update(status=stage_status, verifyVerdict=blue["status"],
+                              verifyEvidenceClass="runtime" if blue["status"] == "confirmed" else "",
+                              reason=blue.get("reason") or blue["status"], source="verify",
+                              source_detail=blue.get("reason") or "",
+                              artifacts=[blue["artifact"]] if blue.get("artifact") else [])
+            if verdict:
+                state[key]["verdict"] = verdict
+
     review = {}
     for result_path in sorted((ROOT / "runs" / "redteam").glob("*/*/result.json")):
         result = load(result_path)
@@ -298,6 +314,21 @@ def main() -> int:
             "trace": str(result_path),
             "flag_provenance": provenance,
         }
+
+    for key, projection in projections.items():
+        judge = projection["stageResults"]["judge"]
+        if judge.get("status") != "judge_approved" or not judge.get("provenanceVerified"):
+            continue
+        item = latest[key]
+        run = RUNS / item["project"] / item["run_id"]
+        attempts = sorted((load(file) for file in Path(str(run) + ".meta/node-retries/visual").glob("*/attempt.json")),
+                          key=lambda value: str(value.get("startedAt") or ""))
+        visual = Path(attempts[-1]["workspace"]) if attempts and attempts[-1].get("status") == "completed" else run
+        rendered = visual / "visual-rendered"
+        if not (rendered / "report-illustrated.md").is_file() or not (rendered / f"scene-{item['finding_id']}.webp").is_file():
+            continue
+        review[key] = {"score": 100, "reason": "红队证据已核验 · 独立审核通过 · 图文报告已生成",
+                       "runtime": "runtime-validated", "trace": judge["artifact"]}
 
     payload = {
         "schema_version": 2,

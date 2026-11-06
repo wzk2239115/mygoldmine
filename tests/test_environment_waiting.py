@@ -92,3 +92,21 @@ def test_build_hook_requires_durable_entry_point():
         assert bool(result.stdout.strip()) is denied
         if denied:
             assert json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+def test_source_only_mode_does_not_download_rust_toolchain(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "Cargo.toml").write_text('[package]\nname="fixture"\nversion="0.1.0"\n')
+    out = tmp_path / "environment"
+    result = subprocess.run(
+        ["bash", str(ROOT / "scripts/env/build_env.sh"), str(source),
+         "--project", "fixture", "--env-dir", str(out), "--mode", "none", "--dry-run"],
+        capture_output=True, text=True, timeout=15,
+    )
+    assert result.returncode == 0, result.stderr
+    dockerfile = (out / "Dockerfile").read_text()
+    assert "sh.rustup.rs" not in dockerfile
+    assert "cargo fetch" not in dockerfile
+    assert "apt-get install" not in dockerfile
+    manifest = json.loads((out / "env-manifest.json").read_text())
+    assert manifest["install_commands"] == []

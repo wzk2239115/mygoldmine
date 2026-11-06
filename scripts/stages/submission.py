@@ -66,8 +66,10 @@ def submit(stage, root, arguments):
             elif stage=='visual':
                 # 单个场景的设计交付；整阶段仍由原有渲染与汇总检查验收。
                 if not d.get('finding_id'): raise ValueError('场景设计缺少 finding_id')
-                images=[p for p in artifact.parent.glob(artifact.name.replace('.director.json','')+'.*') if p.suffix in ('.webp','.png','.jpg','.svg') and p.stat().st_size>0]
-                if not artifact.name.endswith('.director.json') or not images: raise ValueError('需要场景设计 .director.json 及同名非空图片')
+                sys.path.insert(0, str(ROOT/'.claude/skills/project-cartographer/scripts'))
+                from image_provenance import generated_image
+                images=[p for p in artifact.parent.glob(artifact.name.replace('.director.json','')+'.*') if p.suffix in ('.webp','.png','.jpg') and generated_image(p)]
+                if not artifact.name.endswith('.director.json') or not images: raise ValueError('需要场景设计 .director.json 及同名文生图图片；必须有匹配图片哈希的文生图记录，SVG 不可作为交付')
             elif stage=='verify':
                 status=d.get('verdict') or d.get('verification',{}).get('status') or d.get('status')
                 if not status or not (d.get('finding_id') or d.get('id')): raise ValueError('验证报告缺少明确结论或候选问题编号')

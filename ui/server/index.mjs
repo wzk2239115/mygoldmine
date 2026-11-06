@@ -1,4 +1,7 @@
-import {listNodeArtifacts,nodeArtifact,artifactText,openArtifact} from './node-artifacts.mjs';
+import {reportBundle,markdownBundle} from './report-export.mjs';
+import {verifiedReports} from './verified-reports.mjs';
+import {visualRoot,visualAsset} from './visual-assets.mjs';
+import {listNodeArtifacts,nodeArtifact,artifactText,openArtifact,artifactAsset} from './node-artifacts.mjs';
 import {startCycle,stopCycle,cycleStatus} from './learning-cycles.mjs';
 import {labTaskReport} from './lab-tasks.mjs';
 import {verifyTaskReport} from './verify-tasks.mjs';
@@ -6,7 +9,7 @@ import { sessionMatchesTrace } from './ccui-cache.mjs';
 import { startNodeRetry } from './node-retries.mjs';
 import { createModelSettings } from './model-settings.mjs';
 import { createCcuiService } from './ccui-service.mjs';
-import { projectLogo } from './project-logo.mjs';
+import { projectLogo,queueProjectLogo } from './project-logo.mjs';
 import { removeProjectRecords } from './project-removal.mjs';
 import { discoverRunNames } from './run-directories.mjs';
 import http from 'node:http';
@@ -86,6 +89,7 @@ const PROJECT_META = (() => {
 
 function projectInfo(project) {
   const meta = PROJECT_META[project] || {};
+  if(!projectLogo(REPO_ROOT,project,meta.logo))void queueProjectLogo(REPO_ROOT,project,meta.url);
   return {
     name: meta.name || PROJECT_NAMES[project] || project,
     direction: meta.direction || '',
@@ -584,7 +588,7 @@ function mergeOverrides(finding, curated, state, auto, refine, flow, review, led
   const merged = { ...detected, ...refined, ...flowed, ...seed, ...saved };
   const hasSeed = Boolean(Object.keys(seed).length);
   const hasSaved = Boolean(Object.keys(saved).length);
-  const hasAuto = Boolean(Object.keys(detected).length);
+  const hasAuto = Boolean(detected.status || detected.source || detected.reason);
   const hasRefine = Boolean(Object.keys(refined).length);
   const hasFlow = Boolean(Object.keys(flowed).length);
 
@@ -605,6 +609,9 @@ function mergeOverrides(finding, curated, state, auto, refine, flow, review, led
     autoSource: hasAuto || hasRefine || hasFlow ? String(merged.source || '') : '',
     autoDetail: hasAuto || hasRefine || hasFlow ? String(merged.source_detail || '') : '',
     autoArtifacts: (hasAuto || hasRefine || hasFlow) && Array.isArray(merged.artifacts) ? merged.artifacts : [],
+    verified: detected.stageResults?.blue?.status === 'confirmed' ? true
+      : detected.stageResults?.blue && !['not_run','not_selected'].includes(detected.stageResults.blue.status) ? false : finding.verified,
+    stageResults: detected.stageResults || {},
     verifyVerdict: hasAuto || hasRefine || hasFlow ? String(merged.verifyVerdict || '') : '',
     verifyEvidenceClass: hasAuto || hasRefine || hasFlow ? String(merged.verifyEvidenceClass || '') : '',
     flowStage: hasFlow ? String(merged.flowStage || '') : '',
@@ -1237,6 +1244,11 @@ function applyCors(req, res) {
 }
 
 function serveStatic(req, res, pathname) {
+  if(/^\/logos\/[a-z0-9][a-z0-9._-]{0,79}\.png$/.test(pathname)) {
+    const local=path.join(UI_ROOT,'public',pathname.slice(1));
+    if(fileExists(local) && !fs.lstatSync(local).isSymbolicLink())return sendFile(res,local,'no-cache');
+    return sendError(res,404,'项目图标尚未就绪');
+  }
   if (!fs.existsSync(DIST_ROOT)) {
     sendError(res, 503, 'UI is not built. Run: cd ui && npm install && npm run build');
     return;
@@ -1296,6 +1308,19 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    const reportExport=pathname.match(/^\/api\/verified-reports\/([a-f0-9]{24})\/download$/);
+    if(req.method==='GET' && reportExport) {
+      const findings=buildBoard().findings;
+      const report=verifiedReports(REPO_ROOT,findings).find(item=>item.exportId===reportExport[1]);
+      if(!report)return sendError(res,404,'报告已更新或不再满足验证条件，请刷新后重试');
+      const finding=findings.find(item=>item.key===report.key);
+      const bundle=reportBundle(REPO_ROOT,finding,report);
+      res.writeHead(200,{'Content-Type':'application/zip','Content-Disposition':"attachment; filename*=UTF-8''"+encodeURIComponent(bundle.filename),'Content-Length':bundle.bytes.length,'Cache-Control':'no-store'});
+      return res.end(bundle.bytes);
+    }
+    if(req.method==='GET' && pathname==='/api/verified-reports') {
+      return sendJson(res,200,{items:verifiedReports(REPO_ROOT,buildBoard().findings)});
+    }
     if (req.method === 'GET' && pathname === '/api/board') {
       sendJson(res, 200, buildBoard());
       return;
@@ -1309,7 +1334,7 @@ const server = http.createServer(async (req, res) => {
       const run=runs.filter(item=>item.project===project).sort((a,b)=>String(b.runId).localeCompare(String(a.runId)))[0];
       if(!run)return sendError(res,404,'项目不存在');
       if(req.method==='GET' && !cycleTarget[2])return sendJson(res,200,cycleStatus(REPO_ROOT,project));
-      if(req.method==='POST' && cycleTarget[2]==='start')return sendJson(res,201,startCycle({repoRoot:REPO_ROOT,run,liveRuns:runs}));
+      if(req.method==='POST' && cycleTarget[2]==='start'){const body=await readBody(req);return sendJson(res,201,startCycle({repoRoot:REPO_ROOT,run,liveRuns:runs,continuous:body.continuous??false}));}
       if(req.method==='POST' && cycleTarget[2]==='stop')return sendJson(res,200,stopCycle(REPO_ROOT,project));
       return sendError(res,405,'请求方式不支持');
     }
@@ -1441,18 +1466,25 @@ const server = http.createServer(async (req, res) => {
     }
 
 
-    const artifactMatch=pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/nodes\/([^/]+)\/artifacts(?:\/([a-f0-9]{24}))?$/);
+    const artifactMatch=pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/nodes\/([^/]+)\/artifacts(?:\/([a-f0-9]{24})(\/asset)?)?$/);
     if(req.method==='GET' && artifactMatch) {
       const run=findRun(artifactMatch[1],artifactMatch[2],false);
       if(!run)return sendError(res,404,'运行不存在');
       if(!artifactMatch[4])return sendJson(res,200,{items:listNodeArtifacts(run,artifactMatch[3]).map(({file,root,...item})=>item)});
-      const item=nodeArtifact(run,artifactMatch[3],artifactMatch[4]);
+      let item=nodeArtifact(run,artifactMatch[3],artifactMatch[4]);
+      if(item && artifactMatch[5])item=artifactAsset(item,String(url.searchParams.get('path') || ''));
       if(!item)return sendError(res,404,'产物不存在或批次已切换，请刷新');
-      if(url.searchParams.get('download')==='1' || (item.type==='image' && url.searchParams.get('image')==='1')) {
+      if(url.searchParams.get('bundle')==='1' && path.extname(item.file).toLowerCase()==='.md') {
+        const bundle=markdownBundle(item);
+        res.writeHead(200,{'Content-Type':'application/zip','Content-Disposition':"attachment; filename*=UTF-8''"+encodeURIComponent(bundle.filename),'Content-Length':bundle.bytes.length,'Cache-Control':'no-store'});
+        return res.end(bundle.bytes);
+      }
+      if(artifactMatch[5] || url.searchParams.get('download')==='1' || (item.type==='image' && url.searchParams.get('image')==='1')) {
         const fd=openArtifact(item);
-        const types={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp'};
-        res.setHeader('Content-Type',item.type==='image'?types[path.extname(item.file).toLowerCase()]:'application/octet-stream');
+        const types={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
+        res.setHeader('Content-Type',item.type==='image'?types[path.extname(item.file).toLowerCase()]:(artifactMatch[5]?'text/plain; charset=utf-8':'application/octet-stream'));
         res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
+        res.setHeader('Content-Security-Policy',"sandbox; default-src 'none'");
         if(url.searchParams.get('download')==='1')res.setHeader('Content-Disposition',"attachment; filename*=UTF-8''"+encodeURIComponent(path.basename(item.name)));
         const stream=fs.createReadStream(item.file,{fd,autoClose:true});stream.on('error',()=>res.destroy());stream.pipe(res);return;
       }
@@ -1654,7 +1686,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && visualMatch) {
       const run = findRun(visualMatch[1], visualMatch[2], false);
       if (!run) return sendError(res, 404, 'Run not found');
-      const file = path.join(run.runDir, 'visual', 'visual-model.json');
+      const file = path.join(visualRoot(run), 'visual', 'visual-model.json');
       if (!fileExists(file)) return sendError(res, 404, 'Visual model not generated');
       sendFile(res, file, 'no-store');
       return;
@@ -1666,13 +1698,14 @@ const server = http.createServer(async (req, res) => {
       if (!run) return sendError(res, 404, 'Run not found');
       const requested = String(url.searchParams.get('path') || '');
       if (!requested || requested.includes('..') || path.isAbsolute(requested)) return sendError(res, 400, 'Invalid asset path');
-      const roots = [path.join(run.runDir, 'visual'), path.join(run.runDir, 'visual-rendered')];
-      for (const root of roots) {
-        const file = path.resolve(root, requested);
-        if (file !== root && file.startsWith(`${root}${path.sep}`) && fileExists(file)) {
-          sendFile(res, file, 'no-store');
-          return;
-        }
+      const item=visualAsset(run,requested);
+      if(item) {
+        const fd=openArtifact(item);
+        const types={'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.json':'application/json; charset=utf-8','.md':'text/plain; charset=utf-8'};
+        res.setHeader('Content-Type',types[path.extname(item.file).toLowerCase()] || 'application/octet-stream');
+        res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
+        res.setHeader('Content-Security-Policy',"sandbox; default-src 'none'");
+        const stream=fs.createReadStream(item.file,{fd,autoClose:true});stream.on('error',()=>res.destroy());stream.pipe(res);return;
       }
       return sendError(res, 404, 'Visual asset not found');
     }

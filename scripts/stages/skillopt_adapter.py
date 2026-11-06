@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -110,6 +111,20 @@ def _clean_skill(text: Any) -> str:
     return value + "\n"
 
 
+@contextmanager
+def optimization_context():
+    previous = os.environ.get("SKILLOPT_RUN")
+    os.environ["SKILLOPT_RUN"] = "1"
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("SKILLOPT_RUN", None)
+        else:
+            os.environ["SKILLOPT_RUN"] = previous
+
+
+@optimization_context()
 def optimize_request(
     request_path: str | Path,
     *,
@@ -119,7 +134,6 @@ def optimize_request(
     rewrite: Callable[..., dict | None] | None = None,
 ) -> dict[str, Any]:
     repo = Path(repo).resolve()
-    os.environ["SKILLOPT_RUN"] = "1"
     request_path = Path(request_path).resolve()
     request = read(request_path, {})
     if not request:
@@ -129,6 +143,8 @@ def optimize_request(
     if stage not in STAGES or scope not in ("general", "project"):
         raise ValueError("改进请求的目标阶段或层级无效")
     target_project = identifier(request.get("project") or project or "unknown")
+    if project and target_project.casefold() == project.casefold():
+        target_project = project
     if scope == "project" and project and target_project != project:
         raise ValueError("仓库专属请求的项目与当前运行不一致")
     evidence = request.get("evidence") or []

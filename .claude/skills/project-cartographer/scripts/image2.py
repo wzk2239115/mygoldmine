@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 
 import requests
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from image_provenance import record_generation
 
 
 def load_config():
@@ -97,6 +99,7 @@ def main():
             if Path(cached).resolve() != out.resolve():
                 out.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(cached, out)
+            record_generation(out, meta.get("model") or args.model, digest, cached=True)
             meta["file"] = str(out)
             if args.json:
                 print(json.dumps({**meta, "cached": True}, ensure_ascii=False, indent=2))
@@ -139,6 +142,7 @@ def main():
         "prompt": prompt,
         "hash": digest,
     }
+    record_generation(saved, meta["model"], digest)
     cache_file.parent.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     if args.json:

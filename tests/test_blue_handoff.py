@@ -253,3 +253,14 @@ def test_autonomous_handoff_does_not_truncate_confirmed_candidates(tmp_path):
     selection, _, _ = handoff.collect(run,"demo",maximum=1,drain=True)
     assert selection["selected"] == len(findings)
     assert selection["accounted"] == len(findings)
+
+@pytest.mark.parametrize('name,allowed', [('Demo', True), ('DEMO', True), ('other', False), ('demo-other', False), ({'name': 'demo'}, False)])
+def test_report_project_case_only_compatibility(tmp_path, name, allowed):
+    run, findings, _ = fixture(tmp_path)
+    write(run / 'audit-report.json', {'project': name, 'findings': findings})
+    if allowed:
+        selection, _, _ = handoff.collect(run, 'demo')
+        assert len(selection['candidates']) == 4
+    else:
+        with pytest.raises(ValueError, match='不属于当前项目'):
+            handoff.collect(run, 'demo')

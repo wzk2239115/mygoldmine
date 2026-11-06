@@ -91,6 +91,7 @@ def learn(run, project, repo=ROOT, timeout=180, skillopt_timeout=300):
         '先归因并选择最多两个证据最充分的目标阶段。对选定目标默认调用 request_skillopt_optimization，'
         '提交问题归因、修改建议、证据、预期改善、可能退化和适用条件；只有明确只需一条短规则、'
         '不需要重写时才用 propose_skill_update。'
+        '项目标识使用调用方提供的项目目录标识，报告中的品牌名称不是项目标识。'
         '不要进行新审计，不要声称候选已经评估或发布。'
     )
     before = set((run / '.stage-skill-proposals').glob('*.json'))

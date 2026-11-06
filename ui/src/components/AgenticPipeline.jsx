@@ -5,6 +5,8 @@ import { cx } from '../utils.js';
 import AgenticTraceDrawer from './AgenticTraceDrawer.jsx';
 import TeamAgentIcon from './TeamAgentIcon.jsx';
 
+const ROMAN=['I','II','III','IV','V','VI','VII','VIII'];
+const CYCLE_LABELS={not_started:'未启动',running:'运行中',queued:'排队中',stopped:'已停止',completed:'已结束',no_improvement:'无发布改善，已停止',failed:'失败，已停止'};
 const STATUS_LABELS = {
   completed: '已完成',
   degraded: '降级',
@@ -25,7 +27,11 @@ function StatusIcon({ status }) {
   return <CircleDashed size={14} aria-hidden="true" />;
 }
 
-export default function AgenticPipeline({ project, runId, projectName, live = false, compact = false }) {
+export default function AgenticPipeline({ project, runId: defaultRunId, reportRunId, projectName, live: projectLive = false, compact = false }) {
+  const [viewRunId,setViewRunId]=useState('');
+  const runId=viewRunId || defaultRunId;
+  const live=projectLive && runId===defaultRunId;
+  useEffect(()=>{setViewRunId('');},[project,defaultRunId]);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [cycleBusy,setCycleBusy]=useState(false);
@@ -64,10 +70,10 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
   }
   const retryLive = data?.workflow?.status==='running' || data?.nodes.some(node=>node.retryReason==='此节点正在重跑' || node.continuationPending) || false;
   useEffect(() => {
-    if (!live && !retryLive && !cycleLive) return undefined;
+    if (!project || !runId) return undefined;
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') load(true);
-    }, 5000);
+    }, live || retryLive || cycleLive ? 5000 : 15000);
     return () => window.clearInterval(timer);
   }, [live, retryLive, cycleLive, load]);
 
@@ -81,8 +87,8 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
         </div>
         <div className="agentic-pipeline-summary">
           {data?.workflow?.traces?.length ? <button type="button" className="cycle-control" title="查看整条流程的调度会话，不计入节点轨迹" onClick={()=>setSelectedNode({id:'workflow',title:'工作流调度',agent:'pipeline-coordinator',workflowOnly:true,status:data.workflow.status,traces:data.workflow.traces,retrySupported:false})}>工作流调度</button> : null}
-          <button type="button" className="cycle-control" onClick={controlCycle} disabled={cycleBusy || !project || (!cycleLive && (live || retryLive)) || data?.cycle?.stopRequested}
-            title={cycleLive?'当前轮结束后停止，不打断正在执行的阶段':'执行01—08，最多3轮；连续2轮无发布改善则停止'}>
+          <button type="button" className="cycle-control" onClick={controlCycle} disabled={cycleBusy || !project || (!cycleLive && (projectLive || retryLive)) || data?.cycle?.stopRequested}
+            title={cycleLive?'当前轮结束后停止，不打断正在执行的阶段':'持续执行 I—VIII，每轮间隔五分钟；无发布改善时保留当前技能，失败时停止'}>
             {data?.cycle?.stopRequested?'本轮结束后停止':cycleLive?'停止连续循环':'启动连续循环'}
           </button>
 
@@ -92,8 +98,14 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
           </button>
         </div>
       </header>
-      {data?.cycle?.active ? <p className="cycle-progress" role="status">连续循环 · 第 {data.cycle.current_round || 0}/{data.cycle.max_rounds || 3} 轮 · {data.cycle.stopRequested?'本轮结束后停止':'08结束后将按停止条件进入下一轮01'}</p> : null}
-      {error ? <div className="inline-error" role="alert">{error}</div> : null}
+      <div className="pipeline-run-context">
+        <span>当前执行链：<code>{runId || '尚无运行'}</code></span>
+        {reportRunId && reportRunId!==runId ? <><span>候选问题来自另一轮：<code>{reportRunId}</code>；此处阶段状态属于当前执行链。</span><button type="button" className="cycle-control" onClick={()=>setViewRunId(reportRunId)}>查看候选对应执行链</button></>:null}
+        {viewRunId && viewRunId!==defaultRunId?<button type="button" className="cycle-control" onClick={()=>setViewRunId('')}>返回最新运行</button>:null}
+      </div>
+      {data?.cycle ? <p className="cycle-progress" role="status">已完成 {data.cycle.completed_rounds || 0} 轮审计 · 循环{CYCLE_LABELS[data.cycle.status] || data.cycle.status}{data.cycle.active ? ` · 本次第 ${data.cycle.current_round || 0} 轮` : ''}{data.cycle.waiting_until?` · ${data.cycle.wait_reason || '等待下一轮'}`:null}{data.cycle.error ? ` · ${data.cycle.error}` : ''}{data.cycle.stopRequested?' · 本轮结束后停止':null}</p> : null}
+      {data?.workflow?.status==='failed' && data.workflow.error ? <div className="inline-error" role="alert">工作流已停止：{data.workflow.error}</div>:null}
+      {error ? <div className="inline-error"  role="alert">{error}</div> : null}
       {data ? (
         <div className="agentic-cycle-scroll">
         <div className={cx('agentic-cycle-frame', data.nodes.some(node => node.status === 'running') && 'has-running-stage', cycleLive && 'has-active-cycle')}>
@@ -117,7 +129,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
               onClick={() => { setFocusedNode(node); setSelectedNode({...node, openRepair: Boolean(node.repair)}); }}
             >
               <div className="agentic-node-top">
-                <span className="agentic-node-index">{String(index + 1).padStart(2, '0')}</span>
+                <span className="agentic-node-index">{ROMAN[index]}</span>
                 <span className={cx('agentic-node-status', `is-${node.status}`, node.repair?.active && 'is-repairing')}>
                   {node.repair?.active ? <Wrench size={14} className="runner-wrench" aria-hidden="true" /> : <StatusIcon status={node.status} />}
                   {node.repair?.active ? '修复中' : node.statusLabel || STATUS_LABELS[node.status] || node.status}
@@ -138,7 +150,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
             </button>
           ))}
         </div>
-          <span className="agentic-cycle-caption">{cycleLive ? (data.cycle.stopRequested?'本轮结束后停止':'08结束后进入下一轮01；仅加载已发布技能') : '评估通过后，下一轮加载技能'}</span>
+          <span className="agentic-cycle-caption">{cycleLive ? (data.cycle.stopRequested?'本轮结束后停止':'VIII 结束后进入下一轮 I；仅加载已发布技能') : (data.cycle?.status==='not_started'?'循环未启动 · 点击启动连续循环':'循环已停止 · 可重新启动')}</span>
         </div>
         </div>
       ) : (
@@ -147,7 +159,7 @@ export default function AgenticPipeline({ project, runId, projectName, live = fa
         </div>
       )}
       {data ? <div className="agentic-cycle-context" aria-live="polite">
-        {cycleLive ? <><strong>连续循环已启动</strong><span>最多 {data.cycle.max_rounds || 3} 轮，连续两轮无发布改善则停止</span></> : focusedNode ? <><strong>{focusedNode.title}</strong><span>{focusedNode.statusLabel || STATUS_LABELS[focusedNode.status]}</span><span>{focusedNode.detail || '点击节点查看执行记录'}</span></> : <><strong>01 → 08 → 01</strong><span>经验学习与独立评估后进入下一轮</span><span>连续执行需启动循环任务</span></>}
+        {cycleLive ? <><strong>连续循环已启动</strong><span>{data.cycle.continuous?'持续运行，每轮间隔五分钟；工作流失败时停止':`最多 ${data.cycle.max_rounds || 3} 轮，连续 ${data.cycle.patience || 2} 轮无发布改善则停止`}</span></> : focusedNode ? <><strong>{focusedNode.title}</strong><span>{focusedNode.statusLabel || STATUS_LABELS[focusedNode.status]}</span><span>{focusedNode.detail || '点击节点查看执行记录'}</span></> : <><strong>I → VIII → I</strong><span>经验学习与独立评估后进入下一轮</span><span>连续执行需启动循环任务</span></>}
       </div> : null}
       {selectedNode ? (
         <AgenticTraceDrawer

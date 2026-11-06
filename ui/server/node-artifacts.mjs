@@ -13,7 +13,7 @@ const specs={
  judge:['judge','redteam/summary.json'],
  learner:['rsi/stage-learning-evaluation.json','rsi/learning-retry.json','rsi/stage-feedback','rsi/skillopt','rsi/mining-repairs/agentic']
 };
-const extensions=new Set(['.md','.json','.png','.jpg','.jpeg','.webp']);
+const extensions=new Set(['.md','.json','.png','.jpg','.jpeg','.webp','.svg']);
 export function listNodeArtifacts(run,node) {
  if(!specs[node])return [];
  const attempt=nodeAttempts(run.runDir,node).at(-1);
@@ -37,7 +37,7 @@ export function listNodeArtifacts(run,node) {
    const name=path.relative(root,file);
    if(/(?:^|\/)(?:agent|run-meta|finding|scenario|result|judge|summary)\.json$/.test(name) && stat.size>5*1024*1024)return;
    const id=createHash('sha256').update(root+'\0'+name).digest('hex').slice(0,24);
-   result.push({id,name,group:label,size:stat.size,updatedAt:stat.mtime.toISOString(),type:/\.(png|jpe?g|webp)$/i.test(name)?'image':'text',file:real,root:realRoot});
+   result.push({id,name,group:label,size:stat.size,updatedAt:stat.mtime.toISOString(),type:/\.(png|jpe?g|webp|svg)$/i.test(name)?'image':'text',file:real,root:realRoot});
   }
   for(const relative of files)visit(path.join(root,relative));
  }
@@ -59,4 +59,15 @@ export function artifactText(item) {
  const fd=openArtifact(item);
  try {const buffer=Buffer.alloc(Math.min(item.size,limit));const count=fs.readSync(fd,buffer,0,buffer.length,0);return {text:buffer.subarray(0,count).toString('utf8'),truncated:item.size>limit};}
  finally{fs.closeSync(fd);}
+}
+
+export function artifactAsset(item,requested) {
+ if(!requested || requested.includes('\0') || requested.includes('\\') || path.isAbsolute(requested))return null;
+ const file=path.resolve(path.dirname(item.file),requested);
+ if(!file.startsWith(item.root+path.sep) || !extensions.has(path.extname(file).toLowerCase()))return null;
+ try {
+  const stat=fs.lstatSync(file),real=fs.realpathSync(file);
+  if(!stat.isFile() || stat.isSymbolicLink() || !real.startsWith(item.root+path.sep))return null;
+  return {...item,file:real,name:path.basename(file),size:stat.size,type:/\.(png|jpe?g|webp|svg)$/i.test(file)?'image':'text'};
+ }catch{return null;}
 }

@@ -1,13 +1,13 @@
+import VerifiedReports from './components/VerifiedReports.jsx';
 import ModelSettings from './components/ModelSettings.jsx';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, BadgeCheck, BookOpen, ChevronLeft, ChevronRight, Database, GitBranch, LayoutGrid, List, Radar, RefreshCw, Settings, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, BookOpen, ChevronLeft, ChevronRight, Database, GitBranch, LayoutGrid, List, Mail, Radar, RefreshCw, Settings, ShieldAlert } from 'lucide-react';
 import { api } from './api.js';
 import { useI18n } from './i18n.jsx';
 import { countBy, cx } from './utils.js';
 import StageView from './components/StageView.jsx';
 import DetailDrawer from './components/DetailDrawer.jsx';
 import LiveRunDrawer from './components/LiveRunDrawer.jsx';
-import LiveRunsStrip from './components/LiveRunsStrip.jsx';
 import AgenticPipeline from './components/AgenticPipeline.jsx';
 import MapView from './components/MapView.jsx';
 import RefineryStrip from './components/RefineryStrip.jsx';
@@ -93,10 +93,23 @@ function LoadingBoard() {
 export default function App() {
   const { language, setLanguage, t } = useI18n();
   const [board, setBoard] = useState(null);
+  const runningProjectCount=new Set((board?.liveRuns || []).filter(run=>run.project && !run.finished && run.isLive!==false).map(run=>run.project)).size;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFiltersState] = useState(loadFilters);
   const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
+  const [reportData,setReportData]=useState({items:[],loading:true,error:''});
+  const loadVerifiedReports=useCallback(async()=>{
+    setReportData(current=>({...current,loading:true}));
+    try{const data=await api.verifiedReports();setReportData({items:data.items,loading:false,error:''});}
+    catch(error){setReportData(current=>({...current,loading:false,error:error.message}));}
+  },[]);
+  useEffect(()=>{
+    loadVerifiedReports();
+    const timer=setInterval(()=>{if(document.visibilityState==='visible')loadVerifiedReports();},30000);
+    return()=>clearInterval(timer);
+  },[loadVerifiedReports]);
+
   const [view, setViewState] = useState(() => localStorage.getItem('vul-ai-view') || 'board');
   const [activeStage, setActiveStageState] = useState('');
   const [theme, setTheme] = useState(() => localStorage.getItem('vul-ai-theme') || 'light');
@@ -296,6 +309,7 @@ export default function App() {
       project: target.id,
       projectName: target.name,
       runId: target.liveRunId || target.latestRunId,
+      reportRunId: target.latestReportRunId,
       live: Boolean(target.isLive)
     };
   }, [board?.projects, board?.liveRuns, filters.project]);
@@ -368,7 +382,8 @@ export default function App() {
           <RailButton
             id="nav-board"
             label={t('nav.board')}
-            description={t('nav.board.description')}
+            description={runningProjectCount ? t('nav.board.description')+' 当前有 '+runningProjectCount+' 个项目正在运行。' : t('nav.board.description')}
+            badge={runningProjectCount}
             active={view === 'board' && activeStage !== 'review'}
             current={view === 'board' && activeStage !== 'review'}
             onClick={() => {
@@ -433,6 +448,9 @@ export default function App() {
             }}
           >
             <BadgeCheck size={18} aria-hidden="true" />
+          </RailButton>
+          <RailButton id="nav-reports" label="验证报告" badge={reportData.items.length} description={`阅读证据核验、独立审核通过且附 AI 插图的漏洞报告。当前共 ${reportData.items.length} 份报告。`} active={view==='reports'} current={view==='reports'} onClick={()=>{setView('reports');setActiveStage('');}}>
+            <Mail size={18} aria-hidden="true"/>
           </RailButton>
           <RailButton
             id="nav-architecture"
@@ -565,15 +583,7 @@ export default function App() {
           />
         ) : null}
 
-        {board?.liveRuns?.length ? (
-          <LiveRunsStrip
-            runs={board.liveRuns}
-            onOpen={(run) => {
-              setSelectedKey(null);
-              setLiveRun(run);
-            }}
-          />
-        ) : null}
+
 
         {error ? (
           <div className="error-banner" role="alert">
@@ -604,6 +614,7 @@ export default function App() {
           ) : null}
 
           {loading && !board ? <LoadingBoard /> : null}
+          {view==='reports'?<VerifiedReports data={reportData} onRefresh={loadVerifiedReports}/>:null}
 
           {!loading && board && view === 'board' && !activeStage ? (
             <section className="pipeline-landing">

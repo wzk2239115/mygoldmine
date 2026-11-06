@@ -316,3 +316,34 @@ def test_legacy_judge_approved_alone_does_not_enter_review(tmp_path):
     document["judge"] = {"verdict": "approved"}
 
     assert build_state.verified_redteam_provenance(run_dir / "result.json", document) is None
+
+@pytest.mark.parametrize("state", ["running", "partial", "failed", "timeout", "completed"])
+def test_valid_workflow_audit_receipt_survives_later_stage_state(tmp_path, state):
+    import hashlib
+    runs = tmp_path / "runs"
+    run = write_run(runs, "p", "one", [finding("F-1", "已交付候选")], "2026-01-01",
+                    state=state)
+    report = run / "audit-report.json"
+    directory = Path(str(run) + ".meta/workflows/id")
+    directory.mkdir(parents=True)
+    workflow = {"project": "p", "runDir": str(run), "receipts": [{
+        "node": "orchestrator", "status": "completed", "outputs": [{
+            "file": str(report), "sha256": hashlib.sha256(report.read_bytes()).hexdigest()
+        }]
+    }]}
+    file = directory / "state.json"
+    file.write_text(json.dumps(workflow))
+    assert len(ledger_module.build_ledger(runs, tmp_path)["occurrences"]) == 1
+    report.write_text(json.dumps({"findings": [finding("F-2", "篡改报告")]}))
+    assert ledger_module.build_ledger(runs, tmp_path)["occurrences"] == {}
+
+
+def test_workflow_report_without_accepted_audit_receipt_is_hidden(tmp_path):
+    runs = tmp_path / "runs"
+    run = write_run(runs, "p", "one", [finding("F-1", "未验收")], "2026-01-01")
+    directory = Path(str(run) + ".meta/workflows/id")
+    directory.mkdir(parents=True)
+    (directory / "state.json").write_text(json.dumps({
+        "project": "p", "runDir": str(run), "receipts": []
+    }))
+    assert ledger_module.build_ledger(runs, tmp_path)["occurrences"] == {}

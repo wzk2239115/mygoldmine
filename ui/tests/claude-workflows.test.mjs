@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
-import {createState,manifest,verifyManifest,step,requestStep} from '../server/claude-workflows.mjs';
+import {createState,manifest,verifyManifest,step,requestStep,sourceReport,resumeState} from '../server/claude-workflows.mjs';
 
 const repo=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 function fixture(t) {
@@ -67,4 +67,59 @@ test('01回执保存在元数据目录，不提前占用02的审计输出目录'
  await step(file,'environment',async(_state,node)=>({node,status:'completed',outputs:[]}));
  assert.deepEqual(fs.readdirSync(runDir),[]);
  assert.ok(fs.existsSync(path.join(path.dirname(file),'receipts/environment.json')));
+});
+
+test('报告兼容两种候选字段，拒绝冲突和无效条目',t=>{
+  const {runDir}=fixture(t),file=path.join(runDir,'audit-report.json'),state={runDir};
+  for(const key of ['findings','vulnerabilities']){fs.writeFileSync(file,JSON.stringify({[key]:[{id:'F-1'}]}));assert.equal(sourceReport(state),file);}
+  for(const value of [{findings:null},{findings:[null]},{findings:[],vulnerabilities:[{id:'F-1'}]}]){
+    fs.writeFileSync(file,JSON.stringify(value));assert.throws(()=>sourceReport(state),/数组/);
+  }
+});
+test('恢复保留成功回执，归档失败任务，拒绝重复恢复',async t=>{
+  const {file,runDir}=fixture(t),proof=path.join(runDir,'proof.json');fs.writeFileSync(proof,'{}');
+  await step(file,'visual',async(_state,node)=>({node,status:'completed',outputs:manifest([proof])}));
+  const state=JSON.parse(fs.readFileSync(file)),dir=path.join(path.dirname(file),'tasks','verify');
+  fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,'task.json'),JSON.stringify({status:'failed'}));
+  Object.assign(state,{status:'failed',error:'失败证据',activeTask:path.join(dir,'task.json')});
+  fs.writeFileSync(file,JSON.stringify(state));fs.rmSync(state.lock,{recursive:true});
+  const restored=resumeState(file);assert.equal(restored.receipts.length,1);assert.equal(restored.status,'running');
+  assert.equal(JSON.parse(fs.readFileSync(runDir+'.meta/status.json')).state,'running');
+  assert.ok(!fs.existsSync(dir));assert.equal(restored.error,undefined);
+  const history=path.join(path.dirname(file),'recovery-history');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(history,fs.readdirSync(history)[0],'state.json'))).error,'失败证据');
+  assert.throws(()=>resumeState(file),/只能恢复/);
+});
+test('恢复前仍检查上游产物，失败不得取得项目锁',async t=>{
+  const {file,runDir}=fixture(t),proof=path.join(runDir,'proof.json');fs.writeFileSync(proof,'{}');
+  await step(file,'visual',async(_state,node)=>({node,status:'completed',outputs:manifest([proof])}));
+  const state=JSON.parse(fs.readFileSync(file));state.status='failed';fs.writeFileSync(file,JSON.stringify(state));
+  fs.rmSync(state.lock,{recursive:true});fs.writeFileSync(proof,'changed');
+  assert.throws(()=>resumeState(file),/已改变/);assert.ok(!fs.existsSync(state.lock));
+});
+
+test('相对文件链接记录目标和内容，改动、越界、悬空和循环均阻断',t=>{
+ const {runDir}=fixture(t),root=path.join(runDir,'output');fs.mkdirSync(root);
+ const library=path.join(root,'lib.so.1.2');fs.writeFileSync(library,'library');
+ const link=path.join(root,'lib.so.1');fs.symlinkSync('lib.so.1.2',link);
+ const rows=manifest([root]);assert.equal(rows.filter(x=>x.type==='symlink').length,1);verifyManifest(rows);
+ fs.writeFileSync(library,'tampered');assert.throws(()=>verifyManifest(rows),/已改变/);fs.writeFileSync(library,'library');
+ fs.unlinkSync(link);fs.symlinkSync('../../outside',link);assert.throws(()=>manifest([root]),/超出/);
+ fs.unlinkSync(link);fs.symlinkSync('missing',link);assert.throws(()=>manifest([root]),/悬空/);
+ fs.unlinkSync(link);fs.symlinkSync('lib.so.1',link);assert.throws(()=>manifest([root]),/循环/);
+});
+test('交付失败保留完成批次，恢复只重验已有结果且不再次启动执行器',async t=>{
+ const {file,runDir,project}=fixture(t),state=JSON.parse(fs.readFileSync(file));
+ const report=path.join(runDir,'audit-report.json');fs.writeFileSync(report,JSON.stringify({findings:[{id:'F-1'}]}));
+ const root=path.join(runDir+'.meta','node-retries','visual','finished'),workspace=path.join(root,'output'),outputs=path.join(workspace,'visual-rendered');
+ fs.mkdirSync(outputs,{recursive:true});fs.copyFileSync(report,path.join(workspace,'audit-report.json'));
+ fs.writeFileSync(path.join(outputs,'report.md'),'done');fs.symlinkSync('/etc/passwd',path.join(outputs,'unsafe'));
+ const attempt=path.join(root,'attempt.json');fs.writeFileSync(attempt,JSON.stringify({id:'finished',root,workspace,node:'visual',project,runId:'one',workflowOwner:state.id,status:'completed',resultStatus:'completed',startedAt:'2026-11-06'}));
+ state.activeAttempt=attempt;fs.writeFileSync(file,JSON.stringify(state));
+ await assert.rejects(step(file,'visual'),/符号链接/);
+ const failed=JSON.parse(fs.readFileSync(file));assert.equal(failed.activeAttempt,attempt);assert.equal(failed.failure.scope,'artifact_contract');
+ fs.unlinkSync(path.join(outputs,'unsafe'));failed.status='failed';delete failed.activeAttempt;fs.writeFileSync(file,JSON.stringify(failed));fs.rmSync(failed.lock,{recursive:true});
+ const restored=resumeState(file);assert.equal(restored.activeAttempt,attempt);
+ assert.deepEqual(await step(file,'visual'),{node:'visual',status:'completed'});
+ assert.equal(JSON.parse(fs.readFileSync(file)).receipts[0].attempt,attempt);
 });

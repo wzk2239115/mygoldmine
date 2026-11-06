@@ -45,7 +45,7 @@ export default function TopBar({
           <PanelLeft size={17} aria-hidden="true" />
         </button>
         <div className="page-title">
-          <h1>{t(titleKey)}</h1>
+          <h1>{view==='reports'?'验证报告':t(titleKey)}</h1>
         </div>
       </div>
 

@@ -6,6 +6,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from image_provenance import generated_image
+
 ROOT = Path(__file__).resolve().parents[4]
 
 sys.path.insert(0, str(ROOT / 'scripts/stages'))
@@ -53,6 +56,8 @@ def language_directive():
 def task_prompt(task_path: Path, task: dict):
     return (
         f"{language_directive()}\n\n"
+        "First read .claude/skills/project-cartographer/references/technical-explainer-prompt.md. "
+        "Use technical-explainer-v1: a 16:9 technical mechanism infographic, not a story illustration. "
         "Read the task file at "
         f"{task_path} and follow the attack-scene-director instructions. "
         f"Generate the attack scene for finding {task['finding_id']} from "
@@ -115,6 +120,8 @@ def main():
             "image_out": str(image_out),
             "director_out": str(director_out),
             "max_attempts": args.max_attempts,
+            "style_version": "technical-explainer-v1",
+            "image_size": "1536x864",
             "attack": attack,
         }
         task_path.write_text(json.dumps(task, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -125,7 +132,11 @@ def main():
             continue
         prior_log = work_dir / "agent.log"
         prior_success = prior_log.exists() and prior_log.read_text().startswith("# returncode\n0\n\n# timeout\nFalse\n")
-        if image_out.exists() and director_out.exists() and prior_success and not args.force:
+        try:
+            prior_director = json.loads(director_out.read_text()) if director_out.exists() else {}
+        except (OSError, ValueError):
+            prior_director = {}
+        if generated_image(image_out) and prior_director.get("style_version") == "technical-explainer-v1" and prior_success and not args.force:
             record["skipped"] = True
             results.append(record)
             continue
@@ -158,9 +169,9 @@ def main():
         if timed_out or process.returncode != 0:
             failed += 1
             record["error"] = "agent did not complete; partial outputs are not accepted"
-        elif not image_out.exists() or not director_out.exists():
+        elif not generated_image(image_out) or not director_out.exists():
             failed += 1
-            record["error"] = "agent did not produce image and director json"
+            record["error"] = "agent did not produce a model-generated image with matching generation receipt and director json"
         results.append(record)
     print(json.dumps({"selected": len(selected), "failed": failed, "results": results}, ensure_ascii=False, indent=2))
     return 1 if failed else 0

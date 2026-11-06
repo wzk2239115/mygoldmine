@@ -15,6 +15,7 @@ import { COLUMNS, CVE_STATUSES, VERDICTS } from '../constants.js';
 import { cx, formatDateTime } from '../utils.js';
 import { useI18n } from '../i18n.jsx';
 import { CveBadge, SeverityStamp, VerdictBadge } from './Badges.jsx';
+import StageResults from './StageResults.jsx';
 import TrajectoryPanel from './TrajectoryPanel.jsx';
 import DrawerResizer, { useDrawerWidth } from './DrawerResizer.jsx';
 
@@ -238,6 +239,7 @@ export default function DetailDrawer({ finding, board, onClose, onPatch, onToast
                   <span>{finding.quality.score}/100</span>
                 </div>
               ) : null}
+              <StageResults results={finding.stageResults} />
               <section className="detail-section decision-section">
                 <div className="decision-head">
                   <h3>{t('drawer.pipeline')}</h3>

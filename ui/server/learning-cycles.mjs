@@ -11,17 +11,31 @@ function paths(repo,project) {
   if(!valid(project))fail('项目编号无效');
   return {lock:path.join(repo,'runs',`.learning-cycle-${project}.lock`),guard:path.join(repo,'runs',`.node-retry-${project}.lock`),root:path.join(repo,'rsi/stage-skills/cycles')};
 }
+function completedRounds(repo,project) {
+ const root=path.join(repo,'runs',project);if(!fs.existsSync(root))return 0;
+ const full=['environment','orchestrator','visual','verify','redteam-lab','redteam-agent','judge','learner'];
+ return fs.readdirSync(root).filter(name=>name.endsWith('.meta')).filter(name=>{
+  const folder=path.join(root,name,'workflows');if(!fs.existsSync(folder))return false;
+  return fs.readdirSync(folder).some(id=>{
+   const row=read(path.join(folder,id,'state.json'));
+   return row?.project===project && path.resolve(row.runDir || '')===path.join(root,name.slice(0,-5)) && row.engine==='claude-workflow' && row.status==='completed'
+    && full.every((node,index)=>row.steps?.[index]===node && row.receipts?.[index]?.node===node) && row.receipts.length===8;
+  });
+ }).length;
+}
 export function cycleStatus(repo,project) {
   const {lock,root}=paths(repo,project);
   const claim=read(path.join(lock,'claim.json'));
   const rows=fs.existsSync(root)?fs.readdirSync(root).filter(valid).map(id=>read(path.join(root,id,'status.json'))).filter(row=>row?.project===project).sort((a,b)=>String(b.started_at).localeCompare(String(a.started_at))):[];
   const state=(claim && read(path.join(root,claim.id,'status.json'))) || rows[0];
-  if(!state)return {active:false,status:'not_started'};
+  const completed_rounds=completedRounds(repo,project);
+  if(!state)return {active:false,status:'not_started',completed_rounds};
   const active=Boolean(claim?.id===state.id && ['queued','running','stopping'].includes(state.status));
-  return {...state,active,stopRequested:fs.existsSync(path.join(root,state.id,'stop'))};
+  return {...state,active,completed_rounds,stopRequested:fs.existsSync(path.join(root,state.id,'stop'))};
 }
-export function startCycle({repoRoot,run,liveRuns=[],rounds=3,patience=2,launch=spawn}) {
+export function startCycle({repoRoot,run,liveRuns=[],rounds=3,patience=2,continuous=false,cooldown=300,launch=spawn}) {
   if(!Number.isInteger(rounds)||rounds<1||rounds>100 || !Number.isInteger(patience)||patience<1||patience>100)fail('循环轮数与停止阈值必须在 1 到 100 之间');
+  if(typeof continuous!=='boolean' || !Number.isInteger(cooldown) || cooldown<1 || cooldown>86400)fail('循环模式或间隔无效');
   const {lock,guard,root}=paths(repoRoot,run.project);
   fs.mkdirSync(path.dirname(lock),{recursive:true});
   try{fs.mkdirSync(guard);}catch{fail('该项目正在执行节点任务，请等待结束');}
@@ -35,12 +49,12 @@ export function startCycle({repoRoot,run,liveRuns=[],rounds=3,patience=2,launch=
     try{fs.mkdirSync(lock);}catch{fail('该项目已有学习循环或遗留锁，请先检查状态');}
     claimed=true;
     const folder=path.join(root,id);
-    const state={id,project:run.project,status:'queued',started_at:new Date().toISOString(),rounds:[],max_rounds:rounds,patience};
+    const state={id,project:run.project,status:'queued',started_at:new Date().toISOString(),rounds:[],max_rounds:rounds,patience,continuous,cooldown_seconds:cooldown};
     write(path.join(folder,'status.json'),state);write(path.join(lock,'claim.json'),{id});
     const python=process.env.RSI_PYTHON || path.join(path.dirname(process.execPath),'python3');
     const fd=fs.openSync(path.join(folder,'controller.log'),'a');
     let child;
-    try{child=launch(python,['scripts/stages/learning_cycle.py','--source',source,'--project',run.project,'--rounds',String(rounds),'--patience',String(patience),'--cycle-id',id,'--claim-token',id],{cwd:repoRoot,detached:true,stdio:['ignore',fd,fd]});}finally{fs.closeSync(fd);}
+    try{child=launch(python,['scripts/stages/learning_cycle.py','--source',source,'--project',run.project,'--rounds',String(rounds),'--patience',String(patience),'--cycle-id',id,'--claim-token',id,...(continuous?['--continuous']:[]),'--cooldown',String(cooldown)],{cwd:repoRoot,detached:true,stdio:['ignore',fd,fd]});}finally{fs.closeSync(fd);}
     child.on('error',error=>{write(path.join(folder,'status.json'),{...state,status:'failed',error:error.message});if(read(path.join(lock,'claim.json'))?.id===id)fs.rmSync(lock,{recursive:true,force:true});});
     child.on('exit',code=>{
       const file=path.join(folder,'status.json');const latest=read(file);

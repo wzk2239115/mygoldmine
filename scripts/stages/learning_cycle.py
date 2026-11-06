@@ -7,11 +7,12 @@ import subprocess
 import signal
 import time
 import uuid
+import itertools
 from pathlib import Path
 from skill_bank import SkillBank, ROOT, now, read, write, identifier
 from learn_round import learn
 
-def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_id=None,claim_token=None):
+def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_id=None,claim_token=None,continuous=False,cooldown=300):
     repo=Path(repo);bank=SkillBank(repo);identifier(project)
     source=Path(source).resolve()
     if source.name!=project:raise ValueError('项目名必须与现有运行入口的源码目录名一致')
@@ -27,10 +28,10 @@ def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
     (lock/'pid').write_text(str(os.getpid()))
     root=repo/'rsi/stage-skills/cycles'/(cycle_id or uuid.uuid4().hex);root.mkdir(parents=True,exist_ok=True)
     write(lock/'claim.json',{'id':root.name})
-    state={'id':root.name,'project':project,'status':'running','started_at':now(),'rounds':[],'max_rounds':rounds,'patience':patience};write(root/'status.json',state)
+    state={'id':root.name,'project':project,'status':'running','started_at':now(),'rounds':[],'max_rounds':rounds,'patience':patience,'continuous':continuous,'cooldown_seconds':cooldown};write(root/'status.json',state)
     stale=0
     try:
-        for index in range(rounds):
+        for index in (itertools.count() if continuous else range(rounds)):
             if (root/'stop').exists():state['status']='stopped';break
             before_round=bank.active()
             state['current_round']=index+1;write(root/'status.json',state)
@@ -41,6 +42,7 @@ def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
                 model_args=[v for role,flag in flags.items() if models.get(role) for v in (flag,models[role])]
                 native=repo/'ui/server/claude-workflows.mjs'
                 use_native=native.exists() and os.environ.get('GOLDMINE_NATIVE_WORKFLOW','1')!='0'
+                if continuous and not use_native:raise RuntimeError('持续循环要求原生工作流，不允许恢复为旧执行方式')
                 if use_native:
                     options={'runDir':str(run),'source':str(source),'project':project,'models':models,'cycleId':root.name}
                     command=[os.environ.get('NODE_BIN','node'),str(native),'--run',json.dumps(options)]
@@ -58,7 +60,7 @@ def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
                         raise TimeoutError('本轮原生工作流超过控制器时限，已停止')
                 else:
                     started=subprocess.run(command,cwd=repo,stdout=log,stderr=subprocess.STDOUT,timeout=120)
-            if started.returncode:raise RuntimeError('本轮启动失败，请查看轮次日志')
+            if started.returncode:raise RuntimeError('本轮工作流失败，请查看轮次日志；未自动重复失败任务')
             begin=time.monotonic()
             while True:
                 status=read(Path(str(run)+'.meta')/'status.json',{})
@@ -91,7 +93,15 @@ def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
             write(root/'status.json',state)
             stale=0 if published else stale+1
             if (root/'stop').exists():state['status']='stopped';break
-            if stale>=patience:state['status']='no_improvement';break
+            if not continuous and stale>=patience:state['status']='no_improvement';break
+            if continuous:
+                state['waiting_until']=time.time()+cooldown
+                state['wait_reason']='本轮没有发布改善，保留当前技能版本后继续审计' if not published else '等待下一轮'
+                write(root/'status.json',state)
+                while time.time()<state['waiting_until'] and not (root/'stop').exists():
+                    time.sleep(min(5,max(0,state['waiting_until']-time.time())))
+                state.pop('waiting_until',None)
+                if (root/'stop').exists():state['status']='stopped';break
         else:state['status']='completed'
     except BaseException as exc:state.update(status='stopped' if isinstance(exc,KeyboardInterrupt) else 'failed',error=str(exc));raise
     finally:
@@ -100,7 +110,7 @@ def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
     return state
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--source',required=True);p.add_argument('--project',required=True);p.add_argument('--rounds',type=int,default=3);p.add_argument('--patience',type=int,default=2);p.add_argument('--cycle-id');p.add_argument('--claim-token');a=p.parse_args()
-    if not 1<=a.rounds<=100 or a.patience<1:p.error('轮数须为 1—100，停止阈值须为正数')
-    print(json.dumps(cycle(a.source,a.project,a.rounds,a.patience,cycle_id=a.cycle_id,claim_token=a.claim_token),ensure_ascii=False,indent=2))
+    p=argparse.ArgumentParser();p.add_argument('--source',required=True);p.add_argument('--project',required=True);p.add_argument('--rounds',type=int,default=3);p.add_argument('--patience',type=int,default=2);p.add_argument('--cycle-id');p.add_argument('--claim-token');p.add_argument('--continuous',action='store_true');p.add_argument('--cooldown',type=int,default=300);a=p.parse_args()
+    if not 1<=a.rounds<=100 or a.patience<1 or a.cooldown<1:p.error('轮数须为 1—100，停止阈值须为正数')
+    print(json.dumps(cycle(a.source,a.project,a.rounds,a.patience,cycle_id=a.cycle_id,claim_token=a.claim_token,continuous=a.continuous,cooldown=a.cooldown),ensure_ascii=False,indent=2))
 if __name__=='__main__':main()

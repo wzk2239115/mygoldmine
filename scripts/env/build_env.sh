@@ -268,7 +268,7 @@ if has_lang node; then
     esac
 fi
 
-if has_lang rust; then
+if has_lang rust && [ "$MODE" != "none" ]; then
     local_rust="$(rust_prefix)"
     add_sys curl ca-certificates build-essential pkg-config
     TOOLCHAIN_CMDS+=("curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal")
@@ -280,7 +280,7 @@ if has_lang rust; then
     esac
 fi
 
-if has_lang go; then
+if has_lang go && [ "$MODE" != "none" ]; then
     local_go="$(go_prefix)"
     add_sys golang-go
     case "$MODE" in
@@ -290,7 +290,7 @@ if has_lang go; then
     esac
 fi
 
-if has_lang java; then
+if has_lang java && [ "$MODE" != "none" ]; then
     local_java="$(java_prefix)"
     add_sys default-jdk
     if [ -f "$JAVA_DIR/pom.xml" ]; then
@@ -303,7 +303,7 @@ if has_lang java; then
     fi
 fi
 
-if has_lang native; then
+if has_lang native && [ "$MODE" != "none" ]; then
     local_cmake="$(cmake_prefix)"
     add_sys build-essential cmake
     case "$MODE" in
@@ -316,6 +316,7 @@ fi
 add_limit "默认不启用 GPU；GPU/CUDA 路径无法验证（需要 --gpus all 的专用环境）"
 add_limit "未提供外部依赖服务（数据库、Ray 集群、对象存储等）"
 [ "$MODE" = "auto" ] && add_limit "auto 模式为静态/导入级环境，不代表可完整启动服务"
+[ "$MODE" = "none" ] && add_limit "仅包含源码与基础镜像工具，未安装项目依赖，未验证项目测试或服务启动"
 
 gen_dockerfile() {
     local df="$ENV_DIR/Dockerfile"
@@ -325,7 +326,7 @@ gen_dockerfile() {
         echo "FROM $BASE_IMAGE"
         echo "USER root"
         echo "ENV DEBIAN_FRONTEND=noninteractive"
-        if has_lang rust; then
+        if has_lang rust && [ "$MODE" != "none" ]; then
             echo "ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo"
         fi
         if [ "${#SYS_PKGS[@]}" -gt 0 ]; then
@@ -336,7 +337,7 @@ gen_dockerfile() {
         for tc in "${TOOLCHAIN_CMDS[@]}"; do
             echo "RUN $tc"
         done
-        if has_lang rust; then
+        if has_lang rust && [ "$MODE" != "none" ]; then
             echo "ENV PATH=/opt/cargo/bin:\$PATH"
         fi
         echo "COPY --chown=miner:miner . /opt/target"

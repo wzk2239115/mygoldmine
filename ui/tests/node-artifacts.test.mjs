@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {listNodeArtifacts,nodeArtifact,artifactText} from '../server/node-artifacts.mjs';
+import {listNodeArtifacts,nodeArtifact,artifactText,artifactAsset} from '../server/node-artifacts.mjs';
 
 function fixture(t) {
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'node-artifacts-'));
@@ -33,4 +33,17 @@ test('长文件限量预览，读取前替换为链接会被拒绝',t=>{
  assert.equal(artifactText(item).truncated,true);assert.equal(artifactText(item).text.length,512*1024);
  fs.writeFileSync(path.join(root,'secret'),'secret');fs.unlinkSync(file);fs.symlinkSync(path.join(root,'secret'),file);
  assert.throws(()=>artifactText(item));
+});
+
+test('报告相对资源始终绑定所属批次，拒绝越界和链接',t=>{
+ const {root,run}=fixture(t),dir=path.join(run.runDir,'visual-rendered');fs.mkdirSync(dir);
+ fs.writeFileSync(path.join(dir,'report-illustrated.md'),'# Report\n![图](scene.svg)');
+ fs.writeFileSync(path.join(dir,'scene.svg'),'<svg xmlns="http://www.w3.org/2000/svg"/>');
+ fs.writeFileSync(path.join(root,'secret.json'),'secret');
+ const item=listNodeArtifacts(run,'visual').find(x=>x.name.endsWith('.md'));
+ assert.equal(artifactAsset(item,'scene.svg').type,'image');
+ assert.equal(artifactAsset(item,'../../../../secret.json'),null);
+ assert.equal(artifactAsset(item,'/etc/passwd'),null);
+ fs.symlinkSync(path.join(root,'secret.json'),path.join(dir,'link.json'));
+ assert.equal(artifactAsset(item,'link.json'),null);
 });

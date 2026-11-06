@@ -77,7 +77,14 @@ else:
     count = min(limit, len(ids))
     code = 0
 for fid in ids[:count]:
-    (out_dir / ("scene-" + fid + ".webp")).write_bytes(b"fake-webp")
+    image = out_dir / ("scene-" + fid + ".webp")
+    from PIL import Image
+    Image.new("RGB", (2, 2), "white").save(image, format="WEBP")
+    import hashlib
+    receipt = {{"source": "text-to-image", "model": "test-provider/image",
+                "prompt_hash": "test-prompt",
+                "sha256": hashlib.sha256(image.read_bytes()).hexdigest()}}
+    pathlib.Path(str(image) + ".generation.json").write_text(json.dumps(receipt))
 raise SystemExit(code)
 """,
     )

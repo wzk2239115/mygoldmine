@@ -249,14 +249,28 @@ class SkillBank:
 
 def infer_project(root):
     root=Path(root).resolve()
+    # Runtime ownership is authoritative; report.project may be a display name.
+    runs=(ROOT/'runs').resolve()
+    if root.is_relative_to(runs):
+        parts=root.relative_to(runs).parts
+        if parts and parts[0]=='redteam' and len(parts)>1:
+            return identifier(parts[1])
+        if parts:
+            return identifier(parts[0])
     for parent in [root,*root.parents]:
+        if parent.parent.parent.name=='runs' and parent.parent.name=='redteam':
+            return identifier(parent.name)
+        if parent.parent.name in ('runs','env','labs'):
+            return identifier(parent.name)
+    for parent in [root,*root.parents]:
+        status=read(Path(str(parent)+'.meta')/'status.json',{})
+        if isinstance(status,dict) and status.get('project'):
+            return identifier(status['project'])
         for name in ('audit-report.json','finding.json','env-manifest.json'):
-            d=read(parent/name,{})
-            if isinstance(d,dict) and d.get('project'):
-                try:return identifier(d['project'])
+            data=read(parent/name,{})
+            if isinstance(data,dict) and data.get('project'):
+                try:return identifier(data['project'])
                 except ValueError:pass
-        if parent.parent.name in ('runs','env','labs'):return identifier(parent.name)
-        if parent.parent.parent.name=='runs' and parent.parent.name=='redteam':return identifier(parent.name)
     return os.environ.get('PROJECT') or os.environ.get('ENV_BUILD_PROJECT') or 'unknown'
 
 def spool_proposal(stage,root,scope,content,evidence,conditions=None,provenance=None):

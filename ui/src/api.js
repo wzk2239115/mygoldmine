@@ -48,7 +48,8 @@ async function request(url, options = {}) {
 
 export const api = {
   importWithProgress,
-  startCycle: project => request('/api/targets/'+encodeURIComponent(project)+'/cycle/start', {method:'POST'}),
+  verifiedReports: () => request('/api/verified-reports'),
+  startCycle: project => request('/api/targets/'+encodeURIComponent(project)+'/cycle/start', {method:'POST',body:JSON.stringify({continuous:true})}),
   stopCycle: project => request('/api/targets/'+encodeURIComponent(project)+'/cycle/stop', {method:'POST'}),
   nodeArtifacts: (project,runId,node) => request('/api/runs/'+encodeURIComponent(project)+'/'+encodeURIComponent(runId)+'/nodes/'+encodeURIComponent(node)+'/artifacts'),
   nodeArtifact: (project,runId,node,id) => request('/api/runs/'+encodeURIComponent(project)+'/'+encodeURIComponent(runId)+'/nodes/'+encodeURIComponent(node)+'/artifacts/'+id),

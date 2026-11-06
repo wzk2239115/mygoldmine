@@ -16,11 +16,21 @@ import TeamAgentIcon from './TeamAgentIcon.jsx';
 import {initialTaskSelection, resolveTaskSelection, taskStateLabel, candidateTasks, isCandidateNode} from '../task-selection.js';
 
 export default function AgenticTraceDrawer({ project, runId, node: initialNode, traces: initialTraces, live, onClose, onStarted }) {
+  const [drawerWidth,setDrawerWidth]=useState(()=>{try{return Number(localStorage.getItem('goldmine-trace-width')) || null;}catch{return null;}});
+  const resizeTo=value=>{const width=Math.max(Math.min(560,window.innerWidth-24),Math.min(window.innerWidth-24,value));setDrawerWidth(width);try{localStorage.setItem('goldmine-trace-width',String(width));}catch{}};
   const [node, setNode] = useState(initialNode);
   const [traces, setTraces] = useState(initialTraces);
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState('');
   const [selection, setSelection] = useState(() => initialNode.workflowOnly?{...initialTaskSelection(initialNode),history:true,traceId:initialTraces[0]?.id || ''}:initialTaskSelection(initialNode));
+  const [artifactId,setArtifactId]=useState('');
+  const [sceneImages,setSceneImages]=useState([]);
+  useEffect(()=>{
+    if(initialNode.id!=='visual')return;
+    let alive=true;
+    api.nodeArtifacts(project,runId,'visual').then(data=>{if(alive)setSceneImages(data.items.filter(item=>item.type==='image'));}).catch(()=>{});
+    return()=>{alive=false;};
+  },[project,runId,initialNode.id,node.scenes?.attemptId,node.scenes?.processedCount]);
   const [panel,setPanel]=useState(initialNode.workflowOnly?'trace':'overview');
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +106,8 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
   return createPortal(
     <>
       <div className="drawer-backdrop" onClick={onClose} />
-      <aside className="detail-drawer agentic-trace-drawer" role="dialog" aria-modal="true" aria-label={`${node.title}轨迹`}>
+      <aside className={`detail-drawer agentic-trace-drawer ${panel==='artifacts'?'is-reading':''}`} style={drawerWidth?{width:`min(${drawerWidth}px, calc(100vw - 24px))`,maxWidth:'calc(100vw - 24px)'}:undefined} role="dialog" aria-modal="true" aria-label={`${node.title}轨迹`}>
+        <div className="drawer-resize-handle" role="separator" tabIndex={0} aria-label="拖拽调整阅读面板宽度" aria-orientation="vertical" title="左右拖拽调整宽度；方向键微调" onPointerDown={event=>{event.preventDefault();event.currentTarget.setPointerCapture(event.pointerId);}} onPointerMove={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))resizeTo(window.innerWidth-event.clientX);}} onPointerUp={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}} onKeyDown={event=>{if(['ArrowLeft','ArrowRight'].includes(event.key)){event.preventDefault();resizeTo((drawerWidth || Math.min(1100,window.innerWidth*.88))+(event.key==='ArrowLeft'?40:-40));}}} />
         <header className="drawer-head">
           <div className="drawer-head-top">
             <div>
@@ -153,7 +164,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
         {!node.workflowOnly ? <nav className="node-detail-actions" aria-label="节点内容">
           <button type="button" className="traj-button" aria-pressed={panel==='overview'} onClick={backToMembers}>节点概览</button>
           <button type="button" className="traj-button" aria-pressed={panel==='trace'} disabled={!traces.length} onClick={()=>selectHistory(node.repair?.traceId || traces[0]?.id)}>查看执行轨迹</button>
-          <button type="button" className="traj-button" aria-pressed={panel==='artifacts'} onClick={()=>{setPanel('artifacts');setSelection(initialTaskSelection(node));}}>查看产物</button>
+          <button type="button" className="traj-button" aria-pressed={panel==='artifacts'} onClick={()=>{setArtifactId('');setPanel('artifacts');setSelection(initialTaskSelection(node));}}>查看产物</button>
         </nav> : null}
         <CandidateFlow flow={node.flow} />
         {node.id === 'orchestrator' ? <JevTriage triage={node.triage} /> : null}
@@ -162,10 +173,10 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
           <p title={selectedTask?.title || selected?.label}>{selectedTask?.title || selected?.label}</p>
         </div> : null}
         <div className={`drawer-body agentic-trace-body ${teamNode && !memberView ? 'member-roster-body' : ''}`}>
-          {panel==='artifacts' ? <NodeArtifacts project={project} runId={runId} node={node.id} /> : teamNode && !memberView ? <>
+          {panel==='artifacts' ? <NodeArtifacts project={project} runId={runId} node={node.id} initialArtifactId={artifactId} /> : teamNode && !memberView ? <>
             <p className="member-roster-hint">选择一位{node.id === 'verify' ? '蓝队验证' : node.id === 'judge' ? '独立审核' : node.id === 'visual' ? '场景设计' : node.id === 'redteam-agent' ? '红队执行' : '红队构建'}队员，查看他的执行轨迹。</p>
           {node.id === 'judge' ? <JudgeTasks review={node.review} onSelect={selectTask} /> : null}
-          {node.id === 'visual' ? <SceneTasks scenes={node.scenes} onSelect={selectTask} /> : null}
+          {node.id === 'visual' ? <SceneTasks scenes={node.scenes} images={sceneImages} onSelect={selectTask} onImage={item=>{setArtifactId(item.id);setPanel('artifacts');setSelection(initialTaskSelection(node));}} /> : null}
           {node.id === 'redteam-agent' ? <AgentTasks execution={node.execution} onSelect={selectTask} /> : null}
           {node.id === 'redteam-lab' ? <LabTasks key={node.construction?.attemptId || 'original'} project={project} runId={runId} construction={node.construction} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
           {node.id === 'verify' ? <VerifyTasks key={node.verification?.attemptId || 'original'} project={project} runId={runId} verification={node.verification} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}

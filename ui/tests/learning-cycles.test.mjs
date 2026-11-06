@@ -47,3 +47,16 @@ test('非法参数与缺失源码不创建循环',t=>{
  assert.throws(()=>startCycle(f),/源码/);
  assert.equal(f.calls.length,0);
 });
+
+test('持续模式显式交给控制器，完整轮数排除节点重跑和失败流程',t=>{
+ const f=fixture(t);startCycle({...f,continuous:true});
+ assert.ok(f.calls[0][1].includes('--continuous'));
+ assert.equal(cycleStatus(f.repoRoot,'demo').continuous,true);
+ const folder=path.join(f.run.runDir+'.meta','workflows','one');fs.mkdirSync(folder,{recursive:true});
+ const steps=['environment','orchestrator','visual','verify','redteam-lab','redteam-agent','judge','learner'];
+ const state={project:'demo',runDir:f.run.runDir,engine:'claude-workflow',status:'completed',steps,receipts:steps.map(node=>({node,status:'degraded'}))};
+ const save=()=>fs.writeFileSync(path.join(folder,'state.json'),JSON.stringify(state));
+ save();assert.equal(cycleStatus(f.repoRoot,'demo').completed_rounds,1);
+ state.steps=steps.slice(5);save();assert.equal(cycleStatus(f.repoRoot,'demo').completed_rounds,0);
+ state.steps=steps;state.status='failed';save();assert.equal(cycleStatus(f.repoRoot,'demo').completed_rounds,0);
+});

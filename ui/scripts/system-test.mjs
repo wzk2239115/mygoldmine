@@ -257,7 +257,7 @@ async function main() {
     await cdp.evaluate("document.querySelectorAll('.settings-segment button')[0].click()");
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"设置\"]').click()");
     await sleep(150);
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.rail-tooltip').length"), 8);
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.rail-tooltip').length"), 9);
     assert.equal(await cdp.evaluate("document.querySelector('.rail-brand img').getAttribute('src')"), '/golden-shovel.webp');
     assert.ok(await cdp.evaluate("document.querySelector('.rail-brand img').naturalWidth > 0"));
     assert.equal(await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"看板\"]').getAttribute('title')"), null);

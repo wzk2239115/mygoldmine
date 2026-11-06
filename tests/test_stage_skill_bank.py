@@ -192,3 +192,23 @@ def test_workflow_skip_reason_is_frozen_into_learning_feedback(tmp_path):
     assert judge['state']=='skipped'
     assert judge['reason']=='没有已捕获且来源完整的证据'
     assert any(ref['path'].endswith('judge.json') for ref in judge['evidence'])
+
+def test_continuous_cycle_does_not_stop_on_no_publication(tmp_path, monkeypatch):
+    import learning_cycle as controller
+    repo=tmp_path/'repo';source=repo/'targets/verl';source.mkdir(parents=True)
+    native=repo/'ui/server/claude-workflows.mjs';native.parent.mkdir(parents=True);native.write_text('// fixture')
+    calls=[]
+    class Child:
+        def __init__(self, command, **kwargs):
+            self.pid=123456;calls.append(command)
+            options=json.loads(command[-1]);run=Path(options['runDir'])
+            write(Path(str(run)+'.meta')/'status.json',{'state':'success'})
+            if len(calls)==3:
+                (repo/'rsi/stage-skills/cycles'/options['cycleId']/'stop').write_text('stop')
+        def wait(self,timeout=None):return 0
+    monkeypatch.setattr(controller.subprocess,'Popen',Child)
+    monkeypatch.setattr(controller.SkillBank,'feedback',lambda *a:[])
+    state=controller.cycle(source,'verl',rounds=1,patience=1,continuous=True,cooldown=0,repo=repo,poll=0)
+    assert state['status']=='stopped'
+    assert len(state['rounds'])==3
+    assert all(not item['published'] for item in state['rounds'])

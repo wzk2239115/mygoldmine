@@ -224,7 +224,7 @@ if [ "$BUILD_OK" -eq 1 ]; then
         fi
     fi
 
-    log "render diagrams and illustrated report"
+    log "assemble report from text-to-image outputs"
     if [ -f "$RENDER_BIN" ]; then
         run_script "$RENDER_BIN" --model "$MODEL_PATH" --out-dir "$OUTPUT" > "$RENDER_LOG" 2>&1
         RENDER_RC=$?
@@ -244,6 +244,7 @@ else
     IMAGES_REASON="visual model build failed"
 fi
 
+export VR_REPO_ROOT="$REPO_ROOT"
 export VR_PROJECT="$PROJECT"
 export VR_RUN_DIR="$RUN_DIR"
 export VR_OUTPUT="$OUTPUT"
@@ -268,7 +269,10 @@ export VR_RENDER_LOG="$RENDER_LOG"
 python3 - <<'PY'
 import json
 import os
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(os.environ['VR_REPO_ROOT']) / '.claude/skills/project-cartographer/scripts'))
+from image_provenance import generated_image
 
 out = Path(os.environ["VR_OUTPUT"])
 run_dir = Path(os.environ["VR_RUN_DIR"])
@@ -303,9 +307,9 @@ if model_path.exists():
 
 focus = os.environ.get("VR_FOCUS_FINDING", "").strip()
 selected_ids = [focus] if focus else all_ids[:max_scenes]
-scene_count = len(list(out.glob("scene-*.webp")))
-missing_all = [fid for fid in all_ids if not (out / f"scene-{fid}.webp").exists()]
-missing_selected = [fid for fid in selected_ids if not (out / f"scene-{fid}.webp").exists()]
+scene_count = sum(generated_image(file) for file in out.glob("scene-*.webp"))
+missing_all = [fid for fid in all_ids if not generated_image(out / f"scene-{fid}.webp")]
+missing_selected = [fid for fid in selected_ids if not generated_image(out / f"scene-{fid}.webp")]
 
 build_ok = os.environ.get("VR_BUILD_OK") == "1" and model_path.exists()
 report_ok = render_rc == 0 and report_path.exists()
@@ -342,7 +346,7 @@ elif not all_ids or not missing_all:
 elif not missing_selected:
     scene_status = "partial"
 else:
-    produced_any = any((out / f"scene-{fid}.webp").exists() for fid in selected_ids)
+    produced_any = any(generated_image(out / f"scene-{fid}.webp") for fid in selected_ids)
     generation_failed = agentic_rc not in (None, 0) and images_rc not in (None, 0)
     if generation_failed or not produced_any:
         scene_status = "blocked"

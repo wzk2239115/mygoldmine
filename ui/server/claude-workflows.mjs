@@ -28,23 +28,68 @@ const quote=value=>"'"+String(value).replaceAll("'","'\\''")+"'";
 const hash=file=>{const digest=createHash('sha256'),fd=fs.openSync(file,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW),buffer=Buffer.alloc(65536);try{let n;while((n=fs.readSync(fd,buffer,0,buffer.length,null)))digest.update(buffer.subarray(0,n));return digest.digest('hex');}finally{fs.closeSync(fd);}};
 const under=(file,root)=>file===root || file.startsWith(root+path.sep);
 
-// No display limits: every regular artifact is represented, or the handoff fails.
+// File links are evidence metadata, not permission to follow arbitrary paths.
+function artifactError(message,code='artifact_contract') {
+  return Object.assign(new Error(message),{code});
+}
+function checkedLink(file,boundary) {
+  const link=fs.readlinkSync(file);
+  if(path.isAbsolute(link) || !under(path.resolve(path.dirname(file),link),boundary))throw artifactError('产物符号链接超出交付目录：'+file,'artifact_link_outside');
+  let target;
+  try {target=fs.realpathSync(file);}
+  catch(error){throw artifactError('产物符号链接悬空或循环：'+file,error.code==='ELOOP'?'artifact_link_cycle':'artifact_link_missing');}
+  if(!under(target,boundary) || fs.realpathSync(boundary)!==boundary)throw artifactError('产物符号链接目标超出交付目录：'+file,'artifact_link_outside');
+  if(!fs.statSync(target).isFile())throw artifactError('产物目录链接不能作为文件证据交付：'+file,'artifact_link_directory');
+  return {link,target};
+}
+// No display limits: all regular artifacts and safe file links are represented.
 export function manifest(roots) {
   const files=[];
-  const visit=file=>{
-    if(!fs.existsSync(file))throw Error(`产物已缺失：${file}`);
-    const stat=fs.lstatSync(file);
-    if(stat.isSymbolicLink())throw Error(`产物不能使用符号链接：${file}`);
-    if(stat.isDirectory()){for(const name of fs.readdirSync(file).sort())visit(path.join(file,name));return;}
-    if(!stat.isFile())throw Error(`产物类型无效：${file}`);
+  function visit(file,boundary) {
+    let stat;try{stat=fs.lstatSync(file);}catch{throw artifactError('产物已缺失：'+file,'artifact_missing');}
+    if(stat.isSymbolicLink()){
+      const {link,target}=checkedLink(file,boundary);
+      files.push({file,type:'symlink',boundary,link,target,size:fs.statSync(target).size,sha256:hash(target)});return;
+    }
+    if(stat.isDirectory()){for(const name of fs.readdirSync(file).sort())visit(path.join(file,name),boundary);return;}
+    if(!stat.isFile())throw artifactError('产物类型无效：'+file,'artifact_type');
     files.push({file,size:stat.size,sha256:hash(file)});
-  };
-  for(const root of [...new Set(roots)].sort())visit(root);
+  }
+  for(const root of [...new Set(roots)].sort()){
+    const absolute=path.resolve(root);
+    let stat;try{stat=fs.lstatSync(absolute);}catch{throw artifactError('产物已缺失：'+absolute,'artifact_missing');}
+    const boundary=fs.realpathSync(stat.isDirectory()?absolute:path.dirname(absolute));
+    visit(absolute,boundary);
+  }
   return files;
 }
 export function verifyManifest(files) {
-  for(const item of files)if(!fs.existsSync(item.file) || fs.lstatSync(item.file).isSymbolicLink() || hash(item.file)!==item.sha256)throw Error(`上游产物已改变：${item.file}`);
+  for(const item of files) {
+    try {
+      if(item.type==='symlink'){
+        if(!fs.lstatSync(item.file).isSymbolicLink())throw Error('link changed');
+        const link=checkedLink(item.file,item.boundary);
+        if(link.link!==item.link || link.target!==item.target || hash(link.target)!==item.sha256)throw Error('link or content changed');
+      }else if(!fs.existsSync(item.file) || fs.lstatSync(item.file).isSymbolicLink() || hash(item.file)!==item.sha256)throw Error('content changed');
+    }catch(error){throw artifactError('上游产物已改变：'+item.file+'；'+error.message,error.code || 'artifact_changed');}
+  }
 }
+export function reusableAttempt(state,node) {
+  const root=path.join(state.runDir+'.meta','node-retries',node);
+  if(!fs.existsSync(root))return null;
+  const rows=fs.readdirSync(root).map(id=>({file:path.join(root,id,'attempt.json'),job:read(path.join(root,id,'attempt.json'))})).filter(item=>item.job).sort((a,b)=>String(a.job.startedAt).localeCompare(String(b.job.startedAt)));
+  const latest=rows.at(-1);if(!latest)return null;
+  const {job,file}=latest;
+  if(job.status!=='completed' || job.resultStatus==='failed' || job.workflowOwner!==state.id || job.node!==node || job.project!==state.project || job.runId!==path.basename(state.runDir))return null;
+  if(path.resolve(job.root || '')!==path.dirname(file) || path.resolve(job.workspace || '')!==path.join(path.dirname(file),'output'))return null;
+  const input=read(path.join(job.workspace,'workflow-inputs.json'));
+  const report=path.join(state.runDir,'audit-report.json');
+  const expected=[...new Map(state.receipts.flatMap(item=>item.outputs).map(item=>[item.file,item])).values()];
+  if(input?.workflow!==state.id || input.node!==node || input.report_sha256!==hash(report) || JSON.stringify(input.artifacts)!==JSON.stringify(expected))return null;
+  if(hash(path.join(job.workspace,'audit-report.json'))!==hash(report))return null;
+  return file;
+}
+
 function load(file) {
   const state=read(file);
   if(!state || state.repoRoot!==repo || !stages.includes(state.start) || !under(path.resolve(state.runDir),path.join(repo,'runs')))throw Error('执行计划无效');
@@ -79,9 +124,12 @@ function command(cmd,args,{cwd=repo,env=process.env,log,timeout=86400000,onSpawn
   });
 }
 const artifacts={visual:['visual-rendered'],verify:['verify/agent'],'redteam-lab':['redteam'],'redteam-agent':['redteam'],judge:['judge'],learner:['rsi']};
-function sourceReport(state) {
+export function sourceReport(state) {
   const file=path.join(state.runDir,'audit-report.json');
-  if(!Array.isArray(read(file)?.findings))throw Error('审计报告缺少候选问题数组');
+  const report=read(file);
+  const keys=['findings','vulnerabilities'].filter(key=>report && Object.hasOwn(report,key));
+  if(!keys.length || keys.some(key=>!Array.isArray(report[key]) || report[key].some(item=>!item || typeof item!=='object' || Array.isArray(item))))throw Error('审计报告缺少有效的候选问题数组');
+  if(keys.length===2 && JSON.stringify(report.findings)!==JSON.stringify(report.vulnerabilities))throw Error('审计报告的候选问题数组相互冲突');
   return file;
 }
 export async function execute(state,node,file) {
@@ -148,12 +196,13 @@ export async function execute(state,node,file) {
     } else if(job.status==='running') {
       await command(process.execPath,[path.join(repo,'ui/server/node-retries.mjs'),'--worker',attempt],{log:path.join(job.root,'worker.log'),onSpawn:child=>{job.workerPid=child.pid;write(attempt,job);}});
     }
-    job=read(attempt);delete state.activeAttempt;
+    job=read(attempt);
     if(job.status!=='completed'||job.resultStatus==='failed')throw Error(job.error || `节点执行失败：${node}`);
     receipt.status=job.resultStatus || 'completed';receipt.attempt=attempt;
     const outputs=(artifacts[node] || []).map(name=>path.join(job.workspace,name)).filter(fs.existsSync);
     if(!outputs.length)throw Error(`节点缺少交付产物：${node}`);
     receipt.outputs=manifest([report,...outputs]);
+    delete state.activeAttempt;
   }
   return receipt;
 }
@@ -177,8 +226,12 @@ export async function step(file,node,executeNode=execute) {
     receipt.endedAt=new Date().toISOString();
     state.receipts.push(receipt);state.current=null;save(file,state);
     write(path.join(path.dirname(file),'receipts',node+'.json'),receipt);
+    if(executeNode===execute && ['orchestrator','verify','redteam-agent','judge','learner'].includes(node)) {
+      const code=await command(process.env.PYTHON || 'python3',['scripts/workflow/build_state.py'],{log:path.join(path.dirname(file),'candidate-index.log'),timeout:60000});
+      if(code!==0)throw Error('节点已交付，但候选汇总更新失败，请查看候选汇总日志');
+    }
     return {node,status:receipt.status};
-  } catch(error) {state.error=error.message;save(file,state);throw error;}
+  } catch(error) {state.error=error.message;state.failure={scope:String(error.code || '').startsWith('artifact_')?'artifact_contract':'stage_execution',code:error.code || 'stage_execution',retryOwner:String(error.code || '').startsWith('artifact_')?'workflow-delivery':'stage-executor'};save(file,state);throw error;}
   finally{fs.rmSync(guard,{recursive:true,force:true});}
 }
 
@@ -217,6 +270,30 @@ export function createState({runDir,source,project,models,image='mygoldmine:dev'
   write(path.join(lock,'workflow-owner.json'),{id,file});save(file,state);
   if(start==='environment')write(runDir+'.meta/status.json',{project,target:source,env_image:image,state:'starting',run_dir:runDir,started_at:state.startedAt});
   return file;
+}
+export function resumeState(file) {
+  const state=read(file);
+  if(!state || state.repoRoot!==repo || !under(path.resolve(state.runDir),path.join(repo,'runs',state.project)) || !['failed','stopped'].includes(state.status))throw Error('只能恢复已失败或已停止的工作流');
+  if(alive(state.coordinatorPid) || (state.activeTask && taskLive(read(state.activeTask))) || (state.activeAttempt && alive(read(state.activeAttempt)?.workerPid)))throw Error('工作流仍有活动任务，不能重复恢复');
+  if(state.receipts.length>=state.steps.length)throw Error('没有需要恢复的节点');
+  for(const receipt of state.receipts)verifyManifest(receipt.outputs);
+  const lock=path.join(repo,'runs',`.node-retry-${state.project}.lock`);
+  if(state.lock!==lock)throw Error('工作流锁路径无效');
+  fs.mkdirSync(lock);
+  try {
+    const node=state.steps[state.receipts.length],directory=path.join(path.dirname(file),'tasks',node);
+    const archive=path.join(path.dirname(file),'recovery-history',new Date().toISOString().replaceAll(':','-')+'-'+randomUUID());
+    fs.mkdirSync(archive,{recursive:true});write(path.join(archive,'state.json'),state);
+    if(fs.existsSync(directory))fs.renameSync(directory,path.join(archive,'task'));
+    const reusable=reusableAttempt(state,node);
+    if(reusable)state.activeAttempt=reusable;else delete state.activeAttempt;
+    delete state.activeTask;delete state.waitingForTask;delete state.error;delete state.failure;delete state.endedAt;delete state.coordinatorPid;
+    state.status='running';state.current=null;state.resumedAt=new Date().toISOString();
+    write(path.join(lock,'workflow-owner.json'),{id:state.id,file});save(file,state);
+    const status=read(state.runDir+'.meta/status.json') || {};
+    write(state.runDir+'.meta/status.json',{...status,state:'running',workflow_id:state.id,updated_at:state.resumedAt});
+    return state;
+  } catch(error) {fs.rmSync(lock,{recursive:true,force:true});throw error;}
 }
 function stopOwnedBuild(state) {
   const pointer=read(path.join(repo,'env',state.project,'.build-tasks/current.json'));
@@ -295,6 +372,14 @@ if(process.argv[1] && path.resolve(process.argv[1])===self) {
       process.exitCode=(await coordinate(file)).status==='completed'?0:1;
     } else if(process.argv[2]==='--coordinate') {
       process.exitCode=(await coordinate(process.argv[3])).status==='completed'?0:1;
+    } else if(process.argv[2]==='--resume') {
+      const file=path.resolve(process.argv[3]),state=resumeState(file);
+      const fd=fs.openSync(path.join(path.dirname(file),'controller.log'),'a');
+      const child=spawn(process.execPath,[self,'--coordinate',file],{cwd:repo,detached:true,stdio:['ignore',fd,fd]});fs.closeSync(fd);
+      child.on('error',error=>{state.status='failed';state.error=error.message;save(file,state);if(read(path.join(state.lock,'workflow-owner.json'))?.id===state.id)fs.rmSync(state.lock,{recursive:true,force:true});});
+      state.coordinatorPid=child.pid;save(file,state);
+      fs.writeFileSync(state.runDir+'.meta/supervisor.pid',String(child.pid));child.unref();
+      console.log(JSON.stringify({id:state.id,status:'running',runDir:state.runDir,resumed:true}));
     } else if(process.argv[2]==='--launch') {
       const options=JSON.parse(process.argv[3]),file=createState(options),state=load(file);
       const fd=fs.openSync(path.join(path.dirname(file),'controller.log'),'a');

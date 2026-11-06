@@ -136,17 +136,53 @@ def semantic_material(project: str, raw: dict, local_id: str):
     return {"project": project, "paths": paths, "root_cause": root, "cwe": cwes, "fallback": fallback}
 
 
+def workflow_report_delivery(report_path):
+    directory = Path(str(report_path.parent) + ".meta") / "workflows"
+    owned = False
+    for file in directory.glob("*/state.json"):
+        state = load(file)
+        if not isinstance(state, dict):
+            continue
+        if state.get("project") != report_path.parent.parent.name:
+            continue
+        if Path(state.get("runDir") or "").resolve() != report_path.parent.resolve():
+            continue
+        owned = True
+        for receipt in state.get("receipts") or []:
+            if receipt.get("node") != "orchestrator":
+                continue
+            if receipt.get("status") not in ("completed", "degraded"):
+                continue
+            for item in receipt.get("outputs") or []:
+                if Path(item.get("file") or "").resolve() != report_path.resolve():
+                    continue
+                try:
+                    actual = hashlib.sha256(report_path.read_bytes()).hexdigest()
+                    if not report_path.is_symlink() and item.get("sha256") == actual:
+                        return True, True
+                except OSError:
+                    pass
+    return owned, False
+
+
 def valid_report(report_path: Path):
     report = load(report_path)
     meta = load(report_path.parent / "run-meta.json")
     status = load(report_path.parent.parent / f"{report_path.parent.name}.meta" / "status.json")
-    state = normalized_verdict(status.get("state"))
-    if state in {"starting", "running", "stopping", "draft", "partial", "failed", "error", "timeout", "stopped", "interrupted"}:
-        return None
-    if meta.get("reports_complete") is not True or meta.get("exit_code") != 0:
-        return None
-    if meta.get("timed_out") or meta.get("interrupted"):
-        return None
+    owned, delivered = workflow_report_delivery(report_path)
+    if owned:
+        # The audit receipt remains valid when later stages are running or degraded.
+        if not delivered:
+            return None
+    else:
+        state = normalized_verdict(status.get("state"))
+        if state in {"starting", "running", "stopping", "draft", "partial", "failed",
+                     "error", "timeout", "stopped", "interrupted"}:
+            return None
+        if meta.get("reports_complete") is not True or meta.get("exit_code") != 0:
+            return None
+        if meta.get("timed_out") or meta.get("interrupted"):
+            return None
     if not isinstance(report, dict) or report.get("draft") is True:
         return None
     try:

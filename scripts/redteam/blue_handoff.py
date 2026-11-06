@@ -79,7 +79,10 @@ def collect(run, project, maximum=5, severities=('critical', 'high'), only='', r
     report = json.loads(report_bytes)
     if not isinstance(report, dict):
         raise ValueError('审计报告必须为对象')
-    if report.get('project') not in (None, project):
+    report_project = report.get('project')
+    if report_project is not None and (
+        not isinstance(report_project, str) or report_project.casefold() != project.casefold()
+    ):
         raise ValueError('审计报告不属于当前项目')
     if not any(key in report for key in ['findings', 'vulnerabilities']):
         raise ValueError('审计报告缺少候选列表')
