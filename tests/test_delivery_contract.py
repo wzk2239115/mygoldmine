@@ -144,10 +144,15 @@ def test_recovery_rejects_different_report_and_conflicting_files(tmp_path):
 
 
 def test_download_policy_is_generic_and_idempotent():
-    spec = importlib.util.spec_from_file_location("download_policy", ROOT / "scripts/env/download_policy.py")
+    spec = importlib.util.spec_from_file_location(
+        "download_policy", ROOT / "scripts/env/download_policy.py"
+    )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    source = "FROM base\nRUN apt-get update && apt-get install -y default-jdk unzip && rm -rf /var/lib/apt/lists/*\nCOPY . /source\n"
+    source = (
+        "FROM base\nRUN apt-get update && apt-get install -y default-jdk unzip "
+        "&& rm -rf /var/lib/apt/lists/*\nCOPY . /source\n"
+    )
     result = module.apply(source)
     assert "default-jdk-headless unzip" in result
     assert "--mount=type=cache" in result
