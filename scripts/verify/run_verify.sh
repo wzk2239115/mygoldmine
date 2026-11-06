@@ -170,12 +170,12 @@ write_report() {
         --arg occurrence_id "$FINDING_OCCURRENCE_ID" \
         --arg semantic_id "$FINDING_SEMANTIC_ID" \
         --arg run_id "$FINDING_RUN_ID" \
-        --arg finding_file "$RUN_DIR/finding.$FEXT" \
+        --arg finding_file "finding.$FEXT" \
         --arg image "$IMAGE" \
         --arg image_id "$IMAGE_ID" \
         --arg env_manifest "$ENV_MANIFEST" \
         --arg env_status "$ENV_STATUS" \
-        --arg harness "$RUN_DIR/harness/$HNAME" \
+        --arg harness "harness/$HNAME" \
         --arg network "$NETWORK" \
         --arg started_at "$STARTED_AT" \
         --arg ended_at "$ended_at" \

@@ -8,6 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
 import report_quality  # noqa: E402 - repository-local script import
+from delivery_contract import report_project  # noqa: E402
 
 
 def check_report(path, language=None, expected_project=None):
@@ -24,12 +25,11 @@ def check_report(path, language=None, expected_project=None):
             expected_project = path.resolve().relative_to(ROOT / "runs").parts[0]
         except (ValueError, IndexError):
             expected_project = None
-    if expected_project and isinstance(report, dict) and report.get("project") != expected_project:
-        actual = str(report.get("project"))[:80]
-        errors.append(
-            f"报告项目编号必须为 {expected_project!r}，实际为 {actual!r}；"
-            "请将显示名称放入 project_name，不得修改运行的项目编号"
-        )
+    if expected_project and isinstance(report, dict):
+        try:
+            report_project(report, expected_project)
+        except ValueError as exc:
+            errors.append(str(exc))
     language = language or report_quality.system_language()
     findings = report_quality.findings_of(report)
     missing = Counter()

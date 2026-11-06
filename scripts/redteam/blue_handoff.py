@@ -5,9 +5,13 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 from source_binding import source_binding
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'workflow'))
+from delivery_contract import runtime_environment, validate_verification_report  # noqa: E402
 
 ID = re.compile(r'[A-Za-z0-9][A-Za-z0-9._-]{0,100}')
 MAX_FILE = 10 * 1024 * 1024
@@ -171,12 +175,23 @@ def collect(run, project, maximum=5, severities=('critical', 'high'), only='', r
             files['verify-report.json'] = raw_report
             files['finding.json'] = json.dumps(finding, ensure_ascii=False).encode()
             files['verify-report.md'] = bounded(result / 'verify-report.md', source)
-            harnesses = sorted((result / 'harness').rglob('*'))
-            for p in harnesses:
-                if p.is_symlink():
-                    raise ValueError('验证脚本包含符号链接')
-                if p.is_file():
-                    files[p.relative_to(result).as_posix()] = bounded(p, result)
+            validate_verification_report(result / 'verify-report.json', result)
+            def collect_harness(folder):
+                snapshot = runtime_environment(folder)
+                if snapshot:
+                    prefix = folder.relative_to(result).as_posix()
+                    files[prefix + '/runtime-environment.json'] = json.dumps(snapshot, ensure_ascii=False).encode()
+                    files[prefix + '/pyvenv.cfg'] = bounded(folder / 'pyvenv.cfg', result)
+                    return
+                for p in sorted(folder.iterdir()):
+                    if p.is_symlink():
+                        raise ValueError('验证脚本包含符号链接')
+                    if p.is_dir():
+                        collect_harness(p)
+                    elif p.is_file():
+                        files[p.relative_to(result).as_posix()] = bounded(p, result)
+            if (result / 'harness').is_dir():
+                collect_harness(result / 'harness')
             if not any(name.startswith('harness/') for name in files):
                 raise ValueError('蓝队确认缺少验证脚本')
             evidence = verified.get('evidence') or []

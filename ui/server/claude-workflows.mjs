@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {labCandidates,prepareLabRetry} from './redteam-lab-retry.mjs';
 import {agentCandidates,prepareAgentRetry} from './redteam-agent-retry.mjs';
 import {judgeCandidates,prepareJudgeRetry} from './judge-retry.mjs';
+import {reportProject,runtimeEnvironment,verificationAttachments} from './delivery-contract.mjs';
 
 const self=fileURLToPath(import.meta.url);
 const repo=path.resolve(path.dirname(self),'../..');
@@ -43,17 +44,22 @@ function checkedLink(file,boundary) {
   return {link,target};
 }
 // No display limits: all regular artifacts and safe file links are represented.
-export function manifest(roots) {
-  const files=[];
+export function manifest(roots,{verification=false}={}) {
+  const files=[],references=[];
   function visit(file,boundary) {
     let stat;try{stat=fs.lstatSync(file);}catch{throw artifactError('产物已缺失：'+file,'artifact_missing');}
     if(stat.isSymbolicLink()){
       const {link,target}=checkedLink(file,boundary);
       files.push({file,type:'symlink',boundary,link,target,size:fs.statSync(target).size,sha256:hash(target)});return;
     }
-    if(stat.isDirectory()){for(const name of fs.readdirSync(file).sort())visit(path.join(file,name),boundary);return;}
+    if(stat.isDirectory()){
+      const runtime=runtimeEnvironment(file);
+      if(runtime){const config=path.join(file,'pyvenv.cfg');files.push({file:config,type:'runtime-environment',runtimeRoot:file,runtime,size:fs.statSync(config).size,sha256:hash(config)});return;}
+      for(const name of fs.readdirSync(file).sort())visit(path.join(file,name),boundary);return;
+    }
     if(!stat.isFile())throw artifactError('产物类型无效：'+file,'artifact_type');
     files.push({file,size:stat.size,sha256:hash(file)});
+    if(verification && path.basename(file)==='verify-report.json' && [path.dirname(file),path.dirname(path.dirname(file))].includes(boundary))references.push({file,boundary});
   }
   for(const root of [...new Set(roots)].sort()){
     const absolute=path.resolve(root);
@@ -61,12 +67,16 @@ export function manifest(roots) {
     const boundary=fs.realpathSync(stat.isDirectory()?absolute:path.dirname(absolute));
     visit(absolute,boundary);
   }
+  for(const item of references)verificationAttachments(item.file,item.boundary);
   return files;
 }
 export function verifyManifest(files) {
   for(const item of files) {
     try {
-      if(item.type==='symlink'){
+      if(item.type==='runtime-environment'){
+        const actual=runtimeEnvironment(item.runtimeRoot);
+        if(!actual || actual.sha256!==item.runtime?.sha256 || hash(item.file)!==item.sha256)throw Error('runtime snapshot changed');
+      }else if(item.type==='symlink'){
         if(!fs.lstatSync(item.file).isSymbolicLink())throw Error('link changed');
         const link=checkedLink(item.file,item.boundary);
         if(link.link!==item.link || link.target!==item.target || hash(link.target)!==item.sha256)throw Error('link or content changed');
@@ -130,11 +140,11 @@ export function sourceReport(state) {
   const keys=['findings','vulnerabilities'].filter(key=>report && Object.hasOwn(report,key));
   if(!keys.length || keys.some(key=>!Array.isArray(report[key]) || report[key].some(item=>!item || typeof item!=='object' || Array.isArray(item))))throw Error('审计报告缺少有效的候选问题数组');
   if(keys.length===2 && JSON.stringify(report.findings)!==JSON.stringify(report.vulnerabilities))throw Error('审计报告的候选问题数组相互冲突');
-  if(state.project && report.project!==state.project)throw artifactError('报告项目编号必须为 '+state.project+'，实际为 '+String(report.project)+'；显示名称应写入 project_name','artifact_project_identity');
+  if(state.project)reportProject(report,state.project);
   return file;
 }
 export async function execute(state,node,file) {
-  const index=stages.indexOf(node),receipt={node,status:'completed',startedAt:new Date().toISOString(),inputs:[],outputs:[]};
+  const index=stages.indexOf(node),receipt={node,delivery_schema_version:2,status:'completed',startedAt:new Date().toISOString(),inputs:[],outputs:[]};
   const prior=state.receipts.at(-1);
   for(const earlier of state.receipts)verifyManifest(earlier.outputs);
   receipt.inputs=[...new Map(state.receipts.flatMap(item=>item.outputs).map(item=>[item.file,item])).values()];
@@ -202,7 +212,7 @@ export async function execute(state,node,file) {
     receipt.status=job.resultStatus || 'completed';receipt.attempt=attempt;
     const outputs=(artifacts[node] || []).map(name=>path.join(job.workspace,name)).filter(fs.existsSync);
     if(!outputs.length)throw Error(`节点缺少交付产物：${node}`);
-    receipt.outputs=manifest([report,...outputs]);
+    receipt.outputs=manifest([report,...outputs],{verification:node==='verify'});
     delete state.activeAttempt;
   }
   return receipt;

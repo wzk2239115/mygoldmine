@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {nodeArtifact,openArtifact} from './node-artifacts.mjs';
+import {runtimeEnvironment,verificationAttachments} from './delivery-contract.mjs';
 
 const fail=message=>{throw Object.assign(new Error(message),{status:409});};
 const sum=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -56,9 +57,18 @@ export function reportBundle(repo,finding,report) {
   for(const name of names)addFile(path.join(root,name),'evidence/'+stage+'/'+name,root,stage==='red');
   // Only this candidate's generated verification evidence and harness are included.
   if(stage==='blue'){
+   verificationAttachments(main,root);
    function visit(folder,prefix,depth=0){
     if(depth>8)fail('验证附件目录过深');
     if(!fs.existsSync(folder))return;
+    const runtime=runtimeEnvironment(folder);
+    if(runtime){
+     addFile(path.join(folder,'pyvenv.cfg'),prefix+'/pyvenv.cfg',root);
+     const bytes=Buffer.from(JSON.stringify(runtime,null,2)),name=prefix+'/runtime-environment.json';
+     if(entries.size>=1000 || total+bytes.length>32*1024*1024)fail('报告运行环境快照过大');
+     total+=bytes.length;entries.set(name,bytes);inventory.push({path:name,role:'runtime_only',size:bytes.length,sha256:sum(bytes)});
+     return;
+    }
     for(const entry of fs.readdirSync(folder)){
      const file=path.join(folder,entry),stat=fs.lstatSync(file);
      if(stat.isSymbolicLink())fail('验证附件不允许符号链接');

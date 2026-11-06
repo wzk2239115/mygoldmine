@@ -133,3 +133,20 @@ test('报告在首次交付与后续读取时绑定任务编号，品牌名不�
  fs.writeFileSync(file,JSON.stringify({project,project_name:'展示名称',findings:[]}));
  assert.equal(sourceReport(state),file);
 });
+
+test('旧版项目字段兼容且冲突拒绝，不修改原报告',t=>{
+ const {runDir,project}=fixture(t),file=path.join(runDir,'audit-report.json');
+ const bytes=JSON.stringify({metadata:{project_id:project},findings:[]});fs.writeFileSync(file,bytes);
+ assert.equal(sourceReport({runDir,project}),file);assert.equal(fs.readFileSync(file,'utf8'),bytes);
+ fs.writeFileSync(file,JSON.stringify({project,metadata:{project_id:'other'},findings:[]}));
+ assert.throws(()=>sourceReport({runDir,project}),/冲突/);
+});
+test('虚拟环境交付为可核验快照，普通悬空链接仍拒绝',t=>{
+ const {runDir}=fixture(t),env=path.join(runDir,'custom-env');fs.mkdirSync(path.join(env,'bin'),{recursive:true});
+ fs.writeFileSync(path.join(env,'pyvenv.cfg'),'home = /container/python\nversion = 3.12.14\n');
+ fs.symlinkSync('/not-on-host/python3',path.join(env,'bin/python'));
+ fs.writeFileSync(path.join(env,'dependency.py'),'original');
+ const rows=manifest([runDir]);assert.equal(rows.filter(x=>x.type==='runtime-environment').length,1);verifyManifest(rows);
+ fs.writeFileSync(path.join(env,'dependency.py'),'changed');assert.throws(()=>verifyManifest(rows),/已改变/);
+ fs.symlinkSync('missing',path.join(runDir,'proof'));assert.throws(()=>manifest([runDir]),/悬空/);
+});

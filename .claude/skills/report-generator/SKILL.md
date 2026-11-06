@@ -3,6 +3,10 @@ name: report-generator
 description: 专业报告生成技能：汇总各扫描器的发现，生成面向人工的 Markdown 报告和机器可读的 JSON 报告。
 ---
 
+## 报告项目身份
+
+新报告在顶层 project 写入任务传入的项目编号，project_name 写显示名称。不要从产品品牌或工作目录名猜测。旧版 metadata.project_id 仍可被消费端读取；两种编号同时存在时必须一致。不得为修改显示名称改变项目编号，也不得改写已冻结报告来绕过来源校验。
+
 ## 概述与边界
 
 - 报告中候选问题的 `title`、`summary`、`impact`、`remediation` 必须使用系统语言（`scripts/config/language.py --prompt`）；英文原始标题保留为 `title_en`。
@@ -147,6 +151,8 @@ check-task .workspace/tasks/security-orchestrator-tasks.json --show-pending --sh
 ```json
 {
   "report_version": "1.0",
+  "project": "<任务传入的项目编号>",
+  "project_name": "<项目显示名称>",
   "generated_at": "ISO 8601 timestamp",
 
   "metadata": {
