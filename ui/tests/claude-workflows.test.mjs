@@ -110,7 +110,7 @@ test('相对文件链接记录目标和内容，改动、越界、悬空和循�
 });
 test('交付失败保留完成批次，恢复只重验已有结果且不再次启动执行器',async t=>{
  const {file,runDir,project}=fixture(t),state=JSON.parse(fs.readFileSync(file));
- const report=path.join(runDir,'audit-report.json');fs.writeFileSync(report,JSON.stringify({findings:[{id:'F-1'}]}));
+ const report=path.join(runDir,'audit-report.json');fs.writeFileSync(report,JSON.stringify({project,findings:[{id:'F-1'}]}));
  const root=path.join(runDir+'.meta','node-retries','visual','finished'),workspace=path.join(root,'output'),outputs=path.join(workspace,'visual-rendered');
  fs.mkdirSync(outputs,{recursive:true});fs.copyFileSync(report,path.join(workspace,'audit-report.json'));
  fs.writeFileSync(path.join(outputs,'report.md'),'done');fs.symlinkSync('/etc/passwd',path.join(outputs,'unsafe'));
@@ -122,4 +122,14 @@ test('交付失败保留完成批次，恢复只重验已有结果且不再次�
  const restored=resumeState(file);assert.equal(restored.activeAttempt,attempt);
  assert.deepEqual(await step(file,'visual'),{node:'visual',status:'completed'});
  assert.equal(JSON.parse(fs.readFileSync(file)).receipts[0].attempt,attempt);
+});
+
+test('报告在首次交付与后续读取时绑定任务编号，品牌名不能替代项目编号',t=>{
+ const {runDir,project}=fixture(t),file=path.join(runDir,'audit-report.json'),state={runDir,project};
+ for(const value of ['OpenAI Codex','other-project',null]){
+  fs.writeFileSync(file,JSON.stringify({project:value,findings:[]}));
+  assert.throws(()=>sourceReport(state),/报告项目编号必须/);
+ }
+ fs.writeFileSync(file,JSON.stringify({project,project_name:'展示名称',findings:[]}));
+ assert.equal(sourceReport(state),file);
 });

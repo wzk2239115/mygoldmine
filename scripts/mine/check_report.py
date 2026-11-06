@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
 import report_quality  # noqa: E402 - repository-local script import
 
 
-def check_report(path, language=None):
+def check_report(path, language=None, expected_project=None):
     path = Path(path)
     errors = []
     try:
@@ -19,6 +19,17 @@ def check_report(path, language=None):
     except (OSError, UnicodeError, ValueError) as exc:
         report = {}
         errors = [f"cannot read report: {type(exc).__name__}"]
+    if expected_project is None:
+        try:
+            expected_project = path.resolve().relative_to(ROOT / "runs").parts[0]
+        except (ValueError, IndexError):
+            expected_project = None
+    if expected_project and isinstance(report, dict) and report.get("project") != expected_project:
+        actual = str(report.get("project"))[:80]
+        errors.append(
+            f"报告项目编号必须为 {expected_project!r}，实际为 {actual!r}；"
+            "请将显示名称放入 project_name，不得修改运行的项目编号"
+        )
     language = language or report_quality.system_language()
     findings = report_quality.findings_of(report)
     missing = Counter()
@@ -59,10 +70,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", required=True)
     parser.add_argument("--output", default="")
+    parser.add_argument("--project", default=None)
     parser.add_argument("--fail-missing", action="store_true")
     parser.add_argument("--fail-language", action="store_true")
     args = parser.parse_args()
-    result = check_report(args.report)
+    result = check_report(args.report, expected_project=args.project)
     output = Path(args.output) if args.output else Path(args.report).parent / "report-quality.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -62,3 +62,14 @@ def test_mcp_proposal_is_scoped_and_queued_not_published(tmp_path):
     payload=json.loads(accepted['result']['content'][0]['text'])
     assert payload['status']=='queued_candidate'
     assert len(list((root/'.stage-skill-proposals').glob('*.json')))==1
+
+def test_orchestrator_identity_returns_revision_before_acceptance(tmp_path, monkeypatch):
+    monkeypatch.setattr(module, 'infer_project', lambda root: 'codex')
+    report = tmp_path / 'audit-report.json'
+    args = {'artifact': str(report), 'summary': '交付', 'limitations': []}
+    report.write_text(json.dumps({'project': 'OpenAI Codex', 'findings': []}))
+    result = module.submit('orchestrator', tmp_path, args)
+    assert result['decision'] == 'needs_revision'
+    assert 'codex' in str(result['errors'])
+    report.write_text(json.dumps({'project': 'codex', 'project_name': 'OpenAI Codex', 'findings': []}))
+    assert module.submit('orchestrator', tmp_path, args)['decision'] == 'accepted'

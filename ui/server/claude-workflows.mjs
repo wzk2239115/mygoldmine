@@ -130,6 +130,7 @@ export function sourceReport(state) {
   const keys=['findings','vulnerabilities'].filter(key=>report && Object.hasOwn(report,key));
   if(!keys.length || keys.some(key=>!Array.isArray(report[key]) || report[key].some(item=>!item || typeof item!=='object' || Array.isArray(item))))throw Error('审计报告缺少有效的候选问题数组');
   if(keys.length===2 && JSON.stringify(report.findings)!==JSON.stringify(report.vulnerabilities))throw Error('审计报告的候选问题数组相互冲突');
+  if(state.project && report.project!==state.project)throw artifactError('报告项目编号必须为 '+state.project+'，实际为 '+String(report.project)+'；显示名称应写入 project_name','artifact_project_identity');
   return file;
 }
 export async function execute(state,node,file) {
@@ -157,7 +158,7 @@ export async function execute(state,node,file) {
     }
     if(code!==0 && !fs.existsSync(path.join(state.runDir,'audit-report.json')))throw Error('审计编排失败');
     sourceReport(state);
-    if(await command(process.env.PYTHON || 'python3',['scripts/mine/check_report.py','--report',path.join(state.runDir,'audit-report.json'),'--output',path.join(state.runDir,'report-quality.json'),'--fail-missing','--fail-language'],{log})!==0)throw Error('审计产物未通过完整性检查');
+    if(await command(process.env.PYTHON || 'python3',['scripts/mine/check_report.py','--report',path.join(state.runDir,'audit-report.json'),'--project',state.project,'--output',path.join(state.runDir,'report-quality.json'),'--fail-missing','--fail-language'],{log})!==0)throw Error('审计产物未通过完整性检查');
     const status=read(state.runDir+'.meta/status.json') || {};
     write(state.runDir+'.meta/status.json',{...status,env_image:state.image,target:state.source});
     receipt.status=code===0?'completed':'degraded';

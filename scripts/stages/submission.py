@@ -54,7 +54,9 @@ def submit(stage, root, arguments):
             if stage=='orchestrator':
                 sys.path.insert(0,str(ROOT/'scripts/mine'))
                 from check_report import check_report
-                result=check_report(artifact)
+                expected_project=infer_project(root)
+                expected_project=None if expected_project=="unknown" else expected_project
+                result=check_report(artifact, expected_project=expected_project)
                 if not result['valid'] or result['incomplete']: errors.append({'report_quality':result})
             elif stage=='environment':
                 if d.get('env_status') not in ('ready','partial'): raise ValueError('环境未达到可交付状态')
