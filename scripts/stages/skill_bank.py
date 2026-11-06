@@ -105,7 +105,7 @@ class SkillBank:
         meta=Path(str(run)+'.meta');status=read(meta/'status.json',{})
         files={
             'environment':[meta/'env-phase.json',meta/'env-phase0.log'],
-            'orchestrator':[run/'audit-report.json',run/'report-quality.json',run/'report-quality.log',run/'task-state/security-orchestrator-tasks.json',run/'task-artifacts/coverage-ledger.json',run/'task-artifacts/coverage-plan.json',run/'task-artifacts/review-plan.json'],
+            'orchestrator':[run/'audit-report.json',run/'report-quality.json',run/'report-quality.log',run/'task-state/security-orchestrator-tasks.json',run/'task-artifacts/coverage-ledger.json',run/'task-artifacts/read-coverage/summary.json',run/'task-artifacts/read-coverage/summary.md',run/'task-artifacts/coverage-plan.json',run/'task-artifacts/review-plan.json'],
             'visual':[run/'visual-rendered/visual-summary.json'],
             'verify':[run/'verify/agent/summary.json'],
             'redteam-lab':[run/'redteam/summary.json'],
@@ -143,6 +143,8 @@ class SkillBank:
                 if p.is_file():refs.append({'path':str(p.relative_to(self.repo)),'sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
             reported={}
             for p in paths:
+                # 读取观测仅作为证据引用，不能覆盖审计本身的状态或候选数量。
+                if p.parent.name=='read-coverage':continue
                 d=read(p,{})
                 if isinstance(d,dict):reported.update(d)
             stage_state=reported.get('status') or reported.get('scene_status') or ('missing' if not refs else 'recorded')

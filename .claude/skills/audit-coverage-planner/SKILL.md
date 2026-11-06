@@ -110,3 +110,12 @@ description: 规划审计覆盖与待验证假设。用于在项目画像后识�
 - 合并、去重和可达性校准交给 `hypothesis-critic`。
 - 需要复审时交给 `audit-review-planner`，由它记录复审原因和预算。
 - 结束前把记录和计划作为证据交给 `stage-skill-learning`，只提交技能候选，不自行发布。
+
+
+## 阶段二实际读取旁证
+
+阶段二启用读取采集后，每波规划前运行下面的命令，读取 .workspace/findings/read-coverage/summary.json：
+
+    python3 "$MYGOLDMINE_HOME/scripts/audit/read_coverage.py" summary
+
+以其中的文件、实际返回行范围、源码摘要、审计意图和覆盖编号关联现有条目。不同意图检查同一代码分别保留；优先补未检查区域、未检查视角和缺失证据。没有数据、搜索命中、未关联意图、未知范围和采集异常都不能推定为审计完成。该文件没有全仓库分母，不计算全仓库覆盖率；模型不得改写原始观测。

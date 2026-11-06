@@ -282,6 +282,16 @@ for pair in findings:task-artifacts tasks:task-state; do
     ln -s "$RUN_DIR/$persistent_part" "$original"
 done
 
+# 仅阶段二采集；每次运行从空观测开始，不复用工作副本遗留记录。
+unset MYGOLDMINE_READ_COVERAGE_ROOT MYGOLDMINE_READ_COVERAGE_TARGET MYGOLDMINE_READ_COVERAGE_PROJECT MYGOLDMINE_READ_COVERAGE_VERSION
+if [ "$AGENT" = "security-orchestrator" ]; then
+    export MYGOLDMINE_READ_COVERAGE_ROOT="$RUN_DIR/task-artifacts/read-coverage"
+    export MYGOLDMINE_READ_COVERAGE_TARGET="$TARGET_REAL"
+    export MYGOLDMINE_READ_COVERAGE_PROJECT="$PROJECT"
+    export MYGOLDMINE_READ_COVERAGE_VERSION="$COMMIT"
+    python3 "$REPO_ROOT/scripts/audit/read_coverage.py" init || die "无法初始化阶段二读取记录" 5
+fi
+
 # 提示词：外部未提供时生成临时文件，退出时清理
 AUTO_PROMPT=0
 if [ -z "$PROMPT_FILE" ] || [ ! -f "$PROMPT_FILE" ]; then
@@ -558,6 +568,9 @@ finalize() {
         status="success"
     else
         status="partial"
+    fi
+    if [ "$AGENT" = "security-orchestrator" ]; then
+        python3 "$REPO_ROOT/scripts/audit/read_coverage.py" summary >> "$RUN_DIR/read-coverage.log" 2>&1 || log "读取记录汇总异常，见 read-coverage.log"
     fi
     write_meta "$effective_rc" "$renderer_rc" "$status" || true
 

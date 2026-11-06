@@ -39,6 +39,8 @@ if command -v ruff >/dev/null 2>&1; then
         tests/test_clean_operation.py \
         scripts/mine/check_report.py \
         scripts/audit/check_orchestration.py \
+        scripts/audit/read_coverage.py \
+        tests/test_audit_read_coverage.py \
         tests/test_audit_orchestration_check.py \
         scripts/runner/smoke_runner.py \
         .claude/hooks/environment-build-guard.py \

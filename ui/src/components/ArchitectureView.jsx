@@ -46,7 +46,7 @@ const MINING_STAGES = [
     title: '整理审计线索并拆分任务',
     icon: Bot,
     tone: 'violet',
-    body: 'Jev 先给代码块打分，帮助决定优先检查哪里；这些分数和风险标记只是线索，不会直接记为候选问题。security-orchestrator 再结合项目结构、知识库和覆盖缺口，把后续检查拆成具体任务：先按信任边界启动 6 个 infra-analyst，再用最多两波 audit-skill-worker 按 recommended_skills 补充传统分析技能，并使用原生检索和技能加载工具（Grep、Glob、Skill）。',
+    body: '阶段二将实际读取行范围与派发前的审计意图关联，搜索命中、未知范围和未关联记录分别保留；读取不代表审计完成。Jev 先给代码块打分，帮助决定优先检查哪里；这些分数和风险标记只是线索，不会直接记为候选问题。security-orchestrator 再结合项目结构、知识库和覆盖缺口，把后续检查拆成具体任务：先按信任边界启动 6 个 infra-analyst，再用最多两波 audit-skill-worker 按 recommended_skills 补充传统分析技能，并使用原生检索和技能加载工具（Grep、Glob、Skill）。',
     artifact: 'triage/jev-*.json · raw.jsonl'
   },
   {

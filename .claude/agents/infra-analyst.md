@@ -106,3 +106,8 @@ tools: Read, Grep, Glob, Bash, Write, Skill
 - 不把 `scripts/experimental/infra_surface_index.py` 的输出当候选问题；最多当索引用。
 - 所有面向人的标题、`summary`、`impact`、`remediation` 使用系统语言（见 `scripts/config/language.py --prompt`）；英文原文只放 `title_en`。
 - 发现知识卡与实际代码不符时，在输出 `knowledge_gaps` 中记录，交给知识整理智能体（`knowledge-scribe`）更新。
+
+
+## 读取观测关联
+
+阶段二任务提示中的 AUDIT_INTENT_ID、AUDIT_INTENT、COVERAGE_ID、HYPOTHESIS、AUDIT_SCOPE 是派发前的意图声明。按此范围检查，在分析结果与覆盖记录中保留意图编号；需要其他视角时向编排器提出新任务。不得改写采集器生成的 read-coverage/，不得把读取次数、搜索命中或未知范围当作完成审计的证据。源码读取位置由工具钩子自动记录；没有意图关联时保持未关联。

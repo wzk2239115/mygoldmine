@@ -636,3 +636,26 @@ finding: <finding 文件路径或报告中的条目>
 交付前对实际交付路径运行 `python3 "$MYGOLDMINE_HOME/scripts/mine/check_report.py" --report "$RUN_DIR/audit-report.json"`，检查返回结果并修正后再交付。独立调用时将变量替换为真实仓库和报告路径。任务状态全部完成不能代替报告质量检查；恢复汇总需在 `coverage.analysis_mode` 写 `assembly-only`，明确未重新扫描，保持未验证状态。
 
 报告中的项目标识必须使用调用方的项目目录标识，显示名称另写，不得改成品牌大小写或中文名称。候选数组统一优先使用 `findings`；历史格式 `vulnerabilities` 仍可读取，但禁止同时交付内容不同的两个数组。
+
+
+## 阶段二：读取覆盖与审计意图
+
+本机制仅在阶段二启动器设置采集目录时生效。源码读取由固定版本的 agentcov 解析，模型不得手写读取次数或把搜索命中记作已审计。
+
+每个原生子智能体任务在派发前必须在提示词中包含以下五个独立行；工具钩子会拒绝字段不全或编号冲突的派发。每个分析任务使用独立意图编号；改变视角或假设时另建编号，同一代码允许不同意图的重复审计。
+
+    AUDIT_INTENT_ID: orch-wave1-auth-001
+    AUDIT_INTENT: 检查外部请求到敏感操作之间是否缺少权限校验
+    COVERAGE_ID: COV-AUTH-001
+    HYPOTHESIS: 未登录请求可能绕过入口鉴权并调用敏感操作
+    AUDIT_SCOPE: src/auth/ 与 src/routes/
+
+画像、规划和报告任务也填写真实用途；未形成漏洞假设时明确写“入口识别，尚未形成漏洞假设”等实际状态，不能编造漏洞。子智能体保持分派时的意图声明；新增检查视角交由编排器另行派发。
+
+每波分析结束、生成后续任务前，运行：
+
+    python3 "$MYGOLDMINE_HOME/scripts/audit/read_coverage.py" summary
+
+然后读取 .workspace/findings/read-coverage/summary.json 和 summary.md，结合既有覆盖记录规划下一波：优先补未检查的高风险区域和缺失证据；重复检查说明新意图、新条件或新证据。汇总区分实际读取、搜索命中、未知范围、未关联意图和采集异常。范围不明时保留未知，不推测为整文件读取。
+
+.workspace/findings/read-coverage/ 的原始观测和汇总由采集器生成，不允许用 Write/Edit 修改；分析结论继续写入既有 coverage-ledger.json，通过意图编号和覆盖编号关联。读取本身不得修改验证状态，也不代表已经理解或排除漏洞。阶段退出时启动器再次汇总，随阶段二产物清单交付，并提供给经验学习阶段。未采集到数据必须说明，不报告零遗漏或全仓库覆盖。
