@@ -4,6 +4,7 @@
 
 - [RSI：反馈引导的探索与技能改进](rsi.md)
 - [Workflow：八阶段协作与产物传递](workflow.md)
+- [词元统计现状与持续审计曲线](token-accounting.md)
 
 ## 建议的叙述顺序
 
