@@ -111,6 +111,8 @@ def summarize(rows):
                 missing_fields={k: 0 for k in FIELDS},
             ),
         )
+        group["model"] = key[3]
+        group["provider_convention"] = key[4]
         group["records"] += 1
         group["unknown_usage"] += not row["usage_known"]
         for name, value in row["tokens"].items():
