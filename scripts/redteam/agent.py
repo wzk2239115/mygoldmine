@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import argparse
+import uuid
+from datetime import datetime, timezone
 import json
 import os
 import re
@@ -156,6 +158,15 @@ def run(options):
         (lab.run_dir / "scenario.json").write_text(
             json.dumps(scenario, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
+    usage_session = uuid.uuid4().hex
+    def record_usage(step, response=None):
+        usage = getattr(response, "usage", None)
+        write_jsonl(lab.run_dir / "model-usage.jsonl", {
+            "type": "model_usage", "request_key": usage_session + "/" + str(step),
+            "session_id": usage_session, "project": options.project, "stage": "redteam-agent",
+            "model": options.model, "timestamp": datetime.now(timezone.utc).isoformat(),
+            "usage": usage.model_dump() if usage is not None else None,
+        })
     transcript = lab.run_dir / "agent.jsonl"
     layered_context = layered_skill_instruction("redteam-agent", lab.run_dir, options.project) + f"\n本轮执行证据路径：{transcript}"
     if transcript.exists():
@@ -199,6 +210,7 @@ def run(options):
                     timeout=options.model_timeout,
                 )
             except Exception as exc:
+                record_usage(step)
                 if isinstance(exc, TimeoutError) or "timeout" in type(exc).__name__.lower():
                     result = {
                         "status": "model_timeout",
@@ -212,6 +224,7 @@ def run(options):
                     print(f"[redteam] model timeout: {exc}", file=sys.stderr)
                     return 4
                 raise
+            record_usage(step, response)
             content = (response.choices[0].message.content or "").strip()
             write_jsonl(transcript, {"step": step, "role": "assistant", "content": content})
             action = parse_action(content)

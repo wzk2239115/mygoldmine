@@ -1,3 +1,4 @@
+import {spawn as spawnTokenCollector} from 'node:child_process';
 import {recoverProjectQueue} from './project-admission.mjs';
 import {reportBundle,markdownBundle} from './report-export.mjs';
 import {verifiedReports} from './verified-reports.mjs';
@@ -1309,6 +1310,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if(req.method==='GET' && pathname==='/api/token-usage') {
+      const file=path.join(REPO_ROOT,'.state/token-usage/summary.json');
+      const value=fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):{status:'collecting',groups:[]};
+      const project=url.searchParams.get('project'),run=url.searchParams.get('run');
+      const groups=(value.groups || []).filter(g=>(!project || g.project===project)&&(!run || g.run_id===run));
+      return sendJson(res,200,{...value,records:groups.reduce((sum,g)=>sum+g.records,0),groups});
+    }
+
     const reportExport=pathname.match(/^\/api\/verified-reports\/([a-f0-9]{24})\/download$/);
     if(req.method==='GET' && reportExport) {
       const findings=buildBoard().findings;
@@ -1811,6 +1820,9 @@ server.on('upgrade', (req, clientSocket, head) => {
 });
 
 server.listen(PORT, HOST, () => {
+  const tokenCollector=spawnTokenCollector(process.env.PYTHON || 'python3',[path.join(REPO_ROOT,'scripts/workflow/token_usage.py'),'--watch'],{cwd:REPO_ROOT,detached:true,stdio:'ignore'});
+  tokenCollector.on('error',error=>console.error('词元采集器启动失败：'+error.message));tokenCollector.unref();
+
   console.log(`[vul-ai-board] http://${HOST}:${PORT}`);
   console.log(`[vul-ai-board] repo=${REPO_ROOT}`);
   recoverProjectQueue(REPO_ROOT);
