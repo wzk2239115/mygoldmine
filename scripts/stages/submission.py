@@ -151,7 +151,9 @@ def serve(stage, root):
                 if stage=='redteam-lab':
                     from stage_builds import SCHEMA as build_schema
                     tools.append({'name':'start_stage_build','description':'登记本场景的持久镜像构建；返回任务文件，宿主机等待真实完成。','inputSchema':build_schema})
-                if stage=='learner':tools.append({'name':'request_skillopt_optimization','description':'提交一个由 SkillOpt 重写的阶段技能请求。只写请求，不直接发布；宿主机随后调用第三方优化引擎并转换为现有候选。','inputSchema':SKILLOPT_SCHEMA})
+                if stage=='learner':
+                    tools.append({'name':'request_skillopt_optimization','description':'提交一个由 SkillOpt 重写的阶段技能请求。只写请求，不直接发布；宿主机随后调用第三方优化引擎并转换为现有候选。','inputSchema':SKILLOPT_SCHEMA})
+                    tools.append({'name':'get_rsi_scorecard','description':'读取本项目本轮 RSI 评分卡及相同源码版本的历史对照。只读；包含两项奖励、系数和计算依据，不改变任何验收状态。','inputSchema':{'type':'object','properties':{},'additionalProperties':False}})
                 result={'tools':tools}
             elif method=='tools/call':
                 params=request.get('params',{})
@@ -168,6 +170,13 @@ def serve(stage, root):
                     task=start_build(stage,root,params.get('arguments',{}));result={'content':[{'type':'text','text':json.dumps(task,ensure_ascii=False)}]}
                 elif params.get('name')=='request_skillopt_optimization':
                     request=request_skillopt_optimization(stage,root,params.get('arguments',{}));result={'content':[{'type':'text','text':json.dumps(request,ensure_ascii=False)}]}
+                elif params.get('name')=='get_rsi_scorecard':
+                    if stage!='learner':raise ValueError('只有第八阶段经验学习节点可以读取 RSI 评分卡')
+                    from rsi_scorecard import scorecard
+                    project=infer_project(root)
+                    if project=='unknown':raise ValueError('无法从本次运行目录确定项目标识')
+                    data=scorecard(ROOT,root,project)
+                    result={'content':[{'type':'text','text':json.dumps(data,ensure_ascii=False)}]}
                 elif params.get('name')=='submit_stage_result':
                     receipt=submit(stage,root,params.get('arguments',{}));result={'content':[{'type':'text','text':json.dumps(receipt,ensure_ascii=False)}],'isError':receipt['decision']!='accepted'}
                 else: raise ValueError('未知工具')

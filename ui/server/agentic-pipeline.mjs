@@ -1,3 +1,4 @@
+import {rsiRewards} from "./rsi-rewards.mjs";
 import {attachCandidateFlow} from './candidate-flow.mjs';
 import {cycleStatus} from './learning-cycles.mjs';
 import {jevTriage} from './jev-triage.mjs';
@@ -477,6 +478,7 @@ export function buildAgenticPipeline(run) {
     if(workflow.status==='running')node.retryReason='项目工作流正在运行';
   }
   return {
+    rsiRewards:rsiRewards(path.resolve(run.runDir,"../../.."),run.project,run.runId),
     cycle:cycleStatus(path.resolve(run.runDir,'../../..'),run.project),
     workflow:workflow?{id:workflow.id,admission:workflow.admission,status:workflow.status,current:workflow.current,receipts:workflow.receipts?.length || 0,error:workflow.error,traces:listWorkflowTraces(run).map(({id,label,kind,size,updatedAt})=>({id,label,kind,size,updatedAt}))}:null,
     notice,

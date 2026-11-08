@@ -11,7 +11,7 @@ const specs={
  'redteam-lab':['redteam/selection.json','redteam/summary.json','redteam/labs'],
  'redteam-agent':['redteam/summary.json','redteam/agent-runs'],
  judge:['judge','redteam/summary.json'],
- learner:['rsi/stage-learning-evaluation.json','rsi/learning-retry.json','rsi/stage-feedback','rsi/skillopt','rsi/mining-repairs/agentic']
+ learner:['rsi/reward.json','rsi/exploration-feedback.json','rsi/stage-learning-evaluation.json','rsi/learning-retry.json','rsi/stage-feedback','rsi/skillopt','rsi/mining-repairs/agentic']
 };
 const extensions=new Set(['.md','.json','.png','.jpg','.jpeg','.webp','.svg']);
 export function listNodeArtifacts(run,node) {

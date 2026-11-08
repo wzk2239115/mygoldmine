@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { cx } from '../utils.js';
 import AgenticTraceDrawer from './AgenticTraceDrawer.jsx';
 import TeamAgentIcon from './TeamAgentIcon.jsx';
+import RsiRewards from './RsiRewards.jsx';
 
 const ROMAN=['I','II','III','IV','V','VI','VII','VIII'];
 const CYCLE_LABELS={not_started:'未启动',running:'运行中',queued:'排队中',stopped:'已停止',completed:'已结束',no_improvement:'无发布改善，已停止',failed:'失败，已停止'};
@@ -88,8 +89,8 @@ export default function AgenticPipeline({ project, runId: defaultRunId, reportRu
         <div className="agentic-pipeline-summary">
           {data?.workflow?.traces?.length ? <button type="button" className="cycle-control" title="查看整条流程的调度会话，不计入节点轨迹" onClick={()=>setSelectedNode({id:'workflow',title:'工作流调度',agent:'pipeline-coordinator',workflowOnly:true,status:data.workflow.status,traces:data.workflow.traces,retrySupported:false})}>工作流调度</button> : null}
           <button type="button" className="cycle-control" onClick={controlCycle} disabled={cycleBusy || !project || (!cycleLive && (projectLive || retryLive)) || data?.cycle?.stopRequested}
-            title={cycleLive?'当前轮结束后停止，不打断正在执行的阶段':'持续执行 I—VIII，每轮间隔五分钟；无发布改善时保留当前技能，失败时停止'}>
-            {data?.cycle?.stopRequested?'本轮结束后停止':cycleLive?'停止连续循环':'启动连续循环'}
+            title={cycleLive?'当前轮结束后停止，不打断正在执行的阶段':'执行 8 轮 I—VIII，每轮间隔五分钟；无新奖励仍继续，工作流失败时停止'}>
+            {data?.cycle?.stopRequested?'本轮结束后停止':cycleLive?'停止连续循环':'启动 8 轮 RSI'}
           </button>
 
           {data ? `${data.summary.completed}/${data.summary.total} 完成` : '等待运行状态'}
@@ -104,6 +105,7 @@ export default function AgenticPipeline({ project, runId: defaultRunId, reportRu
         {viewRunId && viewRunId!==defaultRunId?<button type="button" className="cycle-control" onClick={()=>setViewRunId('')}>返回最新运行</button>:null}
       </div>
       {data?.cycle ? <p className="cycle-progress" role="status">已完成 {data.cycle.completed_rounds || 0} 轮审计 · 循环{CYCLE_LABELS[data.cycle.status] || data.cycle.status}{data.cycle.active ? ` · 本次第 ${data.cycle.current_round || 0} 轮` : ''}{data.cycle.waiting_until?` · ${data.cycle.wait_reason || '等待下一轮'}`:null}{data.cycle.error ? ` · ${data.cycle.error}` : ''}{data.cycle.stopRequested?' · 本轮结束后停止':null}</p> : null}
+      {data ? <RsiRewards data={data.rsiRewards} /> : null}
       {data?.workflow?.admission?.status==='queued' ? <p role="status">项目排队中 · 第 {data.workflow.admission.position} 位 · 同时最多运行 {data.workflow.admission.limit} 个项目</p> : null}
       {data?.workflow?.status==='failed' && data.workflow.error ? <div className="inline-error" role="alert">工作流已停止：{data.workflow.error}</div>:null}
       {error ? <div className="inline-error"  role="alert">{error}</div> : null}
@@ -151,7 +153,7 @@ export default function AgenticPipeline({ project, runId: defaultRunId, reportRu
             </button>
           ))}
         </div>
-          <span className="agentic-cycle-caption">{cycleLive ? (data.cycle.stopRequested?'本轮结束后停止':'VIII 结束后进入下一轮 I；仅加载已发布技能') : (data.cycle?.status==='not_started'?'循环未启动 · 点击启动连续循环':'循环已停止 · 可重新启动')}</span>
+          <span className="agentic-cycle-caption">{cycleLive ? (data.cycle.stopRequested?'本轮结束后停止':'VIII 结束后进入下一轮 I；仅加载已发布技能') : (data.cycle?.status==='not_started'?'循环未启动 · 点击启动 8 轮 RSI':'循环已停止 · 可重新启动')}</span>
         </div>
         </div>
       ) : (
@@ -160,7 +162,7 @@ export default function AgenticPipeline({ project, runId: defaultRunId, reportRu
         </div>
       )}
       {data ? <div className="agentic-cycle-context" aria-live="polite">
-        {cycleLive ? <><strong>连续循环已启动</strong><span>{data.cycle.continuous?'持续运行，每轮间隔五分钟；工作流失败时停止':`最多 ${data.cycle.max_rounds || 3} 轮，连续 ${data.cycle.patience || 2} 轮无发布改善则停止`}</span></> : focusedNode ? <><strong>{focusedNode.title}</strong><span>{focusedNode.statusLabel || STATUS_LABELS[focusedNode.status]}</span><span>{focusedNode.detail || '点击节点查看执行记录'}</span></> : <><strong>I → VIII → I</strong><span>经验学习与独立评估后进入下一轮</span><span>连续执行需启动循环任务</span></>}
+        {cycleLive ? <><strong>RSI 循环已启动</strong><span>{`共 ${data.cycle.max_rounds || 8} 轮，已结束 ${data.cycle.rounds?.length || 0} 轮；无新奖励仍继续，工作流失败时停止`}</span></> : focusedNode ? <><strong>{focusedNode.title}</strong><span>{focusedNode.statusLabel || STATUS_LABELS[focusedNode.status]}</span><span>{focusedNode.detail || '点击节点查看执行记录'}</span></> : <><strong>I → VIII → I</strong><span>经验学习与独立评估后进入下一轮</span><span>连续执行需启动循环任务</span></>}
       </div> : null}
       {selectedNode ? (
         <AgenticTraceDrawer

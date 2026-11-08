@@ -1344,7 +1344,7 @@ const server = http.createServer(async (req, res) => {
       const run=runs.filter(item=>item.project===project).sort((a,b)=>String(b.runId).localeCompare(String(a.runId)))[0];
       if(!run)return sendError(res,404,'项目不存在');
       if(req.method==='GET' && !cycleTarget[2])return sendJson(res,200,cycleStatus(REPO_ROOT,project));
-      if(req.method==='POST' && cycleTarget[2]==='start'){const body=await readBody(req);return sendJson(res,201,startCycle({repoRoot:REPO_ROOT,run,liveRuns:runs,continuous:body.continuous??false}));}
+      if(req.method==='POST' && cycleTarget[2]==='start'){const body=await readBody(req);return sendJson(res,201,startCycle({repoRoot:REPO_ROOT,run,liveRuns:runs,rounds:8,continuous:body.continuous??true}));}
       if(req.method==='POST' && cycleTarget[2]==='stop')return sendJson(res,200,stopCycle(REPO_ROOT,project));
       return sendError(res,405,'请求方式不支持');
     }

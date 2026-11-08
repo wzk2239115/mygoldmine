@@ -19,9 +19,10 @@ function fixture(t) {
 }
 test('循环启动保留互斥锁，停止请求等待当前轮结束',t=>{
  const f=fixture(t);const started=startCycle(f);
- assert.equal(started.max_rounds,3);assert.equal(started.patience,2);
+ assert.equal(started.max_rounds,8);assert.equal(started.patience,2);
  assert.equal(cycleStatus(f.repoRoot,'demo').active,true);
  assert.ok(f.calls[0][1].includes('--claim-token'));
+ assert.equal(f.calls[0][1][f.calls[0][1].indexOf('--rounds')+1],'8');
  assert.throws(()=>startCycle(f),/已有学习循环/);
  assert.equal(stopCycle(f.repoRoot,'demo').stopRequested,true);
  assert.equal(cycleStatus(f.repoRoot,'demo').active,true);

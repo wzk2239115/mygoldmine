@@ -7,12 +7,11 @@ import subprocess
 import signal
 import time
 import uuid
-import itertools
 from pathlib import Path
 from skill_bank import SkillBank, ROOT, now, read, write, identifier
 from learn_round import learn
 
-def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_id=None,claim_token=None,continuous=False,cooldown=300):
+def cycle(source,project,rounds=8,patience=2,wall=108000,repo=ROOT,poll=5,cycle_id=None,claim_token=None,continuous=False,cooldown=300):
     repo=Path(repo);bank=SkillBank(repo);identifier(project)
     source=Path(source).resolve()
     if source.name!=project:raise ValueError('项目名必须与现有运行入口的源码目录名一致')
@@ -29,9 +28,8 @@ def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
     root=repo/'rsi/stage-skills/cycles'/(cycle_id or uuid.uuid4().hex);root.mkdir(parents=True,exist_ok=True)
     write(lock/'claim.json',{'id':root.name})
     state={'id':root.name,'project':project,'status':'running','started_at':now(),'rounds':[],'max_rounds':rounds,'patience':patience,'continuous':continuous,'cooldown_seconds':cooldown};write(root/'status.json',state)
-    stale=0
     try:
-        for index in (itertools.count() if continuous else range(rounds)):
+        for index in range(rounds):
             if (root/'stop').exists():state['status']='stopped';break
             before_round=bank.active()
             state['current_round']=index+1;write(root/'status.json',state)
@@ -95,10 +93,8 @@ def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
             published=[cid for key,cid in bank.active().items() if before_round.get(key)!=cid]
             state['rounds'].append({'index':index+1,'run_dir':str(run),'feedback_run_dir':str(effective),'state':status.get('state'),'evaluations':evaluations,'published':published,'exploration':advancement.get('exploration')})
             write(root/'status.json',state)
-            stale=0 if published or advancement.get('interesting') else stale+1
             if (root/'stop').exists():state['status']='stopped';break
-            if not continuous and stale>=patience:state['status']='no_improvement';break
-            if continuous:
+            if continuous and index + 1 < rounds:
                 state['waiting_until']=time.time()+cooldown
                 state['wait_reason']='本轮有探索进展或项目试用，继续观察；不代表稳定发布' if advancement.get('interesting') else '本轮没有稳定发布，保留当前技能版本继续探索' if not published else '等待下一轮'
                 write(root/'status.json',state)
@@ -114,7 +110,7 @@ def cycle(source,project,rounds=3,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
     return state
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--source',required=True);p.add_argument('--project',required=True);p.add_argument('--rounds',type=int,default=3);p.add_argument('--patience',type=int,default=2);p.add_argument('--cycle-id');p.add_argument('--claim-token');p.add_argument('--continuous',action='store_true');p.add_argument('--cooldown',type=int,default=300);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--source',required=True);p.add_argument('--project',required=True);p.add_argument('--rounds',type=int,default=8);p.add_argument('--patience',type=int,default=2);p.add_argument('--cycle-id');p.add_argument('--claim-token');p.add_argument('--continuous',action='store_true');p.add_argument('--cooldown',type=int,default=300);a=p.parse_args()
     if not 1<=a.rounds<=100 or a.patience<1 or a.cooldown<1:p.error('轮数须为 1—100，停止阈值须为正数')
     print(json.dumps(cycle(a.source,a.project,a.rounds,a.patience,cycle_id=a.cycle_id,claim_token=a.claim_token,continuous=a.continuous,cooldown=a.cooldown),ensure_ascii=False,indent=2))
 if __name__=='__main__':main()

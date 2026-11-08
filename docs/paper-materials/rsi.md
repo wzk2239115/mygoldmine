@@ -30,7 +30,7 @@
 | 证据推进 | 覆盖条目的证据发生变化 | 提示值得继续检查的方向 |
 | 经核验成果 | 新的独立问题满足既有验证、红队证据与独立审核要求，并形成合格报告 | 提供较强的后续反馈 |
 
-当前实现将这些信号组合为启发式奖励，并对过程信号封顶，使重复读取和大量生成中间文本不能取代最终成果。报告按问题语义标识去重；不能确认身份时，不以报告标题猜测新漏洞。反馈不可用时保留缺失状态，不补造成功信号。
+当前奖励只计算新增风险加权读取覆盖与新验证漏洞；证据文字变化和意图归属不独立加分。重复读取同一源码版本和内容的同一行不增加奖励。报告按问题语义标识去重；不能确认身份时，不以报告标题猜测新漏洞。反馈不可用时保留缺失状态，不补造成功信号。
 
 需要强调，证据摘要变化本身不证明证据质量提高，读取新文件也可能只是无效探索。因此过程信号主要服务于任务选择，经过核验的成果则提供更强的判断依据。当前奖励权重属于工程启发式，尚未证明其最优性。
 
@@ -84,132 +84,215 @@ energy 表示一个任务值得获得的探索投入建议。出现证据推进�
 主要结果应关注相同预算下的独立经核验问题数、首份报告成本、误报与重复情况，以及试用规则的实际采用与退化；不以候选文件数量、读取量或模型自评分代替效果。
 
 
-## 9. RSI 优化目标与候选保留条件（论文评估设计）
 
-本节给出拟用于论文实验的优化目标。当前运行中的启发式奖励、项目限定试用与独立评估已有实现，但下述统一损失、配对实验及统计接受规则尚未整体接入自动发布流程，不能将公式直接描述为当前运行算法。
+## 9. RSI 的形式化目标与更新算法（论文评估设计）
 
-### 9.1 优化变量与可比较条件
+本节定义拟用于论文实验的算法，不声称当前系统已完整实现这些计分与接受规则。当前已有 Jev 区间评分、agentcov 读取观测、任务意图、核验结果和版本记录；规范化意图类别、固定证据槽、统一损失与配对统计接受规则仍需接入。优化变量 $\theta$ 是 agent／skill Markdown 与探索规则的离散版本，不是语言模型参数。
 
-令 $\theta_t$ 表示第 $t$ 轮使用的 agent／skill Markdown 文档及其探索规则版本；$\theta'$ 是根据反馈生成的候选版本。这里不更新语言模型参数，$\theta$ 也不是可通过反向传播直接训练的连续参数。
+### 9.1 固定评估输入与计量集合
 
-在预先确定的项目集合 $\mathcal D$ 上，每次评估固定源码提交、基座模型、环境、验证标准和投入预算 $B$。基线与候选使用配对的项目和随机种子，并重复运行。通用方法的评估应包含未参与候选生成的留出项目；项目限定方法只能据此声明该项目上的收益，不能声称跨项目泛化。
+一次评估输入为 $e=(r,v,s,M,I,B,T,H)$：仓库 $r$、源码提交 $v$、随机种子 $s$、固定模型 $M$、固定环境 $I$、费用预算 $B>0$、最大任务数 $T$ 与最大候选数 $H$。所有模型与工具调用均计入统一预算。基线和候选共享这些输入，任务与候选上限由执行器强制执行，超过预算的结果无效。
 
-### 9.2 固定预算下的损失函数
+实验开始前冻结下列集合与映射，候选不能修改：
 
-对一次审计执行 $e=(r,s,B)$，定义：
+- $\mathcal U_e$：指定提交与预先规定审计范围内的代码行集合。每个元素 $u=(v,f,h_f,l)$，分别为提交、相对文件路径、文件内容 SHA-256 和行号；空白行、生成文件及依赖目录的排除规则预先固定。区间必须拆成行集合取并集，不能把两个重叠区间分别计分。
+- $\mathcal A$：有限的规范化审计意图类别集合，例如权限检查、输入传播、反序列化与资源消耗。任务派发前绑定类别 $a\in\mathcal A$ 和具体假设。自由文本仅作解释，不能通过改写名称创建新类别。
+- $\mathcal R_e^0\subseteq\mathcal U_e\times\mathcal A$：评估开始前已有的有效读取记录，基线与候选使用同一份历史。
+- $\mathcal Q_e$：预先登记的待补证据槽集合。每个槽 $q=(\text{hypothesis\_id},\text{evidence\_type},\text{acceptance\_predicate})$，包含稳定假设编号、所需证据类型及可检查的通过条件。
+- $\mathcal V_e^0$：开始前已经确认的问题语义编号集合；$\operatorname{sid}(x)$ 是冻结版本的语义去重规则。身份不明确的输出保留为未知，不计新问题收益。
 
-$$
-\boxed{
-\mathcal L(\theta)
-=
-\mathbb E_{e\sim\mathcal D}
-\left[
-- V_\theta(e)
-+ \lambda_{\mathrm{fp}} F_\theta(e)
-+ \lambda_{\mathrm{dup}} D_\theta(e)
-+ \lambda_{\mathrm{fail}} E_\theta(e)
-+ \lambda_{\mathrm{cost}} C_\theta(e)
-- \varepsilon P_\theta(e)
-\right]
-+ \lambda_{\mathrm{edit}} K(\theta,\theta_t)
-}
-$$
+覆盖计量只使用阶段 II 的实际观测。没有冻结的范围、意图分类或证据槽时，相应奖励不可计算，该执行不能用于宣称覆盖收益；不能临时用候选自己生成的清单作分母。
 
-优化方向是最小化损失。各项的计算口径如下：
+### 9.2 Jev 引导的代码权重
 
-| 符号 | 含义与计量边界 |
-|---|---|
-| $V$ | 固定预算内新增的独立经核验问题数；必须满足既有动态验证、红队证据核验、独立审核及报告要求。按语义身份去重，并排除输入时已经确认的问题；重复发现不重复计分。 |
-| $F$ | 送入验证后，有明确反证而被判定为误报的候选数；受阻、尚未验证或未捕获标记不计为误报。 |
-| $D$ | 无新源码、新条件、新视角或新证据的重复任务数；有明确新意图的复审不计为无效重复。去重不能只比较意图文字。 |
-| $E$ | 预先定义的执行与交付故障事件数，例如执行器异常或必需附件缺失；正常执行但未复现不属于故障。基础设施异常单独标注，不直接推断是技能造成。 |
-| $C$ | 实际消耗的预算比例，$C=\mathrm{cost}/B\in[0,1]$；实验前明确以费用、token 或其他统一单位计量。墙钟时间和 API 使用情况另行报告。 |
-| $P$ | 有界的探索过程奖励，定义见下一节；它不能代替经核验成果。 |
-| $K$ | 文档修改复杂度，例如相对基线的新增及修改 token 数除以预先固定的尺度；用于抑制没有收益却不断扩张的技能文档。 |
-| $\lambda_{\ast},\varepsilon$ | 非负权重，在独立开发集上选择并在正式实验前固定；需要报告敏感性分析，不能针对测试结果反复调权重。 |
-
-这里的 $V$ 是观测到的核验产出，不是真实召回率。未知漏洞总量没有可信分母时，不计算召回率。所有项都按同一预先规定的预算和口径比较，不能通过增加模型调用、降低验证标准或缩小统计范围取得表面改进。
-
-### 9.3 读取覆盖与意图如何进入过程奖励
-
-为保持探索动力，同时限制刷读取量的收益，定义：
+Jev 的每个初筛单元为 $j=(f_j,b_j,e_j,p_j)$，对应实际输出的 path、line_start、line_end、priority，且 $p_j\in[0,1]$。定义：
 
 $$
-P_\theta(e)
-=
-\min\left\{
-\tau,\;
-\alpha G_{\mathrm{read}}(\theta,e)
-+
-(1-\alpha)G_{\mathrm{evidence}}(\theta,e)
-\right\},
+p_e(u)=
+\max\Bigl(\{p_j:f_j=f(u),\ b_j\leq l(u)\leq e_j\}\cup\{0\}\Bigr),
 \qquad
-0\leq\alpha\leq1,\quad 0<\tau\leq1.
+w_e(u)=1+\kappa p_e(u),\quad \kappa>0.
 $$
 
-- $G_{\mathrm{read}}\in[0,1]$：在事先界定的代码范围与意图分类中，本次新增的有效直接读取覆盖比例。计量单元使用“源码内容版本、非重叠代码范围、规范化检查视角”；同一单元只计一次。只有已关联派发前意图、范围可确定的直接读取进入统计，搜索命中、未知范围及未关联意图不计入。没有可枚举分母时，该项不作比例奖励，另行报告范围缺失。
-- $G_{\mathrm{evidence}}\in[0,1]$：预先定义的待补证据项中，本次得到可核实补充的比例。例如补齐真实调用路径、验证前置条件或取得明确反证。仅改变摘要、文件内容或措辞不计分；没有明确证据项清单时不计算该比例。
-- $\tau$ 对过程奖励封顶。若 $V$ 的基本单位是一条独立经核验问题，应设置 $\varepsilon\tau<1$，使全部过程奖励也不足以抵消少发现一条经核验问题；并继续使用下述保留约束。
+同一行被多个 Jev 单元覆盖时取最大值，不重复累加。没有评分、未纳入初筛或初筛失败的行仍保留基础权重 $1$；这不表示它安全。Jev 结果及其源码映射在配对实验前固定，候选不能提高自己的 Jev 分数。评分所依据的源码版本必须匹配；无法匹配的区间不产生加权奖励。
 
-读取与意图的新颖性主要指导“下一步检查什么”；最终核验成果主要判断“这次方法改动是否更好”。有新过程信号但没有足够核验结果时，可以继续小范围试用，不能仅凭该信号宣布漏洞发现能力提高。
+因此，Jev 标为高优先级的代码获得更高读取收益。例如取 $\kappa=4$，则 $p=0.9$ 的代码行权重为 $4.6$，未评分代码行为 $1$。在相同意图、相同分母下，首次有效覆盖前者的边际奖励是后者的 $4.6$ 倍。这是风险优先级，不是已确认漏洞标签；普通代码始终有正权重，仍可继续探索。
 
-### 9.4 什么叫改进，什么叫退化
+### 9.3 读取覆盖与证据推进的精确定义
 
-对同一个评估执行 $e_i$，计算候选相对基线的损失改善：
+令 $\mathcal O_\theta(e)$ 为执行器采集的读取事件。只有直接读取、返回范围确定、源码摘要匹配、且关联派发前合法意图类别的事件才有效。记其实际返回行集为 $\operatorname{lines}(o)$，则：
 
 $$
-\widehat{\Delta}
-=
-\frac1n\sum_{i=1}^{n}
-\left[
-\mathcal L_{e_i}(\theta_t)
--
-\mathcal L_{e_i}(\theta')
-\right].
+\mathcal R_\theta(e)=
+\bigcup_{\substack{o\in\mathcal O_\theta(e)\\\operatorname{validRead}(o)=1}}
+\{(u,a_o):u\in\operatorname{lines}(o)\cap\mathcal U_e\}.
 $$
 
-其中 $\mathcal L_{e_i}$ 包含前述文档复杂度项。$\widehat{\Delta}>0$ 表示候选在该实验中的平均损失更低，但单次正值不足以支持稳定改进。论文实验拟采用：
+搜索命中、目录列举、未知范围、未关联意图及失败读取不进入此集合。重复读取同一代码与同一意图只计一次；同一代码在不同的固定意图类别下可以分别计分。
+
+令 $\Omega_e=(\mathcal U_e\times\mathcal A)\setminus\mathcal R_e^0$，定义风险加权新增覆盖：
 
 $$
-\operatorname{Keep}(\theta')
-=
-\mathbf 1\left[
-\operatorname{LCB}_{1-\delta}(\Delta)>\eta
-\;\land\;
-\widehat{\Delta V}\geq0
-\;\land\;
-\widehat{\Delta f}\leq\rho_f
-\;\land\;
-\widehat{\Delta e}\leq\rho_e
-\;\land\;
-\operatorname{Valid}(\theta')
-\right].
-$$
-
-这里 $\Delta V=V_{\theta'}-V_{\theta_t}$，$f$ 和 $e$ 分别是有明确分母的误报比例与故障比例；预算匹配、样本量、允许退化阈值 $\rho_f,\rho_e$、最小收益 $\eta$ 和置信水平都须事先确定。置信下界需要依据实际重复实验估计，例如在配对实验中按项目聚类重采样，不能把同一项目内的读取事件当作独立样本。
-
-$\operatorname{Valid}$ 要求评估资料完整、身份与版本绑定有效、验证标准未放宽，且没有违反隔离和证据来源要求。未知验证结果不能当负例；缺少统计分母或足够重复样本时，对应保留条件不可判定，不自动视为通过。上述条件只能降低误判风险，不能保证不存在真实退化。
-
-因此可以区分三种状态：
-
-- **保留**：可比较实验支持损失下降，同时满足质量和有效性约束。
-- **继续试用**：出现探索进展，但核验收益或统计证据还不充分。
-- **撤回或拒绝**：有实测退化、有效性约束失败，或试用达到预算仍不足以支持保留；因基础设施失败而撤回时，保留其归因不确定性。
-
-### 9.5 RSI 的离散更新形式
-
-候选由阶段 VIII 根据真实反馈生成，再通过自然任务试用或独立评估选择，而不是对上述损失求梯度：
-
-$$
-\theta_{t+1}
-=
+G_J(\theta,e)=
 \begin{cases}
-\theta', & \operatorname{Keep}(\theta')=1,\\
-\theta_t, & \text{否则维持稳定版本；候选可继续受限试用或被撤回。}
+\displaystyle
+\frac{\sum_{(u,a)\in\Omega_e}w_e(u)\,
+\mathbf1[(u,a)\in\mathcal R_\theta(e)]}
+{\sum_{(u,a)\in\Omega_e}w_e(u)},&\Omega_e\neq\varnothing,\\
+0,&\Omega_e=\varnothing.
 \end{cases}
 $$
 
-论文中可将这一过程描述为“反馈驱动的离散策略改进”。主张是否成立，应由固定预算下的配对结果和消融实验支持，不能仅由文档被修改、循环次数增加或过程奖励升高推出。
+这是“预定范围内的风险加权代码—意图读取覆盖”，不是程序执行覆盖或漏洞召回率。它严格满足 $0\leq G_J\leq1$。不能通过缩小范围、拆分区间、重复读取或改写意图文字提高得分。
+
+对证据槽 $q$，只有执行器保存了可复核材料，且冻结的通过条件被满足，才令 $z_\theta(q,e)=1$，否则为 $0$。初始状态为 $z_0(q,e)$。定义：
+
+$$
+G_E(\theta,e)=
+\frac{\sum_{q\in\mathcal Q_e}
+\mathbf1[z_0(q,e)=0\land z_\theta(q,e)=1]}
+{\max\{1,\sum_{q\in\mathcal Q_e}\mathbf1[z_0(q,e)=0]\}},
+\qquad
+P_\theta(e)=\min\{\tau,\alpha G_J(\theta,e)+(1-\alpha)G_E(\theta,e)\}.
+$$
+
+其中 $0\leq\alpha\leq1$、$0<\tau\leq1$。证据文件摘要变化或模型自称“已补齐”不能直接令 $z=1$。没有待补槽时 $G_E=0$；有待补槽但观测丢失时记评估资料缺失，不能当作正常零增益。
+
+### 9.4 核验收益、惩罚项与损失
+
+令 $\mathcal C_\theta(e)$ 为本次提交的候选集合。定义最终核验谓词：
+
+$$
+a(x)=
+\mathbf1[\operatorname{blue}(x)=\mathrm{confirmed}]
+\mathbf1[\operatorname{redProof}(x)=\mathrm{valid}]
+\mathbf1[\operatorname{judge}(x)=\mathrm{approved}]
+\mathbf1[\operatorname{report}(x)=\mathrm{complete}].
+$$
+
+这些条件继续使用既有证据来源与隔离标准。定义经核验收益和误报惩罚：
+
+$$
+V_\theta(e)=
+\left|
+\{\operatorname{sid}(x):x\in\mathcal C_\theta(e),a(x)=1\}
+\setminus\mathcal V_e^0
+\right|,
+\qquad
+F_\theta(e)=
+\left|
+\{\operatorname{sid}(x):x\in\mathcal C_\theta(e),
+\operatorname{counterevidence}(x)=1\}
+\right|.
+$$
+
+$\operatorname{counterevidence}(x)=1$ 要求独立核验记录中存在满足预定反证条件的证据；同一候选的最终状态不得同时计入真、假。受阻、待定、正常未捕获标记和环境异常都不计误报。$V,F$ 均为去重后的非负整数，最多为候选上限 $H$；标题或报告文件数量不参与计分。
+
+令派发任务按时间排列为 $t_1,\ldots,t_N$，$N\leq T$。任务键 $k_i$ 由固定规则规范化为“源码内容版本、代码范围、意图类别、前置条件编号、已核实证据状态”。前置条件或证据必须有实质变化才能改变任务键，自由文本改写不改变键。定义：
+
+$$
+D_\theta(e)=
+\sum_{i=1}^{N}\mathbf1[\exists j<i:k_j=k_i],
+\qquad
+E_\theta(e)=
+\sum_{i=1}^{N}\mathbf1[\operatorname{terminal}(t_i)\in\mathcal F].
+$$
+
+$\mathcal F$ 是实验前冻结的故障类型集合，例如执行器异常、执行超时、必需附件缺失和来源校验失败；每个任务尝试最多计一次故障。正常未复现不在 $\mathcal F$ 中。基础设施故障保留独立原因标签，不将损失中的惩罚解释为技能的因果责任。无法确定两个任务键是否等价时，不武断计为重复，单独报告未确定比例。
+
+费用和文档复杂度为：
+
+$$
+C_\theta(e)=\frac{\sum_{c\in\operatorname{calls}_\theta(e)}
+\operatorname{price}_{\mathrm{fixed}}(c)}{B},
+\qquad
+K(\theta,\theta_t)=
+\frac{\operatorname{Lev}_{\mathrm{tok}}(\theta,\theta_t)}{L_0}.
+$$
+
+费用包括所有阶段的模型调用、Jev 初筛及文生图调用，按实验前固定价格表计量，不能隐藏失败与重试成本。有效执行要求 $0\leq C\leq1$；超预算不是简单截断为 $1$，而是判无效。$\operatorname{Lev}_{\mathrm{tok}}$ 是使用固定 tokenizer、固定文件顺序及文件边界标记序列化文档后，插入、删除、替换代价均为 $1$ 的 token 编辑距离；$L_0>0$ 为实验前固定尺度。故 $K\geq0$，没有文档变化时为 $0$。
+
+单次执行与总体损失定义为：
+
+$$
+\boxed{
+\ell_e(\theta;\theta_t)=
+-V_\theta(e)
++\lambda_F F_\theta(e)
++\lambda_D D_\theta(e)
++\lambda_E E_\theta(e)
++\lambda_C C_\theta(e)
+-\varepsilon P_\theta(e)
++\lambda_K K(\theta,\theta_t)
+}
+$$
+
+$$
+\boxed{
+\theta^*=
+\arg\min_{\theta\in\{\theta_t\}\cup\mathcal H_t}
+\mathcal L(\theta;\theta_t),
+\qquad
+\mathcal L(\theta;\theta_t)=
+\frac1m\sum_{r=1}^{m}\frac1{n_r}
+\sum_{s=1}^{n_r}\ell_{(r,s)}(\theta;\theta_t)
+}
+$$
+
+$\mathcal H_t$ 为阶段 VIII 生成的有限候选集合；$m$ 为评估项目数，$n_r$ 为项目 $r$ 的重复次数，项目等权，防止拥有更多运行记录的项目支配结果。所有 $\lambda_\ast\geq0$，$\varepsilon>0$，并要求 $\varepsilon\tau<1$，使全部过程奖励不足以抵消少发现一条独立经核验问题。系数、$\kappa$、预算、范围、去重规则和证据谓词必须在开发集上确定并冻结，正式实验报告敏感性分析，不宣称某组经验权重天然最优。
+
+### 9.5 配对接受规则与离散更新算法
+
+对基线与候选的每个配对执行计算：
+
+$$
+d_{r,s}=\ell_{(r,s)}(\theta_t;\theta_t)
+-\ell_{(r,s)}(\theta';\theta_t),
+\qquad
+\widehat\Delta=\frac1m\sum_{r=1}^{m}
+\frac1{n_r}\sum_{s=1}^{n_r}d_{r,s}.
+$$
+
+再定义 $\mathcal A_\theta^{\mathrm{res}}(e)$ 为有最终真／假核验结论的去重候选集合，误报与故障比例为：
+
+$$
+f_\theta(e)=F_\theta(e)/|\mathcal A_\theta^{\mathrm{res}}(e)|,
+\qquad
+g_\theta(e)=E_\theta(e)/N_\theta(e).
+$$
+
+任一分母为 $0$ 时该比例为“不可判定”，不以 $0$ 冒充。$\widehat{\Delta V}$、$\widehat{\Delta f}$、$\widehat{\Delta g}$ 均先在项目内对种子求配对差，再对项目等权平均，差的方向统一为“候选减基线”。
+
+统计下界采用预先指定的配对、项目聚类 bootstrap：每次等概率有放回抽取 $m$ 个项目，保留各项目的全部配对种子，计算 $\widehat\Delta^{(b)}$；共抽样 $B_{\mathrm{boot}}$ 次，固定重采样种子。令 $\operatorname{LCB}_{1-\delta}$ 为这些统计量的经验 $\delta$ 分位数，分位数实现及插值方式也须固定。这是置信下界的估计方法，不是小样本下的严格概率保证。
+
+$$
+\operatorname{Keep}(\theta')=
+\mathbf1[
+\operatorname{LCB}_{1-\delta}(\Delta)>\eta
+\land\widehat{\Delta V}\geq0
+\land\widehat{\Delta f}\leq\rho_F
+\land\widehat{\Delta g}\leq\rho_E
+\land\operatorname{Valid}(\theta')=1].
+$$
+
+其中 $\eta\geq0$ 是最小收益，$\rho_F,\rho_E\geq0$ 是允许退化阈值。$\operatorname{Valid}=1$ 当且仅当全部配对资料完整、未超预算、版本与身份匹配、验证谓词未放宽、隔离与证据来源检查通过，且接受规则需要的比例均可计算。重复样本或项目数量不足以估计不确定性时，只能继续受限试用，不能判稳定保留。
+
+算法步骤：
+
+1. 冻结评估输入、Jev 评分、读取历史、意图类别、证据槽及全部超参数。
+2. 用相同条件分别运行稳定版本和候选版本，采集集合与核验标签。
+3. 先执行有效性检查，再按集合运算计算 $G_J,G_E,V,F,D,E,C,K$，得到配对损失与下界。
+4. 仅当 $\operatorname{Keep}=1$ 时保留候选；否则维持稳定版本，将证据不足与实测退化分别记录。
+
+$$
+\theta_{t+1}=
+\begin{cases}
+\theta',&\operatorname{Keep}(\theta')=1,\\
+\theta_t,&\text{否则。}
+\end{cases}
+$$
+
+这是对离散文档策略进行反馈驱动的选择，不求语言模型参数梯度。项目限定实验只能支持项目限定结论；通用技能的泛化收益须在候选生成未使用的留出项目上另外评估。$V$ 不是召回率，$G_J$ 也不是安全审计完成率。
 
 
 ## 10. 与覆盖引导模糊测试的关系
@@ -233,3 +316,12 @@ $$
 - [AFL 技术说明](https://github.com/google/AFL/blob/master/docs/technical_details.txt)
 - [AFLFast](https://github.com/mboehme/aflfast)
 - [agentcov](https://github.com/trailofbits/agentcov)
+
+
+## 两项 RSI 奖励与逐轮观测
+
+每轮阶段八收集前序结果时计算 `R = alpha * delta_risk_coverage + beta * new_verified`。当前公式版本为 `rsi-two-signal-v1`，默认 `alpha=0.01`、`beta=10`。覆盖单位是风险加权代码行：每行权重为 `1 + max(JEV priority)`，没有优先分数时权重为 1。只计实际读取的已知行范围，搜索命中和未知范围不推断为完整读取；按项目、源码版本、文件路径和内容摘要维护历史区间并计算差集。首次采用新公式时读取已登记历史建立基线，不生成旧轮次奖励。意图归属、证据文本变化和资源消耗不独立加分；没有新漏洞但新增覆盖为正也有正奖励。当前暂不增加大范围读取的额外限制。
+
+新验证漏洞复用既有报告资格与同一问题编号去重。相同轮次重复采集只累计新出现的覆盖或成果；补算时保留原来的两项贡献。公式版本、系数、各项输入、总分、新增代码范围、问题编号、源码版本和缺失说明保存于 `rsi/reward.json` 与 `rsi/exploration-feedback.json`，跨轮历史位于 `rsi/exploration/<project>/state.json`。阶段八评分工具通过 `objective` 返回这份持久化结果；看板执行链的“RSI 奖励”展开后展示每轮计算与依据，最近二十条记录由原有执行链接口返回。数据未齐时标为暂计，不将缺失观测解释成完整零收益；不完整观测不增加连续无收益计数。没有源码版本时覆盖暂不计分。源码版本变化会建立新的覆盖基线，跨版本分数不可直接用于技能优劣判断。
+
+奖励只表示观测收益与技能版本的关联，不替代漏洞验收和技能独立评估。任务投入建议仍独立保留；新公式未增加令牌配额调度。新增覆盖和验证成果为零时不再因证据文字变化获得奖励。

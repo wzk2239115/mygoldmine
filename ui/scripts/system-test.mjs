@@ -121,6 +121,24 @@ async function main() {
   try {
     await waitFor('http://127.0.0.1:19222/json/version');
     cdp = await openPage();
+    if (process.env.RSI_REWARDS_TEST_ONLY) {
+      await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: `
+        const originalFetch = window.fetch.bind(window);
+        window.fetch = async (...args) => {
+          const response = await originalFetch(...args);
+          if (!String(args[0]).endsWith('/pipeline')) return response;
+          const payload = await response.clone().json();
+          const row = {formula_version:'rsi-two-signal-v1',run_id:'synthetic-ui-check',
+            source_version:'test-source',alpha:0.01,beta:10,delta_risk_coverage:150,
+            new_lines:100,new_verified:1,coverage_reward:1.5,vulnerability_reward:10,
+            total:11.5,status:'complete',updated_at:'2026-11-08T08:00:00Z',
+            notes:[],verified_ids:['test-verified-id'],
+            coverage_details:[{file:'src/auth.py',ranges:[[1,100]],new_lines:100,weighted_lines:150}]};
+          payload.rsiRewards = {current:row,history:[row]};
+          return new Response(JSON.stringify(payload), {status:200,headers:{'Content-Type':'application/json'}});
+        };
+      `});
+    }
     await cdp.send('Page.navigate', { url: BASE });
     await sleep(1200);
 
@@ -128,6 +146,22 @@ async function main() {
     assert.deepEqual(await cdp.evaluate("[...document.querySelectorAll('.agentic-pipeline .agentic-node > strong')].map((node) => node.innerText)"), [
       '环境构建', '安全审计编排', '攻击场景设计', '蓝队验证', '红队场景构建', '红队执行', '独立审核', '经验学习'
     ]);
+    assert.ok(pipeline.rsiRewards && Array.isArray(pipeline.rsiRewards.history));
+    assert.equal(await cdp.evaluate("document.querySelectorAll('.rsi-rewards').length"), 1);
+    await cdp.evaluate("document.querySelector('.rsi-rewards button').click()");
+    assert.match(await cdp.evaluate("document.querySelector('.rsi-rewards').innerText"), /新增风险加权覆盖/);
+    if (process.env.RSI_REWARDS_TEST_ONLY) {
+      const text = await cdp.evaluate("document.querySelector('.rsi-rewards').innerText");
+      assert.match(text, /11.5/);
+      assert.match(text, /1.5/);
+      await cdp.evaluate("document.querySelector('.rsi-rewards summary').click()");
+      assert.match(await cdp.evaluate("document.querySelector('.rsi-rewards').innerText"), /src\/auth.py/);
+      assert.match(await cdp.evaluate("document.querySelector('.rsi-rewards').innerText"), /test-verified-id/);
+      assert.match(await cdp.evaluate("document.querySelector('.rsi-rewards').innerText"), /rsi-two-signal-v1/);
+      console.log('RSI 奖励总分、两项贡献、历史记录与计算依据的浏览器检查通过（合成展示数据）。');
+      return;
+    }
+    await cdp.evaluate("document.querySelector('.rsi-rewards button').click()");
     await cdp.evaluate("document.querySelector('.agentic-node[data-node-id=\"redteam-agent\"]').click()");
     await sleep(250);
     assert.match(await cdp.evaluate("document.querySelector('.agentic-trace-drawer').innerText"), /红队执行 · 队员/);

@@ -8,6 +8,7 @@ import os
 import urllib.request
 from pathlib import Path
 
+from rsi_reward import VERSION, calculate
 from skill_bank import ROOT, SkillBank, digest, identifier, now, read, write
 
 
@@ -83,7 +84,10 @@ def feedback(repo, source, output, project, candidate_ids=(), reports=None):
         raise ValueError("探索反馈必须属于当前项目运行")
     coverage = read(source / "task-artifacts/read-coverage/summary.json", {})
     ledger = read(source / "task-artifacts/coverage-ledger.json", {})
+    jev = read(source / "triage/jev-infra.json", {})
     marker = {
+        "formula_version": VERSION,
+        "jev": digest(jev),
         "source": source_key,
         "coverage": digest(coverage),
         "ledger": digest(ledger),
@@ -109,11 +113,19 @@ def feedback(repo, source, output, project, candidate_ids=(), reports=None):
                 "rounds": {},
             },
         )
-        fingerprint = digest({**marker, "reports": reports, "candidates": sorted(candidate_ids)})
+        fingerprint = digest(
+            {
+                **marker,
+                "reports": reports,
+                "report_signal_unavailable": unavailable,
+                "candidates": sorted(candidate_ids),
+            }
+        )
         previous = state["rounds"].get(source_key)
         if previous and previous.get("fingerprint") == fingerprint:
             result = previous["result"]
             write(output / "rsi/exploration-feedback.json", result)
+            write(output / "rsi/reward.json", result.get("objective", {}))
             return result
         reads = {
             digest([x.get("file"), x.get("file_sha256")])
@@ -168,9 +180,38 @@ def feedback(repo, source, output, project, candidate_ids=(), reports=None):
                 else 0
             )
             state["tasks"][key] = task
-        # 每轮过程信号封顶；强奖励只来自现有严格报告验收。
-        reward = 10 * len(fresh_reports) + min(1, evidence_changes) + (0.1 if new_reads else 0)
         prior_result = previous.get("result", {}) if previous else {}
+        # 首次迁移只用已观测历史建立覆盖基线，不伪造历史奖励。
+        if "reward_coverage" not in state:
+            state["reward_coverage"] = {}
+            for old_key in state["rounds"]:
+                if old_key == source_key:
+                    continue
+                old_source = (repo / old_key).resolve()
+                if old_source.is_relative_to(repo / "runs" / project):
+                    calculate(
+                        read(old_source / "task-artifacts/read-coverage/summary.json", {}),
+                        {},
+                        state["reward_coverage"],
+                        [],
+                    )
+        objective = calculate(
+            coverage,
+            jev,
+            state["reward_coverage"],
+            [x["semantic_id"] for x in fresh_reports],
+            report_available=unavailable is None,
+            prior=prior_result.get("objective"),
+        )
+        objective.update(
+            project=project,
+            run_id=source.name,
+            updated_at=now(),
+            input_fingerprint=fingerprint,
+            coverage_sha256=digest(coverage),
+            jev_sha256=digest(jev),
+        )
+        reward = objective["total"]
         trial = state.get("trial")
         used = read(source / "task-artifacts/exploration-plan.json", {}).get("trial")
         if (
@@ -192,7 +233,10 @@ def feedback(repo, source, output, project, candidate_ids=(), reports=None):
             trial["attribution"] = "association_only"
             stages = read(Path(str(source) + ".meta") / "status.json", {})
             failure = stages.get("state") in ("failed", "timeout", "stopped")
-            trial["no_gain_runs"] = trial.get("no_gain_runs", 0) + 1 if not reward or failure else 0
+            if objective["status"] == "complete":
+                trial["no_gain_runs"] = (
+                    trial.get("no_gain_runs", 0) + 1 if not reward or failure else 0
+                )
             if failure or trial["no_gain_runs"] >= 2:
                 trial["status"] = "retired"
                 state["trial"] = None
@@ -233,20 +277,22 @@ def feedback(repo, source, output, project, candidate_ids=(), reports=None):
             "status": "trial_selected" if selected else "observed",
             "published": [],
             "results": [],
-            "interesting": bool(
-                fresh_reports or evidence_changes or new_reads or prior_result.get("interesting")
-            ),
+            "interesting": bool(reward > 0),
             "new_read_regions": len(new_reads) + prior_result.get("new_read_regions", 0),
             "evidence_changes": evidence_changes + prior_result.get("evidence_changes", 0),
             "verified_reports": prior_result.get("verified_reports", []) + fresh_reports,
             "report_signal_unavailable": unavailable,
-            "reward": reward + prior_result.get("reward", 0),
+            "reward": reward,
+            "objective": objective,
             "trial": state.get("trial"),
-            "notice": "读取与模型填写证据仅为过程信号；报告奖励是关联，不证明 skill 单独导致提升。",
+            "notice": (
+                "奖励由新增风险加权覆盖和新验证漏洞计算；表示关联收益，不证明技能改动的因果效果。"
+            ),
         }
         state["rounds"][source_key] = {"fingerprint": fingerprint, "result": result}
         write(folder / "state.json", state)
         write(output / "rsi/exploration-feedback.json", result)
+        write(output / "rsi/reward.json", objective)
     return result
 
 

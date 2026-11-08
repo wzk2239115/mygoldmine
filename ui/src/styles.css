@@ -7918,3 +7918,11 @@ body > .project-import-dialog .project-import-body { flex: 1 1 auto; }
 
 .verified-report-filter{display:flex;align-items:center;flex-wrap:wrap;gap:16px;color:#a8b2bc;font-size:13px}
 .verified-report-filter select{margin-left:8px;padding:7px 12px;background:#25292f;color:#dfe4eb;border:1px solid #424850;border-radius:7px}
+
+.rsi-rewards{margin:16px 0;padding:14px 16px;border:1px solid var(--border,#353a40);border-radius:12px;background:var(--surface,#202328)}
+.rsi-rewards p{color:var(--text-muted,#aab2be);font-size:13px;line-height:1.7}
+.rsi-rewards th,.rsi-rewards td{padding:10px 12px;border-bottom:1px solid var(--border,#353a40);font-size:12px;vertical-align:top}
+.rsi-rewards td:first-child code{display:block;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rsi-rewards summary{cursor:pointer;white-space:nowrap}
+.rsi-rewards details[open]{min-width:280px;max-width:520px}
+.rsi-rewards details ul{max-height:280px;overflow:auto;padding-left:20px}

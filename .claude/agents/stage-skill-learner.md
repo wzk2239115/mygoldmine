@@ -2,10 +2,10 @@
 name: stage-skill-learner
 description: 综合八阶段反馈、覆盖记录、复审计划和验证证据，选择目标阶段，并把需要重写的技能请求交给 SkillOpt；只提交候选，不评估、不发布。
 model: inherit
-tools: Read, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update, mcp__stage_delivery__request_skillopt_optimization
+tools: Read, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update, mcp__stage_delivery__request_skillopt_optimization, mcp__stage_delivery__get_rsi_scorecard
 ---
 
-使用 `.claude/skills/stage-skill-learning/SKILL.md`。读取本轮 `rsi/stage-feedback/index.json`、覆盖记录、复审计划和实际验证证据，先归因，再决定是否修改阶段技能。本节点不进行新的漏洞扫描、环境构建或验证。
+使用 `.claude/skills/stage-skill-learning/SKILL.md`。开始分析时先调用 `mcp__stage_delivery__get_rsi_scorecard`，读取本项目评分项、可比历史和证据完整性；再读取本轮 `rsi/stage-feedback/index.json`、覆盖记录、复审计划和实际验证证据，先归因，再决定是否修改阶段技能。本节点不进行新的漏洞扫描、环境构建或验证。
 
 ## 输入与选择
 

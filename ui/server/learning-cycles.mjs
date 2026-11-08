@@ -33,7 +33,7 @@ export function cycleStatus(repo,project) {
   const active=Boolean(claim?.id===state.id && ['queued','running','stopping'].includes(state.status));
   return {...state,active,completed_rounds,stopRequested:fs.existsSync(path.join(root,state.id,'stop'))};
 }
-export function startCycle({repoRoot,run,liveRuns=[],rounds=3,patience=2,continuous=false,cooldown=300,launch=spawn}) {
+export function startCycle({repoRoot,run,liveRuns=[],rounds=8,patience=2,continuous=false,cooldown=300,launch=spawn}) {
   if(!Number.isInteger(rounds)||rounds<1||rounds>100 || !Number.isInteger(patience)||patience<1||patience>100)fail('循环轮数与停止阈值必须在 1 到 100 之间');
   if(typeof continuous!=='boolean' || !Number.isInteger(cooldown) || cooldown<1 || cooldown>86400)fail('循环模式或间隔无效');
   const {lock,guard,root}=paths(repoRoot,run.project);

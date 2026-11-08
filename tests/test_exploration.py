@@ -15,7 +15,17 @@ def setup_run(tmp_path, name="one"):
     output.mkdir(parents=True)
     write(
         source / "task-artifacts/read-coverage/summary.json",
-        {"files": [{"file": "app.py", "file_sha256": "abc", "kind": "read"}]},
+        {
+            "source_version": "commit",
+            "files": [
+                {
+                    "file": "app.py",
+                    "file_sha256": "abc",
+                    "kind": "read",
+                    "ranges": [{"start": 1, "end": 10}],
+                }
+            ],
+        },
     )
     write(
         source / "task-artifacts/coverage-ledger.json",
@@ -40,7 +50,7 @@ def test_reward_dedup_and_energy(tmp_path):
     source, output = setup_run(tmp_path)
     reports = [{"semantic_id": "bug-one", "report_key": "first"}] * 2
     result = feedback(tmp_path, source, output, "demo", reports=reports)
-    assert result["reward"] == 11.1
+    assert result["reward"] == 10.1
     assert len(result["verified_reports"]) == 1
     assert feedback(tmp_path, source, output, "demo", reports=reports) == result
     assert plan(tmp_path, "demo")["tasks"][0]["energy"] == 3
@@ -137,3 +147,80 @@ def test_skillopt_optional_by_default(tmp_path, monkeypatch):
 
     monkeypatch.delenv("RSI_SKILLOPT_ENABLED", raising=False)
     assert _run_skillopt(tmp_path, "demo", tmp_path, "", 1)["status"] == "optional_disabled"
+
+
+def test_two_signal_partial_reads_and_delayed_report(tmp_path):
+    source, output = setup_run(tmp_path)
+    write(
+        source / "triage/jev-infra.json",
+        {
+            "units": [
+                {"path": "app.py", "line_start": 1, "line_end": 5, "priority": 1},
+                {"path": "app.py", "line_start": 3, "line_end": 5, "priority": 0.5},
+            ]
+        },
+    )
+    first = feedback(tmp_path, source, output, "demo", reports=[])
+    assert first["objective"]["delta_risk_coverage"] == 15
+    assert first["reward"] == 0.15
+    second = feedback(
+        tmp_path, source, output, "demo", reports=[{"semantic_id": "verified", "report_key": "key"}]
+    )
+    assert second["objective"]["delta_risk_coverage"] == 15
+    assert second["reward"] == 10.15
+    assert (
+        feedback(
+            tmp_path,
+            source,
+            output,
+            "demo",
+            reports=[{"semantic_id": "verified", "report_key": "key"}],
+        )
+        == second
+    )
+    other, other_output = setup_run(tmp_path, "two")
+    write(
+        other / "task-artifacts/read-coverage/summary.json",
+        {
+            "source_version": "commit",
+            "files": [
+                {
+                    "file": "app.py",
+                    "file_sha256": "abc",
+                    "kind": "read",
+                    "ranges": [{"start": 6, "end": 20}],
+                },
+                {
+                    "file": "app.py",
+                    "file_sha256": "abc",
+                    "kind": "grep",
+                    "ranges": [{"start": 1, "end": 1000}],
+                },
+            ],
+        },
+    )
+    result = feedback(tmp_path, other, other_output, "demo", reports=[])
+    assert result["objective"]["new_lines"] == 10
+    assert result["reward"] == 0.1
+    assert json.loads((other_output / "rsi/reward.json").read_text()) == result["objective"]
+
+
+def test_missing_version_is_partial_not_fabricated_coverage(tmp_path):
+    source, output = setup_run(tmp_path)
+    data = json.loads((source / "task-artifacts/read-coverage/summary.json").read_text())
+    del data["source_version"]
+    write(source / "task-artifacts/read-coverage/summary.json", data)
+    result = feedback(tmp_path, source, output, "demo", reports=[])
+    assert result["objective"]["status"] == "partial"
+    assert result["reward"] == 0
+
+
+def test_new_source_version_has_independent_coverage(tmp_path):
+    source, output = setup_run(tmp_path)
+    feedback(tmp_path, source, output, "demo", reports=[])
+    other, other_output = setup_run(tmp_path, "two")
+    file = other / "task-artifacts/read-coverage/summary.json"
+    data = json.loads(file.read_text())
+    data["source_version"] = "another-version"
+    write(file, data)
+    assert feedback(tmp_path, other, other_output, "demo", reports=[])["reward"] == 0.1
