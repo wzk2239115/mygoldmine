@@ -76,16 +76,16 @@ def test_suite_cannot_execute_from_candidate_directory(tmp_path):
     with pytest.raises(ValueError,match='管理员'):bank.evaluate(candidate['id'],outside)
 
 
-def test_cycle_stops_without_claiming_improvement(tmp_path):
+def test_cycle_finishes_requested_rounds_without_claiming_improvement(tmp_path):
     repo=tmp_path/'repo';source=repo/'targets/verl';source.mkdir(parents=True)
     (repo/'run.sh').write_text('''while [ "$1" != "--run-dir" ]; do shift; done
 shift
 mkdir -p "$1.meta"
-printf '{"state":"failed"}' > "$1.meta/status.json"
+printf '{"state":"success"}' > "$1.meta/status.json"
 ''')
     state=cycle(source,'verl',rounds=5,patience=2,repo=repo,poll=0)
-    assert state['status']=='no_improvement'
-    assert len(state['rounds'])==2
+    assert state['status']=='completed'
+    assert len(state['rounds'])==5
     assert not any(row['published'] for row in state['rounds'])
 
 
@@ -174,11 +174,11 @@ def test_native_cycle_repeats_01_after_08_and_does_not_learn_twice(tmp_path, mon
     monkeypatch.setattr(controller,'learn',lambda *a,**kw:pytest.fail('08 must not run twice'))
     monkeypatch.setattr(controller.SkillBank,'feedback',lambda *a:[])
     state=controller.cycle(source,'verl',rounds=3,patience=2,repo=repo,poll=0)
-    assert state['status']=='no_improvement'
-    assert len(commands)==2
+    assert state['status']=='completed'
+    assert len(commands)==3
     assert all(command[1]==str(native) for command in commands)
     assert json.loads(commands[0][-1])['runDir']!=json.loads(commands[1][-1])['runDir']
-    assert len(state['rounds'])==2
+    assert len(state['rounds'])==3
 
 
 def test_workflow_skip_reason_is_frozen_into_learning_feedback(tmp_path):
@@ -208,7 +208,7 @@ def test_continuous_cycle_does_not_stop_on_no_publication(tmp_path, monkeypatch)
         def wait(self,timeout=None):return 0
     monkeypatch.setattr(controller.subprocess,'Popen',Child)
     monkeypatch.setattr(controller.SkillBank,'feedback',lambda *a:[])
-    state=controller.cycle(source,'verl',rounds=1,patience=1,continuous=True,cooldown=0,repo=repo,poll=0)
+    state=controller.cycle(source,'verl',rounds=8,patience=1,continuous=True,cooldown=0,repo=repo,poll=0)
     assert state['status']=='stopped'
     assert len(state['rounds'])==3
     assert all(not item['published'] for item in state['rounds'])
