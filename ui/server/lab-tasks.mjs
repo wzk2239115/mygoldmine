@@ -24,14 +24,15 @@ export function labTasks(run) {
   if(!active && ['running','queued'].includes(state))state='interrupted';
   const lab=attempt?path.join(root,'labs',candidate.id):path.join(root,'labs',run.project,candidate.id);
   const status=saved?.status || result?.status;
-  const label=state==='queued'?'排队':state==='running'?'构建中':state==='interrupted'?'已中断':status==='built' || (result?.scenario && !['build_failed','blocked_no_finding','blocked_no_lab'].includes(status))?'可用':'受阻';
-  return {id:candidate.id,title:candidate.title || originals.get(candidate.id)?.title || candidate.id,state,status,label,reason:saved?.error || result?.error || '',
+  const deliveryStatus=saved?.delivery_status || result?.delivery_status;
+  const label=deliveryStatus==='missing'?'缺少交付':state==='queued'?'排队':state==='running'?'构建中':state==='interrupted'?'已中断':status==='built' || (result?.scenario && !['build_failed','blocked_no_finding','blocked_no_lab'].includes(status))?'可用':'受阻';
+  return {deliveryStatus,id:candidate.id,title:candidate.title || originals.get(candidate.id)?.title || candidate.id,state,status,label,reason:saved?.error || result?.error || (deliveryStatus==='missing'?'未取得有效交付回执；其他成员继续执行':''),
    hasReport:['scenario.json','BLOCKED.md','lab-report.md'].some(name=>fs.existsSync(path.join(lab,name))),
    traceId:attempt?`${attempt.id}-redteam-lab-${candidate.id}-agent`:saved?`lab-${candidate.id}`:result?`${candidate.id}-${String((fallback.results || []).indexOf(result)+1).padStart(2,'0')}`:`lab-${candidate.id}`,sourceIndex:index};
  });
  return {tasks,excluded:gate?.excluded || [],blueAttemptId:gate?.blue_attempt_id || '',blueHandoffCount:candidates.filter(item=>item.blue_handoff).length,attemptId:attempt?.id || '',concurrency:summary.concurrency || 1,legacy:!summary.concurrency,
   selectedCount:tasks.length,processedCount:tasks.filter(task=>!['running','queued'].includes(task.state)).length,
-  running:tasks.filter(task=>task.state==='running').length,ready:tasks.filter(task=>task.label==='可用').length,blocked:tasks.filter(task=>task.label==='受阻').length};
+  running:tasks.filter(task=>task.state==='running').length,ready:tasks.filter(task=>task.label==='可用').length,blocked:tasks.filter(task=>['受阻','缺少交付'].includes(task.label)).length,deliveryMissing:tasks.filter(task=>task.deliveryStatus==='missing').length};
 }
 function text(file) {try{return fs.statSync(file).size>256000?'文件较大，请查看执行轨迹':fs.readFileSync(file,'utf8');}catch{return '';}}
 export function labTaskReport(run,id,attemptId='') {

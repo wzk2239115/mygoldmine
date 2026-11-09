@@ -22,7 +22,9 @@ test('独立重跑隔离产物、拒绝并发并保留原始输入', async t => 
  assert.throws(()=>startNodeRetry({repoRoot,run,node:'visual',models:{audit:'test'}}),/已有节点/);
  let latest;
  for(let i=0;i<100;i++) {latest=nodeAttempts(runDir,'visual')[0];if(latest.status!=='running')break;await new Promise(r=>setTimeout(r,50));}
- assert.equal(latest.id,started.id);assert.equal(latest.status,'failed');
+ assert.equal(latest.id,started.id);assert.equal(latest.status,'completed');
+ assert.equal(latest.resultStatus,'degraded');assert.equal(latest.visualExitCode,1);
+ assert.ok(fs.existsSync(path.join(latest.workspace,'visual-rendered/delivery-status.json')));
  assert.equal(fs.readFileSync(path.join(runDir,'audit-report.json'),'utf8'),report);
  assert.ok(fs.existsSync(path.join(latest.workspace,'audit-report.json')));
  assert.equal(fs.existsSync(latest.lock),false);

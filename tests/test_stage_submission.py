@@ -73,3 +73,52 @@ def test_orchestrator_identity_returns_revision_before_acceptance(tmp_path, monk
     assert 'codex' in str(result['errors'])
     report.write_text(json.dumps({'project': 'codex', 'project_name': 'OpenAI Codex', 'findings': []}))
     assert module.submit('orchestrator', tmp_path, args)['decision'] == 'accepted'
+
+
+def test_orchestrator_finalization_revalidates_all_declared_attachments(tmp_path):
+    report = tmp_path / 'audit-report.json'
+    report.write_text('{"findings":[]}')
+    attachment = tmp_path / 'notes.md'
+    attachment.write_text('first')
+    args = {'artifact': str(report), 'artifacts': [str(attachment)],
+            'summary': '交付', 'limitations': []}
+    assert module.submit('orchestrator', tmp_path, args)['decision'] == 'accepted'
+    attachment.write_text('final')
+    result = module.finalize_orchestrator(tmp_path)
+    assert result['revalidated'] is True
+    assert len(list((tmp_path / '.stage-submissions/orchestrator').glob('*.json'))) == 2
+    assert str(attachment) in {f['path'] for f in result['deliveries'][0]['files']}
+    assert module.finalize_orchestrator(tmp_path).get('revalidated') is None
+
+
+def test_orchestrator_finalization_never_drops_missing_dependencies(tmp_path):
+    import pytest
+    report = tmp_path / 'audit-report.json'
+    report.write_text('{"findings":[]}')
+    attachment = tmp_path / 'notes.md'
+    attachment.write_text('first')
+    module.submit('orchestrator', tmp_path, {
+        'artifact': str(report), 'artifacts': [str(attachment)],
+        'summary': '交付', 'limitations': [],
+    })
+    attachment.unlink()
+    with pytest.raises(ValueError):
+        module.finalize_orchestrator(tmp_path)
+
+
+def test_orchestrator_finalization_rejects_changed_report_and_invalid_ledger(tmp_path):
+    import pytest
+    report = tmp_path / 'audit-report.json'
+    report.write_text('{"findings":[]}')
+    ledger = tmp_path / 'coverage-ledger.json'
+    ledger.write_text('{}')
+    module.submit('orchestrator', tmp_path, {
+        'artifact': str(report), 'artifacts': [str(ledger)],
+        'summary': '交付', 'limitations': [],
+    })
+    ledger.write_text('{"entries":[]}')
+    with pytest.raises(ValueError, match='覆盖记录'):
+        module.finalize_orchestrator(tmp_path)
+    report.write_text('{"findings":[], "changed":true}')
+    with pytest.raises(ValueError):
+        module.finalize_orchestrator(tmp_path)

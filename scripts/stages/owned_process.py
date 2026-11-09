@@ -21,6 +21,11 @@ def _descendants(pid):
 def run_session(command, *, timeout, **kwargs):
     capture = kwargs.pop("capture_output", False)
     check = kwargs.pop("check", False)
+    # Preserve child output when toolchains emit non-UTF-8 bytes. Structured
+    # output still passes its own JSON and schema validation.
+    if kwargs.get("text") or kwargs.get("universal_newlines"):
+        kwargs.setdefault("encoding", "utf-8")
+        kwargs.setdefault("errors", "replace")
     if capture:
         kwargs.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     process = subprocess.Popen(command, start_new_session=True, **kwargs)

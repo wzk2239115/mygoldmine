@@ -17,6 +17,14 @@ def check_report(path, language=None, expected_project=None):
     try:
         report = json.loads(path.read_text(encoding="utf-8"))
         errors = report_quality.schema_errors(report)
+        # Reject known transient states, while retaining legacy reports with no status.
+        if isinstance(report, dict):
+            status = str(report.get("status") or "").strip().lower()
+            if status in {
+                "starting", "running", "pending", "in_progress", "draft",
+                "partial", "failed", "timeout", "cancelled", "aborted",
+            }:
+                errors.append(f"report is not final: status={status}")
     except (OSError, UnicodeError, ValueError) as exc:
         report = {}
         errors = [f"cannot read report: {type(exc).__name__}"]

@@ -102,7 +102,7 @@ export function agentCandidates(run) {
       path.join(run.runDir,'redteam/batch/construction/labs',project,id,'scenario.json'),
       path.join(repoRoot,'labs',project,id,'scenario.json')
     ]);
-    const reason=!finding?'缺少本轮候选问题文件':!scenario?'缺少可用红队场景，请先重跑场景构建':'';
+    const reason=result.delivery_status && result.delivery_status!=='accepted'?'该成员缺少有效场景交付，已跳过':!finding?'缺少本轮候选问题文件':!scenario?'缺少可用红队场景，请先重跑场景构建':'';
     return {
       id,
       title:findings.get(id)?.title || result.title || item?.title || id,

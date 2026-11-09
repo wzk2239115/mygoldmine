@@ -565,7 +565,7 @@ for entry in "${SELECTED[@]}"; do
 done
 export PROJECT RUN_DIR RUN_ID_VALUE IMAGE SOURCE MODEL MODEL_RAW OUTPUT ENV_MANIFEST VERIFY_TIMEOUT AGENT_TIMEOUT CLAUDE_BIN VERIFY_RUNNER REPO_ROOT OCCURRENCE_ID SEMANTIC_ID
 export -f log die find_harness write_synth_report enrich_report_identity report_valid load_report invoke_runner build_prompt verify_one
-python3 "$REPO_ROOT/scripts/verify/parallel.py" --jobs "$JOBS" --attempts "$([ "$DRAIN" -eq 1 ] && echo 2 || echo 1)" --input "$JOBS_FILE" --output "$OUTPUT" &
+python3 "$REPO_ROOT/scripts/verify/parallel.py" --delivery-project "$PROJECT" --jobs "$JOBS" --attempts "$([ "$DRAIN" -eq 1 ] && echo 2 || echo 1)" --input "$JOBS_FILE" --output "$OUTPUT" &
 SCHEDULER_PID=$!
 trap 'kill -TERM "$SCHEDULER_PID" 2>/dev/null; wait "$SCHEDULER_PID"; exit 130' INT TERM
 wait "$SCHEDULER_PID"

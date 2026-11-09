@@ -120,3 +120,5 @@ labs/*
 env/*/.stage-*
 env/*/*.prev*
 env/*/build-notes.md
+
+.venv-dev/

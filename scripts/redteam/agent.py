@@ -359,6 +359,17 @@ def run(options):
             "transcript": str(transcript),
         }
         lab.finish(result)
+        # Finalize the producer's durable result through the same contract as the agent tool.
+        delivery_path = lab.run_dir / "stage-result.json"
+        delivery_path.write_text(json.dumps({**result, "finding_id": finding_id(finding)}, ensure_ascii=False), encoding="utf-8")
+        receipt = submit_delivery("redteam-agent", lab.run_dir, {
+            "artifact": str(delivery_path),
+            "summary": "红队执行已结束，提交实际执行结论与证据来源。",
+            "limitations": [] if captured else ["本次执行未复现漏洞。"],
+        })
+        write_jsonl(transcript, {"role": "stage_submission", "receipt": receipt})
+        if receipt["decision"] != "accepted":
+            raise ValueError("红队执行交付未通过：" + json.dumps(receipt["errors"], ensure_ascii=False))
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if captured else 2
     except LabError as exc:

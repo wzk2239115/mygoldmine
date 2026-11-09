@@ -14,23 +14,193 @@ from skill_bank import SkillBank, infer_project, instruction as skill_instructio
 
 ROOT = Path(__file__).resolve().parents[2]
 STAGES = ('environment', 'orchestrator', 'visual', 'verify', 'redteam-lab', 'redteam-agent', 'judge', 'learner')
-INSTRUCTION = '结束前调用 mcp__stage_delivery__submit_stage_result，提交实际交付文件路径和限制；工具返回 needs_revision 时修正后再次提交。accepted 仅表示交付文件通过该阶段检查，不代表漏洞已验证。无法提供最小能力时如实报告受阻，不为获得 accepted 无限重试。不要伪造证据或为通过检查降低原有验收标准。'
-SCHEMA = {'type':'object','properties':{'artifact':{'type':'string','description':'交付文件的绝对路径'},'summary':{'type':'string'},'limitations':{'type':'array','items':{'type':'string'}}},'required':['artifact','summary','limitations'],'additionalProperties':False}
+INSTRUCTION = '本节点交付必须通过 mcp__stage_delivery__submit_stage_result。主文件写入 artifact，必须随下游交接的附件写入 artifacts；收到 needs_revision 时按具体错误修正后再次提交。节点结束前必须取得 accepted 回执，否则工作流不会交给下一节点。accepted 只表示文件与契约检查通过，不代表漏洞已验证。无法满足契约时提交结构化受阻结果并说明限制；不要伪造证据或为获得 accepted 降低原有业务验收标准。'
+SCHEMA = {'type':'object','properties':{'artifact':{'type':'string','description':'主交付文件的绝对路径'},'artifacts':{'type':'array','items':{'type':'string'},'description':'与主交付相关、需要随节点交接的附件绝对路径'},'summary':{'type':'string'},'limitations':{'type':'array','items':{'type':'string'}}},'required':['artifact','summary','limitations'],'additionalProperties':False}
 SKILLOPT_SCHEMA = {'type':'object','properties':{'target_stage':{'type':'string','enum':list(STAGES)},'scope':{'type':'string','enum':['general','project']},'problem':{'type':'string'},'suggestions':{'type':'array','minItems':1,'maxItems':4,'items':{'type':'object','properties':{'type':{'type':'string','enum':['add','replace','delete']},'title':{'type':'string'},'instruction':{'type':'string'}},'required':['instruction'],'additionalProperties':False}},'evidence':{'type':'array','minItems':1,'maxItems':5,'items':{'type':'string'}},'source_stages':{'type':'array','items':{'type':'string','enum':list(STAGES)}},'expected_improvement':{'type':'string'},'possible_regression':{'type':'string'},'conditions':{'type':'object','properties':{key:{'type':'string'} for key in ('machine','python','commit')},'additionalProperties':False}},'required':['target_stage','scope','problem','suggestions','evidence','expected_improvement','possible_regression'],'additionalProperties':False}
 
 def config(stage, root):
     return {'mcpServers':{'stage_delivery':{'command':'python3','args':[str(Path(__file__).resolve()),'serve','--stage',stage,'--root',str(Path(root).resolve())]}}}
 
+def accepted_submissions(stage, root, minimum=1):
+    """Recheck accepted receipts and their exact artifact bytes at the stage boundary."""
+    root = Path(root).resolve(strict=True)
+    if stage not in STAGES or minimum < 0:
+        raise ValueError('阶段交付检查参数无效')
+    found = []
+    latest = {}
+    receipt_roots = [root]
+    summary = root / 'verify' / 'agent' / 'summary.json'
+    if stage == 'verify' and summary.is_file():
+        batch = json.loads(summary.read_text(encoding='utf-8'))
+        rows = batch.get('findings')
+        if not isinstance(rows, list):
+            raise ValueError('蓝队批次缺少候选结果数组')
+        ids = [row.get('finding_id') for row in rows]
+        if any(not isinstance(sid, str) or not sid or sid in {'.', '..'} or
+               any(c not in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-' for c in sid)
+               for sid in ids) or len(ids) != len(set(ids)):
+            raise ValueError('蓝队批次候选编号无效或重复')
+        receipt_roots = [summary.parent / sid for sid in ids]
+    for directory, names, files in (
+        item for receipt_root in receipt_roots
+        for item in os.walk(receipt_root, followlinks=False)
+    ):
+        names[:] = [name for name in names if name != 'retry-history' and not (Path(directory) / name).is_symlink()]
+        if '.stage-submissions' not in names:
+            continue
+        folder = Path(directory) / '.stage-submissions' / stage
+        if not folder.is_dir() or folder.is_symlink():
+            continue
+        for receipt_file in sorted(folder.glob('*.json')):
+            if receipt_file.is_symlink() or not receipt_file.is_file():
+                continue
+            receipt = json.loads(receipt_file.read_text(encoding='utf-8'))
+            if not isinstance(receipt, dict) or receipt.get('stage') != stage:
+                raise ValueError(f'阶段交付回执格式无效：{receipt_file}')
+            key = receipt.get('artifact') or str(receipt_file)
+            previous = latest.get(key)
+            if previous is None or receipt.get('checked_at', '') > previous[1].get('checked_at', ''):
+                latest[key] = (receipt_file, receipt)
+    for receipt_file, receipt in latest.values():
+            try:
+                if receipt.get('decision') != 'accepted':
+                    continue
+                artifact = Path(receipt.get('artifact') or '')
+                if not artifact.is_absolute():
+                    raise ValueError('验收回执中的产物路径不是绝对路径')
+                artifact = Path(os.path.abspath(artifact))
+                if not artifact.is_relative_to(root):
+                    raise ValueError('验收回执中的产物路径超出本阶段目录')
+                cursor = root
+                for part in artifact.relative_to(root).parts:
+                    cursor = cursor / part
+                    if cursor.is_symlink():
+                        raise ValueError(f'已验收产物包含符号链接：{cursor}')
+                if not artifact.is_file():
+                    raise ValueError(f'已验收产物已缺失：{artifact}')
+                digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+                if digest != receipt.get('sha256'):
+                    raise ValueError(f'已验收产物内容已改变：{artifact}')
+                files = receipt.get('files') or [{'path': str(artifact), 'sha256': digest}]
+                if not isinstance(files, list) or any(not isinstance(item, dict) for item in files):
+                    raise ValueError('交付包清单格式无效')
+                for item in files:
+                    file = Path(item.get('path') or '')
+                    if not file.is_absolute():
+                        raise ValueError('交付包文件路径必须是绝对路径')
+                    file = Path(os.path.abspath(file))
+                    if not file.is_relative_to(root):
+                        raise ValueError('交付包文件路径超出本阶段目录')
+                    cursor = root
+                    for part in file.relative_to(root).parts:
+                        cursor = cursor / part
+                        if cursor.is_symlink():
+                            raise ValueError(f'交付包包含符号链接：{cursor}')
+                    if not file.is_file() or hashlib.sha256(file.read_bytes()).hexdigest() != item.get('sha256'):
+                        raise ValueError(f'交付包文件缺失或内容已改变：{file}')
+                found.append({'receipt': str(receipt_file), 'artifact': str(artifact), 'sha256': digest, 'files': files})
+            except (OSError, ValueError, TypeError) as exc:
+                raise ValueError(f'阶段交付回执无效：{receipt_file}：{exc}') from exc
+    unique = {item['artifact']: item for item in found}
+    found = list(unique.values())
+    if len(found) < minimum:
+        raise ValueError(f'{stage} 阶段需要至少 {minimum} 份有效交付回执，实际为 {len(found)}')
+    return {'stage': stage, 'root': str(root), 'accepted': len(found), 'deliveries': found}
+
+
+def finalize_orchestrator(root):
+    """Revalidate producer finalization without discarding declared dependencies."""
+    root = Path(root).resolve(strict=True)
+    try:
+        return accepted_submissions('orchestrator', root)
+    except ValueError as original_error:
+        folder = root / '.stage-submissions' / 'orchestrator'
+        if folder.is_symlink() or folder.parent.is_symlink():
+            raise original_error
+        receipts = []
+        for file in folder.glob('*.json'):
+            if file.is_symlink():
+                raise ValueError('交付回执不能是符号链接')
+            value = json.loads(file.read_text(encoding='utf-8'))
+            if value.get('stage') == 'orchestrator':
+                receipts.append(value)
+        if not receipts:
+            raise original_error
+        prior = max(receipts, key=lambda value: value.get('checked_at', ''))
+        artifact = root / 'audit-report.json'
+        if (prior.get('decision') != 'accepted' or prior.get('artifact') != str(artifact)
+                or artifact.is_symlink() or not artifact.is_file()
+                or hashlib.sha256(artifact.read_bytes()).hexdigest() != prior.get('sha256')):
+            raise original_error
+        declared = prior.get('files')
+        if not isinstance(declared, list) or not declared:
+            raise original_error
+        attachments = []
+        for item in declared:
+            file = Path(item['path'])
+            if not file.is_absolute() or not file.is_relative_to(root):
+                raise original_error
+            cursor = root
+            for part in file.relative_to(root).parts:
+                cursor /= part
+                if cursor.is_symlink():
+                    raise original_error
+            if not file.is_file():
+                raise original_error
+            if file.name == 'coverage-ledger.json':
+                sys.path.insert(0, str(ROOT / 'scripts' / 'audit'))
+                from coverage_ledger import validate_ledger
+                ledger = json.loads(file.read_text(encoding='utf-8'))
+                errors = validate_ledger(ledger)
+                if errors:
+                    raise ValueError('覆盖记录未通过重新验收：' + '; '.join(errors))
+            if file != artifact:
+                attachments.append(str(file))
+        # One final submission, using all prior declared dependencies and the same validators.
+        receipt = submit('orchestrator', root, {
+            'artifact': str(artifact), 'artifacts': attachments,
+            'summary': prior.get('summary') or '编排结束后重新验收交付附件',
+            'limitations': prior.get('limitations') or [],
+        })
+        if receipt['decision'] != 'accepted':
+            raise ValueError('编排附件重新验收失败：' + str(receipt['errors']))
+        delivery = accepted_submissions('orchestrator', root)
+        delivery['revalidated'] = True
+        delivery['previous_receipt_id'] = prior.get('id')
+        return delivery
+
+
 def submit(stage, root, arguments):
-    root=Path(root).resolve(); errors=[]; artifact=None; digest=None
+    root=Path(root).resolve(); errors=[]; artifact=None; digest=None; package_files=[]
     try:
         if stage not in STAGES: raise ValueError('未知阶段')
         if not isinstance(arguments.get('summary'),str) or not arguments['summary'].strip(): raise ValueError('需要简短交付说明')
         if not isinstance(arguments.get('limitations'),list) or any(not isinstance(v,str) for v in arguments['limitations']): raise ValueError('limitations 必须是字符串数组')
-        artifact=Path(arguments['artifact']).resolve(strict=True)
-        if not artifact.is_relative_to(root) or not artifact.is_file(): raise ValueError('交付文件必须位于本次指定输出目录内')
+        raw_artifact=Path(arguments['artifact'])
+        artifact=Path(os.path.abspath(raw_artifact if raw_artifact.is_absolute() else root/raw_artifact))
+        if not artifact.is_relative_to(root): raise ValueError('交付文件必须位于本次指定输出目录内')
+        cursor=root
+        for part in artifact.relative_to(root).parts:
+            cursor=cursor/part
+            if cursor.is_symlink(): raise ValueError('交付文件路径不能包含符号链接')
+        if not artifact.is_file(): raise ValueError('交付文件必须是普通文件')
         if artifact.stat().st_size > 10*1024*1024: raise ValueError('交付文件超过 10 MiB')
         data=artifact.read_bytes();digest=hashlib.sha256(data).hexdigest()
+        requested=arguments.get('artifacts',[])
+        if not isinstance(requested,list) or any(not isinstance(name,str) for name in requested) or len(requested)>100:
+            raise ValueError('artifacts 必须是最多 100 个绝对路径组成的数组')
+        package={str(artifact):data}
+        for name in requested:
+            raw=Path(name)
+            file=Path(os.path.abspath(raw if raw.is_absolute() else root/raw))
+            if not file.is_relative_to(root): raise ValueError('交付附件必须位于本次指定输出目录内')
+            cursor=root
+            for part in file.relative_to(root).parts:
+                cursor=cursor/part
+                if cursor.is_symlink(): raise ValueError('交付附件路径不能包含符号链接')
+            if not file.is_file(): raise ValueError('交付附件必须是普通文件')
+            if file.stat().st_size>10*1024*1024: raise ValueError('单个交付附件超过 10 MiB')
+            package[str(file)]=file.read_bytes()
         if stage=='learner':
             if not data.strip(): raise ValueError('经验文件为空')
         elif stage=='redteam-lab':
@@ -71,11 +241,16 @@ def submit(stage, root, arguments):
                 sys.path.insert(0, str(ROOT/'.claude/skills/project-cartographer/scripts'))
                 from image_provenance import generated_image
                 images=[p for p in artifact.parent.glob(artifact.name.replace('.director.json','')+'.*') if p.suffix in ('.webp','.png','.jpg') and generated_image(p)]
+                for image in images:
+                    if image.is_relative_to(root): package[str(image)]=image.read_bytes()
                 if not artifact.name.endswith('.director.json') or not images: raise ValueError('需要场景设计 .director.json 及同名文生图图片；必须有匹配图片哈希的文生图记录，SVG 不可作为交付')
             elif stage=='verify':
                 sys.path.insert(0,str(ROOT/'scripts/workflow'))
                 from delivery_contract import validate_verification_report
-                validate_verification_report(artifact,artifact.parent)
+                checked=validate_verification_report(artifact,artifact.parent)
+                for name in checked['files']:
+                    file=Path(name)
+                    if file.is_relative_to(root): package[str(file)]=file.read_bytes()
                 status=d.get('verdict') or d.get('verification',{}).get('status') or d.get('status')
                 if not status or not (d.get('finding_id') or d.get('id')): raise ValueError('验证报告缺少明确结论或候选问题编号')
                 if status in ('blocked','inconclusive') and not arguments['limitations']: raise ValueError('受阻或不确定结论必须声明限制')
@@ -85,9 +260,12 @@ def submit(stage, root, arguments):
                 sys.path.insert(0,str(ROOT/'scripts/redteam'))
                 from contracts import validate_verdict
                 validate_verdict(d)
+        if sum(len(value) for value in package.values())>50*1024*1024:
+            raise ValueError('交付包总大小超过 50 MiB')
+        package_files=[{'path':name,'size':len(value),'sha256':hashlib.sha256(value).hexdigest()} for name,value in sorted(package.items())]
     except Exception as exc:
         errors.append(str(exc))
-    receipt={'id':str(uuid.uuid4()),'stage':stage,'decision':'needs_revision' if errors else 'accepted','validation_scope':'artifact_contract','artifact':str(artifact) if artifact else None,'sha256':digest,'summary':arguments.get('summary'),'limitations':arguments.get('limitations'),'errors':errors,'checked_at':datetime.now(timezone.utc).isoformat(),'notice':'交付文件检查不替代动态验收、随机标记来源检查或人工验收；原有阶段门槛继续生效。'}
+    receipt={'id':str(uuid.uuid4()),'stage':stage,'decision':'needs_revision' if errors else 'accepted','validation_scope':'artifact_contract','artifact':str(artifact) if artifact else None,'sha256':digest,'files':package_files,'summary':arguments.get('summary'),'limitations':arguments.get('limitations'),'errors':errors,'checked_at':datetime.now(timezone.utc).isoformat(),'notice':'交付文件检查不替代动态验收、随机标记来源检查或人工验收；原有阶段门槛继续生效。'}
     directory=root/'.stage-submissions'/stage;directory.mkdir(parents=True,exist_ok=True)
     (directory/(receipt['id']+'.json')).write_text(json.dumps(receipt,ensure_ascii=False,indent=2))
     return receipt
@@ -187,8 +365,12 @@ def serve(stage, root):
             if isinstance(request,dict) and 'id' in request: print(json.dumps({'jsonrpc':'2.0','id':request['id'],'error':{'code':-32602,'message':str(exc)}}),flush=True)
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('mode',choices=['config','serve','instruction']);parser.add_argument('--stage',choices=STAGES);parser.add_argument('--root');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('mode',choices=['config','serve','instruction','check','finalize']);parser.add_argument('--stage',choices=STAGES);parser.add_argument('--root');parser.add_argument('--minimum',type=int,default=1);args=parser.parse_args()
     if args.mode=='instruction': print(INSTRUCTION + ('\n'+skill_instruction(args.stage,args.root) if args.stage and args.root else ''))
     elif args.mode=='config': print(json.dumps(config(args.stage,args.root)))
+    elif args.mode=='finalize':
+        if args.stage != 'orchestrator': raise ValueError('此收尾入口仅用于审计编排阶段')
+        print(json.dumps(finalize_orchestrator(args.root), ensure_ascii=False))
+    elif args.mode=='check': print(json.dumps(accepted_submissions(args.stage,args.root,args.minimum),ensure_ascii=False))
     else: serve(args.stage,args.root)
 if __name__=='__main__':main()

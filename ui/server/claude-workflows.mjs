@@ -10,7 +10,7 @@ import {fileURLToPath} from 'node:url';
 import {labCandidates,prepareLabRetry} from './redteam-lab-retry.mjs';
 import {agentCandidates,prepareAgentRetry} from './redteam-agent-retry.mjs';
 import {judgeCandidates,prepareJudgeRetry} from './judge-retry.mjs';
-import {reportProject,runtimeEnvironment,verificationAttachments} from './delivery-contract.mjs';
+import {reportProject,runtimeEnvironment,verificationAttachments,acceptedStageDelivery} from './delivery-contract.mjs';
 
 const self=fileURLToPath(import.meta.url);
 const repo=path.resolve(path.dirname(self),'../..');
@@ -174,10 +174,11 @@ export async function execute(state,node,file) {
     if(code!==0 && !fs.existsSync(path.join(state.runDir,'audit-report.json')))throw Error('审计编排失败');
     sourceReport(state);
     if(await command(process.env.PYTHON || 'python3',['scripts/mine/check_report.py','--report',path.join(state.runDir,'audit-report.json'),'--project',state.project,'--output',path.join(state.runDir,'report-quality.json'),'--fail-missing','--fail-language'],{log})!==0)throw Error('审计产物未通过完整性检查');
+    const delivery=acceptedStageDelivery('orchestrator',state.runDir);receipt.delivery=delivery;
     const status=read(state.runDir+'.meta/status.json') || {};
     write(state.runDir+'.meta/status.json',{...status,env_image:state.image,target:state.source});
     receipt.status=code===0?'completed':'degraded';
-    receipt.outputs=manifest(['audit-report.json','audit-report.md','task-artifacts'].map(name=>path.join(state.runDir,name)).filter(fs.existsSync));
+    receipt.outputs=manifest(['audit-report.json','audit-report.md','task-artifacts',...delivery.deliveries.map(item=>item.receipt)].map(name=>path.isAbsolute(name)?name:path.join(state.runDir,name)).filter(fs.existsSync));
   } else {
     const report=sourceReport(state);
     if(state.reportHash && hash(report)!==state.reportHash)throw Error('总报告已改变，禁止继续旧执行计划');
@@ -215,9 +216,10 @@ export async function execute(state,node,file) {
     job=read(attempt);
     if(job.status!=='completed'||job.resultStatus==='failed')throw Error(job.error || `节点执行失败：${node}`);
     receipt.status=job.resultStatus || 'completed';receipt.attempt=attempt;
-    const outputs=(artifacts[node] || []).map(name=>path.join(job.workspace,name)).filter(fs.existsSync);
+    const delivery=job.deliveryAcceptance || acceptedStageDelivery(node,job.workspace);receipt.delivery=delivery;
+    const outputs=(node==='visual' && delivery.optional?['visual-rendered/delivery-status.json']:artifacts[node] || []).map(name=>path.join(job.workspace,name)).filter(fs.existsSync);
     if(!outputs.length)throw Error(`节点缺少交付产物：${node}`);
-    receipt.outputs=manifest([report,...outputs],{verification:node==='verify'});
+    receipt.outputs=manifest([report,...outputs,...delivery.deliveries.map(item=>item.receipt)],{verification:node==='verify'});
     delete state.activeAttempt;
   }
   return receipt;
@@ -244,7 +246,15 @@ export async function step(file,node,executeNode=execute) {
     write(path.join(path.dirname(file),'receipts',node+'.json'),receipt);
     if(executeNode===execute && ['orchestrator','verify','redteam-agent','judge','learner'].includes(node)) {
       const code=await command(process.env.PYTHON || 'python3',['scripts/workflow/build_state.py'],{log:path.join(path.dirname(file),'candidate-index.log'),timeout:60000});
-      if(code!==0)throw Error('节点已交付，但候选汇总更新失败，请查看候选汇总日志');
+      if(code!==0) {
+        // The index is a derived UI view. The node's validated artifacts and
+        // receipt are authoritative, so an index refresh failure is degraded
+        // metadata and must not halt the production workflow.
+        receipt.status=receipt.status==='completed'?'degraded':receipt.status;
+        receipt.notices=[...(receipt.notices || []),'候选索引刷新失败；节点交付产物已保留，索引可稍后重建'];
+        state.receipts[state.receipts.length-1]=receipt;save(file,state);
+        write(path.join(path.dirname(file),'receipts',node+'.json'),receipt);
+      }
     }
     return {node,status:receipt.status};
   } catch(error) {state.error=error.message;state.failure={scope:String(error.code || '').startsWith('artifact_')?'artifact_contract':'stage_execution',code:error.code || 'stage_execution',retryOwner:String(error.code || '').startsWith('artifact_')?'workflow-delivery':'stage-executor'};save(file,state);throw error;}

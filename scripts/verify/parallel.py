@@ -7,6 +7,8 @@ import json
 import os
 import shutil
 import signal
+import sys
+import uuid
 import subprocess
 import threading
 import time
@@ -20,8 +22,88 @@ def write(path, value):
     temp.replace(path)
 
 
+
+def finalize_deliveries(output, results, project):
+    """Isolate candidate contract failures before publishing the batch."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "stages"))
+    from submission import accepted_submissions, submit
+
+    output = Path(output).resolve()
+    (output / "tasks").mkdir(parents=True, exist_ok=True)
+    for result in results:
+        sid = result["finding_id"]
+        if not isinstance(sid, str) or not sid or sid in {".", ".."} or any(
+            char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-"
+            for char in sid
+        ):
+            raise ValueError("批次候选编号无效")
+        folder = output / sid
+        report = folder / "verify-report.json"
+        try:
+            if folder.is_symlink() or report.is_symlink():
+                raise ValueError("候选交付不能是符号链接")
+            data = json.loads(report.read_text())
+            if data.get("finding_id") != sid or data.get("project") != project:
+                raise ValueError("验证报告的项目或候选编号不一致")
+            # Finalize actual runner output and explicit blocked outcomes through the same tool.
+            if (data.get("synthesized") is True and data.get("verdict") == "blocked") or (
+                result.get("status") == "runner_reported"
+            ):
+                receipt = submit("verify", folder, {
+                    "artifact": str(report), "summary": data.get("reason") or "候选验证受阻",
+                    "limitations": data.get("limitations") or (
+                        [data.get("reason") or "候选验证受阻"]
+                        if data.get("verdict") in {"blocked", "inconclusive"} else []
+                    ),
+                })
+                if receipt["decision"] != "accepted":
+                    raise ValueError(str(receipt["errors"]))
+            delivery = accepted_submissions("verify", folder)
+            if not any(item["artifact"] == str(report) for item in delivery["deliveries"]):
+                raise ValueError("当前验证报告没有有效交付回执")
+            result["delivery_status"] = "accepted"
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            # Preserve the failed attempt outside the formal batch. Never waive hashes.
+            archive = output.parent / "delivery-failures" / sid / uuid.uuid4().hex
+            archive.parent.mkdir(parents=True, exist_ok=True)
+            if folder.exists() or folder.is_symlink():
+                shutil.move(str(folder), str(archive))
+            folder.mkdir(parents=True)
+            reason = f"候选交付未通过：{exc}"
+            data = {
+                "project": project, "finding_id": sid, "verdict": "blocked",
+                "status": "delivery_failed", "reason": reason, "evidence": [],
+                "synthesized": True,
+                **{key: result.get(key) for key in ("occurrence_id", "semantic_id", "run_id")},
+                "limitations": ["原始产物已归档；未通过验收，不作为漏洞确认依据"],
+            }
+            write(report, data)
+            receipt = submit("verify", folder, {
+                "artifact": str(report), "summary": reason,
+                "limitations": data["limitations"],
+            })
+            if receipt["decision"] != "accepted":
+                raise ValueError("候选受阻记录无法保存：" + str(receipt["errors"]))
+            result.update(
+                verdict="blocked", status="delivery_failed", reason=reason,
+                delivery_status="rejected", delivery_archive=str(archive),
+                report_path=str(report), run_dir=str(folder), harness_path=None,
+            )
+        write(folder / "result.json", result)
+        task_path = output / "tasks" / f"{sid}.json"
+        task = json.loads(task_path.read_text()) if task_path.exists() else {}
+        task.update({key: result.get(key) for key in (
+            "verdict", "status", "reason", "delivery_status", "delivery_archive", "report_path"
+        )})
+        if result["delivery_status"] == "rejected":
+            task["state"] = "failed"
+        write(task_path, task)
+    return results
+
+
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--delivery-project", help="按候选验收交付并隔离失败结果")
     parser.add_argument("--jobs", type=int, required=True)
     parser.add_argument("--attempts", type=int, choices=[1, 2], default=1)
     parser.add_argument("--input", required=True)
@@ -171,8 +253,37 @@ def main():
                 "concurrency": args.jobs,
             },
         )
+    def safe_execute(job):
+        try:
+            return execute(job)
+        except Exception as exc:
+            # Keep one unexpected candidate-worker exception from aborting
+            # collection of all other verification results.
+            sid, entry = job["id"], job["entry"]
+            result = {
+                "finding_id": sid,
+                "original_id": entry.get("orig_id"),
+                "source_index": entry.get("index"),
+                "title": entry.get("title", ""),
+                "severity": entry.get("severity", ""),
+                "status": "worker_failed",
+                "verdict": "blocked",
+                "reason": f"候选工作项异常：{type(exc).__name__}: {exc}",
+                "report_path": None,
+            }
+            result_path = output / sid / "result.json"
+            result_path.parent.mkdir(parents=True, exist_ok=True)
+            write(result_path, result)
+            task_path = tasks / f"{sid}.json"
+            task = json.loads(task_path.read_text()) if task_path.exists() else dict(job)
+            task.update({"state": "failed", "status": "worker_failed",
+                         "error": result["reason"],
+                         "updatedAt": datetime.now(timezone.utc).isoformat()})
+            write(task_path, task)
+            return result
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        results = list(pool.map(execute, jobs))
+        results = list(pool.map(safe_execute, jobs))
     if stopped.is_set():
         # 组长退出不代表全部后代已退出；给执行器清理容器的时间，再回收残留进程。
         time.sleep(max(0, cancelled_at[0] + 5 - time.monotonic()))
@@ -181,6 +292,8 @@ def main():
                 os.killpg(group, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+    if args.delivery_project and not stopped.is_set():
+        results = finalize_deliveries(output, results, args.delivery_project)
     write(output / ".parallel-results.json", results)
     return 130 if stopped.is_set() else 0
 

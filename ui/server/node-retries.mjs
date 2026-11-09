@@ -1,3 +1,4 @@
+import {partialLabDelivery} from './partial-lab-delivery.mjs';
 import {awaitProjectSlot,releaseProjectSlot} from './project-admission.mjs';
 import {judgeCandidates,prepareJudgeRetry,runJudgeRetry} from './judge-retry.mjs';
 import {labCandidates,prepareLabRetry,runLabRetry} from './redteam-lab-retry.mjs';
@@ -7,6 +8,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import {acceptedStageDelivery,optionalVisualDelivery} from './delivery-contract.mjs';
 const read = file => { try { return JSON.parse(fs.readFileSync(file,'utf8')); } catch { return null; } };
 const write = (file,data) => { const temp=`${file}.tmp`;fs.writeFileSync(temp,JSON.stringify(data,null,2));fs.renameSync(temp,file); };
 const fail = message => { const error=new Error(message);error.status=409;throw error; };
@@ -91,7 +93,48 @@ export async function worker(file) {
       job.resultStatus=code!==0 || !summary?'failed':summary.status==='blocked'?'blocked':summary.status==='partial'?'degraded':summary.status==='failed'?'failed':'completed';
     }
   } catch(error) { job.error=error.message; }
-  finally { if(!job.workflowOwner)releaseProjectSlot(job.repoRoot,job.id,job.project,file);
+  finally {
+    if(job.node==='visual') {
+      const originalCode=code;
+      const summary=read(path.join(job.workspace,'visual-rendered/visual-summary.json'));
+      const minimum=Math.max(0,Number(summary?.scene_count)||0);
+      let delivery=optionalVisualDelivery(job.workspace,minimum);
+      if(originalCode!==0 || job.resultStatus==='failed' || !summary) {
+        delivery={...delivery,optional:true,notices:[...(delivery.notices || []),'图片生成未完成；继续后续验证。']};
+      }
+      job.deliveryAcceptance=delivery;
+      job.visualExitCode=originalCode;
+      job.resultStatus=delivery.optional || !minimum?'degraded':job.resultStatus;
+      job.visualNotice=delivery.notices || (!minimum?['本阶段没有图片；继续后续验证。']:[]);
+      fs.mkdirSync(path.join(job.workspace,'visual-rendered'),{recursive:true});
+      write(path.join(job.workspace,'visual-rendered/delivery-status.json'),{
+        optional:true,status:job.resultStatus,scene_count:minimum,
+        exitCode:originalCode,notices:job.visualNotice,error:job.error || delivery.error || null
+      });
+      code=0;
+    }
+    if(code===0) {
+      try {
+        const minimum=job.node==='visual'
+          ? Math.max(1,Number(read(path.join(job.workspace,'visual-rendered/visual-summary.json'))?.scene_count)||1)
+          : job.node==='redteam-lab'
+          ? 0
+          : job.node==='redteam-agent'
+            ? Math.max(1,(read(path.join(job.workspace,'redteam/agent-selection.json'))?.candidates||[]).filter(item=>item.status==='ready').length)
+            : job.node==='judge'
+              ? Math.max(1,Number(read(path.join(job.workspace,'judge/summary.json'))?.selected)||1)
+              : job.node==='verify'
+                ? Math.max(1,Number(read(path.join(job.workspace,'verify/agent/summary.json'))?.selected)||1)
+                : 1;
+        if(job.node==='redteam-lab') {
+          job.deliveryAcceptance=partialLabDelivery(job.workspace);
+          if(job.deliveryAcceptance.excluded.length)job.resultStatus='degraded';
+        } else if(job.node!=='visual')job.deliveryAcceptance=acceptedStageDelivery(job.node,job.workspace,minimum);
+      } catch(error) {
+        code=1;job.resultStatus='failed';job.error='阶段交付未通过：'+error.message;
+      }
+    }
+    if(!job.workflowOwner)releaseProjectSlot(job.repoRoot,job.id,job.project,file);
     job.admission={...job.admission,status:'released'};
     job.status=code===0?'completed':'failed';job.exitCode=code;job.endedAt=new Date().toISOString();write(file,job);
     const originalRun=path.resolve(job.root,'../../..').replace(/\.meta$/,'');
