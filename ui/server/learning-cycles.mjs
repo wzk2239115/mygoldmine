@@ -72,3 +72,41 @@ export function stopCycle(repo,project) {
   fs.writeFileSync(path.join(root,state.id,'stop'),'stop after current round\n');
   return {...state,stopRequested:true};
 }
+
+// A successful repair ending in learning resumes only its own failed cycle.
+export function resumeAfterLearning(repo,workflow,launch=spawn) {
+ if(workflow.status!=='completed' || !workflow.receipts?.some(r=>r.node==='learner'))return null;
+ const match=path.basename(workflow.runDir).match(/^learning-(.+)-(\d+)$/);
+ if(!match || !valid(match[1]))return null;
+ const {lock,guard,root}=paths(repo,workflow.project);
+ const folder=path.join(root,match[1]),file=path.join(folder,'status.json'),state=read(file);
+ if(!state || state.project!==workflow.project || state.status!=='failed' ||
+    fs.existsSync(path.join(folder,'stop')) || fs.existsSync(lock) || fs.existsSync(guard))return null;
+ const index=Number(match[2]),rows=state.rounds || [];
+ if(index!==state.current_round || rows.length!==index-1 || index>state.max_rounds)return null;
+ const meta=read(workflow.runDir+'.meta/status.json'),source=meta?.target;
+ if(!source || path.basename(source)!==workflow.project || !fs.existsSync(source))return null;
+ try {fs.mkdirSync(guard);}catch{return null;}
+ let claimed=false;
+ try {
+  fs.mkdirSync(lock);claimed=true;write(path.join(lock,'claim.json'),{id:state.id});
+  state.recovery_history=[...(state.recovery_history || []),{error:state.error,ended_at:state.ended_at,workflow:workflow.id}];
+  state.rounds=[...rows,{index,run_dir:workflow.runDir,state:'partial',recovered_by:workflow.id,evaluations:[],published:[]}];
+  delete state.error;delete state.ended_at;
+  if(index===state.max_rounds){state.status='completed';state.ended_at=new Date().toISOString();write(file,state);fs.rmSync(lock,{recursive:true,force:true});return state;}
+  state.status='queued';state.resumed_at=new Date().toISOString();write(file,state);
+  const python=process.env.RSI_PYTHON || path.join(path.dirname(process.execPath),'python3');
+  const fd=fs.openSync(path.join(folder,'controller.log'),'a');
+  let child;
+  try {child=launch(python,['scripts/stages/learning_cycle.py','--resume','--source',source,'--project',workflow.project,'--cycle-id',state.id,'--claim-token',state.id],{cwd:repo,detached:true,stdio:['ignore',fd,fd]});}
+  finally {fs.closeSync(fd);}
+  child.on('error',error=>{
+   write(file,{...state,status:'failed',error:error.message});
+   if(read(path.join(lock,'claim.json'))?.id===state.id)fs.rmSync(lock,{recursive:true,force:true});
+  });
+  child.unref();return state;
+ } catch(error) {
+  if(claimed && read(path.join(lock,'claim.json'))?.id===state.id)fs.rmSync(lock,{recursive:true,force:true});
+  throw error;
+ } finally {fs.rmSync(guard,{recursive:true,force:true});}
+}

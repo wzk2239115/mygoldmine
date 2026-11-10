@@ -13,3 +13,11 @@ research
 **/*.pyd
 **/.venv
 **/node_modules
+
+.runtime
+.state
+.stage-skills-loaded
+.stage-skill-proposals
+.verify-work-*
+.verifyscratch
+.workspace

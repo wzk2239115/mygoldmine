@@ -34,6 +34,7 @@ BASE_AGENTS = {
     "visual": "attack-scene-director",
     "verify": "verify-agent",
     "redteam-lab": "redteam-lab-builder",
+    "redteam-agent": "redteam-agent",
     "judge": "exploit-judge",
     "learner": "stage-skill-learner",
 }

@@ -41,6 +41,7 @@ ENTRY_SKILL_RULES = {
     ),
     "sandbox": ("sandbox-boundary-analyzer",),
     "cli": ("command-injection-analyzer",),
+    "native": ("memory-safety-analyzer",),
 }
 
 ORCHESTRATOR_RULES = (

@@ -246,6 +246,11 @@ def test_submission_accepts_blocked_json_and_rejects_markdown(tmp_path):
         "next_conditions": ["补齐后重试"],
         "claims_dynamic_validation": False,
     }
+    (root / "lab-task.json").write_text(json.dumps({
+        "finding_id": "F-1", "finding_sha256": digest,
+        "source_binding": {"commit": "a" * 40},
+    }))
+    (root / "BLOCKED.md").write_text("实际受阻证据")
     artifact = root / "blocked.json"
     artifact.write_text(json.dumps(document), encoding="utf-8")
     receipt = submission.submit("redteam-lab", root, {

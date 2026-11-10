@@ -1,3 +1,4 @@
+import {runningProjectCount as countRunningProjects} from './project-activity.js';
 import VerifiedReports from './components/VerifiedReports.jsx';
 import ModelSettings from './components/ModelSettings.jsx';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -93,7 +94,7 @@ function LoadingBoard() {
 export default function App() {
   const { language, setLanguage, t } = useI18n();
   const [board, setBoard] = useState(null);
-  const runningProjectCount=new Set((board?.liveRuns || []).filter(run=>run.project && !run.finished && run.isLive!==false).map(run=>run.project)).size;
+  const runningProjectCount=countRunningProjects(board);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filters, setFiltersState] = useState(loadFilters);
@@ -252,10 +253,31 @@ export default function App() {
   }, [theme]);
 
   const findings = board?.findings || [];
-  const selected = useMemo(
+  const selectedSummary = useMemo(
     () => findings.find((finding) => finding.key === selectedKey) || null,
     [findings, selectedKey]
   );
+
+  const [detailState,setDetailState]=useState({key:null,data:null,error:'',loading:false});
+  const [detailRetry,setDetailRetry]=useState(0);
+  useEffect(()=>{
+    if(!selectedKey || !selectedSummary)return;
+    const controller=new AbortController();
+    setDetailState({key:selectedKey,data:null,error:'',loading:true});
+    const url='/api/findings/'+encodeURIComponent(selectedSummary.project)+'/'+encodeURIComponent(selectedSummary.id)+'/raw'+
+      (selectedSummary.occurrence_id?'?occurrence_id='+encodeURIComponent(selectedSummary.occurrence_id):'');
+    fetch(url,{signal:controller.signal}).then(async response=>{
+      if(!response.ok)throw Error('读取失败（HTTP '+response.status+'）');
+      return response.json();
+    }).then(payload=>{
+      if(!payload.finding || payload.finding.key!==selectedKey)throw Error('返回的候选详情与当前选择不一致');
+      if(!controller.signal.aborted)setDetailState({key:selectedKey,data:payload.finding,error:'',loading:false});
+    }).catch(error=>{
+      if(!controller.signal.aborted)setDetailState({key:selectedKey,data:null,error:error.message,loading:false});
+    });
+    return ()=>controller.abort();
+  },[selectedKey,board?.generatedAt,detailRetry]);
+  const selected=selectedKey===detailState.key?detailState.data:null;
 
   const scoped = useMemo(() => {
     let items = findings;
@@ -273,6 +295,7 @@ export default function App() {
           finding.projectName,
           finding.category,
           finding.rootCause,
+          finding.searchText,
           finding.notes,
           ...finding.cwe
         ]
@@ -680,6 +703,11 @@ export default function App() {
         </div>
       </main>
 
+      {selectedKey && selectedSummary && !selected ? <div className="finding-detail-loading" role="dialog" aria-label="候选详情">
+        <button className="cycle-control" onClick={()=>setSelectedKey(null)}>关闭</button>
+        <h2>{selectedSummary.title}</h2>
+        {detailState.error?<><p role="alert">详情加载失败：{detailState.error}</p><button className="cycle-control" onClick={()=>setDetailRetry(value=>value+1)}>重试</button></>:<p role="status">正在加载完整报告…</p>}
+      </div>:null}
       {selected ? (
         <DetailDrawer
           finding={selected}

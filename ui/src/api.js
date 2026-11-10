@@ -59,7 +59,7 @@ export const api = {
   saveModelSettings: (models) => request('/api/stage-models', {method:'POST',body:JSON.stringify({models})}),
   restartProject: (project) => request(`/api/targets/${encodeURIComponent(project)}/restart`, { method: 'POST' }),
   removeProject: (project) => request(`/api/targets/${encodeURIComponent(project)}`, { method: 'DELETE' }),
-  board: () => request('/api/board'),
+  board: () => request('/api/board?view=summary'),
   serverDirectories: (directory = '') => request(`/api/targets/browse${directory ? `?path=${encodeURIComponent(directory)}` : ''}`),
   githubCommits: (source, { page = 1, limit = 10 } = {}) => request('/api/targets/github-commits', { method: 'POST', body: JSON.stringify({ source, page, limit }) }),
   githubBranches: (source, { offset = 0, limit = 10 } = {}) => request('/api/targets/github-branches', {
@@ -74,6 +74,7 @@ export const api = {
   live: () => request('/api/live'),
   agents: (project, runId) =>
     request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/agents`),
+  learningSummary: (project, runId, evidence='') => request('/api/runs/'+encodeURIComponent(project)+'/'+encodeURIComponent(runId)+'/learning-summary'+(evidence?'?evidence='+encodeURIComponent(evidence):'')),
   pipeline: (project, runId) =>
     request(`/api/runs/${encodeURIComponent(project)}/${encodeURIComponent(runId)}/pipeline`),
   visual: (project, runId) => request(`/api/visual/${encodeURIComponent(project)}/${encodeURIComponent(runId)}`),

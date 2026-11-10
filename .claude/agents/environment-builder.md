@@ -5,7 +5,7 @@ description: |
   和已部署项目），输出 env/<project>/Dockerfile、build/run/test 脚本和 env-manifest.json。
   构建失败时如实标记 `partial` 或 `blocked`，不得写成 `ready`。用于给后续 verify-agent 提供可运行环境。
 model: inherit
-tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update, mcp__stage_delivery__submit_environment
 hooks:
   PreToolUse:
     - matcher: Bash
@@ -104,3 +104,14 @@ next: 可交给 verify-agent
 首次确定系统依赖前，从基础镜像读取 /etc/os-release、dpkg --print-architecture 和现有工具版本。软件包名称必须能在该发行版的软件源元数据中找到候选版本；不要凭记忆选择固定 JDK 版本，也不要把 amd64 路径写进 arm64 镜像。JAVA_HOME 从实际安装结果定位。只有需要编译的验收才安装 JDK；仅源码检查不要求启动整个服务。若软件包无候选版本或源不可达，先记录这一前置失败，不开始重复完整构建。相同基础镜像、依赖和下载源在一个预算内失败后，不再原样重试；已有下载缓存和总构建时限继续生效。
 
 可调用只读预检命令：python3 "$MYGOLDMINE_HOME/scripts/env/preflight_toolchain.py" --image "$ENV_BUILD_BASE_IMAGE" --packages <实际需要的软件包>。该命令断网读取已有软件源索引；索引缺失时状态是 unknown，必须明确补齐元数据后再选择具体版本，不能将未知当成可安装。
+
+
+## 阶段工具交付
+
+完成实际产物后调用 `mcp__stage_delivery__submit_stage_result`，不能以打印路径或普通回复替代。检查工具结果的 success、decision 和 errors；只有 accepted 才表示交付完成。needs_revision 时参考 repair 中的格式示例、契约和重交参数，用实际证据修正文件后再次提交。不得为了通过检查删除真实候选、改变实际结论或编造附件。提交前完成文件整理；验收后不再改写已提交文件。
+
+任务身份由启动器提供，不得改项目编号、候选编号或源码版本绕过检查；确实受阻时提交本阶段规定的结构化受阻结论并说明限制。格式验收不表示漏洞确认、证据审核通过或技能生效。
+
+## 结构化交付入口（优先于旧文件提交说明）
+
+本阶段优先调用 `mcp__stage_delivery__submit_environment`，直接提交工具参数定义的业务结论、证据引用、说明与限制，不手写主交付 JSON。项目、候选与源码绑定由工具从启动任务补充。附件必须是真实存在的本次文件；工具生成正式文件并执行原有证据核验。返回 `success=false` 时按字段错误与参数模式修正后再次调用，不限制提交次数，遵守原有阶段时限；返回 `accepted` 后不得修改已验收文件。旧文件工具仅供历史任务兼容。

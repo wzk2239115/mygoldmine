@@ -4,7 +4,7 @@ description: |
   自动构建红队验收隔离环境的智能体。读取候选问题、源码和环境清单，判断攻击面，构建受害者与攻击者环境、
   设计随机标记、写 scenario.json 和负向控制，产物供 redteam-agent 与 exploit-judge 后续使用。
 model: inherit
-tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__start_stage_build, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__start_stage_build, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update, mcp__stage_delivery__submit_attack_lab
 hooks:
   PreToolUse:
     - matcher: Bash
@@ -50,7 +50,13 @@ hooks:
 
 ## 交付
 
-只写 `labs/<project>/<finding-id>/` 和必要镜像/脚本，不修改候选问题，不降低独立审核标准。完成后打印：
-`scenario=<path> report=<path> blocked=<yes|no>`。
+只写 `labs/<project>/<finding-id>/` 和必要镜像/脚本，不修改候选问题，不降低独立审核标准。完成后必须调用 `mcp__stage_delivery__submit_stage_result` 提交真实产物；打印路径不算提交。
 
 指定输出目录时，以 `lab-task.json` 的 `lab_dir` 为唯一交付目录；不要另写共享的 `labs/<project>/<finding-id>/`。若任务的 `build_only` 为 `true`，只完成场景构建、负向控制和交付检查，然后结束；红队执行和独立审核由后续节点负责，不在本节点自动启动。
+
+
+检查工具结果中的 success 和 decision：只有 success=true 且 decision=accepted 才完成交付。失败时立即读取 errors 以及 repair 中的格式与重交参数示例，使用 Write 或 Edit 修正实际文件，再调用同一工具提交；允许在本次时限内多次修正。示例含占位符，不是证据；不要删除候选、改变真实结论或编造附件来取得通过。场景可用时提交 scenario.json，确实受阻时提交 blocked.json。附加报告和必要脚本使用 artifacts 声明。
+
+## 结构化交付入口（优先于旧文件提交说明）
+
+本阶段优先调用 `mcp__stage_delivery__submit_attack_lab`，直接提交工具参数定义的业务结论、证据引用、说明与限制，不手写主交付 JSON。项目、候选与源码绑定由工具从启动任务补充。附件必须是真实存在的本次文件；工具生成正式文件并执行原有证据核验。返回 `success=false` 时按字段错误与参数模式修正后再次调用，不限制提交次数，遵守原有阶段时限；返回 `accepted` 后不得修改已验收文件。旧文件工具仅供历史任务兼容。

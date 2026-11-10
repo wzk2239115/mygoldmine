@@ -134,13 +134,21 @@ async function main() {
             total:11.5,status:'complete',updated_at:'2026-11-08T08:00:00Z',
             notes:[],verified_ids:['test-verified-id'],
             coverage_details:[{file:'src/auth.py',ranges:[[1,100]],new_lines:100,weighted_lines:150}]};
-          payload.rsiRewards = {current:row,history:[row]};
+          payload.rsiRewards = {current:row,history:[row],coverageTokens:{series:[{source_version:'test-source',incomplete:false,runs:[{run_id:'r1',tokens:100,seconds:10},{run_id:'r2',tokens:200,seconds:20}],points:[{run_id:'r1',run_tokens:100,tokens:100,lines:10,weighted_lines:15},{run_id:'r2',run_tokens:100,tokens:200,lines:20,weighted_lines:30}]}]}};
           return new Response(JSON.stringify(payload), {status:200,headers:{'Content-Type':'application/json'}});
         };
       `});
     }
     await cdp.send('Page.navigate', { url: BASE });
     await sleep(1200);
+    if (process.env.RUNTIME_PATHS_TEST_ONLY) {
+      await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"系统架构\"]').click()");
+      await sleep(150);
+      assert.ok(await cdp.evaluate("document.body.innerText.includes('.runtime/state/') && document.body.innerText.includes('.runtime/work/')"));
+      console.log('运行状态目录与验证独立工作区的架构页浏览器检查通过。');
+      return;
+    }
+
 
     assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-pipeline .agentic-node').length"), 8);
     assert.deepEqual(await cdp.evaluate("[...document.querySelectorAll('.agentic-pipeline .agentic-node > strong')].map((node) => node.innerText)"), [
@@ -152,6 +160,10 @@ async function main() {
     assert.match(await cdp.evaluate("document.querySelector('.rsi-rewards').innerText"), /新增风险加权覆盖/);
     if (process.env.RSI_REWARDS_TEST_ONLY) {
       const text = await cdp.evaluate("document.querySelector('.rsi-rewards').innerText");
+      assert.equal(await cdp.evaluate("document.querySelectorAll('.coverage-token-chart svg').length"),2);
+      assert.match(await cdp.evaluate("document.querySelector('.coverage-token-chart').innerHTML"), /Run 2/);
+      assert.ok(await cdp.evaluate("document.querySelectorAll('.coverage-run-boundary line[stroke-dasharray]').length >= 1"));
+      assert.match(await cdp.evaluate("document.querySelector('.coverage-token-chart').innerHTML"), /Cumulative stage-II tokens/);
       assert.match(text, /11.5/);
       assert.match(text, /1.5/);
       await cdp.evaluate("document.querySelector('.rsi-rewards summary').click()");
@@ -340,6 +352,7 @@ async function main() {
     await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"系统架构\"]').click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '系统架构');
+    assert.ok(await cdp.evaluate("document.body.innerText.includes('.runtime/state/') && document.body.innerText.includes('.runtime/work/')"));
     assert.match(await cdp.evaluate("document.body.innerText"), /红队执行提供队员列表/);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card').length"), 5);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-stage, .arch-component').length"), 0);

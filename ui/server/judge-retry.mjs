@@ -11,6 +11,7 @@ export function judgeCandidates(run) {
  const summary=read(path.join(root,'summary.json'));
  const base=path.resolve(latest?.workspace || run.runDir);
  return (summary?.results || []).flatMap(item=>{
+  if(item.delivery_status && item.delivery_status!=='accepted')return [];
   if(!item.run_dir || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/.test(item.id))return [];
   const source=path.resolve(item.run_dir);
   // Original execution directories may live under the repository runs directory.

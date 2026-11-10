@@ -257,8 +257,21 @@ def build_parallel(candidates, ledger, snapshot, batch_dir, args):
             save()
         return plan
 
+    def safe_execute(plan):
+        try:
+            return execute(plan)
+        except Exception as exc:
+            # A worker bookkeeping/runtime error belongs to this candidate, not
+            # the whole batch. Persist it so downstream stages can skip it.
+            with lock:
+                plan.update({"state": "completed", "status": "build_failed",
+                             "error": f"构建工作项异常：{type(exc).__name__}: {exc}"})
+                save()
+            return plan
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.build_jobs) as pool:
-        return {plan["key"]: plan for plan in pool.map(execute, plans)}
+        results = list(pool.map(safe_execute, plans))
+    return {plan["key"]: plan for plan in results}
 
 
 def main():
@@ -526,15 +539,29 @@ def main():
                 })
         summary.append(entry)
     if execution_jobs:
+        def safe_agent_job(job):
+            try:
+                run_agent_job(job)
+            except Exception as exc:
+                job["entry"].update({"status": "agent_error", "agent_returncode": 1,
+                                     "error": f"红队工作项异常：{type(exc).__name__}: {exc}"})
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.agent_jobs) as pool:
-            list(pool.map(run_agent_job, execution_jobs))
+            list(pool.map(safe_agent_job, execution_jobs))
         judge_jobs = [
             job for job in execution_jobs
             if not job["entry"].get("agent_timed_out") and job["entry"].get("agent_returncode") == 0
         ]
         if judge_jobs:
+            def safe_judge_job(job):
+                try:
+                    run_judge_job(job)
+                except Exception as exc:
+                    job["entry"].update({"status": "judge_error", "judge_returncode": 1,
+                                         "judge_stderr": f"审核工作项异常：{type(exc).__name__}: {exc}"})
+
             with concurrent.futures.ThreadPoolExecutor(max_workers=args.judge_jobs) as pool:
-                list(pool.map(run_judge_job, judge_jobs))
+                list(pool.map(safe_judge_job, judge_jobs))
     for item in summary:
         print(json.dumps(item, ensure_ascii=False))
     output = {"generated_at": datetime.now(timezone.utc).isoformat(), "model": args.model, "results": summary}

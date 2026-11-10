@@ -31,6 +31,8 @@ DEPENDENCY_FILES = {
     "Cargo.toml": "Rust",
     "Gemfile": "Ruby",
     "build.sbt": "Scala",
+    "CMakeLists.txt": "C/C++",
+    "meson.build": "C/C++",
 }
 
 # 后端 Web 框架关键词
@@ -350,7 +352,8 @@ EXT_LANGUAGE = {
     ".java": "Java", ".kt": "Kotlin", ".php": "PHP", ".rb": "Ruby",
     ".cs": ".NET", ".scala": "Scala", ".sol": "Solidity",
     ".move": "Move", ".vy": "Vyper", ".c": "C/C++", ".cc": "C/C++",
-    ".cpp": "C/C++", ".cxx": "C/C++", ".cu": "CUDA",
+    ".cpp": "C/C++", ".cxx": "C/C++", ".h": "C/C++", ".hpp": "C/C++",
+    ".cu": "CUDA", ".cuh": "CUDA",
 }
 
 
@@ -391,7 +394,16 @@ def detect_language(root: Path) -> Tuple[Optional[str], Optional[str], Optional[
                 package_manager = "bundler"
             elif dep_file == "build.sbt":
                 package_manager = "sbt"
+            elif dep_file in ("CMakeLists.txt", "meson.build"):
+                package_manager = "cmake/meson"
             break
+
+    # C/C++ 项目常同时带有少量 Python 辅助脚本；源码占比更高时以 C/C++ 为主语言
+    if (root / "CMakeLists.txt").exists():
+        fallback_language = detect_language_fallback(root)
+        if fallback_language in ("C/C++", "CUDA"):
+            language = fallback_language
+            package_manager = "cmake/meson"
 
     # 检测 .NET
     if not language:
@@ -922,11 +934,13 @@ INFRA_SKILLS = {
     "inference-engine": ("rpc-surface-scanner", "model-loading-analyzer",
                          "ipc-serialization-analyzer", "ssrf-analyzer",
                          "path-traversal-analyzer", "race-conditions-analyzer",
-                         "insecure-deserialization-analyzer", "config-trust-scanner"),
+                         "insecure-deserialization-analyzer", "config-trust-scanner",
+                         "memory-safety-analyzer"),
     "training-framework": ("code-injection-analyzer", "insecure-deserialization-analyzer",
                            "ipc-serialization-analyzer", "dependency-analyzer",
                            "race-conditions-analyzer", "config-trust-scanner",
-                           "rpc-surface-scanner", "model-loading-analyzer"),
+                           "rpc-surface-scanner", "model-loading-analyzer",
+                           "memory-safety-analyzer"),
     "model-serving": ("rpc-surface-scanner", "config-trust-scanner", "model-loading-analyzer",
                       "ipc-serialization-analyzer", "ssrf-analyzer"),
 }
@@ -947,6 +961,8 @@ ENTRY_PATTERNS = {
     "exec": ("subprocess", "os.system", "exec(", "eval(", "command::new", "shell=true"),
     "model": ("torch.load", "pickle.load", "safetensors", "from_pretrained", "trust_remote_code", "load_format"),
     "sandbox": ("seccomp", "landlock", "chroot", "bubblewrap", "sandbox", "namespace"),
+    "native": ("malloc(", "calloc(", "realloc(", "free(", "cudamalloc", "cudafree",
+               "py_decref", "ptr::read", "box::from_raw", "c.malloc", "unsafe {"),
 }
 
 ENTRY_SKILLS = {
@@ -957,6 +973,7 @@ ENTRY_SKILLS = {
     "exec": ("command-injection-analyzer", "code-injection-analyzer"),
     "model": ("model-loading-analyzer", "insecure-deserialization-analyzer"),
     "sandbox": ("sandbox-boundary-analyzer",),
+    "native": ("memory-safety-analyzer",),
 }
 
 
@@ -1381,6 +1398,55 @@ def get_main_dirs(root: Path) -> List[str]:
     return sorted(main_dirs)[:10]
 
 
+NATIVE_SOURCE_EXTENSIONS = {".c", ".cc", ".cpp", ".cxx", ".cu", ".cuh"}
+NATIVE_TEXT_MARKERS = {
+    ".rs": re.compile(r'\bunsafe\b|\bextern\s+"c"|#\[no_mangle\]'),
+    ".go": re.compile(r'import\s+"c"|\bunsafe\.'),
+    ".py": re.compile(
+        r'\bctypes\b|\bcffi\b|py_decref|py_xdecref|pyobject_|'
+        r'cudamalloc|torch\.utils\.cpp_extension'
+    ),
+    ".pyx": re.compile(
+        r'\bctypes\b|\bcffi\b|py_decref|py_xdecref|pyobject_|'
+        r'cudamalloc|torch\.utils\.cpp_extension'
+    ),
+    ".pxd": re.compile(
+        r'\bctypes\b|\bcffi\b|py_decref|py_xdecref|pyobject_|'
+        r'cudamalloc|torch\.utils\.cpp_extension'
+    ),
+}
+
+
+def detect_native_memory(root: Path, language: Optional[str]) -> Tuple[bool, List[str]]:
+    """判断项目是否需要原生内存安全分析。"""
+    evidence: List[str] = []
+    if language in ("C/C++", "CUDA"):
+        evidence.append(f"主要语言: {language}")
+        return True, evidence
+    for path in _iter_scan_files(root, max_files=2000):
+        suffix = path.suffix.lower()
+        try:
+            rel = str(path.relative_to(root))
+        except ValueError:
+            rel = str(path)
+        if suffix in NATIVE_SOURCE_EXTENSIONS:
+            evidence.append(f"原生源文件: {rel}")
+            return True, evidence
+        marker = NATIVE_TEXT_MARKERS.get(suffix)
+        if not marker:
+            continue
+        try:
+            if path.stat().st_size > 1_500_000:
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace").lower()
+        except OSError:
+            continue
+        if marker.search(text):
+            evidence.append(f"{rel} 含原生内存或跨语言边界标记")
+            return True, evidence
+    return False, evidence
+
+
 def format_output(
     root: Path,
     language: Optional[str],
@@ -1438,6 +1504,11 @@ def format_output(
     lines.append(f"主要语言: {language or '未知'}")
     lines.append(f"框架: {framework or '未知'}")
     lines.append(f"包管理器: {package_manager or '未知'}")
+    native_memory, native_evidence = detect_native_memory(root, language)
+    if native_memory:
+        lines.append("原生内存操作: 检测到")
+        for ev in native_evidence[:3]:
+            lines.append(f"  - {ev}")
     lines.append("")
 
     # 代码统计
@@ -1478,6 +1549,7 @@ def build_json_profile(root, language, framework, package_manager,
                       infra) -> Dict[str, object]:
     project_types: List[str] = []
     skills: List[str] = []
+    native_memory, native_evidence = detect_native_memory(root, language)
     if is_vtr:
         project_types = ["security-lab"]
         skills = ["vtr-scanner"]
@@ -1492,6 +1564,8 @@ def build_json_profile(root, language, framework, package_manager,
             skills.append("blockchain-goldmine-analyzer")
         project_types.extend(infra.get("project_types") or [])
         skills.extend(infra.get("recommended_skills") or [])
+        if native_memory:
+            skills.append("memory-safety-analyzer")
     return {
         "project_name": root.name,
         "project_path": str(root),
@@ -1512,6 +1586,10 @@ def build_json_profile(root, language, framework, package_manager,
             "infra": infra.get("entrypoints") or [],
         },
         "trust_boundaries": infra.get("trust_boundaries") or [],
+        "native_memory": {
+            "detected": native_memory,
+            "evidence": native_evidence,
+        },
         "recommended_skills": list(dict.fromkeys(skills)),
         "infra_evidence": infra.get("types_evidence") or {},
         "type_scores": infra.get("type_scores") or {},

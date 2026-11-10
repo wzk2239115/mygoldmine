@@ -21,7 +21,7 @@ export function releaseProjectSlot(repo,id,project,file){return update(repo,'rel
 
 
 export function recoverProjectQueue(repo) {
- let data;try{data=JSON.parse(fs.readFileSync(path.join(repo,'.state/project-admission/queue.json'),'utf8'));}catch{return;}
+ let data;try{data=JSON.parse(fs.readFileSync(path.join(repo,'.runtime/state/project-admission/queue.json'),'utf8'));}catch{return;}
  for(const ticket of data.tickets || []) {
   let token;try{const parts=fs.readFileSync('/proc/'+ticket.pid+'/stat','utf8').split(') ')[1].split(' ');token=parts[0]==='Z'?null:parts[19];}catch{}
   if(token && token===ticket.token)continue;

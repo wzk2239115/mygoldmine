@@ -1,6 +1,7 @@
 # Bind latest stage results to the exact audit occurrence.
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
 
@@ -45,6 +46,42 @@ def batch(run, project, node):
                        "attemptId": job.get("id")}
 
 
+
+def upstream_checker(workspace, contexts, name):
+    """Cache only within this batch projection; no evidence cache survives a refresh."""
+    inputs = read(workspace / "workflow-inputs.json") if name in {"red", "judge"} else {}
+    indexed = {}
+    for item in inputs.get("artifacts") or []:
+        if isinstance(item, dict):
+            indexed.setdefault(os.path.abspath(item.get("file") or ""), item)
+    checked = {}
+
+    def check(upstream):
+        if not inputs:
+            return
+        if upstream not in checked:
+            try:
+                source, relative = contexts[upstream]
+                if source is None:
+                    raise ValueError("最新上游阶段未完成，旧结果不用于当前候选")
+                file = source / relative
+                target = file.resolve()
+                entry = indexed.get(os.path.abspath(file))
+                if entry is None:
+                    # Preserve legacy path-alias matching without repeating the scan per candidate.
+                    entry = next((item for item in indexed.values()
+                                  if Path(item.get("file") or "").resolve() == target), None)
+                digest = hashlib.sha256(file.read_bytes()).hexdigest()
+                if not entry or entry.get("sha256") != digest:
+                    raise ValueError("上游阶段批次已变化，旧结果不用于当前候选")
+                checked[upstream] = None
+            except (OSError, ValueError) as exc:
+                checked[upstream] = str(exc)
+        if checked[upstream] is not None:
+            raise ValueError(checked[upstream])
+    return check
+
+
 def build_stage_results(latest, root, runs):
     root, runs = Path(root), Path(runs)
     sys.path.insert(0, str(root / "scripts/redteam"))
@@ -84,6 +121,7 @@ def build_stage_results(latest, root, runs):
             except ValueError:
                 continue
             rows = summary.get("findings" if name == "blue" else "results") or []
+            check_upstream = upstream_checker(workspace, contexts, name)
             seen = set()
             for row in rows:
                 identifier = str(row.get("finding_id") or row.get("id") or "").upper()
@@ -100,6 +138,8 @@ def build_stage_results(latest, root, runs):
                           "attemptId": default.get("attemptId"),
                           "artifact": summary_file.relative_to(root).as_posix()}
                 try:
+                    if name == "judge" and row.get("delivery_status") == "missing":
+                        raise ValueError(row.get("delivery_error") or "缺少有效审核交付")
                     if name == "blue" and result["status"] == "confirmed":
                         document = inside(row.get("report_path") or "", workspace)
                         report = read(document)
@@ -124,7 +164,9 @@ def build_stage_results(latest, root, runs):
                         result.update(provenanceVerified=True, evidenceHash=proof["flag_sha256"],
                                       artifact=document.relative_to(root).as_posix())
                     elif name == "judge":
-                        document = inside(Path(row.get("run_dir") or "") / "result.json", workspace)
+                        folder = Path(row.get("run_dir") or "")
+                        reviewed = folder / "reviewed-result.json"
+                        document = inside(reviewed if reviewed.is_file() else folder / "result.json", workspace)
                         data = read(document)
                         finding = read(document.parent / "finding.json")
                         if (data.get("project") != project
@@ -146,22 +188,10 @@ def build_stage_results(latest, root, runs):
                                     or red.get("evidenceHash") != proof["flag_sha256"]):
                                 raise ValueError("独立审核与当前红队批次的证据不一致")
                             result["provenanceVerified"] = True
-                    inputs = read(workspace / "workflow-inputs.json")
                     upstreams = ["blue"] if name == "red" else (
                         ["blue", "red"] if name == "judge" else [])
                     for upstream in upstreams:
-                        source, source_relative = contexts[upstream]
-                        if not inputs:
-                            continue
-                        if source is None:
-                            raise ValueError("最新上游阶段未完成，旧结果不用于当前候选")
-                        source_file = source / source_relative
-                        entry = next((item for item in inputs.get("artifacts") or []
-                                      if Path(item.get("file") or "").resolve()
-                                      == source_file.resolve()), None)
-                        actual_hash = hashlib.sha256(source_file.read_bytes()).hexdigest()
-                        if not entry or entry.get("sha256") != actual_hash:
-                            raise ValueError("上游阶段批次已变化，旧结果不用于当前候选")
+                        check_upstream(upstream)
                 except (OSError, ValueError, ContractError) as exc:
                     result.update(status="evidence_invalid", reason=str(exc),
                                   provenanceVerified=False)

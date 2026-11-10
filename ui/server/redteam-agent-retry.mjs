@@ -154,7 +154,14 @@ function statusFor(code,result) {
 
 export function executionSummaryStatus(values,readyCount) {
   const executed=values.filter(item=>['flag_captured','not_captured'].includes(item.status));
-  const errors=values.filter(item=>!['flag_captured','not_captured','blocked','blocked_harness_dependency'].includes(item.status));
+  // A candidate-level failure is durable evidence for that candidate, not a
+  // reason to discard successful candidates or stop judge/learner for the run.
+  // The workflow itself still fails on worker/process errors before aggregation.
+  const terminalStatuses=new Set([
+    'flag_captured','not_captured','blocked','blocked_harness_dependency',
+    'lab_unhealthy','blocked_scenario_invalid','model_timeout','agent_timeout','agent_error'
+  ]);
+  const errors=values.filter(item=>!terminalStatuses.has(item.status));
   if(errors.length)return 'failed';
   if(!readyCount || !executed.length)return 'blocked';
   return values.every(item=>item.captured) ? 'completed' : 'degraded';

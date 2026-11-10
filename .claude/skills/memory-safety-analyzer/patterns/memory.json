@@ -1,0 +1,177 @@
+{
+  "rules": [
+    {
+      "id": "MEM-NPD-ALLOC",
+      "kind": "npd",
+      "severity": "medium",
+      "confidence": "medium",
+      "languages": [
+        "c/c++",
+        "cuda"
+      ],
+      "pattern": "\\b([A-Za-z_]\\w*)\\s*=\\s*(?:malloc|calloc|realloc|strdup|strndup|fopen|freopen|dlopen|opendir)\\s*\\(",
+      "require_no_null_check": true,
+      "message": "分配或打开操作的返回值可能为空，后续解引用前需要确认检查",
+      "why": "分配失败、文件不存在或资源耗尽时返回空值；未检查就解引用会触发空指针解引用",
+      "cwe": "CWE-476"
+    },
+    {
+      "id": "MEM-NPD-LOOKUP",
+      "kind": "npd",
+      "severity": "medium",
+      "confidence": "low",
+      "languages": [
+        "c/c++"
+      ],
+      "pattern": "\\b([A-Za-z_]\\w*)\\s*=\\s*(?:getenv|strchr|strrchr|strstr|bsearch|dlsym)\\s*\\(",
+      "require_no_null_check": true,
+      "message": "查找类函数的返回值可能为空，后续解引用前需要确认检查",
+      "why": "查找失败时返回空值；直接解引用或传给字符串函数可能触发空指针解引用",
+      "cwe": "CWE-476"
+    },
+    {
+      "id": "MEM-NPD-REALLOC-SELF",
+      "kind": "npd",
+      "severity": "high",
+      "confidence": "high",
+      "languages": [
+        "c/c++"
+      ],
+      "pattern": "\\b([A-Za-z_]\\w*)\\s*=\\s*realloc\\s*\\(\\s*\\1\\s*,",
+      "message": "realloc 结果直接覆盖原指针，失败时丢失原指针并继续使用空值",
+      "why": "realloc 失败返回空值且不释放原内存；直接覆盖会同时造成内存泄漏和空指针解引用",
+      "cwe": "CWE-476"
+    },
+    {
+      "id": "MEM-RELEASE-FREE",
+      "kind": "release",
+      "severity": "high",
+      "confidence": "medium",
+      "languages": [
+        "c/c++",
+        "cuda"
+      ],
+      "pattern": "\\b(?:free|cfree)\\s*\\(\\s*([A-Za-z_]\\w*)\\s*\\)",
+      "message": "释放后继续使用或重复释放的候选位置",
+      "why": "同一对象释放后仍被读取、写入或再次释放，可能导致内存损坏或拒绝服务",
+      "cwe": "CWE-416"
+    },
+    {
+      "id": "MEM-RELEASE-DELETE",
+      "kind": "release",
+      "severity": "high",
+      "confidence": "medium",
+      "languages": [
+        "c/c++"
+      ],
+      "pattern": "\\bdelete(?:\\s*\\[\\s*\\])?\\s+([A-Za-z_]\\w*)\\s*;",
+      "message": "删除后继续使用或重复释放的候选位置",
+      "why": "同一对象删除后仍被访问或再次删除，可能导致内存损坏或拒绝服务",
+      "cwe": "CWE-416"
+    },
+    {
+      "id": "MEM-RELEASE-FCLOSE",
+      "kind": "release",
+      "severity": "medium",
+      "confidence": "medium",
+      "languages": [
+        "c/c++"
+      ],
+      "pattern": "\\bfclose\\s*\\(\\s*([A-Za-z_]\\w*)\\s*\\)",
+      "message": "关闭文件后继续使用的候选位置",
+      "why": "文件流关闭后继续读写会触发释放后使用或未定义行为",
+      "cwe": "CWE-416"
+    },
+    {
+      "id": "MEM-RELEASE-CLOSE",
+      "kind": "release",
+      "severity": "medium",
+      "confidence": "medium",
+      "languages": [
+        "c/c++"
+      ],
+      "pattern": "\\bclose\\s*\\(\\s*([A-Za-z_]\\w*)\\s*\\)",
+      "message": "关闭描述符后继续使用的候选位置",
+      "why": "描述符关闭后继续读写会触发释放后使用或错误操作其他对象",
+      "cwe": "CWE-416"
+    },
+    {
+      "id": "MEM-RELEASE-CUDA-FREE",
+      "kind": "release",
+      "severity": "high",
+      "confidence": "medium",
+      "languages": [
+        "cuda"
+      ],
+      "pattern": "\\bcudaFree\\s*\\(\\s*([A-Za-z_]\\w*)\\s*\\)",
+      "message": "释放设备内存后继续使用或异步操作未完成的候选位置",
+      "why": "内核或异步传输仍在使用设备内存时释放，会导致释放后使用",
+      "cwe": "CWE-416"
+    },
+    {
+      "id": "MEM-RELEASE-PY-DECREF",
+      "kind": "release",
+      "severity": "high",
+      "confidence": "medium",
+      "languages": [
+        "python"
+      ],
+      "pattern": "\\b(?:Py_DECREF|Py_XDECREF)\\s*\\(\\s*([A-Za-z_]\\w*)\\s*\\)",
+      "message": "减少引用计数后继续使用对象的候选位置",
+      "why": "引用计数减到零后对象被释放，继续访问该对象会触发释放后使用",
+      "cwe": "CWE-416"
+    },
+    {
+      "id": "MEM-RELEASE-GO-CFREE",
+      "kind": "release",
+      "severity": "medium",
+      "confidence": "medium",
+      "languages": [
+        "go"
+      ],
+      "pattern": "\\bC\\.free\\s*\\(\\s*([A-Za-z_]\\w*)\\s*\\)",
+      "message": "释放 C 内存后继续使用或重复释放的候选位置",
+      "why": "cgo 分配的内存释放后仍被 Go 代码或 C 调用访问，会导致释放后使用",
+      "cwe": "CWE-416"
+    },
+    {
+      "id": "MEM-UAF-RUST-RAW",
+      "kind": "uaf",
+      "severity": "high",
+      "confidence": "medium",
+      "languages": [
+        "rust"
+      ],
+      "pattern": "\\b(ptr::read|ptr::write|drop_in_place|Box::from_raw|Vec::from_raw_parts|CString::from_raw)\\s*\\(",
+      "message": "unsafe 原始指针或所有权重建操作需要核对对象是否仍有效",
+      "why": "这些操作绕过编译器生命周期检查；对象提前释放或重复重建会导致释放后使用",
+      "cwe": "CWE-416"
+    },
+    {
+      "id": "MEM-MLK-RUST-FORGET",
+      "kind": "mlk",
+      "severity": "low",
+      "confidence": "medium",
+      "languages": [
+        "rust"
+      ],
+      "pattern": "\\b(mem::forget|Box::leak|Vec::leak)\\s*\\(",
+      "message": "显式泄漏操作需要确认是否有意以及是否有上限",
+      "why": "显式放弃所有权后内存不会自动回收；外部请求可重复触发时会导致持续增长",
+      "cwe": "CWE-401"
+    },
+    {
+      "id": "MEM-MLK-PY-NEW",
+      "kind": "mlk",
+      "severity": "medium",
+      "confidence": "low",
+      "languages": [
+        "python"
+      ],
+      "pattern": "\\b(PyObject_New|PyObject_Call|PyObject_Create|PyList_New|PyDict_New|PyBytes_FromStringAndSize)\\s*\\(",
+      "message": "Python C API 创建新引用后需要核对所有错误路径是否释放",
+      "why": "新建引用在参数校验或后续调用失败时提前返回，容易造成引用计数泄漏",
+      "cwe": "CWE-401"
+    }
+  ]
+}

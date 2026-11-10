@@ -1,3 +1,6 @@
+import {learningSummary} from './learning-summary.mjs';
+import {sendJsonResponse,summarizeBoard} from './board-transport.mjs';
+import {projectActivity} from './project-activity.mjs';
 import {spawn as spawnTokenCollector} from 'node:child_process';
 import {recoverProjectQueue} from './project-admission.mjs';
 import {reportBundle,markdownBundle} from './report-export.mjs';
@@ -799,6 +802,7 @@ function buildBoard() {
     ...Object.keys(useLedger ? ledger.latest_by_project || {} : {})
   ]);
   const projects = [];
+  const activityTickets=readJson(path.join(REPO_ROOT,'.runtime/state/project-admission/queue.json'))?.tickets || [];
   const findings = [];
 
   for (const project of projectIds) {
@@ -819,6 +823,7 @@ function buildBoard() {
     const projectRuns = runs.filter((item) => item.project === project);
     const sourceRun = reportRun || latest;
     const activeRun = liveRun || latest;
+    const activity=projectActivity(project,Boolean(liveRun),activityTickets,readJson);
 
     const info = projectInfo(project);
     projects.push({
@@ -833,7 +838,8 @@ function buildBoard() {
       latestRunId: activeRun?.runId || sourceRun?.runId || '',
       latestReportRunId: reportRun?.runId || '',
       liveRunId: liveRun?.runId || '',
-      isLive: Boolean(liveRun),
+      isLive: ['running','queued'].includes(activity.status),
+      activity,
       hasReport: Boolean(reportRun),
       runDir: sourceRun?.runDir || '',
       reportPath: reportRun?.reportPath || '',
@@ -1153,12 +1159,7 @@ function proxyCcui(req, res, targetPath) {
 }
 
 function sendJson(res, statusCode, payload) {
-  const body = JSON.stringify(payload);
-  res.writeHead(statusCode, {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store'
-  });
-  res.end(body);
+  sendJsonResponse(res,statusCode,payload);
 }
 
 function sendError(res, statusCode, message) {
@@ -1311,7 +1312,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if(req.method==='GET' && pathname==='/api/token-usage') {
-      const file=path.join(REPO_ROOT,'.state/token-usage/summary.json');
+      const file=path.join(REPO_ROOT,'.runtime/state/token-usage/summary.json');
       const value=fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):{status:'collecting',groups:[]};
       const project=url.searchParams.get('project'),run=url.searchParams.get('run');
       const groups=(value.groups || []).filter(g=>(!project || g.project===project)&&(!run || g.run_id===run));
@@ -1332,7 +1333,8 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res,200,{items:verifiedReports(REPO_ROOT,buildBoard().findings)});
     }
     if (req.method === 'GET' && pathname === '/api/board') {
-      sendJson(res, 200, buildBoard());
+      const board=buildBoard();
+      sendJson(res, 200, url.searchParams.get('view')==='summary'?summarizeBoard(board):board);
       return;
     }
 
@@ -1467,6 +1469,13 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    const learningMatch=pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/learning-summary$/);
+    if(req.method==='GET' && learningMatch){
+      const run=findRun(learningMatch[1],learningMatch[2],false);
+      if(!run)return sendError(res,404,'运行不存在');
+      const data=learningSummary(REPO_ROOT,run,url.searchParams.get('evidence'));
+      return data?sendJson(res,200,data):sendError(res,404,'本轮证据不存在');
+    }
     const pipelineMatch = pathname.match(/^\/api\/runs\/([^/]+)\/([^/]+)\/pipeline$/);
     if (req.method === 'GET' && pipelineMatch) {
       const run = findRun(pipelineMatch[1], pipelineMatch[2], false);

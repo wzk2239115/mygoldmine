@@ -69,6 +69,14 @@ python3 ./quick-scan.py .
 - 存在 `.mcp.json`、`.codex/config.toml`、`.claude/settings.json`、`AGENTS.md`、`CLAUDE.md`，或出现 `mcpServers`、`approval_policy`、`allow_prefix`、`PrefixRule`、`core.hooksPath`、`fsmonitor` → 追加 `agent-config-analyzer`。
 - 条件任务只追加，不替换基础任务；判定依据写入项目画像的「分类依据」或附加章节，并保持 `-scanner`/`-analyzer` 命名规则。
 
+**原生内存安全条件任务（在基础列表之外按特征追加，适用于所有项目）: **
+- 主要语言为 C/C++ 或 CUDA，或项目包含 `.c`、`.cc`、`.cpp`、`.cxx`、`.cu`、`.cuh` 源文件 → 追加 `memory-safety-analyzer`。
+- Rust 代码出现 `unsafe`、`extern "C"` 或 `#[no_mangle]` → 追加 `memory-safety-analyzer`。
+- Go 代码出现 `import "C"` 或 `unsafe.` → 追加 `memory-safety-analyzer`。
+- Python 代码出现 `ctypes`、`cffi`、`Py_DECREF`、`Py_XDECREF`、`PyObject_`、`torch.utils.cpp_extension` 或 `cudaMalloc` → 追加 `memory-safety-analyzer`。
+- 条件任务只追加，不替换基础任务；即使项目没有落入后端 HTTP、智能合约或靶场分类，只要检测到原生内存操作，也应返回 `memory-safety-analyzer` 任务。
+- 判定依据写入项目画像的「原生内存操作」章节；`project-profile.json` 的 `native_memory` 字段记录检测结果和证据。
+
 **总结输出格式（JSON格式）：**
 ```json
 {
@@ -89,6 +97,7 @@ python3 ./quick-scan.py .
 - `{TASK_ID}` 为当前任务 ID
 - web-auth-analyzer 会根据分析结果自动触发下游任务（unauth-route-scanner / normal-route-scanner）
 - 命中 AI 基础设施特征时，在上述 JSON 的 `tasks` 数组中继续追加 `model-loading-analyzer` / `agent-config-analyzer` 任务，输入产物路径相同
+- 命中原生内存安全特征时，继续追加 `memory-safety-analyzer` 任务，输入产物路径相同；该任务只做静态候选和生命周期核对，不把缺少一次释放直接写成高危漏洞
 
 2. 前端 WEB 应用
 
@@ -180,6 +189,10 @@ python3 ./quick-scan.py .
 ## 入口点
 - **主入口文件**：{entry_file}
 - **路由入口**：{router_files}
+
+## 原生内存操作
+- **检测结果**：{native_memory}
+- **依据**：{native_memory_evidence}
 
 ## 分类依据
 {classification_evidence}

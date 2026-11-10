@@ -1,3 +1,4 @@
+import LearningOverview from './LearningOverview.jsx';
 import CandidateFlow from './CandidateFlow.jsx';
 import NodeArtifacts from './NodeArtifacts.jsx';
 import { createPortal } from 'react-dom';
@@ -134,10 +135,10 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
             <button type="button" className="button" disabled={retrying || Boolean(node.retryReason) || node.retryReason === undefined} title={node.retryReason || '复用已有输入，仅重新执行当前节点'} onClick={restartNode}>
               {retrying ? '正在提交…' : node.retryReason === '此节点正在重跑' ? '正在重跑…' : node.retryReason ? '暂时无法重跑' : '重新运行此节点'}
             </button>
-            <span>{node.retryReason || (['verify','redteam-lab','redteam-agent','judge'].includes(node.id)?'自动排空当前候选；按前置条件衔接后续节点与08学习，保留历史结果。':'保留历史结果，仅重跑此节点；后续节点不会自动执行')}</span>
+            <span>{node.retryReason || (['orchestrator','verify','redteam-lab','redteam-agent','judge'].includes(node.id)?(node.id==='orchestrator'?'优先补正现有产物并通过工具重交，保留历史快照；通过后衔接后续阶段及原循环。':'自动排空当前候选；按前置条件衔接后续节点与08学习，保留历史结果。'):'保留历史结果，仅重跑此节点；后续节点不会自动执行')}</span>
           </div>}
           {node.recoveryNotice ? <p className="agentic-trace-subtitle">{node.recoveryNotice}</p> : null}
-          {node.learning ? <details className="agentic-learning-info"><summary>下次运行技能</summary><p className="agentic-trace-subtitle">下次运行技能：通用 {node.learning.general ? node.learning.general.slice(0, 8) : '基础规则'} · 仓库专属 {node.learning.project ? node.learning.project.slice(0, 8) : '暂无已验证版本'} · {node.learning.candidates} 个候选待评估</p></details> : null}
+          {node.learning && node.id!=='learner' ? <details className="agentic-learning-info"><summary>下次运行技能</summary><p className="agentic-trace-subtitle">下次运行技能：通用 {node.learning.general ? node.learning.general.slice(0, 8) : '基础规则'} · 仓库专属 {node.learning.project ? node.learning.project.slice(0, 8) : '暂无已验证版本'} · {node.learning.candidates} 个候选待评估</p></details> : null}
           {retryError ? <p className="inline-error" role="alert">{retryError}</p> : null}
           {traces.some((trace) => trace.label.includes('恢复汇总')) ? <p className="agentic-trace-subtitle">本次为已有结果的恢复汇总，未重新扫描；可切换查看原始完整审计。</p> : null}
           {traces.length > 1 ? (teamNode ? (
@@ -162,13 +163,13 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
           </> : null}
         </header>
         {!node.workflowOnly ? <nav className="node-detail-actions" aria-label="节点内容">
-          <button type="button" className="traj-button" aria-pressed={panel==='overview'} onClick={backToMembers}>节点概览</button>
+          <button type="button" className="traj-button" aria-pressed={panel==='overview'} onClick={backToMembers}>{node.id==='learner'?'本轮学习':'节点概览'}</button>
           <button type="button" className="traj-button" aria-pressed={panel==='trace'} disabled={!traces.length} onClick={()=>selectHistory(node.repair?.traceId || traces[0]?.id)}>查看执行轨迹</button>
           <button type="button" className="traj-button" aria-pressed={panel==='artifacts'} onClick={()=>{setArtifactId('');setPanel('artifacts');setSelection(initialTaskSelection(node));}}>查看产物</button>
         </nav> : null}
         <CandidateFlow flow={node.flow} />
         {node.id === 'orchestrator' ? <JevTriage triage={node.triage} /> : null}
-        {panel!=='artifacts' && (selectedTask || selected) ? <div className="agentic-current-task" data-team={node.id === 'verify' ? 'blue' : 'red'} aria-live="polite">
+        {panel==='trace' && (selectedTask || selected) ? <div className="agentic-current-task" data-team={node.id === 'verify' ? 'blue' : 'red'} aria-live="polite">
           <div><strong>{selectedTask ? `当前候选：${selectedTask.id}` : '当前执行记录'}</strong><span className={`task-state state-${selectedTask?.state || 'history'}`}>{selectedTask ? taskStateLabel(selectedTask) : '日志与历史记录'}</span></div>
           <p title={selectedTask?.title || selected?.label}>{selectedTask?.title || selected?.label}</p>
         </div> : null}
@@ -181,7 +182,7 @@ export default function AgenticTraceDrawer({ project, runId, node: initialNode, 
           {node.id === 'redteam-lab' ? <LabTasks key={node.construction?.attemptId || 'original'} project={project} runId={runId} construction={node.construction} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
           {node.id === 'verify' ? <VerifyTasks key={node.verification?.attemptId || 'original'} project={project} runId={runId} verification={node.verification} selectedId={selectedTask?.id} onSelect={selectTask} /> : null}
             {!(candidateTasks(node)?.tasks || []).length ? <p className="member-roster-hint">当前批次尚未生成队员任务，请等待任务启动或查看启动日志。</p> : null}
-          </> : panel==='overview' ? <div className="agentic-trace-empty"><MessageSquare size={22} aria-hidden="true"/><strong>{node.title}</strong><p>{node.detail}</p><p>点击“查看执行轨迹”加载会话，或点击“查看产物”阅读报告与文件。</p></div> : ['claude', 'execution'].includes(selected?.kind) && !showRaw ? (
+          </> : panel==='overview' && node.id==='learner' ? <LearningOverview project={project} runId={runId} onTrace={()=>selectHistory(traces[0]?.id)} /> : panel==='overview' ? <div className="agentic-trace-empty"><MessageSquare size={22} aria-hidden="true"/><strong>{node.title}</strong><p>{node.detail}</p><p>点击“查看执行轨迹”加载会话，或点击“查看产物”阅读报告与文件。</p></div> : ['claude', 'execution'].includes(selected?.kind) && !showRaw ? (
             <ClaudeSessionEmbed
               key={selected.id}
               project={project}

@@ -219,6 +219,9 @@ def build_source_state(latest: dict, manual: set, ledger=None):
 
 
 def verified_redteam_provenance(result_path: Path, result: dict):
+    reviewed = result_path.parent / "reviewed-result.json"
+    if reviewed.is_file():
+        result = json.loads(reviewed.read_text())
     redteam_dir = str(ROOT / "scripts" / "redteam")
     if redteam_dir not in sys.path:
         sys.path.insert(0, redteam_dir)

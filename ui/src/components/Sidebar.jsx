@@ -1,6 +1,7 @@
+import {projectIsBusy} from '../project-activity.js';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Filter, RotateCcw, Target, Trash2, X } from 'lucide-react';
+import { Check, Clock3, Filter, LoaderCircle, RotateCcw, Target, Trash2, X } from 'lucide-react';
 import { SEVERITIES, VERDICTS } from '../constants.js';
 import { cx } from '../utils.js';
 import ProjectMark from './ProjectMark.jsx';
@@ -139,9 +140,11 @@ export default function Sidebar({ board, filters, setFilters, facets, onImported
             <span className="project-copy">
               <strong>{project.name}</strong>
               <span>
-                <i className={cx('run-dot', `state-${project.state}`)} />
-                {project.isLive ? <em className="live-project-badge">实时</em> : null}
-                {project.isLive && !project.hasReport ? '审计中…' : `${project.findingsCount} 条候选问题`}
+                {!projectIsBusy(project)?<i className={cx('run-dot', `state-${project.state}`)} />:null}
+                {projectIsBusy(project) ? <span className={cx('project-activity-icon',project.activity?.status==='queued'?'is-queued':'is-running')} role="img" aria-label={project.activity?.status==='queued'?'排队中':'运行中'} title={project.activity?.status==='queued'?'排队中'+(project.activity.position?' · 第 '+project.activity.position+' 位':''):'审计运行中'}>
+                  {project.activity?.status==='queued'?<Clock3 size={14} aria-hidden="true"/>:<LoaderCircle size={14} aria-hidden="true"/>}
+                </span> : null}
+                {projectIsBusy(project) && !project.hasReport ? (project.activity?.status==='queued'?'等待运行名额':'审计中…') : `${project.findingsCount} 条候选问题`}
               </span>
               <small className="project-branch" title={project.commit || ''}>
                 {project.branch || '分支未知'}
@@ -150,8 +153,8 @@ export default function Sidebar({ board, filters, setFilters, facets, onImported
             </span>
           </button>
           <div className="project-row-actions">
-          <button type="button" className="project-restart" aria-label={`重新审计 ${project.name}`} title="使用当前源码重新运行完整审计，保留历史记录" disabled={project.isLive || Boolean(restartBusy)} onClick={() => restart(project)}><RotateCcw size={13} aria-hidden="true" />{restartBusy === project.id ? '正在启动…' : project.isLive ? '审计进行中' : '重新审计'}</button>
-          <button type="button" className="project-remove icon-button is-small" title={project.isLive ? '审计进行中，停止后可删除' : `删除项目 ${project.name}`} aria-label={`删除项目 ${project.name}`} disabled={project.isLive || Boolean(restartBusy)} onClick={() => { setRemoveError(''); setRemoving(project); }}><Trash2 size={14} aria-hidden="true" /></button>
+          <button type="button" className="project-restart" aria-label={`重新审计 ${project.name}`} title="使用当前源码重新运行完整审计，保留历史记录" disabled={projectIsBusy(project) || Boolean(restartBusy)} onClick={() => restart(project)}><RotateCcw size={13} aria-hidden="true" />{restartBusy === project.id ? '正在启动…' : projectIsBusy(project) ? (project.activity?.status==='queued'?'排队中':'审计进行中') : '重新审计'}</button>
+          <button type="button" className="project-remove icon-button is-small" title={projectIsBusy(project) ? '审计进行中，停止后可删除' : `删除项目 ${project.name}`} aria-label={`删除项目 ${project.name}`} disabled={projectIsBusy(project) || Boolean(restartBusy)} onClick={() => { setRemoveError(''); setRemoving(project); }}><Trash2 size={14} aria-hidden="true" /></button>
           </div>
           {restartError?.project === project.id ? <p className="project-import-error" role="alert">{restartError.message}</p> : null}
           </div>

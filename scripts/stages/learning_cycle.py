@@ -10,8 +10,9 @@ import uuid
 from pathlib import Path
 from skill_bank import SkillBank, ROOT, now, read, write, identifier
 from learn_round import learn
+from audit_skill_updates import apply_updates
 
-def cycle(source,project,rounds=8,patience=2,wall=108000,repo=ROOT,poll=5,cycle_id=None,claim_token=None,continuous=False,cooldown=300):
+def cycle(source,project,rounds=8,patience=2,wall=108000,repo=ROOT,poll=5,cycle_id=None,claim_token=None,continuous=False,cooldown=300,resume=False):
     repo=Path(repo);bank=SkillBank(repo);identifier(project)
     source=Path(source).resolve()
     if source.name!=project:raise ValueError('项目名必须与现有运行入口的源码目录名一致')
@@ -27,9 +28,22 @@ def cycle(source,project,rounds=8,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
     (lock/'pid').write_text(str(os.getpid()))
     root=repo/'rsi/stage-skills/cycles'/(cycle_id or uuid.uuid4().hex);root.mkdir(parents=True,exist_ok=True)
     write(lock/'claim.json',{'id':root.name})
-    state={'id':root.name,'project':project,'status':'running','started_at':now(),'rounds':[],'max_rounds':rounds,'patience':patience,'continuous':continuous,'cooldown_seconds':cooldown};write(root/'status.json',state)
+    if resume:
+        state=read(root/'status.json',{})
+        if state.get('project')!=project or state.get('id')!=root.name:
+            raise ValueError('恢复循环身份不匹配')
+        rounds=state['max_rounds'];continuous=state.get('continuous',False)
+        cooldown=state.get('cooldown_seconds',cooldown);patience=state.get('patience',patience)
+        indices=[row['index'] for row in state.get('rounds',[])]
+        if indices!=list(range(1,len(indices)+1)):
+            raise ValueError('恢复循环轮次不连续')
+        state.update(status='running',resumed_at=now())
+        state.pop('error',None);state.pop('ended_at',None)
+    else:
+        state={'id':root.name,'project':project,'status':'running','started_at':now(),'rounds':[],'max_rounds':rounds,'patience':patience,'continuous':continuous,'cooldown_seconds':cooldown}
+    write(root/'status.json',state)
     try:
-        for index in range(rounds):
+        for index in range(len(state['rounds']),rounds):
             if (root/'stop').exists():state['status']='stopped';break
             before_round=bank.active()
             state['current_round']=index+1;write(root/'status.json',state)
@@ -88,7 +102,7 @@ def cycle(source,project,rounds=8,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
                 latest=read(attempts[-1],{}) if attempts else {}
                 advancement=read(Path(latest.get('workspace',str(run)))/'rsi/stage-learning-evaluation.json') or {'results':[]}
             else:
-                advancement=read(effective/'rsi/stage-learning-evaluation.json') or bank.advance(project)
+                advancement=read(effective/'rsi/stage-learning-evaluation.json') or apply_updates(bank,effective,project)
             evaluations=advancement['results']
             published=[cid for key,cid in bank.active().items() if before_round.get(key)!=cid]
             state['rounds'].append({'index':index+1,'run_dir':str(run),'feedback_run_dir':str(effective),'state':status.get('state'),'evaluations':evaluations,'published':published,'exploration':advancement.get('exploration')})
@@ -110,7 +124,7 @@ def cycle(source,project,rounds=8,patience=2,wall=108000,repo=ROOT,poll=5,cycle_
     return state
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--source',required=True);p.add_argument('--project',required=True);p.add_argument('--rounds',type=int,default=8);p.add_argument('--patience',type=int,default=2);p.add_argument('--cycle-id');p.add_argument('--claim-token');p.add_argument('--continuous',action='store_true');p.add_argument('--cooldown',type=int,default=300);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--resume',action='store_true');p.add_argument('--source',required=True);p.add_argument('--project',required=True);p.add_argument('--rounds',type=int,default=8);p.add_argument('--patience',type=int,default=2);p.add_argument('--cycle-id');p.add_argument('--claim-token');p.add_argument('--continuous',action='store_true');p.add_argument('--cooldown',type=int,default=300);a=p.parse_args()
     if not 1<=a.rounds<=100 or a.patience<1 or a.cooldown<1:p.error('轮数须为 1—100，停止阈值须为正数')
-    print(json.dumps(cycle(a.source,a.project,a.rounds,a.patience,cycle_id=a.cycle_id,claim_token=a.claim_token,continuous=a.continuous,cooldown=a.cooldown),ensure_ascii=False,indent=2))
+    print(json.dumps(cycle(a.source,a.project,a.rounds,a.patience,cycle_id=a.cycle_id,claim_token=a.claim_token,continuous=a.continuous,cooldown=a.cooldown,resume=a.resume),ensure_ascii=False,indent=2))
 if __name__=='__main__':main()

@@ -49,6 +49,10 @@ def _fake_report(tmp_path: Path) -> Path:
 def _fake_claude(tmp_path: Path, *, write_harness: bool = True) -> Path:
     if write_harness:
         body = """
+test "$PWD" = "$VERIFY_WORK_DIR"
+test "$TMPDIR" = "$VERIFY_WORK_DIR/tmp"
+test -f .claude/agents/verify-agent.md
+test "$PWD" != "$PHASE4_REPO_ROOT"
 sid="$PHASE4_SAFE_ID"
 hdir="$PHASE4_HARNESS_DIR"
 mkdir -p "$hdir"

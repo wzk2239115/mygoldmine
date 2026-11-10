@@ -4,7 +4,7 @@ import { cx, truncate } from '../utils.js';
 
 export default function FindingCard({ finding, onOpen, onDragStart, onDragEnd }) {
   const cwe = finding.cwe?.slice(0, 2).join(' · ');
-  const evidenceCount = finding.evidence?.length || 0;
+  const evidenceCount = finding.evidenceCount ?? finding.evidence?.length ?? 0;
 
   return (
     <article

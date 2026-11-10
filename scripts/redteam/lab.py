@@ -107,6 +107,8 @@ class Lab:
                 ["docker", *args],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=timeout,
             )
         except subprocess.TimeoutExpired as exc:
@@ -176,7 +178,9 @@ class Lab:
         )
         try:
             if self.use_network:
-                self.docker(["network", "create", "--internal", self.network])
+                from network_pool import create_network
+                subnet = create_network(self.docker, self.network, self.project, self.run_id)
+                self.log("network_allocated", network=self.network, subnet=subnet)
             self.docker(self.container_args("attacker"))
             if self.use_network:
                 self.docker(self.container_args("victim"))
@@ -192,7 +196,21 @@ class Lab:
     def wait_ready(self, attempts=None):
         last = ""
         attempts = attempts or self.health_attempts
-        command = f"curl -fsS --max-time {self.health_timeout} {shlex.quote(self.health_url)}"
+        url = shlex.quote(self.health_url)
+        timeout = self.health_timeout
+        command = (
+            "if command -v curl >/dev/null 2>&1; then "
+            f"curl -fsS --max-time {timeout} {url}; "
+            "elif command -v wget >/dev/null 2>&1; then "
+            f"wget -q -T {timeout} -O - {url}; "
+            "elif command -v python3 >/dev/null 2>&1; then "
+            f"python3 -c 'import sys,urllib.request; urllib.request.urlopen(sys.argv[1], timeout={timeout}).read(1)' {url}; "
+            "elif command -v python >/dev/null 2>&1; then "
+            f"python -c 'import sys,urllib.request; urllib.request.urlopen(sys.argv[1], timeout={timeout}).read(1)' {url}; "
+            "elif command -v node >/dev/null 2>&1; then "
+            f"node -e 'fetch(process.argv[1],{{signal:AbortSignal.timeout({timeout * 1000})}}).then(r=>{{if(!r.ok)process.exit(1)}}).catch(()=>process.exit(1))' {url}; "
+            "else echo 'no HTTP health-check client (curl, wget, python, or node)' >&2; exit 127; fi"
+        )
         for _ in range(attempts):
             completed = self.docker(
                 ["exec", self.attacker_name, "sh", "-lc", command],
@@ -214,6 +232,8 @@ class Lab:
                 ["docker", "exec", self.attacker_name, "sh", "-lc", command],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=timeout,
             )
             output = (completed.stdout or "") + (completed.stderr or "")
@@ -366,6 +386,8 @@ class Lab:
                 ["docker", *args],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=timeout,
             )
             output = (completed.stdout or "") + (completed.stderr or "")

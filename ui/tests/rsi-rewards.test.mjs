@@ -20,6 +20,7 @@ test("两项奖励历史按项目与轮次读取，旧公式不混入",()=>{
     assert.equal(result.current.run_id,"one");
     assert.deepEqual(result.history.map(x=>x.run_id),["two","one"]);
     assert.equal(rsiRewards(repo,"demo","absent").current,null);
-    assert.deepEqual(rsiRewards(repo,"missing","one"),{current:null,history:[]});
+    assert.equal(rsiRewards(repo,"missing","one").current,null);
+    assert.deepEqual(rsiRewards(repo,"missing","one").coverageTokens.series,[]);
   } finally {fs.rmSync(repo,{recursive:true,force:true});}
 });

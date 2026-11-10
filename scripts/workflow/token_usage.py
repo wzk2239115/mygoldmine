@@ -135,7 +135,7 @@ def summarize(rows):
 
 def refresh(repo):
     repo = Path(repo).resolve()
-    output = repo / ".state/token-usage"
+    output = repo / ".runtime/state/token-usage"
     output.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(output / "usage.sqlite", timeout=60)
     db.execute(
@@ -242,7 +242,7 @@ if __name__ == "__main__":
     parser.add_argument("--watch", action="store_true")
     args = parser.parse_args()
     if args.watch:
-        folder = Path(args.repo) / ".state/token-usage"
+        folder = Path(args.repo) / ".runtime/state/token-usage"
         folder.mkdir(parents=True, exist_ok=True)
         lock = (folder / "collector.lock").open("a")
         try:

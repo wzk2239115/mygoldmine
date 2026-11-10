@@ -18,7 +18,7 @@ export function snapshotOperationLog(file,repo,{size,sha256}={}) {
  }finally{fs.closeSync(fd);}
  const digest=createHash('sha256').update(bytes).digest('hex');
  if(sha256 && digest!==sha256)throw Error('操作日志原始前缀摘要不匹配，不能迁移');
- const directory=path.join(repo,'.state','operation-log-snapshots');fs.mkdirSync(directory,{recursive:true});
+ const directory=path.join(repo,'.runtime','state','operation-log-snapshots');fs.mkdirSync(directory,{recursive:true});
  const destination=path.join(directory,digest+path.extname(file));
  try{fs.writeFileSync(destination,bytes,{flag:'wx',mode:0o444});}
  catch(error){if(error.code!=='EEXIST')throw error;if(createHash('sha256').update(fs.readFileSync(destination)).digest('hex')!==digest)throw Error('已有操作日志快照被修改');}

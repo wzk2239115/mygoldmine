@@ -85,7 +85,7 @@ export default function TableView({ findings, onOpen }) {
                     {finding.reviewReady ? '待验收' : STATUS_LABELS[finding.status]}
                   </span>
                 </td>
-                <td className="table-number">{finding.evidence?.length || 0}</td>
+                <td className="table-number">{finding.evidenceCount ?? finding.evidence?.length ?? 0}</td>
                 <td className="table-date">{formatDate(finding.updatedAt)}</td>
               </tr>
             ))}

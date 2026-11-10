@@ -107,8 +107,9 @@ class SkillBank:
             pins.append({'scope':scope,'id':cid,'key':key})
             parts.append(('通用阶段技能' if scope=='general' else f'{project} 仓库专属阶段技能')+f'（版本 {cid}）：\n'+candidate['content'])
         from exploration import trial_text
-        trial=trial_text(self,stage,project,active)
-        if trial:
+        direct = active.get(self.key('orchestrator','general',project)) or active.get(self.key('orchestrator','project',project))
+        trial='' if direct else trial_text(self,stage,project,active)
+        if trial and not active.get(self.key('orchestrator','general',project)) and not active.get(self.key('orchestrator','project',project)):
             row=read(self.repo/'rsi/exploration'/project/'trial.json',{})
             pins.append({'scope':'project_trial','id':row['candidate'],'key':'trial/orchestrator/'+project})
             parts.append(trial)
@@ -295,7 +296,10 @@ def infer_project(root):
     return os.environ.get('PROJECT') or os.environ.get('ENV_BUILD_PROJECT') or 'unknown'
 
 def spool_proposal(stage,root,scope,content,evidence,conditions=None,provenance=None):
-    root=Path(root).resolve();project=infer_project(root)
+    root=Path(root).resolve()
+    if root == ROOT.resolve():
+        raise ValueError('技能建议必须保存到节点输出目录，不能使用仓库根目录')
+    project=infer_project(root)
     if stage not in STAGES or scope not in ('project','general') or not isinstance(content,str) or not content.strip() or len(content)>12000:raise ValueError('候选阶段、层级或内容无效')
     if not evidence or len(evidence)>5:raise ValueError('需要 1—5 份本次执行证据，优先引用不可变验收凭据')
     conditions=conditions or {}
@@ -329,6 +333,9 @@ def ingest_requests(bank,run,project):
     return results
 
 def instruction(stage,root,project=None):
+    root=Path(root).resolve()
+    if root == ROOT.resolve():
+        raise ValueError('技能快照必须保存到节点输出目录，不能使用仓库根目录')
     project=project or infer_project(root);bank=SkillBank()
     context={}
     status=read(Path(str(root)+'.meta')/'status.json',{})
@@ -339,7 +346,9 @@ def instruction(stage,root,project=None):
     pin=Path(root)/'.stage-skills-loaded'/f'{stage}.json'
     pin=pin.with_name(f'{stage}-{uuid.uuid4().hex}.json')
     write(pin,rendered)
-    return rendered['text']+'\n\n本节点结束前从实际轨迹提炼可复用经验：仅适用于当前仓库的提交为 project；跨仓库的通用建议提交为 general。调用 propose_skill_update，引用本次输出目录中的真实证据；无有效新经验时不必机械生成。候选未经独立评估不会供正式任务使用。'
+    if stage=='learner':
+        return rendered['text']+'\n\n本轮重点复盘第二阶段轨迹、覆盖与意图，鼓励优化通用审计技能、增加项目专属技能。通过 get_audit_skills 查看现有技能，用 update_audit_skill 提交命名更新，在 submit_learning 中引用编号；交付通过后下一轮直接采用，不等待评估或试用。'
+    return rendered['text']+'\n\n本节点结束前从实际轨迹提炼可复用经验：仅适用于当前仓库的提交为 project；跨仓库的通用建议提交为 general。调用 propose_skill_update，引用本次输出目录中的真实证据；无有效新经验时不必机械生成。学习阶段通过 update_audit_skill 整理的阶段二通用与项目技能，在学习交付通过后直接供下一轮使用；其他阶段建议仅保留记录。'
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('action',choices=['collect','render','evaluate','publish','rollback','status','advance']);p.add_argument('--project');p.add_argument('--stage',choices=STAGES);p.add_argument('--root');p.add_argument('--candidate');p.add_argument('--suite');p.add_argument('--evaluation');p.add_argument('--publication');a=p.parse_args();bank=SkillBank()

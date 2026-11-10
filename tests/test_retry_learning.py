@@ -5,7 +5,7 @@ import retry_learning as module
 from skill_bank import SkillBank, write, read
 
 
-def test_retry_freezes_latest_feedback_and_limits_publication(tmp_path, monkeypatch):
+def test_retry_freezes_latest_feedback_and_does_not_publish_unreferenced_candidates(tmp_path, monkeypatch):
     repo = tmp_path
     source = repo/'runs/demo/one'
     output = repo/'runs/demo/one.meta/node-retries/learner/new/output'
@@ -29,5 +29,6 @@ def test_retry_freezes_latest_feedback_and_limits_publication(tmp_path, monkeypa
     monkeypatch.setattr(module, 'learn', learn)
     monkeypatch.setattr(SkillBank, 'advance', lambda self, project, candidate_ids=None: calls.append(candidate_ids) or {'status': 'no_verified_improvement', 'published': [], 'results': []})
     assert module.retry_learning(source, output, 'demo')['status'] == 'completed'
-    assert calls == [{'new'}]
+    assert calls == []
+    assert SkillBank(repo).active() == {}
     assert read(output/'rsi/feedback-snapshot.json')['source_run'] == str(source)

@@ -1,3 +1,5 @@
+import {partialJudgeDelivery} from './partial-judge-delivery.mjs';
+import {partialAgentDelivery} from './partial-agent-delivery.mjs';
 import {partialLabDelivery} from './partial-lab-delivery.mjs';
 import {awaitProjectSlot,releaseProjectSlot} from './project-admission.mjs';
 import {judgeCandidates,prepareJudgeRetry,runJudgeRetry} from './judge-retry.mjs';
@@ -17,7 +19,7 @@ export function nodeAttempts(runDir,node) {
   if(!fs.existsSync(root))return [];
   return fs.readdirSync(root).map(id=>read(path.join(root,id,'attempt.json'))).filter(Boolean).sort((a,b)=>a.startedAt.localeCompare(b.startedAt));
 }
-export const supportsNodeRetry = node => ['visual','verify','redteam-lab','redteam-agent','judge','learner'].includes(node);
+export const supportsNodeRetry = node => ['orchestrator','visual','verify','redteam-lab','redteam-agent','judge','learner'].includes(node);
 export function retryEligibility(run,node) {
   if(!supportsNodeRetry(node))return '该节点暂不支持独立重跑，请使用项目重跑';
   if(fs.existsSync(path.join(path.resolve(run.runDir,'../../..'),'runs',`.learning-cycle-${run.project}.lock`)))return '该项目正在执行学习循环';
@@ -25,6 +27,7 @@ export function retryEligibility(run,node) {
   const status=read(`${run.runDir}.meta/status.json`) || {};
   const report=read(path.join(run.runDir,'audit-report.json'));
   if(!Array.isArray(report?.findings))return '缺少有效的审计报告';
+  if(node==='orchestrator' && (!status.target || !status.env_image))return '缺少本次审计的源码或环境信息';
   if(node==='verify' && (!status.env_image || !status.target))return '缺少环境镜像或源码信息';
   if(node==='redteam-lab') {
     if(!status.target || !fs.existsSync(status.target) || !fs.statSync(status.target).isDirectory())return '缺少可用的项目源码目录';
@@ -41,6 +44,7 @@ export function retryEligibility(run,node) {
 }
 export function startNodeRetry({repoRoot,run,node,models,cascade=false,inheritedLock=null}) {
   const reason=retryEligibility(run,node);if(reason)fail(reason);
+  if(node==='orchestrator' && (process.env.GOLDMINE_NATIVE_WORKFLOW==='0' || !fs.existsSync(path.join(repoRoot,'ui/server/claude-workflows.mjs'))))fail('第二阶段修复需要启用原生工作流');
   const lock=path.join(repoRoot,'runs',`.node-retry-${run.project}.lock`);
   if(inheritedLock!==lock) { try { fs.mkdirSync(lock); } catch { fail('该项目已有节点重跑任务，请稍后再试'); } }
   const id=randomUUID();const root=path.join(`${run.runDir}.meta`,'node-retries',node,id);
@@ -57,7 +61,7 @@ export function startNodeRetry({repoRoot,run,node,models,cascade=false,inherited
     write(path.join(root,'attempt.json'),job);
     const fd=fs.openSync(path.join(root,'worker.log'),'a');
     const native=path.join(repoRoot,'ui/server/claude-workflows.mjs');
-    const useNative=cascade && node!=='visual' && process.env.GOLDMINE_NATIVE_WORKFLOW!=='0' && fs.existsSync(native);
+    const useNative=(cascade || node==='orchestrator') && node!=='visual' && process.env.GOLDMINE_NATIVE_WORKFLOW!=='0' && fs.existsSync(native);
     const child=spawn(process.execPath,[useNative?native:fileURLToPath(import.meta.url),useNative?'--chain':'--worker',path.join(root,'attempt.json')],{cwd:repoRoot,detached:true,stdio:['ignore',fd,fd]});
     child.on('error', error => {
       write(path.join(root,'attempt.json'), {...job,status:'failed',resultStatus:'failed',error:error.message,endedAt:new Date().toISOString()});
@@ -97,8 +101,9 @@ export async function worker(file) {
     if(job.node==='visual') {
       const originalCode=code;
       const summary=read(path.join(job.workspace,'visual-rendered/visual-summary.json'));
-      const minimum=Math.max(0,Number(summary?.scene_count)||0);
-      let delivery=optionalVisualDelivery(job.workspace,minimum);
+      const minimum=summary?Math.max(0,Number(summary.scene_count)||0):((read(path.join(job.workspace,'audit-report.json'))?.findings || []).length?1:0);
+      let delivery;
+      try{delivery=optionalVisualDelivery(job.workspace,minimum);}catch(error){delivery={accepted:0,deliveries:[],error:error.message};job.error='缺少有效攻击设计交付：'+error.message;}
       if(originalCode!==0 || job.resultStatus==='failed' || !summary) {
         delivery={...delivery,optional:true,notices:[...(delivery.notices || []),'图片生成未完成；继续后续验证。']};
       }
@@ -111,7 +116,8 @@ export async function worker(file) {
         optional:true,status:job.resultStatus,scene_count:minimum,
         exitCode:originalCode,notices:job.visualNotice,error:job.error || delivery.error || null
       });
-      code=0;
+      code=delivery.error?1:0;
+      if(code!==0)job.resultStatus='failed';
     }
     if(code===0) {
       try {
@@ -129,6 +135,12 @@ export async function worker(file) {
         if(job.node==='redteam-lab') {
           job.deliveryAcceptance=partialLabDelivery(job.workspace);
           if(job.deliveryAcceptance.excluded.length)job.resultStatus='degraded';
+        } else if(job.node==='redteam-agent') {
+          job.deliveryAcceptance=partialAgentDelivery(job.workspace);
+          if(job.deliveryAcceptance.excluded.length)job.resultStatus='degraded';
+        } else if(job.node==='judge') {
+          job.deliveryAcceptance=partialJudgeDelivery(job.workspace);
+          job.resultStatus=job.deliveryAcceptance.excluded.length?'degraded':job.resultStatus;
         } else if(job.node!=='visual')job.deliveryAcceptance=acceptedStageDelivery(job.node,job.workspace,minimum);
       } catch(error) {
         code=1;job.resultStatus='failed';job.error='阶段交付未通过：'+error.message;

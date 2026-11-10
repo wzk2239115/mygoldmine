@@ -46,6 +46,11 @@ BUG-ssrf-apiProxy-L89-req.body.url-fetch.md
 | 认证缺陷 | `auth` |
 | HTTP 头注入 | `httpi` |
 | XPath 注入 | `xpathi` |
+| 空指针解引用 | `npd` |
+| 内存泄漏 | `mlk` |
+| 释放后使用 | `uaf` |
+| 重复释放 | `doublefree` |
+| 越界读写 | `oob` |
 
 ## 报告模板
 

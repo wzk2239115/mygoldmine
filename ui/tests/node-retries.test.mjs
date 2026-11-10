@@ -50,3 +50,22 @@ exit 0
  assert.equal(latest.status,'completed');
  assert.equal(latest.resultStatus,'blocked');
 });
+
+test('第二阶段补正入口检查原报告与环境，并展示修复会话', t => {
+ const repo=fs.mkdtempSync(path.join(os.tmpdir(),'orchestrator-retry-'));
+ t.after(()=>fs.rmSync(repo,{recursive:true,force:true}));
+ const runDir=path.join(repo,'runs/demo/one');
+ fs.mkdirSync(runDir,{recursive:true});
+ fs.mkdirSync(runDir+'.meta',{recursive:true});
+ fs.writeFileSync(path.join(runDir,'audit-report.json'),JSON.stringify({findings:[]}));
+ const run={runDir,project:'demo',runId:'one',isLive:false};
+ assert.match(retryEligibility(run,'orchestrator'),/环境信息/);
+ fs.writeFileSync(runDir+'.meta/status.json',JSON.stringify({target:'/source',env_image:'test:image'}));
+ assert.equal(retryEligibility(run,'orchestrator'),'');
+ const root=path.join(runDir+'.meta/node-retries/orchestrator/id');
+ fs.mkdirSync(root,{recursive:true});
+ fs.writeFileSync(path.join(root,'attempt.json'),JSON.stringify({id:'id',root,workspace:path.join(root,'output'),status:'running',startedAt:new Date().toISOString()}));
+ fs.writeFileSync(path.join(root,'repair-agent.jsonl'),'{}\n');
+ const traces=listAgenticTraces(run,'orchestrator');
+ assert.ok(traces.some(trace=>trace.id==='id-repair'));
+});

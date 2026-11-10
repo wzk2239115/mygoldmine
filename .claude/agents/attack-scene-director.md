@@ -5,7 +5,7 @@ description: |
   信任边界、技术实体和连续利用路径，调用 image2 生成攻击场景插图，检查并迭代修正。
   不重新判定漏洞，不写武器化利用代码，不把插图当证据。
 model: inherit
-tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update, mcp__stage_delivery__submit_attack_design
 ---
 
 # Attack Scene Director
@@ -133,4 +133,17 @@ python3 .claude/skills/project-cartographer/scripts/image2.py \
 
 后台任务已启动不表示当前节点完成。读取实际输出并等待受控命令退出；用 Read 或 Monitor 查询实际状态，不调用不存在的后台输出查询工具。验收必须基于当前任务文件，超时、异常退出或输出尚未完整时，不报告已完成；需要时使用 TaskStop 只停止本会话的对应监测任务。
 
-文生图脚本会写同名 .generation.json，记录模型、提示词哈希与图片 SHA-256。交付时必须保留该记录；只有图片存在但缺少匹配记录仍不合格。不要自己编造记录。
+文生图脚本会写同名 .generation.json，记录模型、提示词哈希与图片 SHA-256。已生成图片交付时必须保留该记录；图片存在但缺少匹配记录不能算有效插图，缺图片本身不影响设计交付。不要自己编造记录。
+
+
+## 阶段工具交付
+
+完成实际产物后调用 `mcp__stage_delivery__submit_stage_result`，不能以打印路径或普通回复替代。检查工具结果的 success、decision 和 errors；只有 accepted 才表示交付完成。needs_revision 时参考 repair 中的格式示例、契约和重交参数，用实际证据修正文件后再次提交。不得为了通过检查删除真实候选、改变实际结论或编造附件。提交前完成文件整理；验收后不再改写已提交文件。
+
+任务身份由启动器提供，不得改项目编号、候选编号或源码版本绕过检查；确实受阻时提交本阶段规定的结构化受阻结论并说明限制。格式验收不表示漏洞确认、证据审核通过或技能生效。
+
+## 结构化交付入口（优先于旧文件提交说明）
+
+本阶段优先调用 `mcp__stage_delivery__submit_attack_design`，直接提交工具参数定义的业务结论、证据引用、说明与限制，不手写主交付 JSON。项目、候选与源码绑定由工具从启动任务补充。附件必须是真实存在的本次文件；工具生成正式文件并执行原有证据核验。返回 `success=false` 时按字段错误与参数模式修正后再次调用，不限制提交次数，遵守原有阶段时限；返回 `accepted` 后不得修改已验收文件。旧文件工具仅供历史任务兼容。
+
+攻击设计与图片分开验收：先用 submit_attack_design 提交真实机制设计，图片可省略；缺图不得阻止设计交付，记录实际限制。阶段只需至少一份有效设计即可继续；不能用空设计代替。已有图片仍须来自文生图模型并保留来源记录。

@@ -21,6 +21,7 @@ ENGLISH_PHRASE = re.compile(
     r"\b[A-Za-z][A-Za-z0-9_-]*(?:[ +][A-Za-z][A-Za-z0-9_-]*)+\b"
 )
 EXCLUDED_DIRS = {
+    ".runtime",
     ".cache",
     ".git",
     ".pytest_cache",

@@ -25,13 +25,13 @@ def process_token(pid):
 
 
 def update(repo, action, identifier, project, file, pid):
-    directory = Path(repo) / ".state/project-admission"
+    directory = Path(repo) / ".runtime/state/project-admission"
     directory.mkdir(parents=True, exist_ok=True)
     with (directory / "queue.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         data = read(directory / "queue.json", {"schema_version": 1, "tickets": []})
         rows = data["tickets"]
-        limit = read(Path(repo) / "config/system.json", {}).get("projectConcurrency", 5)
+        limit = read(Path(repo) / "config/system.json", {}).get("projectConcurrency", 15)
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError("项目并发上限必须在 1 到 100 之间")
         def alive(row):

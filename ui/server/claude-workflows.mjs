@@ -1,3 +1,5 @@
+import {formalLabFiles} from './formal-lab-files.mjs';
+import {resumeAfterLearning} from './learning-cycles.mjs';
 import {isOperationLog,snapshotOperationLog} from './operation-log-snapshot.mjs';
 import {verificationReports} from './verification-delivery.mjs';
 import {awaitProjectSlot,releaseProjectSlot} from './project-admission.mjs';
@@ -166,7 +168,19 @@ export async function execute(state,node,file) {
     receipt.outputs=manifest([path.join(repo,'env',state.project,'env-manifest.json'),state.runDir+'.meta/env-phase.json']);
   } else if(node==='orchestrator') {
     const flags=Object.entries({audit:'--model',environment:'--env-model',visual:'--visual-model',verify:'--verify-model',redteam:'--redteam-model',judge:'--judge-model'}).flatMap(([role,flag])=>state.models[role]?[flag,state.models[role]]:[]);
-    const code=await command('bash',['run.sh','--supervise','--target',state.source,'--project',state.project,'--run-dir',state.runDir,'--image',state.image,'--skip-env','--skip-visual','--skip-verify','--skip-redteam','--skip-mining-repair',...flags],{log,env:{...process.env,WORKFLOW_ENV_IMAGE:state.image}});
+    let code;
+    if(state.start==='orchestrator') {
+      const job=read(state.initialJob);
+      if(!job || job.node!=='orchestrator' || job.project!==state.project)throw Error('缺少编排修复任务');
+      const archive=path.join(job.root,'original-artifacts');
+      code=await command(process.env.PYTHON || 'python3',['scripts/stages/repair_orchestrator.py','--run-dir',state.runDir,'--archive',archive,'--project',state.project,'--model',model || ''],{log:path.join(job.root,'worker.log'),timeout:((Number(process.env.ORCHESTRATOR_REPAIR_TIMEOUT)||1800)+60)*1000});
+      if(code!==0) {
+        write(state.initialJob,{...job,status:'failed',resultStatus:'failed',error:'编排产物修复失败，请查看修复日志',endedAt:new Date().toISOString()});
+        throw Error('编排产物修复失败，请查看修复日志');
+      }
+    } else {
+    code=await command('bash',['run.sh','--supervise','--target',state.source,'--project',state.project,'--run-dir',state.runDir,'--image',state.image,'--skip-env','--skip-visual','--skip-verify','--skip-redteam','--skip-mining-repair',...flags],{log,env:{...process.env,WORKFLOW_ENV_IMAGE:state.image}});
+    }
     const recovered=state.runDir+'-recovery';
     if(!fs.existsSync(path.join(state.runDir,'audit-report.json')) && fs.existsSync(path.join(recovered,'audit-report.json'))) {
       state.recoveredFrom=state.runDir;state.runDir=recovered;save(file,state);
@@ -178,6 +192,10 @@ export async function execute(state,node,file) {
     const status=read(state.runDir+'.meta/status.json') || {};
     write(state.runDir+'.meta/status.json',{...status,env_image:state.image,target:state.source});
     receipt.status=code===0?'completed':'degraded';
+    if(state.start==='orchestrator' && state.initialJob) {
+      const job=read(state.initialJob);
+      write(state.initialJob,{...job,status:'completed',resultStatus:receipt.status,deliveryAcceptance:delivery,endedAt:new Date().toISOString()});
+    }
     receipt.outputs=manifest(['audit-report.json','audit-report.md','task-artifacts',...delivery.deliveries.map(item=>item.receipt)].map(name=>path.isAbsolute(name)?name:path.join(state.runDir,name)).filter(fs.existsSync));
   } else {
     const report=sourceReport(state);
@@ -219,10 +237,17 @@ export async function execute(state,node,file) {
     const delivery=job.deliveryAcceptance || acceptedStageDelivery(node,job.workspace);receipt.delivery=delivery;
     const outputs=(node==='visual' && delivery.optional?['visual-rendered/delivery-status.json']:artifacts[node] || []).map(name=>path.join(job.workspace,name)).filter(fs.existsSync);
     if(!outputs.length)throw Error(`节点缺少交付产物：${node}`);
-    receipt.outputs=manifest([report,...outputs,...delivery.deliveries.map(item=>item.receipt)],{verification:node==='verify'});
+    receipt.outputs=node==='redteam-lab'
+      ? manifest([report,...formalLabFiles(job.workspace,delivery)])
+      : manifest([report,...outputs,...delivery.deliveries.map(item=>item.receipt)],{verification:node==='verify'});
     delete state.activeAttempt;
   }
   return receipt;
+}
+// Derived UI data must not invalidate an already persisted stage receipt.
+export async function candidateIndexResult(refresh) {
+  try {return {code:await refresh()};}
+  catch(error) {return {code:1,error:error.message};}
 }
 export async function step(file,node,executeNode=execute) {
   const state=load(file),expected=state.steps[state.receipts.length];
@@ -245,13 +270,14 @@ export async function step(file,node,executeNode=execute) {
     state.receipts.push(receipt);state.current=null;save(file,state);
     write(path.join(path.dirname(file),'receipts',node+'.json'),receipt);
     if(executeNode===execute && ['orchestrator','verify','redteam-agent','judge','learner'].includes(node)) {
-      const code=await command(process.env.PYTHON || 'python3',['scripts/workflow/build_state.py'],{log:path.join(path.dirname(file),'candidate-index.log'),timeout:60000});
+      const {code,error:indexError}=await candidateIndexResult(()=>command(process.env.PYTHON || 'python3',['scripts/workflow/build_state.py'],{log:path.join(path.dirname(file),'candidate-index.log'),timeout:60000}));
       if(code!==0) {
         // The index is a derived UI view. The node's validated artifacts and
         // receipt are authoritative, so an index refresh failure is degraded
         // metadata and must not halt the production workflow.
         receipt.status=receipt.status==='completed'?'degraded':receipt.status;
         receipt.notices=[...(receipt.notices || []),'候选索引刷新失败；节点交付产物已保留，索引可稍后重建'];
+        if(indexError)receipt.indexRefreshError=indexError;
         state.receipts[state.receipts.length-1]=receipt;save(file,state);
         write(path.join(path.dirname(file),'receipts',node+'.json'),receipt);
       }
@@ -290,7 +316,8 @@ export function createState({runDir,source,project,models,image='mygoldmine:dev'
   fs.mkdirSync(runDir,{recursive:true});
   const folder=path.join(runDir+'.meta','workflows',id);fs.mkdirSync(folder,{recursive:true});
   const file=path.join(folder,'state.json');
-  const baselineFile=path.join(folder,'stage-skills-baseline.json');write(baselineFile,read(path.join(repo,'rsi/stage-skills/active.json')) || {});
+  const baselineFile=path.join(folder,'stage-skills-baseline.json'),baseline=read(path.join(repo,'rsi/stage-skills/active.json')) || {};
+  write(baselineFile,baseline);
   models={audit:'360-proxy/deepseek/deepseek-v4.1-flash',...models};
   const state={id,baselineFile,engine:'claude-workflow',status:'running',repoRoot:repo,runDir,source,project,models,image,start,steps:stages.slice(stages.indexOf(start)),receipts:[],lock,initialJob,startedAt:new Date().toISOString()};
   write(path.join(lock,'workflow-owner.json'),{id,file});save(file,state);
@@ -404,6 +431,10 @@ export async function coordinate(file) {
     }
     if(state.initialJob && !state.receipts.length && !state.activeAttempt){const job=read(state.initialJob);if(job?.status==='running')write(state.initialJob,{...job,status:'failed',resultStatus:'failed',error:state.error,endedAt:state.endedAt});}
     if(!state.activeAttempt && !(state.activeTask && taskLive(read(state.activeTask))) && read(path.join(state.lock,'workflow-owner.json'))?.id===state.id)fs.rmSync(state.lock,{recursive:true,force:true});
+  }
+  if(state.status==='completed' && state.start!=='environment') {
+    try {resumeAfterLearning(repo,state);}
+    catch(error) {state.cycleResumeError=error.message;save(file,state);}
   }
   return state;
 }

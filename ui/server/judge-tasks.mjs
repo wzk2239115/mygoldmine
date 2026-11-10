@@ -31,7 +31,8 @@ export function judgeTasks(run) {
   if(status==='judge_error' || status==='judge_timeout'){state='failed';label='执行错误';}
   if(active && !judged && (attempt?summary.current===candidate.id:!execution && stage?.node==='judge' && stage?.candidate===candidate.id))state='running';
   if(!active && ['queued','running'].includes(state))state='interrupted';
-  const reason=state==='blocked'?'红队尚未交付已捕获随机标记的完整证据':state==='interrupted'?'本批次尚未完成此候选的审核':'';
+  if(result?.delivery_status==='missing'){state='failed';label='交付未完成';}
+  const reason=result?.delivery_status==='missing'?result.delivery_error || '缺少有效审核交付':state==='blocked'?'红队尚未交付已捕获随机标记的完整证据':state==='interrupted'?'本批次尚未完成此候选的审核':'';
   return {id:candidate.id,title:candidate.title || (directory?read(path.join(directory,'finding.json'))?.title:'') || candidate.id,state,label,reason,traceId:execution?'':trace?.id || diagnostic?.id || ''};
  });
  return {attemptId:attempt?.id || (execution?`execution-${execution.id}`:'original'),tasks,mode:attempt?'serial':'unspecified',selectedCount:tasks.length,processedCount:tasks.filter(task=>['completed','failed'].includes(task.state)).length};

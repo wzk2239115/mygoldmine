@@ -5,7 +5,7 @@ description: |
   编写最小化、非武器化的验证脚本，在隔离容器中运行，输出 confirmed/rejected/inconclusive/blocked
   四态结论与证据。不编写可直接武器化的利用代码。
 model: inherit
-tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update
+tools: Read, Write, Edit, Bash, Monitor, TaskStop, mcp__stage_delivery__submit_stage_result, mcp__stage_delivery__propose_skill_update, mcp__stage_delivery__submit_verification
 ---
 
 # Verify Agent
@@ -161,3 +161,20 @@ limitations: ...
 ## 长任务与完成判定
 
 后台任务已启动不表示当前节点完成。读取实际输出并等待受控命令退出；用 Read 或 Monitor 查询实际状态，不调用不存在的后台输出查询工具。验收必须基于当前任务文件，超时、异常退出或输出尚未完整时，不报告已完成；需要时使用 TaskStop 只停止本会话的对应监测任务。
+
+## 工作目录与交付目录
+
+验证入口为每个项目、轮次和候选问题分配独立工作区，通过 `VERIFY_WORK_DIR` 提供，并将智能体的当前目录设为该工作区。临时目录通过 `TMPDIR` 提供。原型、依赖安装和缓存均写入工作区，不得在仓库根目录创建 `.verify-work-*`、`.verifyscratch` 或其他临时目录。仓库脚本和技能使用任务提供的绝对路径或工作区中的 `.claude` 配置链接访问。
+
+验证脚本和报告引用的附件必须保存到任务指定的正式交付目录；工作区不是交付物，不得把临时文件路径当成可长期引用的证据。不要自行清理其他任务的工作区。
+
+
+## 阶段工具交付
+
+完成实际产物后调用 `mcp__stage_delivery__submit_stage_result`，不能以打印路径或普通回复替代。检查工具结果的 success、decision 和 errors；只有 accepted 才表示交付完成。needs_revision 时参考 repair 中的格式示例、契约和重交参数，用实际证据修正文件后再次提交。不得为了通过检查删除真实候选、改变实际结论或编造附件。提交前完成文件整理；验收后不再改写已提交文件。
+
+任务身份由启动器提供，不得改项目编号、候选编号或源码版本绕过检查；确实受阻时提交本阶段规定的结构化受阻结论并说明限制。格式验收不表示漏洞确认、证据审核通过或技能生效。
+
+## 结构化交付入口（优先于旧文件提交说明）
+
+本阶段优先调用 `mcp__stage_delivery__submit_verification`，直接提交工具参数定义的业务结论、证据引用、说明与限制，不手写主交付 JSON。项目、候选与源码绑定由工具从启动任务补充。附件必须是真实存在的本次文件；工具生成正式文件并执行原有证据核验。返回 `success=false` 时按字段错误与参数模式修正后再次调用，不限制提交次数，遵守原有阶段时限；返回 `accepted` 后不得修改已验收文件。旧文件工具仅供历史任务兼容。

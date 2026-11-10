@@ -122,3 +122,12 @@ env/*/*.prev*
 env/*/build-notes.md
 
 .venv-dev/
+
+# 统一运行数据及历史兼容链接；正式产物位于已忽略的 runs/
+/.runtime/
+/.state
+/.stage-skills-loaded
+/.stage-skill-proposals
+/.verify-work-*
+/.verifyscratch
+/.workspace

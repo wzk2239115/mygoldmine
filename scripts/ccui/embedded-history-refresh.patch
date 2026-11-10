@@ -1,0 +1,107 @@
+diff --git a/src/modules/chat/hooks/useChatSessionState.ts b/src/modules/chat/hooks/useChatSessionState.ts
+index bfad2d2..f140751 100644
+--- a/src/modules/chat/hooks/useChatSessionState.ts
++++ b/src/modules/chat/hooks/useChatSessionState.ts
+@@ -4,0 +5 @@ import { api } from '@/shared/api';
++import { useEmbeddedHistoryRefresh } from '@/modules/chat/hooks/useEmbeddedHistoryRefresh';
+@@ -849,0 +851,20 @@ export function useChatSessionState({
++  // Imported read-only audit runs use the same incremental store path as live history.
++  const refreshEmbeddedHistory = useCallback(async () => {
++    if (!activeSessionId || !isActiveRef.current) return;
++    const follow = isNearBottom();
++    const previousCount = sessionStore.getMessages(activeSessionId).length;
++    await requestLatestMessages(activeSessionId);
++    if (activeSessionIdRef.current !== activeSessionId) return;
++    const added = sessionStore.getMessages(activeSessionId).length - previousCount;
++    if (!follow && added > 0) {
++      // A tail-sliced window must grow while reading older rows so its start stays fixed.
++      setVisibleMessageCount(count => count + added);
++    }
++    if (follow) {
++      requestAnimationFrame(() => {
++        if (!isUserScrolledUpRef.current) scrollToBottom();
++      });
++    }
++  }, [activeSessionId, requestLatestMessages, scrollToBottom, sessionStore]);
++  useEmbeddedHistoryRefresh(activeSessionId, refreshEmbeddedHistory);
++
+diff --git a/src/modules/chat/hooks/useEmbeddedHistoryRefresh.ts b/src/modules/chat/hooks/useEmbeddedHistoryRefresh.ts
+new file mode 100644
+index 0000000..df0801e
+--- /dev/null
++++ b/src/modules/chat/hooks/useEmbeddedHistoryRefresh.ts
+@@ -0,0 +1,22 @@
++import { useEffect } from 'react';
++
++/** Used by the chat history hook to merge parent-imported audit messages without navigation. */
++export function useEmbeddedHistoryRefresh(
++  sessionId: string | null,
++  refresh: () => Promise<void>,
++): void {
++  useEffect(() => {
++    const receive = (event: MessageEvent) => {
++      // Only the same-origin embedding parent may refresh the selected session.
++      if (event.origin !== window.location.origin || event.source !== window.parent) return;
++      if (event.data?.type !== 'mygoldmine:history-updated') return;
++      if (!sessionId || event.data.sessionId !== sessionId) return;
++      void refresh().catch(error => console.error('Embedded history refresh failed:', error));
++    };
++    window.addEventListener('message', receive);
++    if (sessionId && window.parent !== window) {
++      window.parent.postMessage({ type: 'mygoldmine:history-ready', sessionId }, window.location.origin);
++    }
++    return () => window.removeEventListener('message', receive);
++  }, [sessionId, refresh]);
++}
+diff --git a/src/modules/chat/tests/embeddedHistoryRefresh.test.tsx b/src/modules/chat/tests/embeddedHistoryRefresh.test.tsx
+new file mode 100644
+index 0000000..8fd6ffe
+--- /dev/null
++++ b/src/modules/chat/tests/embeddedHistoryRefresh.test.tsx
+@@ -0,0 +1,46 @@
++import { renderHook } from '@testing-library/react';
++import { describe, expect, it, vi } from 'vitest';
++import { useEmbeddedHistoryRefresh } from '@/modules/chat/hooks/useEmbeddedHistoryRefresh';
++
++function announce(overrides: MessageEventInit = {}) {
++  window.dispatchEvent(new MessageEvent('message', {
++    origin: window.location.origin,
++    source: window.parent,
++    data: { type: 'mygoldmine:history-updated', sessionId: 'audit-1' },
++    ...overrides,
++  }));
++}
++
++describe('embedded audit history updates', () => {
++  it('refreshes the active history through the store without navigating', () => {
++    const refresh = vi.fn().mockResolvedValue(undefined);
++    const { unmount } = renderHook(() => useEmbeddedHistoryRefresh('audit-1', refresh));
++    announce();
++    expect(refresh).toHaveBeenCalledTimes(1);
++    unmount();
++    announce();
++    expect(refresh).toHaveBeenCalledTimes(1);
++  });
++
++  it('ignores other origins, sources, sessions and message types', () => {
++    const refresh = vi.fn().mockResolvedValue(undefined);
++    renderHook(() => useEmbeddedHistoryRefresh('audit-1', refresh));
++    announce({ origin: 'https://other.invalid' });
++    announce({ source: null });
++    announce({ data: { type: 'mygoldmine:history-updated', sessionId: 'other' } });
++    announce({ data: { type: 'unrelated', sessionId: 'audit-1' } });
++    expect(refresh).not.toHaveBeenCalled();
++  });
++
++  it('cleans up the previous session listener on a session switch', () => {
++    const refresh = vi.fn().mockResolvedValue(undefined);
++    const { rerender } = renderHook(({ id }) => useEmbeddedHistoryRefresh(id, refresh), {
++      initialProps: { id: 'audit-1' },
++    });
++    rerender({ id: 'audit-2' });
++    announce();
++    expect(refresh).not.toHaveBeenCalled();
++    announce({ data: { type: 'mygoldmine:history-updated', sessionId: 'audit-2' } });
++    expect(refresh).toHaveBeenCalledTimes(1);
++  });
++});

@@ -82,3 +82,42 @@ def test_no_valid_candidates_does_not_fabricate_confirmation(tmp_path):
     )
     assert results[0]["verdict"] == "blocked"
     assert json.loads((output / "MISSING/verify-report.json").read_text())["evidence"] == []
+
+@pytest.mark.parametrize("failure", ["missing_receipt", "missing_report", "changed_report"])
+def test_six_candidates_five_valid_continue_through_stage_boundary(tmp_path, failure):
+    output = tmp_path / "verify/agent"
+    ids = [f"F-{i}" for i in range(6)]
+    reports = [candidate(output, sid) for sid in ids]
+    originals = {path: path.read_bytes() for path in reports[:-1]}
+    if failure == "missing_receipt":
+        for receipt in (reports[-1].parent / ".stage-submissions/verify").glob("*.json"):
+            receipt.unlink()
+    elif failure == "missing_report":
+        reports[-1].unlink()
+    else:
+        reports[-1].write_text("changed")
+    rows = parallel.finalize_deliveries(
+        output, [{"finding_id": sid, "verdict": "rejected"} for sid in ids], "demo")
+    assert sum(row["delivery_status"] == "accepted" for row in rows) == 5
+    assert rows[-1]["delivery_status"] == "rejected"
+    assert rows[-1]["verdict"] == "blocked"
+    assert all(path.read_bytes() == original for path, original in originals.items())
+    (output / "summary.json").write_text(json.dumps({"selected": 6, "findings": rows}))
+    # Five original deliveries plus one honest blocked record satisfy the real boundary.
+    delivery = accepted_submissions("verify", tmp_path, minimum=6)
+    assert delivery["accepted"] == 6
+    blocked = json.loads(reports[-1].read_text())
+    assert blocked["synthesized"] is True
+    assert blocked["evidence"] == []
+    task = json.loads((output / "tasks" / f"{ids[-1]}.json").read_text())
+    assert task["state"] == "failed"
+
+
+def test_all_candidates_missing_still_delivers_honest_blocked_batch(tmp_path):
+    output = tmp_path / "verify/agent"
+    rows = parallel.finalize_deliveries(
+        output, [{"finding_id": f"F-{i}", "verdict": "confirmed"} for i in range(3)], "demo")
+    assert all(row["verdict"] == "blocked" for row in rows)
+    assert all(row["delivery_status"] == "rejected" for row in rows)
+    (output / "summary.json").write_text(json.dumps({"selected": 3, "findings": rows}))
+    assert accepted_submissions("verify", tmp_path, minimum=3)["accepted"] == 3

@@ -9,7 +9,7 @@ import sys
 import uuid
 from pathlib import Path
 from skill_bank import SkillBank, ROOT, digest, read, write, now, instruction
-from submission import config
+from submission import config, INSTRUCTION, accepted_submissions
 from owned_process import run_session
 
 SKILLOPT_ADAPTER = Path(__file__).resolve().parent / 'skillopt_adapter.py'
@@ -60,6 +60,14 @@ def _run_skillopt(run, project, repo, model, timeout):
     }
 
 
+def learning_delivery(run):
+    result = accepted_submissions('learner', run)
+    expected = str(Path(run).resolve() / 'rsi/learning-result.json')
+    if not any(row['artifact'] == expected for row in result['deliveries']):
+        raise ValueError('缺少学习智能体最终产物的有效交付回执')
+    return result
+
+
 def learn(run, project, repo=ROOT, timeout=180, skillopt_timeout=300):
     repo = Path(repo)
     run = Path(run).resolve()
@@ -77,7 +85,11 @@ def learn(run, project, repo=ROOT, timeout=180, skillopt_timeout=300):
         isinstance(row, dict) and row.get('status') in ('error', 'failed') for row in prior_results
     )
     if prior.get('input_hash') == fingerprint and prior.get('exit_code') == 0 and not skillopt_failed:
-        return prior
+        try:
+            prior['delivery'] = learning_delivery(run)
+            return prior
+        except (OSError, ValueError):
+            pass
     settings = read(repo / 'config/stage-models.json', {})
     model = os.environ.get('RSI_LEARNER_MODEL') or settings.get('audit') or '360-proxy/deepseek/deepseek-v4.1-flash'
     spec = importlib.util.spec_from_file_location('scene_connection', repo / '.claude/skills/project-cartographer/scripts/render_attack_scenes_agentic.py')
@@ -85,22 +97,26 @@ def learn(run, project, repo=ROOT, timeout=180, skillopt_timeout=300):
     spec.loader.exec_module(module)
     model, env = module.claude_connection(model)
     prompt = (
-        f'项目：{project}。读取 {run}/rsi/stage-feedback/index.json，使用 stage-skill-learning 技能综合各阶段反馈。'
-        '证据仅按反馈索引中的实际路径读取；目标阶段执行文档按仓库固定路径读取。缺失文件明确记录，不猜测证据路径或搜索其他批次。'
-        '先读阶段摘要，每份大日志只读相关片段；不要全量重读轨迹。'
-        '最多补读六个证据文件后收敛，选择证据充分的目标立即提交请求；若不充分则明确无候选并结束。'
-        '只需七阶段综合归因，不需要逐条复核每个漏洞，不重新搜集验证报告已包含的执行证据。'
-        '先区分方法缺口、项目知识、程序执行故障和证据不足；只有方法缺口进入技能优化。'
-        '先读目标阶段现行 agent／skill 正文，已有要求不能重复添加。读取 rsi/exploration-feedback.json，选择少量必要的 Markdown 方法改进，'
-        '提交问题归因、内容、证据、预期改善、可能退化和适用条件；阶段二方法候选 provenance.change_kind 填 method；'
-        '默认通过 propose_skill_update 直接提出必要的 Markdown 补充；只有显式启用 RSI_SKILLOPT_ENABLED=1 时才用 SkillOpt。'
-        '项目标识使用调用方提供的项目目录标识，报告中的品牌名称不是项目标识。'
-        '不要进行新审计，不要声称候选已经评估或发布。'
+        f'项目：{project}。使用 stage-skill-learning 技能，读取 {run}/rsi/stage-feedback/index.json。'
+        '本轮核心任务是复盘第二阶段审计轨迹、读取覆盖、审计意图、未解假设和有趣线索，'
+        '鼓励优化通用审计技能，鼓励增加项目专属技能，让下一轮审计探索未覆盖区域并深入已有线索。'
+        '先用 get_audit_skills 读取已生效补充，按需读取第二阶段轨迹；长日志用 rank_learning_evidence'
+        '与 read_learning_evidence 分段导航，避免全量阅读。其他阶段仅作为验证反馈，不逐候选复审。'
+        '可用 WebSearch/WebFetch 检索同类项目漏洞披露、官方公告和修复提交，记录来源、版本条件和'
+        '本项目待核对机制，不能把外部内容直接当作漏洞成立。'
+        '通过 update_audit_skill 提交 scope=general 或 project、稳定 skill_name、完整该技能段内容'
+        '和本次证据。相同名称用于优化旧技能，不同名称增加新技能。下一轮直接加载，不等待评估或试用。'
+        '记录下一轮要查哪里、审计视角、追踪步骤和预期证据；通用方法不得混入仅适用本项目的约束。'
+        '项目经验可进入项目技能，不必包装成通用方法缺口；框架故障另行归因，不用提示词假装修复。'
+        '评分是运行反馈而非发布门槛，不改动隔离、工具权限、漏洞判定或证据标准。'
+        '通过 submit_learning 提交本轮归因和 update_audit_skill 返回的 proposal_ids；'
+        '收到修改意见就修正重交，accepted 后结束。应主动寻找下一轮深入方向，不为凑数编造改进。'
+        '证据不足如实声明限制。最终产物由工具生成，不修改后续采用记录。'
     )
     before = set((run / '.stage-skill-proposals').glob('*.json'))
     attempt = run / 'rsi/stage-learning-attempts' / uuid.uuid4().hex
     attempt.mkdir(parents=True)
-    context = instruction('learner', run, project)
+    context = INSTRUCTION + '\n' + instruction('learner', run, project)
     result = {'log': str(attempt / 'stream.jsonl'), 'project': project, 'input_hash': fingerprint, 'model': model, 'started_at': now()}
     try:
         with (attempt / 'stream.jsonl').open('w') as output, (attempt / 'stderr.log').open('w') as error:
@@ -108,13 +124,17 @@ def learn(run, project, repo=ROOT, timeout=180, skillopt_timeout=300):
         result['exit_code'] = child.returncode
     except (subprocess.TimeoutExpired, OSError) as exc:
         result.update(exit_code=124 if isinstance(exc, subprocess.TimeoutExpired) else 1, error=type(exc).__name__)
+    if result.get('exit_code') == 0:
+        try:
+            result['delivery'] = learning_delivery(run)
+        except (OSError, ValueError) as exc:
+            result.update(exit_code=1, error='学习产物未通过交付验收：' + str(exc))
     result['proposals'] = len(set((run / '.stage-skill-proposals').glob('*.json')) - before)
     result['skillopt'] = _run_skillopt(run, project, repo, model, skillopt_timeout) if result['exit_code']==0 else {'status':'skipped_failed_learning','results':[],'candidates':[]}
     result['skillopt_candidates'] = len(result['skillopt'].get('candidates', []))
     result['ended_at'] = now()
     write(attempt / 'result.json', result)
     write(file, result)
-    bank.feedback(run, project)
     return result
 
 

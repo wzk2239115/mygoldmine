@@ -139,7 +139,7 @@ if [ -f "$OUT_DIR/.build-tasks/current.json" ]; then
 项目=$PROJECT，源码=$SOURCE，输出目录=$OUT_DIR。
 读取 .build-tasks/current.json 指向的真实结果与 env-manifest.json，核对实际镜像及源码，执行必要的最小断网验收，记录未验证的能力和失败。
 partial 是有效的有限能力交付，不要求训练或 GPU 路径就不要扩大目标。
-调用 mcp__stage_delivery__submit_stage_result 提交实际清单，返回真实状态；如果没有可用环境，如实报告受阻。"
+调用 mcp__stage_delivery__submit_environment 提交真实环境状态、验收记录和限制，由工具生成正式清单，返回真实状态；如果没有可用环境，如实报告受阻。"
     agent_rc=$?
 fi
 if ! accepted_delivery; then

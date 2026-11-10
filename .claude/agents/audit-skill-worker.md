@@ -22,6 +22,10 @@ tools: Read, Grep, Glob, Bash, Write, Skill
 2. 加载后用 `Bash` 计算 `.claude/skills/<SKILL_NAME>/SKILL.md` 的 SHA-256，并记录 `SKILL_NAME`、摘要、输入区域和覆盖编号。
 3. 对输入区域内的每个入口，沿“输入来源 → 处理过程 → 危险操作 → 防护条件”追踪，优先读取项目知识卡、共享修复、项目专属修复和误报排除条件。
 4. 每条候选问题必须有 `file:line` 和从输入来源到危险操作的路径；没有完整证据的只写进待核实假设（`hypotheses`），不要写成候选问题。
+   - 提交候选前执行证据门槛：标明攻击者可控输入、真实入口、关键变换、危险操作、默认/配置前置条件，以及相关认证、授权、规范化、沙箱或安全 API 防护。只证明危险 API 存在不够。
+   - 将“代码缺陷存在”与“攻击者可达且产生安全影响”分开记录。可达性未知、依赖部署配置、只在测试/示例路径出现或尚未排除防护时，保留为 hypothesis 并列出缺失证据，不进入正式 findings。
+   - 对每个 finding 检索已有候选并给出去重依据；同一根因多个调用点应聚合或明确说明独立影响，不能靠改标题重复计数。
+   - coverage 结论必须对应实际读取的文件/行区间及审计意图；搜索命中、文件名覆盖、读取次数不能单独作为已审结论。
 5. 输出路径以任务传入的 `OUTPUT` 为准；没有 `OUTPUT` 时，分析类技能写入 `.workspace/findings/<skill>-<scope>.json`，规划类技能写入 `.workspace/findings/<skill>.json`，并同时写同名 Markdown 摘要。
    - `workspace-scanner`、`project-profiler`、`audit-coverage-planner`、`audit-review-planner` 等规划类技能按各自 `SKILL.md` 的输出要求执行，不强行生成 `findings`。
    - 安全分析类技能使用下面的证据优先结构。

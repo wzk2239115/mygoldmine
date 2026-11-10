@@ -43,7 +43,7 @@ def test_mcp_initialize_discovery_and_call(tmp_path):
     result = subprocess.run([sys.executable,str(SCRIPT),'serve','--stage','orchestrator','--root',str(tmp_path)],input='\n'.join(map(json.dumps,messages))+'\n',text=True,capture_output=True,check=True)
     rows = list(map(json.loads,result.stdout.splitlines()))
     assert len(rows) == 3
-    assert {tool['name'] for tool in rows[1]['result']['tools']} == {'submit_stage_result', 'propose_skill_update'}
+    assert {tool['name'] for tool in rows[1]['result']['tools']} == {'submit_audit_report', 'submit_stage_result', 'propose_skill_update'}
     receipt = json.loads(rows[2]['result']['content'][0]['text'])
     assert receipt['decision'] == 'accepted'
     assert receipt['validation_scope'] == 'artifact_contract'
@@ -111,7 +111,10 @@ def test_orchestrator_finalization_rejects_changed_report_and_invalid_ledger(tmp
     report = tmp_path / 'audit-report.json'
     report.write_text('{"findings":[]}')
     ledger = tmp_path / 'coverage-ledger.json'
-    ledger.write_text('{}')
+    ledger.write_text(json.dumps({
+        'schema_version': 1, 'project': 'demo', 'source_version': 'abc',
+        'limitations': [], 'entries': [{'id': 'COV-1', 'area': 'audit', 'view': 'review',
+        'hypothesis': '复核', 'status': 'unchecked', 'next_action': '继续核对'}]}))
     module.submit('orchestrator', tmp_path, {
         'artifact': str(report), 'artifacts': [str(ledger)],
         'summary': '交付', 'limitations': [],
@@ -122,3 +125,34 @@ def test_orchestrator_finalization_rejects_changed_report_and_invalid_ledger(tmp
     report.write_text('{"findings":[], "changed":true}')
     with pytest.raises(ValueError):
         module.finalize_orchestrator(tmp_path)
+
+
+def test_orchestrator_rejects_all_invalid_ledger_copies_before_acceptance(tmp_path):
+    report = tmp_path / 'audit-report.json'
+    report.write_text('{"findings":[]}')
+    paths = [tmp_path / 'findings/coverage-ledger.json',
+             tmp_path / 'task-artifacts/coverage-ledger.json']
+    ledger = {
+        'schema_version': 1, 'project': 'demo', 'source_version': 'abc',
+        'limitations': [], 'entries': [{
+            'id': 'COV-1', 'area': 'merge', 'view': 'dedupe-calibration',
+            'hypothesis': '复核重复候选', 'status': 'unchecked',
+            'next_action': '核对证据'
+        }]
+    }
+    for file in paths:
+        file.parent.mkdir(parents=True)
+        file.write_text(json.dumps(ledger))
+    args = {'artifact': str(report), 'artifacts': [str(paths[0])],
+            'summary': '提交', 'limitations': []}
+    rejected = module.submit('orchestrator', tmp_path, args)
+    assert rejected['decision'] == 'needs_revision'
+    assert {row['artifact'] for row in rejected['errors']} == {str(p) for p in paths}
+    assert all('review' in row['allowed_views'] for row in rejected['errors'])
+    ledger['entries'][0]['view'] = 'review'
+    paths[1].write_text(json.dumps(ledger))
+    again = module.submit('orchestrator', tmp_path, args)
+    assert again['decision'] == 'needs_revision'
+    assert again['errors'][0]['artifact'] == str(paths[0])
+    paths[0].write_text(json.dumps(ledger))
+    assert module.submit('orchestrator', tmp_path, args)['decision'] == 'accepted'

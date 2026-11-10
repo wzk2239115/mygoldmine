@@ -62,3 +62,23 @@ jobs:
         env:
           PYTHONPATH: ${{ runner.temp }}/SkillOpt:${{ github.workspace }}
         run: python -m pytest -q tests/test_skillopt_env_build.py
+
+
+  partial-delivery:
+    name: Partial deliveries (stages III–VII)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install deterministic test tools
+        run: python -m pip install -r requirements-dev.txt
+      - name: Verify candidate isolation and stage boundary
+        run: python -m pytest -q tests/test_verify_delivery_isolation.py tests/test_stage_tools.py
+      - name: Verify partial lab, execution and review deliveries
+        run: node --test ui/tests/partial-lab-delivery.test.mjs ui/tests/partial-agent-delivery.test.mjs ui/tests/partial-judge-delivery.test.mjs ui/tests/optional-visual.test.mjs

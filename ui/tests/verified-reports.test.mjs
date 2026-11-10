@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {createHash} from 'node:crypto';
-import {verifiedReports} from '../server/verified-reports.mjs';
+import {verifiedReports,reportReadyAt,newestReports} from '../server/verified-reports.mjs';
 function fixture(t){
  const repo=fs.mkdtempSync(path.join(os.tmpdir(),'verified-reports-'));t.after(()=>fs.rmSync(repo,{recursive:true,force:true}));
  const runDir=path.join(repo,'runs/demo/one');const folder=path.join(runDir,'visual-rendered');fs.mkdirSync(folder,{recursive:true});
@@ -33,4 +33,13 @@ test('新的验证批次运行时不能展示旧结论',t=>{
  const x=fixture(t);const dir=path.join(x.f.runDir+'.meta/node-retries/verify/new');fs.mkdirSync(dir,{recursive:true});
  fs.writeFileSync(path.join(dir,'attempt.json'),JSON.stringify({id:'new',status:'running',startedAt:'2026-11-07'}));
  assert.equal(verifiedReports(x.repo,[x.f]).length,0);
+});
+
+test('就绪时间取全部前置完成及素材更新时间的最晚值',()=>{
+ assert.equal(reportReadyAt([{endedAt:'2026-11-10T01:00:00Z'},{endedAt:'2026-11-10T03:00:00Z'}],[{updatedAt:'2026-11-10T02:00:00Z'}]),'2026-11-10T03:00:00.000Z');
+ assert.equal(reportReadyAt([{endedAt:'invalid'}],[]),null);
+});
+test('时间倒序，未知末尾，同时间保持稳定标识顺序',()=>{
+ const rows=[{key:'old',readyAt:'2026-11-09T00:00:00Z'},{key:'unknown',readyAt:null},{key:'b',readyAt:'2026-11-10T00:00:00Z'},{key:'a',readyAt:'2026-11-10T00:00:00Z'}];
+ assert.deepEqual(newestReports(rows).map(row=>row.key),['a','b','old','unknown']);
 });

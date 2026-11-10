@@ -339,3 +339,54 @@ def test_builder_defaults_to_per_finding_lab_directory(tmp_path, monkeypatch, ca
     assert task["scenario_out"] == str(task_path.parent / "scenario.json")
     assert task["finding_sha256"] == hashlib.sha256(finding.read_bytes()).hexdigest()
     capsys.readouterr()
+
+
+def test_submission_reads_real_nested_execution_envelope(tmp_path, monkeypatch):
+    from submission import submit
+    lab, document = make_captured_run(tmp_path, monkeypatch)
+    file = lab.run_dir / "stage-result.json"
+    file.write_text(json.dumps({**document["result"], "finding_id": "F-1"}))
+    args = {"artifact": str(file), "summary": "提交真实捕获结果", "limitations": []}
+    receipt = submit("redteam-agent", lab.run_dir, args)
+    assert receipt["decision"] == "accepted", receipt["errors"]
+    # Matching status alone never substitutes for matching tool provenance.
+    data = json.loads(file.read_text())
+    data["flag_provenance"]["event_id"] = "invented"
+    file.write_text(json.dumps(data))
+    assert submit("redteam-agent", lab.run_dir, args)["decision"] == "needs_revision"
+
+
+def test_submission_rejects_tampered_trace_after_nested_result(tmp_path, monkeypatch):
+    from submission import submit
+    lab, document = make_captured_run(tmp_path, monkeypatch)
+    file = lab.run_dir / "stage-result.json"
+    file.write_text(json.dumps({**document["result"], "finding_id": "F-1"}))
+    lab.trace_file.write_text("")
+    receipt = submit("redteam-agent", lab.run_dir, {
+        "artifact": str(file), "summary": "提交", "limitations": [],
+    })
+    assert receipt["decision"] == "needs_revision"
+
+def test_review_finalization_never_mutates_accepted_execution_attachment(tmp_path, monkeypatch):
+    from stage_tools import submit_structured
+    from submission import accepted_submissions
+
+    lab, _ = make_captured_run(tmp_path, monkeypatch)
+    original = (lab.run_dir / "result.json").read_bytes()
+    monkeypatch.setattr(judge, "ROOT", tmp_path / "judge-root")
+    monkeypatch.setattr(judge, "language_directive", lambda: "")
+
+    def producer(command, **kwargs):
+        receipt = submit_structured("judge", lab.run_dir, {
+            **approved_verdict(), "summary": "真实审核", "limitations": [],
+            "attachments": [str(lab.run_dir / "result.json")],
+        })
+        assert receipt["success"], receipt
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(judge, "run_session", producer)
+    monkeypatch.setattr(sys, "argv", ["judge.py", "--run-dir", str(lab.run_dir)])
+    assert judge.main() == 0
+    assert (lab.run_dir / "result.json").read_bytes() == original
+    assert json.loads((lab.run_dir / "reviewed-result.json").read_text())["status"] == "judge_approved"
+    assert accepted_submissions("judge", lab.run_dir)["accepted"] == 1

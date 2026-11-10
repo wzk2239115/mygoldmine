@@ -22,6 +22,14 @@ function imageProof(repo,item) {
   });
  }catch{return false;}
 }
+const validTime=value=>{const time=Date.parse(value);return Number.isFinite(time)?time:null;};
+export function reportReadyAt(attempts,artifacts) {
+ const dates=[...attempts.map(item=>item.endedAt),...artifacts.map(item=>item.updatedAt)].map(validTime).filter(value=>value!==null);
+ return dates.length?new Date(Math.max(...dates)).toISOString():null;
+}
+export function newestReports(rows) {
+ return rows.sort((a,b)=>(validTime(b.readyAt)??-Infinity)-(validTime(a.readyAt)??-Infinity) || a.key.localeCompare(b.key));
+}
 const text=value=>Array.isArray(value)?value.join('\n\n'):String(value || '未提供');
 export function verifiedReports(repo,findings) {
  const rows=[];
@@ -30,8 +38,10 @@ export function verifiedReports(repo,findings) {
   if(!f.reviewReady || s.blue?.status!=='confirmed' || s.red?.status!=='flag_captured' || !s.red.provenanceVerified || s.judge?.status!=='judge_approved' || !s.judge.provenanceVerified)continue;
   const runDir=path.resolve(repo,'runs',f.project,f.runId);
   if(runDir!==path.resolve(f.runDir || '') || !runDir.startsWith(path.join(repo,'runs')+path.sep))continue;
+  const attempts=[];
   const current=[['verify',s.blue],['redteam-agent',s.red],['judge',s.judge]].every(([node,result])=>{
    const attempt=nodeAttempts(runDir,node).at(-1);
+   if(attempt)attempts.push(attempt);
    return attempt?.status==='completed' && attempt.project===f.project && attempt.runId===f.runId && attempt.id===result.attemptId;
   });
   if(!current)continue;
@@ -57,7 +67,8 @@ export function verifiedReports(repo,findings) {
    '\n\n## 源码位置\n\n'+(f.sourcePaths || f.evidence || []).map(x=>'- '+x).join('\n')+
    '\n\n## 证据定位\n\n'+[s.blue.artifact,s.red.artifact,s.judge.artifact].filter(Boolean).map(x=>'- `'+x+'`').join('\n')+
    '\n\n审计运行：`'+f.runId+'` · 提交：`'+(f.commit || '未记录')+'`\n';
-  rows.push({exportId:hash(Buffer.from(f.key)).slice(0,24),key:f.key,project:f.project,runId:f.runId,id:f.id,title:f.title,severity:f.severity,imageUrl,markdown:md});
+  const readyAt=reportReadyAt(attempts,[image,report]);
+  rows.push({readyAt,timeBasis:'current-evidence-readiness',exportId:hash(Buffer.from(f.key)).slice(0,24),key:f.key,project:f.project,runId:f.runId,id:f.id,title:f.title,severity:f.severity,imageUrl,markdown:md});
  }
- return rows;
+ return newestReports(rows);
 }

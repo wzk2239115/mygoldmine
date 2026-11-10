@@ -51,11 +51,19 @@ Agent Skills 将专业知识打包成可发现的功能。每个 Skill 包含一
 | `audit-hypothesis-tracer` | 覆盖记录中需要补调用链、可达性、防护或影响证据的条目 | 输入来源 → 处理过程 → 危险操作 → 防护条件 → 影响；更新覆盖状态和历史 | `audit-skill-worker` 或 `infra-analyst` 按条目加载原生 `Skill` |
 | `audit-review-planner` | 首轮分析后、出现新条件或安排独立复查时 | 选择旧区域、记录复审原因、预算内随机复查、保留历史尝试 | `security-orchestrator` 通过原生 `Skill` 加载 |
 
-两个 skill 的 `quick-scan.py` 只依赖 Python 标准库，不依赖 tree-sitter，可直接在宿主机或容器内运行：
+### 原生内存安全审计 skill
+
+| Skill | 适用项目特征 | 检测能力 | 接入方式 |
+|-------|--------------|----------|----------|
+| `memory-safety-analyzer` | 主要语言为 C/C++ 或 CUDA；存在 `.c`、`.cc`、`.cpp`、`.cxx`、`.cu`、`.cuh`；Rust 出现 `unsafe`、`extern "C"`；Go 出现 `import "C"` 或 `unsafe.`；Python 使用 `ctypes`、`cffi`、`Py_DECREF`、`torch.utils.cpp_extension` | 空指针解引用（NPD）、内存泄漏（MLK）、释放后使用（UAF），以及重复释放；从外部输入、错误路径、回调和异步生命周期追踪到危险操作 | `project-profiler` 条件推荐 + `security-orchestrator` 条件任务；也可显式指定 |
+
+三组 `quick-scan.py` 都只依赖 Python 标准库，不依赖 tree-sitter，可直接在宿主机或容器内运行：
 
 ```bash
 python3 .claude/skills/model-loading-analyzer/quick-scan.py <repo> [<repo> ...]
 python3 .claude/skills/agent-config-analyzer/quick-scan.py <repo> [<repo> ...]
+python3 .claude/skills/memory-safety-analyzer/quick-scan.py <repo> [<repo> ...]
+python3 .claude/skills/memory-safety-analyzer/quick-scan.py --self-test
 ```
 
 ## 创建 Skill

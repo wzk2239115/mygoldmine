@@ -14,19 +14,24 @@ from skill_bank import SkillBank, infer_project, instruction as skill_instructio
 
 ROOT = Path(__file__).resolve().parents[2]
 STAGES = ('environment', 'orchestrator', 'visual', 'verify', 'redteam-lab', 'redteam-agent', 'judge', 'learner')
-INSTRUCTION = '本节点交付必须通过 mcp__stage_delivery__submit_stage_result。主文件写入 artifact，必须随下游交接的附件写入 artifacts；收到 needs_revision 时按具体错误修正后再次提交。节点结束前必须取得 accepted 回执，否则工作流不会交给下一节点。accepted 只表示文件与契约检查通过，不代表漏洞已验证。无法满足契约时提交结构化受阻结果并说明限制；不要伪造证据或为获得 accepted 降低原有业务验收标准。'
+INSTRUCTION = '本节点优先使用专用工具直接提交结构化参数，由工具生成文件；environment→submit_environment，orchestrator→submit_audit_report，visual→submit_attack_design，verify→submit_verification，redteam-lab→submit_attack_lab，redteam-agent→submit_execution_result，judge→submit_review，learner→submit_learning。项目和任务身份由框架绑定，不能自填替代。旧文件提交工具 mcp__stage_delivery__submit_stage_result 仅保留兼容。专用工具直接接收业务字段和附件引用；仅旧兼容接口使用 artifact 与 artifacts 文件路径；收到 needs_revision 时按具体错误修正后再次提交。节点结束前必须取得 accepted 回执，否则工作流不会交给下一节点。accepted 只表示文件与契约检查通过，不代表漏洞已验证。无法满足契约时提交结构化受阻结果并说明限制；不要伪造证据或为获得 accepted 降低原有业务验收标准。'
 SCHEMA = {'type':'object','properties':{'artifact':{'type':'string','description':'主交付文件的绝对路径'},'artifacts':{'type':'array','items':{'type':'string'},'description':'与主交付相关、需要随节点交接的附件绝对路径'},'summary':{'type':'string'},'limitations':{'type':'array','items':{'type':'string'}}},'required':['artifact','summary','limitations'],'additionalProperties':False}
 SKILLOPT_SCHEMA = {'type':'object','properties':{'target_stage':{'type':'string','enum':list(STAGES)},'scope':{'type':'string','enum':['general','project']},'problem':{'type':'string'},'suggestions':{'type':'array','minItems':1,'maxItems':4,'items':{'type':'object','properties':{'type':{'type':'string','enum':['add','replace','delete']},'title':{'type':'string'},'instruction':{'type':'string'}},'required':['instruction'],'additionalProperties':False}},'evidence':{'type':'array','minItems':1,'maxItems':5,'items':{'type':'string'}},'source_stages':{'type':'array','items':{'type':'string','enum':list(STAGES)}},'expected_improvement':{'type':'string'},'possible_regression':{'type':'string'},'conditions':{'type':'object','properties':{key:{'type':'string'} for key in ('machine','python','commit')},'additionalProperties':False}},'required':['target_stage','scope','problem','suggestions','evidence','expected_improvement','possible_regression'],'additionalProperties':False}
 
 def config(stage, root):
-    return {'mcpServers':{'stage_delivery':{'command':'python3','args':[str(Path(__file__).resolve()),'serve','--stage',stage,'--root',str(Path(root).resolve())]}}}
+    from producer_contract import task_context
+    context = task_context(stage, root, infer_project(root))
+    return {'mcpServers':{'stage_delivery':{'command':'python3','args':[str(Path(__file__).resolve()),'serve','--stage',stage,'--root',str(Path(root).resolve()),'--task-json',json.dumps(context)]}}}
 
-def accepted_submissions(stage, root, minimum=1):
+def accepted_submissions(stage, root, minimum=1, allow_partial=False):
     """Recheck accepted receipts and their exact artifact bytes at the stage boundary."""
     root = Path(root).resolve(strict=True)
     if stage not in STAGES or minimum < 0:
         raise ValueError('阶段交付检查参数无效')
     found = []
+    excluded = []
+    if allow_partial and stage != "visual":
+        raise ValueError("此部分验收入口仅用于攻击设计")
     latest = {}
     receipt_roots = [root]
     summary = root / 'verify' / 'agent' / 'summary.json'
@@ -54,7 +59,13 @@ def accepted_submissions(stage, root, minimum=1):
         for receipt_file in sorted(folder.glob('*.json')):
             if receipt_file.is_symlink() or not receipt_file.is_file():
                 continue
-            receipt = json.loads(receipt_file.read_text(encoding='utf-8'))
+            try:
+                receipt = json.loads(receipt_file.read_text(encoding='utf-8'))
+            except (OSError, ValueError) as exc:
+                if allow_partial:
+                    excluded.append({'receipt':str(receipt_file),'reason':str(exc)})
+                    continue
+                raise
             if not isinstance(receipt, dict) or receipt.get('stage') != stage:
                 raise ValueError(f'阶段交付回执格式无效：{receipt_file}')
             key = receipt.get('artifact') or str(receipt_file)
@@ -64,6 +75,7 @@ def accepted_submissions(stage, root, minimum=1):
     for receipt_file, receipt in latest.values():
             try:
                 if receipt.get('decision') != 'accepted':
+                    if allow_partial: excluded.append({'receipt':str(receipt_file),'reason':'交付未接受'})
                     continue
                 artifact = Path(receipt.get('artifact') or '')
                 if not artifact.is_absolute():
@@ -100,12 +112,15 @@ def accepted_submissions(stage, root, minimum=1):
                         raise ValueError(f'交付包文件缺失或内容已改变：{file}')
                 found.append({'receipt': str(receipt_file), 'artifact': str(artifact), 'sha256': digest, 'files': files})
             except (OSError, ValueError, TypeError) as exc:
+                if allow_partial:
+                    excluded.append({'receipt':str(receipt_file),'reason':str(exc)})
+                    continue
                 raise ValueError(f'阶段交付回执无效：{receipt_file}：{exc}') from exc
     unique = {item['artifact']: item for item in found}
     found = list(unique.values())
     if len(found) < minimum:
         raise ValueError(f'{stage} 阶段需要至少 {minimum} 份有效交付回执，实际为 {len(found)}')
-    return {'stage': stage, 'root': str(root), 'accepted': len(found), 'deliveries': found}
+    return {'stage': stage, 'root': str(root), 'accepted': len(found), 'deliveries': found, 'excluded': excluded}
 
 
 def finalize_orchestrator(root):
@@ -154,7 +169,7 @@ def finalize_orchestrator(root):
                 errors = validate_ledger(ledger)
                 if errors:
                     raise ValueError('覆盖记录未通过重新验收：' + '; '.join(errors))
-            if file != artifact:
+            if file != artifact and not file.is_relative_to(root/'task-artifacts') and file != root/'audit-report.md':
                 attachments.append(str(file))
         # One final submission, using all prior declared dependencies and the same validators.
         receipt = submit('orchestrator', root, {
@@ -170,10 +185,12 @@ def finalize_orchestrator(root):
         return delivery
 
 
-def submit(stage, root, arguments):
-    root=Path(root).resolve(); errors=[]; artifact=None; digest=None; package_files=[]
+def submit(stage, root, arguments, task=None):
+    from producer_contract import task_context, validate_identity, package_file, declared_files, validate_bound_inputs
+    root=Path(root).resolve(); task=task if task is not None else task_context(stage, root, infer_project(root)); errors=[]; artifact=None; digest=None; package_files=[]
     try:
         if stage not in STAGES: raise ValueError('未知阶段')
+        validate_bound_inputs(task)
         if not isinstance(arguments.get('summary'),str) or not arguments['summary'].strip(): raise ValueError('需要简短交付说明')
         if not isinstance(arguments.get('limitations'),list) or any(not isinstance(v,str) for v in arguments['limitations']): raise ValueError('limitations 必须是字符串数组')
         raw_artifact=Path(arguments['artifact'])
@@ -202,7 +219,9 @@ def submit(stage, root, arguments):
             if file.stat().st_size>10*1024*1024: raise ValueError('单个交付附件超过 10 MiB')
             package[str(file)]=file.read_bytes()
         if stage=='learner':
-            if not data.strip(): raise ValueError('经验文件为空')
+            from learner_contract import validate_learning_result
+            for file in validate_learning_result(artifact, root, infer_project(root)):
+                package[str(file)] = file.read_bytes()
         elif stage=='redteam-lab':
             if artifact.suffix.lower() in {'.md','.markdown'}:
                 raise ValueError('红队场景阶段受阻时请提交结构化受阻文件，不要提交说明文档')
@@ -213,11 +232,17 @@ def submit(stage, root, arguments):
             if not isinstance(d,dict): raise ValueError('交付文件必须是 JSON 对象')
             sys.path.insert(0,str(ROOT/'scripts/redteam'))
             from contracts import validate_blocked, validate_scenario
+            validate_identity(d, task)
+            expected_id=task.get('finding_id')
+            expected_hash=task.get('finding_sha256')
+            expected_source=task.get('source_binding')
+            if not all((expected_id, expected_hash, expected_source)):
+                raise ValueError('缺少启动器提供的候选与源码绑定，请检查 lab-task.json')
             if d.get('status')=='blocked':
-                validate_blocked(d, expected_finding_id=d.get('finding_id'), expected_finding_sha256=d.get('finding_sha256'), expected_source=d.get('source'))
+                validate_blocked(d, expected_finding_id=expected_id, expected_finding_sha256=expected_hash, expected_source=expected_source)
             else:
                 # 完整的来源绑定与隔离检查继续由构建执行器执行。
-                validate_scenario(d, expected_finding_id=d.get('finding_id'), expected_finding_sha256=d.get('finding_sha256'), expected_source=d.get('source'))
+                validate_scenario(d, expected_finding_id=expected_id, expected_finding_sha256=expected_hash, expected_source=expected_source)
         else:
             d=json.loads(data)
             if not isinstance(d,dict): raise ValueError('交付文件必须是 JSON 对象')
@@ -229,43 +254,120 @@ def submit(stage, root, arguments):
                 result=check_report(artifact, expected_project=expected_project)
                 if not result['valid'] or result['incomplete']: errors.append({'report_quality':result})
             elif stage=='environment':
-                if d.get('env_status') not in ('ready','partial'): raise ValueError('环境未达到可交付状态')
-                if d.get('build_exit_code') != 0 or not d.get('image') or not d.get('image_id'): raise ValueError('缺少成功构建和镜像编号证据')
-                actual=subprocess.run(['docker','image','inspect',d['image'],'--format','{{.Id}}'],capture_output=True,text=True,timeout=15)
-                if actual.returncode or actual.stdout.strip()!=d['image_id']: raise ValueError('实际镜像不存在或编号与清单不符')
-                if not d.get('acceptance') or any(c.get('exit_code')!=0 for c in d['acceptance']): raise ValueError('需要明确且通过的验收记录')
-                if d['env_status']=='partial' and not arguments['limitations']: raise ValueError('部分可用必须声明限制')
+                validate_identity(d, task)
+                if d.get('env_status') == 'blocked':
+                    if not d.get('reason') or not arguments['limitations']:
+                        raise ValueError('环境受阻必须说明真实原因及限制')
+                elif d.get('env_status') not in ('ready','partial'): raise ValueError('环境未达到可交付状态')
+                if d.get('env_status') != 'blocked':
+                    if d.get('build_exit_code') != 0 or not d.get('image') or not d.get('image_id'): raise ValueError('缺少成功构建和镜像编号证据')
+                    actual=subprocess.run(['docker','image','inspect',d['image'],'--format','{{.Id}}'],capture_output=True,text=True,timeout=15)
+                    if actual.returncode or actual.stdout.strip()!=d['image_id']: raise ValueError('实际镜像不存在或编号与清单不符')
+                    if not d.get('acceptance') or any(c.get('exit_code')!=0 for c in d['acceptance']): raise ValueError('需要明确且通过的验收记录')
+                    if d['env_status']=='partial' and not arguments['limitations']: raise ValueError('部分可用必须声明限制')
             elif stage=='visual':
                 # 单个场景的设计交付；整阶段仍由原有渲染与汇总检查验收。
+                validate_identity(d, task)
                 if not d.get('finding_id'): raise ValueError('场景设计缺少 finding_id')
                 sys.path.insert(0, str(ROOT/'.claude/skills/project-cartographer/scripts'))
                 from image_provenance import generated_image
                 images=[p for p in artifact.parent.glob(artifact.name.replace('.director.json','')+'.*') if p.suffix in ('.webp','.png','.jpg') and generated_image(p)]
+                if not isinstance(d.get('mechanism'),dict) or not d['mechanism']:
+                    raise ValueError('攻击设计需要非空 mechanism 对象，缺图片可以交付，缺设计不可以')
+                present=[p for p in artifact.parent.glob(artifact.name.replace('.director.json','')+'.*') if p.suffix in ('.webp','.png','.jpg','.svg')]
+                if any(p.suffix=='.svg' or not generated_image(p) for p in present):
+                    raise ValueError('已有图片缺少匹配文生图来源；请补真实记录或移出正式交付目录')
                 for image in images:
-                    if image.is_relative_to(root): package[str(image)]=image.read_bytes()
-                if not artifact.name.endswith('.director.json') or not images: raise ValueError('需要场景设计 .director.json 及同名文生图图片；必须有匹配图片哈希的文生图记录，SVG 不可作为交付')
+                    if image.is_relative_to(root):
+                        for file in (image, Path(str(image)+'.generation.json')):
+                            name, content=package_file(root, file);package[name]=content
+                if not artifact.name.endswith('.director.json'): raise ValueError('需要场景设计 .director.json；图片可缺失，但存在的图片必须有真实文生图来源记录')
             elif stage=='verify':
                 sys.path.insert(0,str(ROOT/'scripts/workflow'))
                 from delivery_contract import validate_verification_report
                 checked=validate_verification_report(artifact,artifact.parent)
                 for name in checked['files']:
                     file=Path(name)
-                    if file.is_relative_to(root): package[str(file)]=file.read_bytes()
+                    if file.is_relative_to(root):
+                        name,content=package_file(root,file);package[name]=content
                 status=d.get('verdict') or d.get('verification',{}).get('status') or d.get('status')
+                validate_identity(d, task, require_project=bool(task.get('project')))
+                if status not in ('confirmed','rejected','blocked','inconclusive'): raise ValueError('验证结论只允许 confirmed、rejected、blocked、inconclusive')
                 if not status or not (d.get('finding_id') or d.get('id')): raise ValueError('验证报告缺少明确结论或候选问题编号')
                 if status in ('blocked','inconclusive') and not arguments['limitations']: raise ValueError('受阻或不确定结论必须声明限制')
             elif stage=='redteam-agent':
-                if not d.get('status'): raise ValueError('红队结果缺少状态')
+                sys.path.insert(0,str(ROOT/'scripts/redteam'))
+                validate_identity(d, task)
+                if d.get('status') not in ('flag_captured','not_captured','blocked','model_timeout','agent_error','agent_timeout'):
+                    raise ValueError('红队结果结论无效')
+                actual_file=root/'result.json'
+                actual_document=None
+                if actual_file.is_file():
+                    actual_document=json.loads(actual_file.read_text())
+                    actual=actual_document.get('result',actual_document)
+                    if not isinstance(actual,dict):
+                        raise ValueError('执行器结果格式无效，需修复执行器；不得修改证据绕过')
+                    for key in ('status','captured'):
+                        if d.get(key)!=actual.get(key):
+                            raise ValueError(f'提交字段 {key} 与执行器实际结果不一致：提交为 {d.get(key)!r}，执行器为 {actual.get(key)!r}')
+                if d.get('status')=='flag_captured':
+                    from contracts import recompute_flag_provenance
+                    if not actual_document or not isinstance(actual_document.get('result'),dict):
+                        raise ValueError('红队成功结论缺少正式执行器结果文档')
+                    if d.get('flag_provenance')!=actual.get('flag_provenance'):
+                        raise ValueError('提交的证据来源与执行器结果不一致')
+                    recompute_flag_provenance(root,actual_document)
+                    if d.get('captured') is not True:
+                        raise ValueError('红队成功结论缺少匹配工具证据来源')
             elif stage=='judge':
                 sys.path.insert(0,str(ROOT/'scripts/redteam'))
                 from contracts import validate_verdict
                 validate_verdict(d)
+                snapshot=root/'judge-input-result.json'
+                if not snapshot.is_file(): raise ValueError('缺少审核输入快照，请通过审核启动器执行')
+                for file in (snapshot,root/'finding.json',root/'trace.jsonl'):
+                    name, content=package_file(root,file);package[name]=content
+                validate_identity(json.loads((root/'finding.json').read_text()),task)
+                if d.get('verdict')=='approved':
+                    from contracts import recompute_flag_provenance
+                    recompute_flag_provenance(root,json.loads(snapshot.read_text()))
+        if stage == 'redteam-lab':
+            files = list(d.get('evidence', [])) if d.get('status') == 'blocked' else []
+            driver=d.get('driver')
+            if isinstance(driver, str): files.append(driver)
+            elif isinstance(driver, dict) and driver.get('path'): files.append(driver['path'])
+            for file in files:
+                name, content=package_file(root, file);package[name]=content
+        if stage == 'orchestrator':
+            related = list((root/'task-artifacts').rglob('*')) if (root/'task-artifacts').exists() else []
+            if (root/'audit-report.md').exists(): related.append(root/'audit-report.md')
+            for file in related:
+                if file.is_dir() and not file.is_symlink(): continue
+                name, content=package_file(root,file);package[name]=content
+        if stage in ('orchestrator','environment','redteam-agent','judge'):
+            for file in declared_files(d, artifact.parent):
+                name, content=package_file(root, file);package[name]=content
+        if stage == 'orchestrator':
+            sys.path.insert(0,str(ROOT/'scripts/audit'))
+            from coverage_ledger import validate_ledger, VIEWS
+            for name, content in package.items():
+                if Path(name).name != 'coverage-ledger.json': continue
+                try:
+                    ledger_errors=validate_ledger(json.loads(content))
+                except (ValueError,TypeError) as exc:
+                    ledger_errors=[str(exc)]
+                if ledger_errors:
+                    errors.append({'artifact':name,'coverage_ledger_errors':ledger_errors,
+                                   'allowed_views':sorted(VIEWS),
+                                   'repair':'修正此文件后再次提交；其他同名副本也会逐一检查。'})
         if sum(len(value) for value in package.values())>50*1024*1024:
             raise ValueError('交付包总大小超过 50 MiB')
         package_files=[{'path':name,'size':len(value),'sha256':hashlib.sha256(value).hexdigest()} for name,value in sorted(package.items())]
     except Exception as exc:
         errors.append(str(exc))
     receipt={'id':str(uuid.uuid4()),'stage':stage,'decision':'needs_revision' if errors else 'accepted','validation_scope':'artifact_contract','artifact':str(artifact) if artifact else None,'sha256':digest,'files':package_files,'summary':arguments.get('summary'),'limitations':arguments.get('limitations'),'errors':errors,'checked_at':datetime.now(timezone.utc).isoformat(),'notice':'交付文件检查不替代动态验收、随机标记来源检查或人工验收；原有阶段门槛继续生效。'}
+    from submission_feedback import submission_feedback
+    receipt.update(submission_feedback(stage, root, artifact, errors))
     directory=root/'.stage-submissions'/stage;directory.mkdir(parents=True,exist_ok=True)
     (directory/(receipt['id']+'.json')).write_text(json.dumps(receipt,ensure_ascii=False,indent=2))
     return receipt
@@ -316,7 +418,7 @@ def request_skillopt_optimization(stage, root, arguments):
     (queue/f'{request_id}.json').write_text(json.dumps(request,ensure_ascii=False,indent=2),encoding='utf-8')
     return {'status':'queued_skillopt_request','id':request_id,'publication':'requires_independent_evaluation'}
 
-def serve(stage, root):
+def serve(stage, root, task=None):
     for line in sys.stdin:
         request=None
         try:
@@ -325,17 +427,43 @@ def serve(stage, root):
             if method=='initialize': result={'protocolVersion':request.get('params',{}).get('protocolVersion','2024-11-05'),'capabilities':{'tools':{}},'serverInfo':{'name':'stage-delivery','version':'1.0'}}
             elif method=='ping': result={}
             elif method=='tools/list':
-                tools=[{'name':'propose_skill_update','description':'提交本阶段的通用或仓库专属技能改进候选，引用本次实际执行证据；不会自动发布。','inputSchema':{'type':'object','properties':{'target_stage':{'type':'string','enum':list(STAGES)},'scope':{'type':'string','enum':['general','project']},'content':{'type':'string'},'evidence':{'type':'array','items':{'type':'string'}},'conditions':{'type':'object','properties':{key:{'type':'string'} for key in ('machine','python','commit')},'additionalProperties':False},'provenance':{'type':'object'}},'required':['scope','content','evidence'],'additionalProperties':False}},{'name':'submit_stage_result','description':f'提交 {stage} 阶段交付文件，返回具体修改意见或验收凭据；允许多次调用。','inputSchema':SCHEMA}]
+                from stage_tools import tool
+                tools=[{'name':'propose_skill_update','description':'提交本阶段的通用或仓库专属技能改进候选，引用本次实际执行证据；不会自动发布。','inputSchema':{'type':'object','properties':{'target_stage':{'type':'string','enum':list(STAGES)},'scope':{'type':'string','enum':['general','project']},'content':{'type':'string'},'evidence':{'type':'array','items':{'type':'string'}},'conditions':{'type':'object','properties':{key:{'type':'string'} for key in ('machine','python','commit')},'additionalProperties':False},'provenance':{'type':'object'}},'required':['scope','content','evidence'],'additionalProperties':False}},{'name':'submit_stage_result','description':f'提交 {stage} 阶段产物。检查返回 success 和 decision：accepted 才算完成；needs_revision 时按 errors、repair.artifact_example 和 repair.resubmit_example 修正重交。允许多次调用，不要只回复文字。','inputSchema':SCHEMA}]
+                tools.insert(0,tool(stage))
                 if stage=='redteam-lab':
                     from stage_builds import SCHEMA as build_schema
                     tools.append({'name':'start_stage_build','description':'登记本场景的持久镜像构建；返回任务文件，宿主机等待真实完成。','inputSchema':build_schema})
                 if stage=='learner':
+                    from learning_evidence import TOOLS
+                    tools.extend(TOOLS)
+                    from audit_skill_updates import SCHEMA as audit_schema
+                    tools.append({'name':'update_audit_skill','description':'新增或优化通用/项目专属审计技能。同名技能更新、其他技能保留；返回编号须纳入 submit_learning，正式交付通过后下一轮直接使用，不等待评估或试用。','inputSchema':audit_schema})
+                    tools.append({'name':'get_audit_skills','description':'读取当前生效的通用和本项目阶段二技能及版本，便于优化已有技能而非重复堆叠。','inputSchema':{'type':'object','properties':{},'additionalProperties':False}})
                     tools.append({'name':'request_skillopt_optimization','description':'提交一个由 SkillOpt 重写的阶段技能请求。只写请求，不直接发布；宿主机随后调用第三方优化引擎并转换为现有候选。','inputSchema':SKILLOPT_SCHEMA})
                     tools.append({'name':'get_rsi_scorecard','description':'读取本项目本轮 RSI 评分卡及相同源码版本的历史对照。只读；包含两项奖励、系数和计算依据，不改变任何验收状态。','inputSchema':{'type':'object','properties':{},'additionalProperties':False}})
                 result={'tools':tools}
             elif method=='tools/call':
                 params=request.get('params',{})
-                if params.get('name')=='propose_skill_update':
+                from stage_tools import tool, submit_structured
+                if params.get('name')==tool(stage)['name']:
+                    receipt=submit_structured(stage,root,params.get('arguments',{}),task=task)
+                    result={'content':[{'type':'text','text':json.dumps(receipt,ensure_ascii=False)}],'structuredContent':receipt,'isError':not receipt['success']}
+                elif params.get('name') in ('update_audit_skill','get_audit_skills'):
+                    if stage!='learner':raise ValueError('只有学习阶段可以安排审计技能更新')
+                    from audit_skill_updates import request_update
+                    if params['name']=='update_audit_skill':
+                        data=request_update(stage,root,params.get('arguments',{}))
+                    else:
+                        bank=SkillBank(); project=infer_project(root); active=bank.active()
+                        skills=[]
+                        for key,cid in active.items():
+                            if key in ('orchestrator/general/shared','orchestrator/project/'+project):
+                                current=bank.candidate(cid)
+                                skills.append({'id':cid,'scope':current['scope'],
+                                    'skills':current.get('provenance',{}).get('sections') or {'previous-audit-rules':current['content']}})
+                        data={'skills':skills}
+                    result={'content':[{'type':'text','text':json.dumps(data,ensure_ascii=False)}],'structuredContent':data}
+                elif params.get('name')=='propose_skill_update':
                     args=params.get('arguments',{})
                     for name in args.get('evidence',[]):
                         if not Path(name).resolve().is_relative_to(Path(root).resolve()): raise ValueError('只能引用本次输出目录中的证据')
@@ -345,9 +473,15 @@ def serve(stage, root):
                     result={'content':[{'type':'text','text':json.dumps({'status':'queued_candidate','id':candidate['id'],'publication':'requires_independent_evaluation'},ensure_ascii=False)}]}
                 elif params.get('name')=='start_stage_build':
                     from stage_builds import start_build
-                    task=start_build(stage,root,params.get('arguments',{}));result={'content':[{'type':'text','text':json.dumps(task,ensure_ascii=False)}]}
+                    build_task=start_build(stage,root,params.get('arguments',{}));result={'content':[{'type':'text','text':json.dumps(build_task,ensure_ascii=False)}]}
                 elif params.get('name')=='request_skillopt_optimization':
                     request=request_skillopt_optimization(stage,root,params.get('arguments',{}));result={'content':[{'type':'text','text':json.dumps(request,ensure_ascii=False)}]}
+                elif params.get('name') in ('rank_learning_evidence','read_learning_evidence'):
+                    if stage!='learner': raise ValueError('只有学习阶段可以使用证据导航工具')
+                    from learning_evidence import rank_evidence, read_evidence
+                    action=rank_evidence if params['name']=='rank_learning_evidence' else read_evidence
+                    data=action(root,params.get('arguments',{}))
+                    result={'content':[{'type':'text','text':json.dumps(data,ensure_ascii=False)}],'structuredContent':data}
                 elif params.get('name')=='get_rsi_scorecard':
                     if stage!='learner':raise ValueError('只有第八阶段经验学习节点可以读取 RSI 评分卡')
                     from rsi_scorecard import scorecard
@@ -356,7 +490,7 @@ def serve(stage, root):
                     data=scorecard(ROOT,root,project)
                     result={'content':[{'type':'text','text':json.dumps(data,ensure_ascii=False)}]}
                 elif params.get('name')=='submit_stage_result':
-                    receipt=submit(stage,root,params.get('arguments',{}));result={'content':[{'type':'text','text':json.dumps(receipt,ensure_ascii=False)}],'isError':receipt['decision']!='accepted'}
+                    receipt=submit(stage,root,params.get('arguments',{}),task=task);result={'content':[{'type':'text','text':json.dumps(receipt,ensure_ascii=False)}],'structuredContent':receipt,'isError':receipt['decision']!='accepted'}
                 else: raise ValueError('未知工具')
             else:
                 print(json.dumps({'jsonrpc':'2.0','id':ident,'error':{'code':-32601,'message':'未知方法'}}),flush=True);continue
@@ -365,12 +499,12 @@ def serve(stage, root):
             if isinstance(request,dict) and 'id' in request: print(json.dumps({'jsonrpc':'2.0','id':request['id'],'error':{'code':-32602,'message':str(exc)}}),flush=True)
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('mode',choices=['config','serve','instruction','check','finalize']);parser.add_argument('--stage',choices=STAGES);parser.add_argument('--root');parser.add_argument('--minimum',type=int,default=1);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('mode',choices=['config','serve','instruction','check','finalize']);parser.add_argument('--stage',choices=STAGES);parser.add_argument('--root');parser.add_argument('--task-json');parser.add_argument('--minimum',type=int,default=1);parser.add_argument('--allow-partial',action='store_true');args=parser.parse_args()
     if args.mode=='instruction': print(INSTRUCTION + ('\n'+skill_instruction(args.stage,args.root) if args.stage and args.root else ''))
     elif args.mode=='config': print(json.dumps(config(args.stage,args.root)))
     elif args.mode=='finalize':
         if args.stage != 'orchestrator': raise ValueError('此收尾入口仅用于审计编排阶段')
         print(json.dumps(finalize_orchestrator(args.root), ensure_ascii=False))
-    elif args.mode=='check': print(json.dumps(accepted_submissions(args.stage,args.root,args.minimum),ensure_ascii=False))
-    else: serve(args.stage,args.root)
+    elif args.mode=='check': print(json.dumps(accepted_submissions(args.stage,args.root,args.minimum,args.allow_partial),ensure_ascii=False))
+    else: serve(args.stage,args.root,json.loads(args.task_json) if args.task_json else None)
 if __name__=='__main__':main()

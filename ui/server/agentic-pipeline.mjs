@@ -413,8 +413,11 @@ export function buildAgenticPipeline(run) {
       const summary=readJson(path.join(latest.workspace,'rsi/learning-retry.json'));
       const learning=readJson(path.join(latest.workspace,'rsi/stage-learning-run.json'));
       node.artifact=path.join(latest.workspace,'rsi/learning-retry.json');
-      if(summary)node.detail=`经验学习${summary.status==='failed'?'失败':'已结束'} · SkillOpt 候选 ${summary.learning?.skillopt_candidates || 0} · 发布 ${summary.evaluation?.published?.length || 0} 个版本 · ${summary.evaluation?.status==='no_verified_improvement'?'暂无经验证的改善':summary.evaluation?.status==='learning_failed'?'学习调用失败，未发布':'评估已完成'}`;
-      else if(learning)node.detail=`正在处理学习结果 · SkillOpt 候选 ${learning.skillopt_candidates || 0}`;
+      const outcome=readJson(path.join(latest.workspace,'rsi/learning-result.json'));
+      if(summary)node.detail=outcome
+        ? `学习${summary.status==='failed'?'未完成':'已结束'} · ${outcome.conclusions?.length || 0} 项归因 · ${outcome.proposal_ids?.length || 0} 项改进 · 发布 ${summary.evaluation?.published?.length || 0} 个版本`
+        : `学习${summary.status==='failed'?'失败':'已结束'} · 尚无正式学习结论，点击查看详情`;
+      else if(learning)node.detail='正在处理本轮学习结果，点击查看详情';
     }
     if(node.id==='redteam-lab')node.construction=labTasks(run);
     if(node.id==='redteam-agent')node.execution=agentTasks(run);
@@ -474,7 +477,12 @@ export function buildAgenticPipeline(run) {
     if(receipt){node.status=receipt.status;if(receipt.reason)node.detail=receipt.reason;}
     if(!receipt && workflow.steps?.includes(node.id) && workflow.current!==node.id){node.status='pending';node.detail='等待本次工作流的前置节点';}
     if(workflow.current===node.id)node.status=workflow.status==='running'?'running':'failed';
-    if(workflow.admission?.status==='queued' && !receipt){node.status='pending';node.detail='项目排队中，等待运行名额';}
+    if(workflow.admission?.status==='queued' && !receipt && workflow.steps?.includes(node.id)){
+      const firstPending=workflow.current || workflow.steps.find(id=>!workflow.receipts?.some(item=>item.node===id));
+      node.status='pending';
+      node.statusLabel=node.id===firstPending?'排队中':'等待';
+      node.detail=node.id===firstPending?'项目排队中，等待运行名额':'等待本次工作流的前置节点';
+    }
     if(workflow.status==='running')node.retryReason='项目工作流正在运行';
   }
   return {

@@ -1,3 +1,4 @@
+import CoverageTokenChart from "./CoverageTokenChart.jsx";
 import { useState } from 'react';
 
 const number=value=>Number.isFinite(value)?value.toLocaleString('zh-CN',{maximumFractionDigits:4}):'—';
@@ -5,7 +6,7 @@ const number=value=>Number.isFinite(value)?value.toLocaleString('zh-CN',{maximum
 export default function RsiRewards({data}) {
   const [open,setOpen]=useState(false);
   const current=data?.current;
-  return <section className="rsi-rewards" aria-label="RSI 每轮奖励">
+  return <><CoverageTokenChart data={data?.coverageTokens} /><section className="rsi-rewards" aria-label="RSI 每轮奖励">
     <button type="button" className="cycle-control" aria-expanded={open} onClick={()=>setOpen(!open)}>
       RSI 奖励 · {current ? `${number(current.total)} 分${current.status==='partial'?' · 数据未齐':''}` : '本轮等待计算'} · {open?'收起':'查看明细'}
     </button>
@@ -29,5 +30,5 @@ export default function RsiRewards({data}) {
       </table></div> : <p>尚无采用此公式计算的轮次。</p>}
       <small>分数表示本轮观测收益；源码版本变化会建立新的覆盖基线，不能据此认定技能改动产生了因果提升。</small>
     </div> : null}
-  </section>;
+  </section></>;
 }

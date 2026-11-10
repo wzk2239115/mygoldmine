@@ -7,6 +7,7 @@ from pathlib import Path
 from skill_bank import SkillBank, ROOT, read, write, now
 from learn_round import learn
 from exploration import feedback
+from audit_skill_updates import apply_updates
 
 
 def retry_learning(source, output, project):
@@ -24,6 +25,15 @@ def retry_learning(source, output, project):
         if record['stage'] == 'learner':
             continue
         record = dict(record)
+        if record['stage']=='orchestrator':
+            extra=[source/'raw.jsonl',source/'task-artifacts/coverage-ledger.json',
+                   source/'task-artifacts/read-coverage/summary.json',
+                   source/'task-artifacts/exploration-plan.json',source/'triage/jev-infra.json']
+            known={ref['path'] for ref in record.get('evidence',[])}
+            import hashlib
+            record['evidence']=list(record.get('evidence',[]))+[
+                {'path':str(file.relative_to(ROOT)), 'sha256':hashlib.sha256(file.read_bytes()).hexdigest()}
+                for file in extra if file.is_file() and str(file.relative_to(ROOT)) not in known]
         refs = []
         for index, ref in enumerate(record.get('evidence', [])):
             original = (ROOT/ref['path']).resolve()
@@ -39,19 +49,16 @@ def retry_learning(source, output, project):
     write(output/'rsi/stage-feedback/index.json', {'project': project, 'source_run': str(source), 'stages': snapshots})
     write(output/'rsi/feedback-snapshot.json', {'source_run': str(source), 'created_at': now()})
     feedback(ROOT, source, output, project)
-    before = {file.stem for file in (bank.root/'candidates').glob('*.json')}
     result = learn(output, project, timeout=int(os.environ.get('RSI_LEARNER_TIMEOUT', '360')), skillopt_timeout=int(os.environ.get('RSI_SKILLOPT_TIMEOUT', '300')))
     rows = result.get('skillopt', {}).get('results', [])
-    failed = result.get('exit_code', 1) != 0 or any(row.get('status') in ('error', 'failed') for row in rows)
-    after = {file.stem for file in (bank.root/'candidates').glob('*.json')}
-    evaluation = bank.advance(project, candidate_ids=after-before) if not failed else {'status': 'learning_failed', 'published': [], 'results': []}
-    exploration = feedback(ROOT, source, output, project, candidate_ids=sorted(after-before))
+    failed = result.get('exit_code', 1) != 0
+    evaluation = apply_updates(bank, output, project) if not failed else {'status': 'learning_failed', 'published': [], 'results': []}
+    exploration = feedback(ROOT, source, output, project, candidate_ids=())
     evaluation['exploration'] = exploration
     evaluation['interesting'] = exploration['interesting']
     evaluation['stable_status'] = evaluation['status']
-    if exploration['status']=='trial_selected':evaluation['status']='project_trial'
     write(output/'rsi/stage-learning-evaluation.json', evaluation)
-    summary = {'status': 'failed' if failed else 'degraded' if any(row.get('status') == 'evaluation_error' for row in evaluation.get('results', [])) else 'completed', 'learning': result, 'evaluation': evaluation, 'ended_at': now()}
+    summary = {'status': 'failed' if failed else 'degraded' if (any(row.get('status') in ('error', 'failed') for row in rows) or any(row.get('status') == 'evaluation_error' for row in evaluation.get('results', []))) else 'completed', 'learning': result, 'evaluation': evaluation, 'ended_at': now()}
     write(output/'rsi/learning-retry.json', summary)
     return summary
 

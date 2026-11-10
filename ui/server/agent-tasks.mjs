@@ -32,8 +32,8 @@ export function agentTasks(run) {
   if(!active && ['running','queued'].includes(state))state='interrupted';
   const captured=Boolean(result?.captured || status==='flag_captured' || status==='judge_approved');
   return {id:candidate.id,title:candidate.title || titles.get(candidate.id) || candidate.id,state,
-   label:repair?.status==='repairing'?'正在修复运行依赖':captured?'已捕获随机标记':status.startsWith('blocked')?'受阻':state==='completed'?'未捕获随机标记':'',
-   reason:result?.error || saved?.error || candidate.reason || '',traceId:trace?.id || '',captured};
+   label:result?.delivery_status==='missing'?'缺少有效交付':repair?.status==='repairing'?'正在修复运行依赖':captured?'已捕获随机标记':status.startsWith('blocked')?'受阻':state==='completed'?'未捕获随机标记':'',
+   reason:result?.error || result?.delivery_error || saved?.error || candidate.reason || '',traceId:trace?.id || '',captured};
  });
  return {attemptId:attempt?.id || 'original',tasks,concurrency:summary.concurrency || null,
   processedCount:tasks.filter(task=>!['running','queued'].includes(task.state)).length,selectedCount:tasks.length};

@@ -161,6 +161,7 @@ export function listAgenticTraces(run, node) {
   const retries = nodeAttempts(run.runDir, node).reverse().flatMap(attempt => {
     const label = `节点重跑 ${new Date(attempt.startedAt).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai',hour12:false})} · ${attempt.status === 'running' ? '运行中' : attempt.resultStatus === 'degraded' ? '部分完成' : attempt.status === 'completed' ? '已结束' : '失败'}`;
     const worker=makeTrace(node, `${attempt.id}-worker`, `${label} · 批次日志`, path.join(attempt.root, 'worker.log'));
+    if(node==='orchestrator')return [makeTrace(node,attempt.id+'-repair',label+' · 产物修复会话',path.join(attempt.root,'repair-agent.jsonl'),'claude'),worker].filter(Boolean);
     if(node==='learner') {
       return [...originalTraces({...run,runDir:attempt.workspace},node).map(trace=>({...trace,id:`${attempt.id}-${trace.id}`,label:`${label} · ${trace.label}`})),worker].filter(Boolean);
     }

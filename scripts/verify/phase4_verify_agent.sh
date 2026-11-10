@@ -3,7 +3,7 @@
 #
 # For every selected finding this wrapper:
 #   1. materializes the finding under <output>/inputs/<id>/finding.json
-#   2. runs `claude --agent verify-agent ...` from the repo root
+#   2. runs `claude --agent verify-agent ...` from a task-specific workspace
 #   3. lets the deterministic runner scripts/verify/run_verify.sh execute the
 #      agent-written harness in an isolated container (--network none)
 #   4. records honest verdicts, including blocked/inconclusive failures.
@@ -367,7 +367,7 @@ Steps:
    It must be safe: benign markers only, loopback-only services, no reverse
    shells, no external downloads, no public network targets, no cloud metadata
    access, and no Docker socket mounts.
-3. Invoke the real deterministic runner from the repo root:
+3. Invoke the real deterministic runner using its absolute path:
 
    bash $VERIFY_RUNNER \\
      --project $PROJECT \\
@@ -420,7 +420,14 @@ verify_one() {
     ' <<< "$entry" > "$finding_file" || die "写入候选问题失败: $sid"
 
     log "选中 $sid (severity=$severity, index=$source_index)"
-    PROMPT="$(build_prompt "$sid" "$finding_file" "$run_dir" "$harness_dir")"
+    work_dir="$(python3 "$REPO_ROOT/scripts/workflow/runtime_paths.py" verify-work \
+        --repo "$REPO_ROOT" --project "$PROJECT" --task "$sid" --output "$run_dir")" || return 3
+    PROMPT="$(build_prompt "$sid" "$finding_file" "$run_dir" "$harness_dir")
+verify_work_dir: $work_dir
+All prototypes, dependencies, caches and temporary files belong in this workspace.
+Use absolute paths for repository scripts and formal deliverables. Never create
+.verify-work-* or other temporary directories in the repository root.
+The formal harness and referenced evidence must remain under output_run_dir."
     CLAUDE_ARGS=(
         --mcp-config "$(python3 "$REPO_ROOT/scripts/stages/submission.py" config --stage verify --root "$run_dir")"
         --append-system-prompt "$(python3 "$REPO_ROOT/scripts/stages/submission.py" instruction --stage verify --root "$run_dir")"
@@ -434,7 +441,13 @@ verify_one() {
     CLAUDE_ARGS+=(-p "$PROMPT")
 
     (
-        cd "$REPO_ROOT" || exit 3
+        cd "$work_dir" || exit 3
+        VERIFY_WORK_DIR="$work_dir" \
+        TMPDIR="$work_dir/tmp" \
+        XDG_CACHE_HOME="$work_dir/cache" \
+        npm_config_cache="$work_dir/cache/npm" \
+        PIP_CACHE_DIR="$work_dir/cache/pip" \
+        PHASE4_REPO_ROOT="$REPO_ROOT" \
         PHASE4_OUTPUT="$OUTPUT" \
         PHASE4_RUN_DIR="$run_dir" \
         PHASE4_SAFE_ID="$sid" \

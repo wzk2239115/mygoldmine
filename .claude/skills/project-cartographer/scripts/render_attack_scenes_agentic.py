@@ -169,9 +169,10 @@ def main():
         if timed_out or process.returncode != 0:
             failed += 1
             record["error"] = "agent did not complete; partial outputs are not accepted"
-        elif not generated_image(image_out) or not director_out.exists():
+        elif not director_out.exists():
             failed += 1
-            record["error"] = "agent did not produce a model-generated image with matching generation receipt and director json"
+            record["error"] = "agent did not produce an attack design"
+        record["image_status"] = "ready" if generated_image(image_out) else "missing"
         results.append(record)
     print(json.dumps({"selected": len(selected), "failed": failed, "results": results}, ensure_ascii=False, indent=2))
     return 1 if failed else 0

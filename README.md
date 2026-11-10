@@ -12,6 +12,7 @@
   - 项目画像：`project-profiler`
   - **智能合约审计**：`blockchain-goldmine-analyzer`（支持 Solidity、Rust、Move、Vyper、Go）
   - **AI 基础设施审计**：`model-loading-analyzer`（模型加载与权重反序列化）、`agent-config-analyzer`（智能体项目级配置与审批绕过）
+  - **原生内存安全审计**：`memory-safety-analyzer`（空指针解引用、内存泄漏、释放后使用）
 - 自动化覆盖与人工分析的分工：脚本负责结构化提取与模式识别；风险分级、业务语义与复杂豁免规则需结合产物手动分析。
 
 ## 依赖与环境
@@ -73,6 +74,8 @@ python3 .claude/skills/blockchain-goldmine-analyzer/quick-scan.py . --output con
 python3 .claude/skills/model-loading-analyzer/quick-scan.py <repo> [<repo> ...]
 # 智能体项目级配置与审批绕过（.mcp.json / .codex / Git 信任链）
 python3 .claude/skills/agent-config-analyzer/quick-scan.py <repo> [<repo> ...]
+# 原生内存安全候选（空指针解引用 / 内存泄漏 / 释放后使用）
+python3 .claude/skills/memory-safety-analyzer/quick-scan.py <repo> [<repo> ...]
 # 输出 JSON
 python3 .claude/skills/unauth-route-scanner/quick-scan.py . --json --output routes.json
 ```
@@ -97,6 +100,11 @@ workspace-scanner → project-profiler
     ├─ 含 transformers/torch/vllm/sglang/verl → model-loading-analyzer
     ├─ 含 .mcp.json/.codex/AGENTS.md/审批逻辑 → agent-config-analyzer
     └─ → report-generator
+```
+
+**原生代码工作流**（按语言和原生内存标记条件触发）：
+```
+workspace-scanner → project-profiler → memory-safety-analyzer → report-generator
 ```
 
 各快速扫描产物可直接作为后续分析输入：
@@ -265,6 +273,7 @@ STEP 4: 报告生成 (report-generator)
 | `authentication-analyzer` | 认证机制缺陷 |
 | `model-loading-analyzer` | 模型加载远程代码与权重反序列化 |
 | `agent-config-analyzer` | 智能体项目级配置信任、审批绕过与 Git 信任链 |
+| `memory-safety-analyzer` | 原生代码的空指针解引用、内存泄漏和释放后使用 |
 
 ### 自动调度路径
 
@@ -275,6 +284,7 @@ STEP 4: 报告生成 (report-generator)
 | 安全靶场 | `vtr-scanner` | `project-profiler` |
 | 含 transformers/torch/vllm/sglang/verl 特征 | `model-loading-analyzer` | `project-profiler` 条件推荐与编排智能体条件任务 |
 | 含 `.mcp.json` / `.codex` / `AGENTS.md` / 审批逻辑 | `agent-config-analyzer` | 同上 |
+| 含 C/C++/CUDA 源文件，或 Rust `unsafe`/FFI、Go 的 cgo、Python 的 C 扩展 | `memory-safety-analyzer` | `project-profiler` 条件推荐与编排智能体条件任务 |
 
 > `project-profiler` 的「禁止添加其他技能」仅约束对应分类的基础列表；AI 基础设施条件任务由编排智能体在画像之后按特征追加，见 `.claude/agents/security-orchestrator.md`。
 
@@ -703,6 +713,7 @@ python3 scripts/mine/check_report.py --report runs/<project>/<run>/audit-report.
 │   ├── blockchain-goldmine-analyzer/   # 🆕 智能合约审计建议
 │   ├── model-loading-analyzer/         # 🆕 模型加载/权重反序列化
 │   ├── agent-config-analyzer/          # 🆕 智能体配置信任与审批绕过
+│   ├── memory-safety-analyzer/         # 原生内存安全（NPD/MLK/UAF）
 │   ├── bug-report/                 # 漏洞报告模板
 │   ├── report-generator/           # 报告生成
 │   ├── blockchain_goldmine/        # 智能合约知识库（Git 子模块）

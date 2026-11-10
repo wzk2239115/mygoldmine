@@ -341,3 +341,21 @@ test('01构建期间只提供独立调度入口，02—08没有执行轨迹',t=>
  assert.equal(data.workflow.traces.length,1);
  for(const node of data.nodes.slice(1)){assert.equal(node.status,'pending');assert.equal(node.traces.length,0,node.id);}
 });
+
+
+test('仅重跑第八阶段排队时保留前七阶段状态',t=>{
+ const {runDir,run}=fixture(t);
+ Object.assign(run,{state:'success',isLive:false});
+ const before=buildAgenticPipeline(run).nodes.slice(0,7).map(n=>({id:n.id,status:n.status,detail:n.detail}));
+ const file=runDir+'.meta/workflows/one/state.json';
+ writeJson(file,{id:'one',startedAt:'2026-11-09',status:'running',current:null,
+  steps:['learner'],receipts:[],admission:{status:'queued',position:2,limit:15}});
+ let data=buildAgenticPipeline(run);
+ assert.deepEqual(data.nodes.slice(0,7).map(n=>({id:n.id,status:n.status,detail:n.detail})),before);
+ assert.equal(data.nodes.at(-1).statusLabel,'排队中');
+ writeJson(file,{id:'one',startedAt:'2026-11-09',status:'running',current:'learner',
+  steps:['learner'],receipts:[],admission:{status:'running'}});
+ data=buildAgenticPipeline(run);
+ assert.equal(data.nodes.at(-1).status,'running');
+ assert.deepEqual(data.nodes.slice(0,7).map(n=>n.status),before.map(n=>n.status));
+});
