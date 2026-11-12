@@ -117,6 +117,15 @@ def test_reuses_completed_task_and_resume_does_not_call_worker_again(recovery):
     assert calls.read_text().splitlines() == ["recovery-infra-worker", "recovery-report-assembler"]
     assert durable.Recovery(args).run_all() == 0
     assert len(calls.read_text().splitlines()) == 2
+    report = json.loads((Path(args.run_dir) / "audit-report.json").read_text())
+    assert report["coverage"]["analysis_mode"] == "assembly-only"
+    from submission import accepted_submissions
+    delivered = accepted_submissions("orchestrator", args.run_dir)
+    names = {Path(item["path"]).relative_to(args.run_dir).as_posix()
+             for item in delivered["deliveries"][0]["files"]}
+    assert {"audit-report.json", "audit-report.md",
+            "artifacts/infra-config.json", "artifacts/infra-filesystem.json"} <= names
+    assert json.loads((Path(args.run_dir) / "run-meta.json").read_text())["delivery_accepted"]
 
 
 def test_only_failed_attempt_is_retried(recovery, monkeypatch):
@@ -140,6 +149,70 @@ def test_exhausted_task_does_not_block_report_assembly(recovery, monkeypatch):
     assert job.state["tasks"]["infra-filesystem"]["status"] == "failed"
     assert calls.read_text().splitlines()[-1] == "recovery-report-assembler"
     assert (Path(args.run_dir) / "audit-report.json").exists()
+    report = Path(args.run_dir) / "audit-report.json"
+    original = report.read_bytes()
+    assert durable.Recovery(args).run_all() == 2
+    assert report.read_bytes() == original
+    assert json.loads((Path(args.run_dir) / "run-meta.json").read_text())["delivery_accepted"]
+
+
+def test_delivery_rejection_cannot_report_recovery_success(recovery, tmp_path):
+    args, _ = recovery
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}")
+    job = durable.Recovery(args)
+    extra = Path(args.run_dir) / "artifacts/untrusted.json"
+    extra.parent.mkdir(parents=True, exist_ok=True)
+    extra.symlink_to(outside)
+    assert job.run_all() == 2
+    meta = json.loads((Path(args.run_dir) / "run-meta.json").read_text())
+    assert meta["status"] == "failed"
+    assert meta["reports_complete"] is False
+    assert meta["delivery_accepted"] is False
+    assert "符号链接" in meta["delivery_error"]
+    assert durable.valid_report(args.run_dir)
+
+
+def test_existing_recovery_can_submit_once_without_restarting_model(recovery, monkeypatch):
+    args, calls = recovery
+    source = Path(args.run_dir).with_name("old-run")
+    shutil.copytree(args.recover_from, source)
+    args.recover_from = str(source)
+    args.run_dir = str(source) + "-recovery"
+    original = durable.deliver_recovery_report
+    monkeypatch.setattr(durable, "deliver_recovery_report",
+                        lambda _run: (_ for _ in ()).throw(ValueError("delivery unavailable")))
+    assert durable.Recovery(args).run_all() == 2
+    assert durable.valid_report(args.run_dir)
+    receipts = Path(args.run_dir) / ".stage-submissions/orchestrator"
+    assert not list(receipts.glob("*.json"))
+    before = calls.read_text().splitlines()
+    monkeypatch.setattr(durable, "deliver_recovery_report", original)
+    first = durable.finalize_existing_recovery(args.run_dir)
+    assert first["accepted"] == 1
+    assert calls.read_text().splitlines() == before
+    assert json.loads((Path(args.run_dir) / "run-meta.json").read_text())["status"] == "success"
+    count = len(list(receipts.glob("*.json")))
+    second = durable.finalize_existing_recovery(args.run_dir)
+    assert second["accepted"] == 1
+    assert len(list(receipts.glob("*.json"))) == count
+    assert calls.read_text().splitlines() == before
+
+
+def test_existing_recovery_rejects_changed_accepted_report(recovery):
+    args, _ = recovery
+    source = Path(args.run_dir).with_name("old-run")
+    shutil.copytree(args.recover_from, source)
+    args.recover_from = str(source)
+    args.run_dir = str(source) + "-recovery"
+    assert durable.Recovery(args).run_all() == 0
+    report = Path(args.run_dir) / "audit-report.json"
+    data = json.loads(report.read_text())
+    data["notice"] = "changed after accepted"
+    report.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="已验收恢复报告的内容已改变"):
+        durable.finalize_existing_recovery(args.run_dir)
+    assert json.loads(report.read_text())["notice"] == "changed after accepted"
 
 
 def test_changed_target_revision_refuses_checkpoint_reuse(recovery):

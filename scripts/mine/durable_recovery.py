@@ -25,6 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts/mine"))
 sys.path.insert(0, str(ROOT / "scripts/workflow"))
+sys.path.insert(0, str(ROOT / "scripts/stages"))
 import check_report  # noqa: E402
 import report_quality  # noqa: E402
 
@@ -77,6 +78,157 @@ def valid_report(run):
     return markdown.is_file() and markdown.stat().st_size > 0 and valid_artifact(
         run / "audit-report.json", report=True
     )
+
+
+def recovery_files(run):
+    """List real recovery evidence, including paths that submission must reject."""
+    run = Path(run)
+    paths = [run / "audit-report.json", run / "audit-report.md"]
+    for folder in ("artifacts", "task-artifacts"):
+        directory = run / folder
+        if directory.exists() or directory.is_symlink():
+            if directory.is_symlink():
+                paths.append(directory)
+            else:
+                paths.extend(
+                    file for file in directory.rglob("*")
+                    if not file.is_dir() or file.is_symlink()
+                )
+    return sorted({str(path) for path in paths})
+
+
+def accepted_recovery_receipts(run):
+    folder = Path(run) / ".stage-submissions" / "orchestrator"
+    if folder.is_symlink():
+        raise ValueError("恢复交付回执目录不能是符号链接")
+    accepted = []
+    for file in sorted(folder.glob("*.json")):
+        if file.is_symlink():
+            raise ValueError(f"恢复交付回执不能是符号链接：{file}")
+        receipt = read_json(file)
+        if not isinstance(receipt, dict):
+            raise ValueError(f"恢复交付回执无法读取：{file}")
+        if receipt.get("stage") == "orchestrator" and receipt.get("decision") == "accepted":
+            accepted.append(receipt)
+    return accepted
+
+
+def mark_assembly_only(run):
+    """Recovery assembles retained evidence; it does not perform a full rescan."""
+    report = Path(run) / "audit-report.json"
+    data = read_json(report)
+    if not isinstance(data, dict):
+        raise ValueError("恢复汇总缺少有效审计报告")
+    coverage = data.get("coverage")
+    coverage = dict(coverage) if isinstance(coverage, dict) else {}
+    if coverage.get("analysis_mode") != "assembly-only":
+        if accepted_recovery_receipts(run):
+            raise ValueError("已验收的恢复报告缺少 assembly-only 标记，不能修改已验收字节")
+        coverage["analysis_mode"] = "assembly-only"
+        data["coverage"] = coverage
+        atomic_json(report, data)
+    return data
+
+
+def deliver_recovery_report(run):
+    """Use the existing orchestrator producer tool, then verify its real receipt."""
+    from stage_tools import submit_structured
+    from submission import accepted_submissions
+
+    run = Path(run).resolve(strict=True)
+    report = run / "audit-report.json"
+    data = read_json(report)
+    if not valid_report(run):
+        raise ValueError("恢复报告未通过完整性检查")
+    if not isinstance(data.get("coverage"), dict) or data["coverage"].get("analysis_mode") != "assembly-only":
+        raise ValueError("恢复报告必须标记 coverage.analysis_mode=assembly-only")
+    checkpoint = read_json(run / "checkpoint.json")
+    execution = data.get("execution")
+    if (not isinstance(checkpoint, dict) or not isinstance(execution, dict)
+            or data.get("source_version") != checkpoint.get("target_commit")
+            or execution.get("source_run") != checkpoint.get("source_run")
+            or execution.get("target_commit") != checkpoint.get("target_commit")):
+        raise ValueError("恢复报告的来源或源码版本与本轮检查点不一致")
+    required = set(recovery_files(run))
+    prior = accepted_recovery_receipts(run)
+    if prior:
+        latest = max(prior, key=lambda item: item.get("checked_at", ""))
+        if latest.get("artifact") != str(report) or latest.get("sha256") != digest(report):
+            raise ValueError("已验收恢复报告的内容已改变，不能自动重新验收")
+        delivery = accepted_submissions("orchestrator", run)
+        current = next((item for item in delivery["deliveries"] if item["artifact"] == str(report)), None)
+        if current is None:
+            raise ValueError("已有回执不属于本次恢复报告")
+        if required.issubset({item["path"] for item in current["files"]}):
+            return delivery
+
+    limitations = data.get("limitations", [])
+    if not isinstance(limitations, list) or any(not isinstance(item, str) for item in limitations):
+        raise ValueError("恢复报告 limitations 必须是字符串数组")
+    attachments = [
+        str(file) for file in sorted((run / "artifacts").rglob("*"))
+        if not file.is_dir() or file.is_symlink()
+    ] if (run / "artifacts").exists() else []
+    receipt = submit_structured("orchestrator", run, {
+        "report_file": str(report),
+        "summary": "持久恢复汇总：已保留各任务实际产物，未重新执行完整扫描",
+        "limitations": limitations,
+        "attachments": attachments,
+    })
+    if receipt.get("decision") != "accepted" or receipt.get("success") is not True:
+        raise ValueError("恢复报告正式交付被拒绝：" + str(receipt.get("errors", [])))
+    delivery = accepted_submissions("orchestrator", run)
+    current = next((item for item in delivery["deliveries"] if item["artifact"] == str(report)), None)
+    if current is None or not required.issubset({item["path"] for item in current["files"]}):
+        raise ValueError("恢复交付回执未包含全部真实附件")
+    return delivery
+
+
+def finalize_existing_recovery(run):
+    """Idempotently submit an older, completed recovery without rerunning the model."""
+    run = Path(run).resolve(strict=True)
+    checkpoint = read_json(run / "checkpoint.json")
+    meta = read_json(run / "run-meta.json")
+    source = checkpoint.get("source_run") if isinstance(checkpoint, dict) else None
+    if (not isinstance(source, str) or not isinstance(meta, dict)
+            or meta.get("agent") != "durable-recovery"
+            or meta.get("recovered_from") != source
+            or meta.get("commit") != checkpoint.get("target_commit")
+            or run != Path(source + "-recovery").resolve()):
+        raise ValueError("仅允许补交具有一致来源和提交版本的既有恢复运行")
+    try:
+        if not accepted_recovery_receipts(run):
+            report = mark_assembly_only(run)
+            if report.get("source_version") is None:
+                report["source_version"] = checkpoint["target_commit"]
+                atomic_json(run / "audit-report.json", report)
+        delivery = deliver_recovery_report(run)
+    except Exception as exc:
+        meta.update(status="failed", exit_code=2, reports_complete=False,
+                    delivery_accepted=False, delivery_error=str(exc))
+        checkpoint.update(status="failed", delivery_accepted=False,
+                          delivery_error=str(exc))
+        atomic_json(run / "run-meta.json", meta)
+        atomic_json(run / "checkpoint.json", checkpoint)
+        status_file = Path(str(run) + ".meta") / "status.json"
+        status = read_json(status_file, {})
+        atomic_json(status_file, {**status, "state": "failed", "exit_code": 2,
+                                  "delivery_accepted": False, "updated_at": now()})
+        raise
+    failed = meta.get("failed_tasks") or []
+    state = "timeout" if meta.get("timed_out") else "partial" if failed else "success"
+    code = meta.get("exit_code") if state == "timeout" else 2 if failed else 0
+    meta.update(status=state, exit_code=code, reports_complete=True,
+                delivery_accepted=True, delivery_error=None)
+    checkpoint.update(status=state, delivery_accepted=True, delivery_error=None)
+    checkpoint.setdefault("assembly", {})["sha256"] = digest(run / "audit-report.json")
+    atomic_json(run / "run-meta.json", meta)
+    atomic_json(run / "checkpoint.json", checkpoint)
+    status_file = Path(str(run) + ".meta") / "status.json"
+    status = read_json(status_file, {})
+    atomic_json(status_file, {**status, "state": state, "exit_code": code,
+                              "delivery_accepted": True, "updated_at": now()})
+    return delivery
 
 
 def plan_from_trace(source):
@@ -205,12 +357,13 @@ def watch_process(
     tick=None,
     poll=1,
     setup_idle=None,
+    tool_idle=1800,
     status=None,
     clock=time.monotonic,
     sleeper=time.sleep,
     initial_offset=0,
 ):
-    """Bound setup/model inactivity while allowing an outstanding tool to finish."""
+    """Bound setup, model, and tool inactivity without interrupting active output."""
     started = last_progress = clock()
     progress = TranscriptProgress(raw, initial_offset=initial_offset)
     setup_idle = idle if setup_idle is None else setup_idle
@@ -243,9 +396,9 @@ def watch_process(
                 if tick:
                     tick()
                 return 124, "wall_timeout"
-            idle_limit = setup_idle if phase == "setup" else idle
-            if phase != "tool_running" and quiet >= idle_limit:
-                reason = "setup_timeout" if phase == "setup" else "model_idle_timeout"
+            idle_limit = setup_idle if phase == "setup" else tool_idle if phase == "tool_running" else idle
+            if quiet >= idle_limit:
+                reason = "setup_timeout" if phase == "setup" else "tool_idle_timeout" if phase == "tool_running" else "model_idle_timeout"
                 stop()
                 if tick:
                     tick()
@@ -580,6 +733,7 @@ class Recovery:
                     process,
                     output / "raw.jsonl",
                     idle=self.args.idle_timeout,
+                    tool_idle=getattr(self.args, "tool_idle_timeout", 1800),
                     setup_idle=max(
                         self.args.idle_timeout, getattr(self.args, "setup_timeout", 900)
                     ),
@@ -675,6 +829,12 @@ class Recovery:
         final_path = self.run / "audit-report.json"
         final = read_json(final_path)
         if isinstance(final, dict):
+            if final.get("source_version") is None:
+                final["source_version"] = self.state["target_commit"]
+            coverage = final.get("coverage")
+            coverage = dict(coverage) if isinstance(coverage, dict) else {}
+            coverage["analysis_mode"] = "assembly-only"
+            final["coverage"] = coverage
             final["execution"] = {
                 "source_run": str(self.source),
                 "target_commit": self.state["target_commit"],
@@ -686,10 +846,21 @@ class Recovery:
                 limitations = final.get("limitations")
                 if not isinstance(limitations, list):
                     limitations = [str(limitations)] if limitations else []
-                final["limitations"] = limitations + ["未完成的信任边界：" + ", ".join(failed)]
+                missing = "未完成的信任边界：" + ", ".join(failed)
+                final["limitations"] = limitations if missing in limitations else limitations + [missing]
             atomic_json(final_path, final)
             assembler["sha256"] = digest(final_path)
         good_report = valid_report(self.run)
+        delivery = None
+        delivery_error = None
+        if good_report:
+            try:
+                delivery = deliver_recovery_report(self.run)
+            except Exception as exc:
+                delivery_error = str(exc)
+                self.note("恢复报告未取得正式交付回执：" + delivery_error)
+        self.state["delivery_accepted"] = delivery is not None
+        self.state["delivery_error"] = delivery_error
         timeout_codes = []
         for task in [*self.state["tasks"].values(), assembler]:
             if task["status"] == "failed" and task.get("attempts"):
@@ -698,7 +869,7 @@ class Recovery:
                     timeout_codes.append(code)
         if timeout_codes:
             result, code = "timeout", timeout_codes[-1]
-        elif not good_report:
+        elif not good_report or delivery is None:
             result, code = "failed", 2
         elif failed:
             result, code = "partial", 2
@@ -731,7 +902,9 @@ class Recovery:
                 "agent": "durable-recovery",
                 "exit_code": code,
                 "timed_out": result == "timeout",
-                "reports_complete": good_report,
+                "reports_complete": good_report and delivery is not None,
+                "delivery_accepted": delivery is not None,
+                "delivery_error": delivery_error,
                 "recovered_from": str(self.source),
                 "failed_tasks": failed,
                 "status": result,
@@ -744,10 +917,13 @@ class Recovery:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--target", required=True)
-    parser.add_argument("--recover-from", required=True)
+    parser.add_argument("--target")
+    parser.add_argument("--recover-from")
     parser.add_argument("--run-dir", required=True)
+    parser.add_argument("--finalize-existing", action="store_true",
+                        help="补交既有恢复报告及真实附件，不重新执行模型")
     parser.add_argument("--idle-timeout", type=int, default=180)
+    parser.add_argument("--tool-idle-timeout", type=int, default=1800)
     parser.add_argument("--task-timeout", type=int, default=600)
     parser.add_argument("--budget", type=int, default=1800)
     parser.add_argument("--max-attempts", type=int, default=2)
@@ -758,7 +934,21 @@ def main():
         raise KeyboardInterrupt("recovery runner stopped")
 
     signal.signal(signal.SIGTERM, interrupted)
-    if min(args.idle_timeout, args.task_timeout, args.budget, args.max_attempts) <= 0:
+    if args.finalize_existing:
+        if args.target or args.recover_from:
+            parser.error("--finalize-existing 只接受 --run-dir")
+        run = Path(args.run_dir).resolve(strict=True)
+        with (run / ".recovery.lock").open("w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            delivery = finalize_existing_recovery(run)
+        print(json.dumps({"accepted": delivery["accepted"], "root": str(run),
+                          "receipt": next(item["receipt"] for item in delivery["deliveries"]
+                                          if item["artifact"] == str(run / "audit-report.json"))},
+                         ensure_ascii=False))
+        return 0
+    if not args.target or not args.recover_from:
+        parser.error("--target 和 --recover-from 是运行恢复的必需参数")
+    if min(args.idle_timeout, args.tool_idle_timeout, args.task_timeout, args.budget, args.max_attempts) <= 0:
         parser.error("budgets and attempt count must be positive")
     run = Path(args.run_dir)
     run.mkdir(parents=True, exist_ok=True)

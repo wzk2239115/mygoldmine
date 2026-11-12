@@ -96,7 +96,7 @@ tools: Read, Grep, Glob, Bash, Agent, Skill, WebSearch, WebFetch, mcp__stage_del
 | `prompt` | 是 | 子智能体的详细任务指令 |
 | `subagent_type` | 是 | 子智能体类型标识符（如 `audit-skill-worker`） |
 | `model` | 否 | 模型选择：`haiku`、`sonnet`、`opus`（默认继承） |
-| `run_in_background` | 否 | 当前流程要求可等待的结果；Claude Code 子智能体可能默认后台运行，必须确保本波全部任务完成后再进入下一波 |
+| `run_in_background` | 否 | 后台任务需要在阶段剩余时间内查询状态；超时或无法返回的任务登记为受阻，不将其当作已完成产物 |
 
 `name`、`team_name`、`mode`、`isolation` 等其余参数按当前 Claude Code 版本使用，见官方 Tools reference。
 
@@ -214,7 +214,7 @@ update-task .workspace/tasks/security-orchestrator-tasks.json "orch-001" --statu
 **任务依赖关系与并行执行**
 1. 被依赖的任务必须先于依赖它的任务执行
   - 如果任务B在依赖中申明依赖产物A的输出，则任务B的执行必须等待任务A的执行结果，并将A的产物作为任务B的输入。
-2. **批量并行执行**：所有无依赖冲突的任务应在同一消息中批量发起，不设并发数量限制
+2. **有界并行执行**：无依赖冲突的任务可分批启动。优先遵守启动器给出的子任务并发上限；未给出时每批最多 4 个，并为合并、校验和交付保留阶段时间。
 3. **相同技能的任务默认可以并行执行，除非特别申明或存在依赖关系。**
 
 **STEP 1：工作区扫描(orch-001)**
@@ -325,7 +325,7 @@ list-tasks .workspace/tasks/security-orchestrator-tasks.json --status "pending"
 - 输出要求：按照 Subagent 输出格式返回任务列表和产物列表，并记录实际加载的技能名称与 `SKILL.md` 的 SHA-256
 - 任务执行要求：涉及路径时，优先使用相对路径，避免使用绝对路径。
 - 如果任务列表为空，则结束。
-- **重要：波次内可以并行启动任务；必须显式等待本波全部 Agent 返回后再合并结果和生成下一波，不得用未完成的结果推进。**
+- **重要：每批在阶段剩余时间内收集已完成结果。子任务长时间无响应时查询状态，能停止则停止，登记 `blocked`、已尝试范围与缺失证据；随后只合并实际完成的产物并继续。不得把未返回结果写成完成，也不得无限等待。**
 - 示例（单个 Agent 工具调用）：
 ```
 Agent(
@@ -389,9 +389,9 @@ Input: .workspace/tasks/orch-002/api-proxy-get.md
 
 **并行执行注意事项**：
 - 确保并行任务之间无依赖关系
-- 默认 Web 流程可批量运行全部可并行任务；基础设施流程受波次上限和去重规则约束
-- 所有并行任务必须在同一消息中发起多个 Agent 调用
-- 同一波次必须等全部 Agent 返回后才能生成下一波任务；不得用未完成的结果继续编排
+- 默认 Web 流程也按启动器并发上限分批；基础设施流程还受波次上限和去重规则约束
+- 同批独立任务可在同一消息中发起多个 Agent 调用；下一批可在已有任务完成或登记受阻后启动
+- 同一波次只消费已完成产物；超时或失联任务登记受阻后可生成下一波，未返回的结果不得冒充已完成
 
 **注意：新增的任务需要调用add-task添加到tasks.json文件中。**
 
@@ -550,7 +550,7 @@ finding: <finding 文件路径或报告中的条目>
 
 3. **多波次模型（最多 3 波，总计最多 18 个分析任务；均为预算上限，不是必须凑满的配额）**
 
-   波次之间是同步关系：同一波次可以在同一条消息里并行发起，但必须等该波次全部智能体返回后，才能合并结果、更新覆盖记录和生成下一波任务。不得用上一波未完成的结果生成下一波任务。
+   波次之间按已完成产物和受阻记录衔接。同一波次按并发上限分批派发；在阶段剩余时间内收集结果。对长时间无响应的任务记录 `blocked`、已读范围、缺失证据和下一步，再合并已完成产物、更新覆盖记录并规划下一波。不得用未返回内容推断结论，也不得为等待个别任务耗尽交付时间。
 
    **第 1 波：风险驱动的边界分析（最多 6 个）**
    - 根据项目画像、可达入口、信任边界、Jev 初筛及已知调用链选择任务；任务数由独立且有审计价值的边界/路径决定，不为达到 6 个而拆分或补造任务。多个入口若共享关键链路，可由一个任务联合追踪；只有假设、前置条件或安全影响确有差异时才拆开。
@@ -569,7 +569,7 @@ finding: <finding 文件路径或报告中的条目>
    - `infra-analyst` 负责深入阅读从输入来源到危险操作的路径；本波不加载 `agent-config-analyzer`、`command-injection-analyzer` 等规则技能。需要这些技能时，记录到覆盖缺口，交给第二波或第三波由 `audit-skill-worker` 实际加载。
 
    **第 1 波结束后的合并与规划**
-   - 等待本波所有已派发的 `infra-analyst` 任务全部返回；未派发的任务数不补齐，也不作为失败。
+   - 收集本波已完成的 `infra-analyst` 结果；超时或失联任务记录为 `blocked` 并标明覆盖缺口。未派发的任务数不补齐，也不作为失败。
    - 调用 `hypothesis-critic` 合并 `.workspace/findings/infra-*.json`，按根因和别名去重，校准可达性和严重度，输出 `findings.normalized.json`，并检查跨边界链。
    - 由 `audit-skill-worker` 加载 `audit-coverage-planner`，读取合并结果、覆盖记录、项目画像和 Jev 初筛，更新覆盖记录并生成第二波任务。候选技能优先来自 `recommended_skills` 和未覆盖的高风险入口、待补证据。输出任务必须带 `coverage_id`、`priority`、`skill`、`artifact`、`reason`、`status`。
 
@@ -581,7 +581,7 @@ finding: <finding 文件路径或报告中的条目>
    - 技能任务执行智能体必须调用 `Skill` 实际加载 `SKILL_NAME` 对应的 `SKILL.md`，记录加载的技能名称和 `SKILL.md` 的 SHA-256。不能只写 `Skill: xxx 作为视角` 或“以某技能为视角”。
 
    **第 2 波结束后的合并与规划**
-   - 等全部技能任务返回。
+   - 收集已完成的技能任务；对未返回且已触及阶段时间预算的任务登记 `blocked`，保留证据缺口。
    - `hypothesis-critic` 合并本波新产物和已有归一化结果，保留证据、反证和 `blocked` 记录。
    - `audit-skill-worker` 加载 `audit-coverage-planner` 更新覆盖记录，判断第三波是否还有新证据可补。
 
@@ -612,7 +612,7 @@ finding: <finding 文件路径或报告中的条目>
    - 输出要求：候选问题、待核实假设、覆盖回写、实际加载的技能名称、`SKILL.md` 的 SHA-256、执行状态和后续任务建议。
 
 5. **证据审阅**
-   每波结束后都必须等全部任务返回，再由 `hypothesis-critic` 合并本波产物：
+   每波收集已完成产物并登记受阻任务后，由 `hypothesis-critic` 合并本波实际产物：
    ```text
    Agent(subagent_type: "hypothesis-critic", prompt: "合并 .workspace/findings/infra-*.json 和技能任务产物，按 root cause/aliases 去重，校准 reachability/severity，输出 findings.normalized.json；保留 blocked 和反证记录。")
    ```
@@ -643,7 +643,7 @@ finding: <finding 文件路径或报告中的条目>
 
 机器可读报告每条候选必须明确提供 `id`、`title`、`severity`、`root_cause`、`impact`、`reproduction`、`remediation`、`evidence` 和 `verification.status`。正文提到根因或复现不能代替机器可读字段；字段缺失时回到证据补齐，无法支持的条目保留为假设并说明缺口，不编造复现或验证成功。
 
-交付前对实际交付路径运行 `python3 "$MYGOLDMINE_HOME/scripts/mine/check_report.py" --report "$RUN_DIR/audit-report.json"`，检查返回结果并修正后再交付。独立调用时将变量替换为真实仓库和报告路径。任务状态全部完成不能代替报告质量检查；恢复汇总需在 `coverage.analysis_mode` 写 `assembly-only`，明确未重新扫描，保持未验证状态。
+若已生成机器可读报告，先对实际路径运行 `python3 "$MYGOLDMINE_HOME/scripts/mine/check_report.py" --report "$RUN_DIR/audit-report.json"` 并修正错误；直接通过专用工具提交时，由工具执行同一报告检查。任务状态全部完成不能代替报告质量检查；恢复汇总需在 `coverage.analysis_mode` 写 `assembly-only`，明确未重新扫描，保持未验证状态。
 
 报告中的项目标识必须使用调用方的项目目录标识，显示名称另写，不得改成品牌大小写或中文名称。候选数组统一优先使用 `findings`；历史格式 `vulnerabilities` 仍可读取，但禁止同时交付内容不同的两个数组。
 
@@ -682,7 +682,7 @@ finding: <finding 文件路径或报告中的条目>
 
 ## 阶段工具交付
 
-完成实际产物后调用 `mcp__stage_delivery__submit_stage_result`，不能以打印路径或普通回复替代。检查工具结果的 success、decision 和 errors；只有 accepted 才表示交付完成。needs_revision 时参考 repair 中的格式示例、契约和重交参数，用实际证据修正文件后再次提交。不得为了通过检查删除真实候选、改变实际结论或编造附件。提交前完成文件整理；验收后不再改写已提交文件。
+完成实际产物后优先调用 `mcp__stage_delivery__submit_audit_report`，不能以打印路径或普通回复替代。检查工具结果的 `success`、`decision` 和 `errors`；只有 `accepted` 才表示交付完成。收到 `needs_revision` 时按 `repair` 修正，不删除真实候选、不改变实际结论或编造附件。验收后不再改写已提交文件。旧 `submit_stage_result` 只供历史任务兼容。
 
 任务身份由启动器提供，不得改项目编号、候选编号或源码版本绕过检查；确实受阻时提交本阶段规定的结构化受阻结论并说明限制。格式验收不表示漏洞确认、证据审核通过或技能生效。
 
@@ -691,4 +691,7 @@ finding: <finding 文件路径或报告中的条目>
 
 ## 结构化交付入口（优先于旧文件提交说明）
 
-本阶段优先调用 `mcp__stage_delivery__submit_audit_report`，直接提交工具参数定义的业务结论、证据引用、说明与限制，不手写主交付 JSON。项目、候选与源码绑定由工具从启动任务补充。附件必须是真实存在的本次文件；工具生成正式文件并执行原有证据核验。返回 `success=false` 时按字段错误与参数模式修正后再次调用，不限制提交次数，遵守原有阶段时限；返回 `accepted` 后不得修改已验收文件。旧文件工具仅供历史任务兼容。
+本阶段优先调用 `mcp__stage_delivery__submit_audit_report`，直接提交业务结论、证据引用、说明与限制。首次调用传本轮完整 `findings`，或用 `report_file` 引用本次输出目录内已有的完整报告；若被拒，读取工具返回的 `report_draft_path`，修正草稿或引用文件，再用 `report_file` 引用该草稿重交；单个候选字段可通过 `finding_updates` 按编号替换，无需再传整份候选数组。`report_file` 必须在本次输出目录内，工具仍检查完整报告及全部附件；只有真实无候选时才提交空数组。项目与任务身份由启动任务绑定。返回 `success=false` 时依据最新回执的字段错误继续修正并调用同一专用工具，遵守阶段时限；无法修正时报告真实受阻原因和已有结果，不无限重复同一调用。返回 `accepted` 后不得修改已验收文件。
+
+
+恢复执行时先读取本次输出目录中最新的专用工具回执与 `report_draft_path`，按回执指出的错误修正；只按需读取相关证据文件，不把全部原始轨迹重新塞入上下文。工作流因模型空闲超时退出后的重新启动由调度器处理，当前会话不能把未获验收的结果宣称为已交付。

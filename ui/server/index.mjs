@@ -17,6 +17,7 @@ import { createCcuiService } from './ccui-service.mjs';
 import { projectLogo,queueProjectLogo } from './project-logo.mjs';
 import { removeProjectRecords } from './project-removal.mjs';
 import { discoverRunNames } from './run-directories.mjs';
+import { activeWorkflow } from './workflow-liveness.mjs';
 import http from 'node:http';
 import { reportQuality } from './report-quality.mjs';
 import { summarizeRecovery } from './recovery-status.mjs';
@@ -666,18 +667,19 @@ function discoverRuns({ withFindings = true } = {}) {
       const supervisorPath = path.join(`${runDir}.meta`, 'supervisor.pid');
       const supervisorPid = fileExists(supervisorPath) ? fs.readFileSync(supervisorPath, 'utf8').trim() : '';
       const supervisorAlive = supervisorPid ? pidAlive(supervisorPid) : null;
+      const workflow = activeWorkflow(runDir, project, pidAlive);
       const liveState = ['starting', 'running', 'stopping'].includes(rawState);
-      const isLive = liveState
+      const isLive = workflow ? workflow.status === 'running' : (liveState
         ? supervisorAlive !== false
-        : (!hasReport && !hasStatus && !hasMeta && recentLog);
-      const state = liveState && supervisorAlive === false
+        : (!hasReport && !hasStatus && !hasMeta && recentLog));
+      const state = workflow ? workflow.status : liveState && supervisorAlive === false
         ? 'stopped'
         : (isLive && rawState === 'unknown' ? 'running' : rawState);
       const startedAt = meta.started_at || status.started_at || report.generated_at || runEntry.name;
-      const endedAt =
+      const endedAt = isLive ? null :
         meta.ended_at ||
         (hasReport ? report.generated_at : null) ||
-        (isLive ? null : status.updated_at || null);
+        status.updated_at || null;
       const updatedAt = status.updated_at || meta.ended_at || (logStat ? logStat.mtime.toISOString() : null) || startedAt;
 
       for (const finding of findings) {

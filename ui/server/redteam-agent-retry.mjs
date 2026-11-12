@@ -2,11 +2,32 @@ import {signalProcessTree} from './durable-task.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {spawn} from 'node:child_process';
+import {spawn,execFile} from 'node:child_process';
+import {promisify} from 'node:util';
 
 const read=file=>{try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}};
 const write=(file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(`${file}.tmp`,JSON.stringify(value,null,2));fs.renameSync(`${file}.tmp`,file);};
 const safe=id=>typeof id==='string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/.test(id);
+const execFileAsync=promisify(execFile);
+const dockerOutput=async args=>(await execFileAsync('docker',args,{timeout:15000,maxBuffer:1024*1024})).stdout;
+const dockerIds=output=>String(output).split(/\s+/).filter(id=>/^[a-f0-9]{12,64}$/.test(id));
+
+// Both the containers and their network belong to one candidate execution.
+// Exact labels prevent cleanup from touching another task or a persistent environment.
+export async function cleanupOwnedLab(project,runId,invoke=dockerOutput) {
+  if(!safe(project)||!safe(runId))throw new Error('红队实验归属编号无效');
+  const filters=[
+    'label=mygoldmine.owner=redteam',
+    `label=mygoldmine.project=${project}`,
+    `label=mygoldmine.run=${runId}`
+  ].flatMap(value=>['--filter',value]);
+  const containers=dockerIds(await invoke(['ps','-aq',...filters]));
+  if(containers.length)await invoke(['rm','-f',...containers]);
+  const networks=dockerIds(await invoke(['network','ls','-q',...filters]));
+  if(networks.length)await invoke(['network','rm',...networks]);
+  return {containers:containers.length,networks:networks.length};
+}
+
 const repoRootOf=run=>path.resolve(run.runDir,'../../..');
 const originalRunDir=job=>path.resolve(job.root,'../../..').replace(/\.meta$/,'');
 function pythonCommand() {
@@ -130,13 +151,18 @@ export function prepareAgentRetry(run,workspace) {
 function runProcess(command,{cwd,timeout}) {
   return new Promise(resolve=>{
     const child=spawn(command[0],command.slice(1),{cwd,env:process.env,stdio:['ignore','pipe','pipe']});
-    let output='',finished=false,timedOut=false;
-    const timer=setTimeout(()=>{if(!finished){timedOut=true;signalProcessTree(child.pid,'SIGKILL');}},timeout);
+    let output='',finished=false,timedOut=false,killTimer=null;
+    const timer=setTimeout(()=>{
+      if(finished)return;
+      timedOut=true;
+      const owned=signalProcessTree(child.pid,'SIGTERM');
+      killTimer=setTimeout(()=>signalProcessTree(child.pid,'SIGKILL',owned),5000);
+    },timeout);
     const collect=chunk=>{output=(output+chunk.toString()).slice(-65536);};
     child.stdout.on('data',collect);
     child.stderr.on('data',collect);
-    child.on('error',error=>{if(finished)return;finished=true;clearTimeout(timer);resolve({code:1,output:error.message});});
-    child.on('close',code=>{if(finished)return;finished=true;clearTimeout(timer);resolve({code:timedOut?124:(code ?? 1),output});});
+    child.on('error',error=>{if(finished)return;finished=true;clearTimeout(timer);clearTimeout(killTimer);resolve({code:1,output:error.message,timedOut});});
+    child.on('close',code=>{if(finished)return;finished=true;clearTimeout(timer);clearTimeout(killTimer);resolve({code:timedOut?124:(code ?? 1),output,timedOut});});
   });
 }
 
@@ -234,6 +260,9 @@ export async function runAgentRetry(job,concurrency=10) {
     ];
     const started=Date.now();
     const {code,output}=await runProcess(command,{cwd:job.repoRoot,timeout:((Number(process.env.REDTEAM_AGENT_TIMEOUT)||7200)+1800)*1000});
+    let cleanupError='';
+    try { await cleanupOwnedLab(project,runId); }
+    catch(error) { cleanupError=error.message; console.error(`[redteam] 临时实验资源清理失败：${project}/${runId}：${cleanupError}`); }
     const runDir=path.join(runsRoot,project,runId);
     const document=read(path.join(runDir,'result.json')) || {};
     const status=statusFor(code,document);
@@ -242,6 +271,7 @@ export async function runAgentRetry(job,concurrency=10) {
     const execution=read(path.join(repairRoot,'execution.json'));
     const repair=execution?.runner || read(path.join(repairRoot,'runner-repair.json'));
     const result={
+      ...(cleanupError?{resource_cleanup_error:cleanupError}:{}),
       runner_repair:repair,
       target_trigger_count:nested.target_trigger_count ?? null,
       verification_reason:nested.verification_reason || '',

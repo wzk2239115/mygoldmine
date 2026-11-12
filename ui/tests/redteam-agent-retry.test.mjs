@@ -4,11 +4,28 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {startNodeRetry,nodeAttempts,retryEligibility} from '../server/node-retries.mjs';
-import {agentCandidates} from '../server/redteam-agent-retry.mjs';
+import {agentCandidates,cleanupOwnedLab} from '../server/redteam-agent-retry.mjs';
 import {listAgenticTraces} from '../server/agentic-traces.mjs';
 import {buildAgenticPipeline} from '../server/agentic-pipeline.mjs';
 
 const write=(file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value));};
+
+test('cleanup removes only resources with the exact candidate run labels', async()=>{
+  const calls=[];
+  const invoke=async args=>{
+    calls.push(args);
+    if(args[0]==='ps')return 'aaaaaaaaaaaa\n';
+    if(args[0]==='network' && args[1]==='ls')return 'bbbbbbbbbbbb\n';
+    return '';
+  };
+  assert.deepEqual(await cleanupOwnedLab('project','agent-retry-1234-01',invoke),{containers:1,networks:1});
+  const filters=['label=mygoldmine.owner=redteam','label=mygoldmine.project=project','label=mygoldmine.run=agent-retry-1234-01'];
+  for(const args of [calls[0],calls[2]])for(const filter of filters)assert.ok(args.includes(filter));
+  assert.deepEqual(calls[1],['rm','-f','aaaaaaaaaaaa']);
+  assert.deepEqual(calls[3],['network','rm','bbbbbbbbbbbb']);
+  await assert.rejects(cleanupOwnedLab('../project','run',invoke),/归属编号无效/);
+});
+
 
 function fixture(t) {
   const repoRoot=fs.mkdtempSync(path.join(os.tmpdir(),'agent-retry-'));
@@ -48,6 +65,12 @@ run=runs/project/run_id;run.mkdir(parents=True,exist_ok=True)
 captured=finding['id']=='F-1'
 (run/'result.json').write_text(json.dumps({'result':{'status':'flag_captured' if captured else 'not_captured','captured':captured}}))
 time.sleep(.2)
+from hashlib import sha256
+artifact=run/'stage-result.json'
+artifact.write_text(json.dumps(json.loads((run/'result.json').read_text())['result']))
+digest=sha256(artifact.read_bytes()).hexdigest()
+receipt=run/'.stage-submissions/redteam-agent';receipt.mkdir(parents=True,exist_ok=True)
+(receipt/'fixture.json').write_text(json.dumps({'stage':'redteam-agent','decision':'accepted','checked_at':'2026-11-12T00:00:00Z','artifact':str(artifact),'sha256':digest,'files':[{'path':str(artifact),'sha256':digest}]}))
 sys.exit(0 if captured else 2)
 `);
   return {repoRoot,run,runDir,findings};
@@ -163,6 +186,12 @@ from pathlib import Path
 args=sys.argv[1:];output=Path(args[args.index('--output')+1])
 (output/'rsi').mkdir(parents=True,exist_ok=True)
 (output/'rsi/learning-retry.json').write_text(json.dumps({'status':'completed'}))
+from hashlib import sha256
+artifact=output/'rsi/learning-result.json'
+artifact.write_text(json.dumps({'schema_version':1,'project':'demo','status':'no_changes','conclusions':[{'stage':'redteam-agent','category':'no_change','reason':'夹具未提供新增证据','next_action':'保持现有规则','evidence':['rsi/learning-retry.json']}],'proposal_ids':[],'limitations':[]}))
+digest=sha256(artifact.read_bytes()).hexdigest()
+receipt=output/'.stage-submissions/learner';receipt.mkdir(parents=True,exist_ok=True)
+(receipt/'fixture.json').write_text(json.dumps({'stage':'learner','decision':'accepted','checked_at':'2026-11-12T00:00:00Z','artifact':str(artifact),'sha256':digest,'files':[{'path':str(artifact),'sha256':digest}]}))
 `);
  startNodeRetry({repoRoot,run,node:'redteam-agent',models:{redteam:'fixture',learner:'fixture'},cascade:true});
  let learning;
@@ -196,7 +225,12 @@ if captured:
  fs.writeFileSync(path.join(repoRoot,'scripts/redteam/judge.py'),`import sys,json
 from pathlib import Path
 args=sys.argv[1:];run=Path(args[args.index('--run-dir')+1])
-(run/'judge.json').write_text(json.dumps({'verdict':'approved'}))
+from hashlib import sha256
+artifact=run/'judge.json'
+artifact.write_text(json.dumps({'verdict':'approved','intended_vulnerability':True,'flag_provenance':True,'no_cheat':True,'environment_plausible':True,'reproducible':True,'minimal':True,'confidence':'high','reason':'夹具证据完整','concerns':[],'recommended_status':'runtime-validated'}))
+digest=sha256(artifact.read_bytes()).hexdigest()
+receipt=run/'.stage-submissions/judge';receipt.mkdir(parents=True,exist_ok=True)
+(receipt/'fixture.json').write_text(json.dumps({'stage':'judge','decision':'accepted','checked_at':'2026-11-12T00:00:00Z','artifact':str(artifact),'sha256':digest,'files':[{'path':str(artifact),'sha256':digest}]}))
 `);
  const learner=path.join(repoRoot,'scripts/stages/retry_learning.py');
  fs.mkdirSync(path.dirname(learner),{recursive:true});
@@ -205,6 +239,12 @@ from pathlib import Path
 args=sys.argv[1:];output=Path(args[args.index('--output')+1])
 (output/'rsi').mkdir(parents=True,exist_ok=True)
 (output/'rsi/learning-retry.json').write_text(json.dumps({'status':'completed'}))
+from hashlib import sha256
+artifact=output/'rsi/learning-result.json'
+artifact.write_text(json.dumps({'schema_version':1,'project':'demo','status':'no_changes','conclusions':[{'stage':'redteam-agent','category':'no_change','reason':'夹具未提供新增证据','next_action':'保持现有规则','evidence':['rsi/learning-retry.json']}],'proposal_ids':[],'limitations':[]}))
+digest=sha256(artifact.read_bytes()).hexdigest()
+receipt=output/'.stage-submissions/learner';receipt.mkdir(parents=True,exist_ok=True)
+(receipt/'fixture.json').write_text(json.dumps({'stage':'learner','decision':'accepted','checked_at':'2026-11-12T00:00:00Z','artifact':str(artifact),'sha256':digest,'files':[{'path':str(artifact),'sha256':digest}]}))
 `);
  startNodeRetry({repoRoot,run,node:'redteam-agent',models:{redteam:'fixture',judge:'judge-fixture',learner:'learner-fixture'},cascade:true});
  let learning;
@@ -223,13 +263,15 @@ args=sys.argv[1:];output=Path(args[args.index('--output')+1])
 });
 
 
-test('未复现保留结果继续学习，真实执行异常仍失败',async()=>{
+test('未复现与成员异常保留结果继续学习，未知状态仍失败',async()=>{
  const {executionSummaryStatus}=await import('../server/redteam-agent-retry.mjs');
  assert.equal(executionSummaryStatus([{status:'not_captured',captured:false}],1),'degraded');
  assert.equal(executionSummaryStatus([{status:'not_captured'},{status:'blocked'}],1),'degraded');
- assert.equal(executionSummaryStatus([{status:'agent_error'}],1),'failed');
- assert.equal(executionSummaryStatus([{status:'model_timeout'}],1),'failed');
+ assert.equal(executionSummaryStatus([{status:'agent_error'}],1),'blocked');
+ assert.equal(executionSummaryStatus([{status:'model_timeout'}],1),'blocked');
  assert.equal(executionSummaryStatus([{status:'blocked'}],0),'blocked');
+ assert.equal(executionSummaryStatus([{status:'not_captured'},{status:'agent_error'}],2),'degraded');
+ assert.equal(executionSummaryStatus([{status:'unknown'}],1),'failed');
  assert.equal(executionSummaryStatus([{status:'flag_captured',captured:true}],1),'completed');
 });
 

@@ -36,6 +36,7 @@ class Lab:
         target_url="http://victim:8000",
         health_path="/health",
         run_id=None,
+        candidate_id=None,
         launch=None,
         health=None,
         pids_limit=128,
@@ -63,6 +64,7 @@ class Lab:
         self.health_interval = float(health.get("interval_seconds", 0.5))
         self.health_timeout = int(health.get("timeout_seconds", 2))
         self.run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        self.candidate_id = str(candidate_id or "")
         self.runs_root = Path(runs_root).resolve() if runs_root else RUNS
         self.run_dir = self.runs_root / project / self.run_id
         self.lab_dir = Path(lab_dir).resolve() if lab_dir else self.run_dir
@@ -124,6 +126,10 @@ class Lab:
         args = [
             "run", "-d", "--rm",
             "--name", name,
+            "--label", "mygoldmine.owner=redteam",
+            "--label", f"mygoldmine.project={self.project}",
+            "--label", f"mygoldmine.run={self.run_id}",
+            "--label", f"mygoldmine.candidate={self.candidate_id}",
             "--network", self.network if self.use_network else "none",
             "--cap-drop", "ALL",
             "--security-opt", "no-new-privileges",

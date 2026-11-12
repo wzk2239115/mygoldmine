@@ -120,7 +120,7 @@ def test_static_preflight_rejects_unsupported_mode(tmp_path):
 
 def test_container_args_enforce_isolation_and_resource_limits(tmp_path, monkeypatch):
     monkeypatch.setattr(lab_module, "RUNS", tmp_path / "runs")
-    lab = lab_module.Lab("project", "victim", run_id="run", pids_limit=64, memory="512m", cpus="0.5")
+    lab = lab_module.Lab("project", "victim", run_id="run", candidate_id="F-1", pids_limit=64, memory="512m", cpus="0.5")
     victim = lab.container_args("victim")
     attacker = lab.container_args("attacker")
     for args in (victim, attacker):
@@ -129,6 +129,11 @@ def test_container_args_enforce_isolation_and_resource_limits(tmp_path, monkeypa
         assert args[args.index("--pids-limit") + 1] == "64"
         assert args[args.index("--memory") + 1] == "512m"
         assert args[args.index("--cpus") + 1] == "0.5"
+        labels = [args[index + 1] for index, value in enumerate(args[:-1]) if value == "--label"]
+        assert "mygoldmine.owner=redteam" in labels
+        assert "mygoldmine.project=project" in labels
+        assert "mygoldmine.run=run" in labels
+        assert "mygoldmine.candidate=F-1" in labels
     assert any("/flag:ro" in arg for arg in victim)
     assert not any("/flag" in arg for arg in attacker)
     assert "--user" not in victim

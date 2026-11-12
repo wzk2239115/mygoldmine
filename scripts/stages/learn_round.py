@@ -68,7 +68,10 @@ def learning_delivery(run):
     return result
 
 
-def learn(run, project, repo=ROOT, timeout=180, skillopt_timeout=300):
+def learn(run, project, repo=ROOT, timeout=None, skillopt_timeout=300):
+    timeout = int(os.environ.get('RSI_LEARNER_TIMEOUT', '3600')) if timeout is None else int(timeout)
+    if timeout <= 0:
+        raise ValueError('学习总时限必须为正数秒')
     repo = Path(repo)
     run = Path(run).resolve()
     if os.environ.get('STAGE_SKILL_EVALUATING') or os.environ.get('SKILLOPT_RUN'):
@@ -97,10 +100,11 @@ def learn(run, project, repo=ROOT, timeout=180, skillopt_timeout=300):
     spec.loader.exec_module(module)
     model, env = module.claude_connection(model)
     prompt = (
-        f'项目：{project}。使用 stage-skill-learning 技能，读取 {run}/rsi/stage-feedback/index.json。'
+        f'项目：{project}。本次学习总时限 {timeout} 秒，包含阅读、检索、技能登记和最终交付。使用 stage-skill-learning 技能，读取 {run}/rsi/stage-feedback/index.json。'
+        '索引中的 workspace_path 可直接用于证据工具。技能登记成功后及时调用 submit_learning，预留时间根据拒绝反馈修正重交。网页抓取失败时记录限制，利用现有证据完成交付。'
         '本轮核心任务是复盘第二阶段审计轨迹、读取覆盖、审计意图、未解假设和有趣线索，'
         '鼓励优化通用审计技能，鼓励增加项目专属技能，让下一轮审计探索未覆盖区域并深入已有线索。'
-        '先用 get_audit_skills 读取已生效补充，按需读取第二阶段轨迹；长日志用 rank_learning_evidence'
+        '先用 get_audit_skills 查看已生效技能目录，再用 read_audit_skill 按名称分段读取相关正文；按需读取第二阶段轨迹；长日志用 rank_learning_evidence'
         '与 read_learning_evidence 分段导航，避免全量阅读。其他阶段仅作为验证反馈，不逐候选复审。'
         '可用 WebSearch/WebFetch 检索同类项目漏洞披露、官方公告和修复提交，记录来源、版本条件和'
         '本项目待核对机制，不能把外部内容直接当作漏洞成立。'

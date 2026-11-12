@@ -43,12 +43,12 @@ def repair(run, archive, project, model="", repo=ROOT, invoke=run_session):
     prompt = (
         f"项目编号：{project}。修复第二阶段现有交付，输出根目录：{run}。"
         f"历史只读快照：{archive}，不得修改。"
-        "这不是重新扫描任务：优先保留现有候选及静态验证状态，仅修正字段、格式、"
+        "这不是重新扫描任务：若报告来自恢复汇总，coverage.analysis_mode 必须标为 assembly-only；优先保留现有候选及静态验证状态，仅修正字段、格式、"
         "覆盖记录副本、附件及路径问题，不删除候选或编造证据以通过验收。"
         "读取既有 audit-report.json、正式 task-artifacts 和声明的 findings 附件，"
         "逐一运行现有契约检查；覆盖记录 view 只能使用覆盖技能列出的取值，"
         "归并校准使用 review。不要只修工作区而遗漏已声明副本。"
-        "完成后调用 mcp__stage_delivery__submit_audit_report 提交本目录现有报告的完整候选与摘要，由工具生成 audit-report.json，"
+        "完成后调用 mcp__stage_delivery__submit_audit_report，以 report_file 引用本目录 audit-report.json，补充真实摘要与限制；单个候选字段可用 finding_updates 修正，由工具重新验收完整报告，"
         "保留全部必需附件；needs_revision 时依据 errors 和 repair 修正重交，accepted 后结束。"
         "不得自行运行后续阶段，交接由原生工作流调度。无法恢复真实缺失证据时如实报告。"
     )

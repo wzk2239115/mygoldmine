@@ -36,3 +36,26 @@ test('显式停止的循环不会自动恢复',t=>{
  const f=setup(t);fs.writeFileSync(path.join(f.folder,'stop'),'stop');
  assert.equal(resumeAfterLearning(f.repo,f.workflow,()=>assert.fail('不应启动')),null);
 });
+
+test('恢复汇总目录完成学习后接续原循环，来源必须指向本轮原目录',t=>{
+ const f=setup(t,5),original=f.workflow.runDir,recovered=original+'-recovery';
+ fs.mkdirSync(recovered,{recursive:true});
+ fs.mkdirSync(recovered+'.meta',{recursive:true});
+ const source=path.join(f.repo,'targets/demo');
+ fs.writeFileSync(path.join(recovered+'.meta','status.json'),JSON.stringify({target:source}));
+ fs.writeFileSync(path.join(recovered,'run-meta.json'),JSON.stringify({recovered_from:original}));
+ f.workflow.runDir=recovered;
+ const launch=()=>{const child=new EventEmitter();child.unref=()=>{};return child;};
+ const state=resumeAfterLearning(f.repo,f.workflow,launch);
+ assert.equal(state.status,'queued');
+ assert.equal(state.rounds.at(-1).run_dir,recovered);
+});
+test('伪造来源的恢复目录不能接续其他审计循环',t=>{
+ const f=setup(t,5),recovered=f.workflow.runDir+'-recovery';
+ fs.mkdirSync(recovered,{recursive:true});
+ fs.mkdirSync(recovered+'.meta',{recursive:true});
+ fs.writeFileSync(path.join(recovered+'.meta','status.json'),JSON.stringify({target:path.join(f.repo,'targets/demo')}));
+ fs.writeFileSync(path.join(recovered,'run-meta.json'),JSON.stringify({recovered_from:path.join(f.repo,'runs/demo/other')}));
+ f.workflow.runDir=recovered;
+ assert.equal(resumeAfterLearning(f.repo,f.workflow,()=>assert.fail('不应启动')),null);
+});

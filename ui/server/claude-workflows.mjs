@@ -6,7 +6,7 @@ import {awaitProjectSlot,releaseProjectSlot} from './project-admission.mjs';
 import {launchTask,taskStatus,waitTask,stopTask,taskLive} from './durable-task.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
-import {spawn} from 'node:child_process';
+import {spawn,spawnSync} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {labCandidates,prepareLabRetry} from './redteam-lab-retry.mjs';
@@ -150,6 +150,59 @@ export function sourceReport(state) {
   if(state.project)reportProject(report,state.project);
   return file;
 }
+function checkedRecoveryRun(state) {
+  const projectRoot=path.join(repo,'runs',state.project);
+  const current=path.resolve(state.runDir);
+  const original=path.resolve(state.recoveredFrom || (current.endsWith('-recovery')?current.slice(0,-9):current));
+  const recovered=original+'-recovery';
+  if(!under(original,projectRoot) || !under(recovered,projectRoot) ||
+     ![original,recovered].includes(current) || (state.recoveredFrom && current!==recovered))
+    throw Error('恢复运行路径与本轮不一致');
+  const reportFile=path.join(recovered,'audit-report.json');
+  if(!fs.existsSync(reportFile))return null;
+  const meta=read(path.join(recovered,'run-meta.json'));
+  const checkpoint=read(path.join(recovered,'checkpoint.json'));
+  const report=read(reportFile);
+  if(meta?.agent!=='durable-recovery' || meta.project!==state.project ||
+     meta.recovered_from!==original || meta.delivery_accepted!==true ||
+     meta.reports_complete!==true || checkpoint?.source_run!==original ||
+     path.resolve(checkpoint?.target || '')!==path.resolve(state.source) ||
+     checkpoint.target_commit!==meta.commit || report?.source_version!==meta.commit ||
+     report?.execution?.source_run!==original || report.execution.target_commit!==meta.commit ||
+     report?.coverage?.analysis_mode!=='assembly-only')
+    throw Error('恢复报告来源、版本或正式交付状态与本轮不一致');
+  sourceReport({runDir:recovered,project:state.project});
+  const python=process.env.PYTHON || 'python3';
+  const quality=spawnSync(python,['scripts/mine/check_report.py','--report',reportFile,
+    '--project',state.project,'--output','/dev/null','--fail-missing','--fail-language'],
+    {cwd:repo,encoding:'utf8',timeout:120000,maxBuffer:8*1024*1024});
+  if(quality.error || quality.status!==0)throw Error('恢复报告质量未通过：'+(quality.error?.message || quality.stderr.trim()));
+  const gate=spawnSync(python,['scripts/stages/submission.py','check','--stage','orchestrator',
+    '--root',recovered],{cwd:repo,encoding:'utf8',timeout:120000,maxBuffer:8*1024*1024});
+  if(gate.error || gate.status!==0)throw Error('恢复报告缺少有效交付回执：'+(gate.error?.message || gate.stderr.trim()));
+  const delivery=JSON.parse(gate.stdout);
+  const folder=path.join(recovered,'.stage-submissions','orchestrator');
+  const main=delivery.deliveries.find(item=>item.artifact===reportFile &&
+    path.dirname(item.receipt)===folder);
+  if(!main)throw Error('恢复报告缺少本轮主报告的正式回执');
+  const required=new Set([reportFile,path.join(recovered,'audit-report.md')]);
+  for(const name of ['artifacts','task-artifacts']){
+    const root=path.join(recovered,name);
+    if(!fs.existsSync(root))continue;
+    const visit=entry=>{
+      const stat=fs.lstatSync(entry);
+      if(stat.isSymbolicLink() || (!stat.isFile() && !stat.isDirectory()))
+        throw Error('恢复附件不是普通文件：'+entry);
+      if(stat.isDirectory())for(const child of fs.readdirSync(entry))visit(path.join(entry,child));
+      else required.add(entry);
+    };
+    visit(root);
+  }
+  const declared=new Set(main.files.map(item=>item.path));
+  if([...required].some(file=>!declared.has(file)))throw Error('恢复交付回执遗漏真实附件');
+  return {original,recovered,exitCode:Number.isInteger(meta.exit_code)?meta.exit_code:0};
+}
+
 export async function execute(state,node,file) {
   const index=stages.indexOf(node),receipt={node,delivery_schema_version:2,status:'completed',startedAt:new Date().toISOString(),inputs:[],outputs:[]};
   const prior=state.receipts.at(-1);
@@ -173,17 +226,28 @@ export async function execute(state,node,file) {
       const job=read(state.initialJob);
       if(!job || job.node!=='orchestrator' || job.project!==state.project)throw Error('缺少编排修复任务');
       const archive=path.join(job.root,'original-artifacts');
-      code=await command(process.env.PYTHON || 'python3',['scripts/stages/repair_orchestrator.py','--run-dir',state.runDir,'--archive',archive,'--project',state.project,'--model',model || ''],{log:path.join(job.root,'worker.log'),timeout:((Number(process.env.ORCHESTRATOR_REPAIR_TIMEOUT)||1800)+60)*1000});
+      if(job.orchestratorMode==='rescan') {
+        const prepared=await command(process.env.PYTHON || 'python3',['scripts/stages/prepare_orchestrator_rescan.py','--run-dir',state.runDir,'--archive',archive,'--project',state.project],{log});
+        if(prepared!==0)throw Error('无法归档第二阶段历史产物');
+        code=await command('bash',['run.sh','--supervise','--target',state.source,'--project',state.project,'--run-dir',state.runDir,'--image',state.image,'--skip-env','--skip-visual','--skip-verify','--skip-redteam','--skip-mining-repair',...flags],{log:path.join(job.root,'worker.log'),env:{...process.env,WORKFLOW_ENV_IMAGE:state.image}});
+      } else code=await command(process.env.PYTHON || 'python3',['scripts/stages/repair_orchestrator.py','--run-dir',state.runDir,'--archive',archive,'--project',state.project,'--model',model || ''],{log:path.join(job.root,'worker.log'),timeout:((Number(process.env.ORCHESTRATOR_REPAIR_TIMEOUT)||1800)+60)*1000});
       if(code!==0) {
         write(state.initialJob,{...job,status:'failed',resultStatus:'failed',error:'编排产物修复失败，请查看修复日志',endedAt:new Date().toISOString()});
         throw Error('编排产物修复失败，请查看修复日志');
       }
+    } else if(state.reuseRecoveryRun) {
+      const recovery=checkedRecoveryRun(state);
+      if(!recovery || recovery.recovered!==path.resolve(state.runDir))
+        throw Error('恢复报告已失效，不能跳过第二阶段');
+      code=recovery.exitCode;
     } else {
-    code=await command('bash',['run.sh','--supervise','--target',state.source,'--project',state.project,'--run-dir',state.runDir,'--image',state.image,'--skip-env','--skip-visual','--skip-verify','--skip-redteam','--skip-mining-repair',...flags],{log,env:{...process.env,WORKFLOW_ENV_IMAGE:state.image}});
+      code=await command('bash',['run.sh','--supervise','--target',state.source,'--project',state.project,'--run-dir',state.runDir,'--image',state.image,'--skip-env','--skip-visual','--skip-verify','--skip-redteam','--skip-mining-repair',...flags],{log,env:{...process.env,WORKFLOW_ENV_IMAGE:state.image}});
     }
-    const recovered=state.runDir+'-recovery';
-    if(!fs.existsSync(path.join(state.runDir,'audit-report.json')) && fs.existsSync(path.join(recovered,'audit-report.json'))) {
-      state.recoveredFrom=state.runDir;state.runDir=recovered;save(file,state);
+    if(!fs.existsSync(path.join(state.runDir,'audit-report.json'))) {
+      const recovery=checkedRecoveryRun(state);
+      if(recovery) {
+        state.recoveredFrom=recovery.original;state.runDir=recovery.recovered;save(file,state);
+      }
     }
     if(code!==0 && !fs.existsSync(path.join(state.runDir,'audit-report.json')))throw Error('审计编排失败');
     sourceReport(state);
@@ -229,7 +293,7 @@ export async function execute(state,node,file) {
         await new Promise(resolve=>setTimeout(resolve,1000));
       }
     } else if(job.status==='running') {
-      await command(process.execPath,[path.join(repo,'ui/server/node-retries.mjs'),'--worker',attempt],{log:path.join(job.root,'worker.log'),onSpawn:child=>{job.workerPid=child.pid;write(attempt,job);}});
+      await command(process.execPath,[path.join(repo,'ui/server/node-retries.mjs'),'--worker',attempt],{timeout:node==='learner'?((Number(process.env.RSI_LEARNER_TIMEOUT)||3600)+3600)*1000:86400000,log:path.join(job.root,'worker.log'),onSpawn:child=>{job.workerPid=child.pid;write(attempt,job);}});
     }
     job=read(attempt);
     if(job.status!=='completed'||job.resultStatus==='failed')throw Error(job.error || `节点执行失败：${node}`);
@@ -349,12 +413,50 @@ export function resumeState(file) {
   const lock=path.join(repo,'runs',`.node-retry-${state.project}.lock`);
   if(state.lock!==lock)throw Error('工作流锁路径无效');
   fs.mkdirSync(lock);
+  const originalState=JSON.parse(JSON.stringify(state));
+  let archivedRuns=[],createdRun=null,archivedTask=null;
   try {
     const node=state.steps[state.receipts.length],directory=path.join(path.dirname(file),'tasks',node);
     const archive=path.join(path.dirname(file),'recovery-history',new Date().toISOString().replaceAll(':','-')+'-'+randomUUID());
+    let recovery=null,original=state.runDir;
+    if(node==='orchestrator') {
+      if(state.start!=='environment')throw Error('第二阶段节点重跑需从界面重新发起，不能恢复原节点重跑任务');
+      original=path.resolve(state.recoveredFrom || (state.runDir.endsWith('-recovery')?state.runDir.slice(0,-9):state.runDir));
+      try {recovery=checkedRecoveryRun(state);}
+      catch(error) {
+        if(!under(original,path.join(repo,'runs',state.project)))throw error;
+        recovery=null;
+      }
+      if(!recovery) {
+        const report=read(path.join(original,'audit-report.json'));
+        if(Array.isArray(report?.findings) || Array.isArray(report?.vulnerabilities))
+          throw Error('第二阶段已有审计报告，请使用节点重跑入口补正产物');
+        if(state.receipts.some(receipt=>receipt.outputs?.some(item=>under(path.resolve(item.file),original))))
+          throw Error('上游回执引用审计目录，不能归档；请使用第二阶段节点重跑入口');
+        const stat=fs.lstatSync(original,{throwIfNoEntry:false});
+        if(!stat?.isDirectory() || stat.isSymbolicLink())throw Error('审计目录缺失或不是普通目录，不能安全恢复');
+      }
+    }
     fs.mkdirSync(archive,{recursive:true});write(path.join(archive,'state.json'),state);
-    if(fs.existsSync(directory))fs.renameSync(directory,path.join(archive,'task'));
-    const reusable=reusableAttempt(state,node);
+    if(node==='orchestrator' && !recovery) {
+      const paths=[{from:original,to:path.join(archive,'prior-run')},
+        {from:original+'-recovery',to:path.join(archive,'prior-recovery')}];
+      for(const item of paths)if(fs.existsSync(item.from)) {
+        const stat=fs.lstatSync(item.from);
+        if(!stat.isDirectory() || stat.isSymbolicLink())throw Error('恢复归档目录不是普通目录');
+        fs.renameSync(item.from,item.to);archivedRuns.push(item);
+      }
+      fs.mkdirSync(original);createdRun=original;
+      state.runDir=original;delete state.recoveredFrom;delete state.reuseRecoveryRun;
+    } else if(recovery) {
+      state.recoveredFrom=recovery.original;state.runDir=recovery.recovered;
+      state.reuseRecoveryRun=true;
+    }
+    if(fs.existsSync(directory)) {
+      const prior=path.join(archive,'task');
+      fs.renameSync(directory,prior);archivedTask={prior,directory};
+    }
+    const reusable=node==='orchestrator'?null:reusableAttempt(state,node);
     if(reusable)state.activeAttempt=reusable;else delete state.activeAttempt;
     delete state.activeTask;delete state.waitingForTask;delete state.error;delete state.failure;delete state.endedAt;delete state.coordinatorPid;
     state.status='running';state.current=null;state.resumedAt=new Date().toISOString();
@@ -362,7 +464,18 @@ export function resumeState(file) {
     const status=read(state.runDir+'.meta/status.json') || {};
     write(state.runDir+'.meta/status.json',{...status,state:'running',workflow_id:state.id,updated_at:state.resumedAt});
     return state;
-  } catch(error) {fs.rmSync(lock,{recursive:true,force:true});throw error;}
+  } catch(error) {
+    let rollbackError=null;
+    try {
+      if(archivedTask)fs.renameSync(archivedTask.prior,archivedTask.directory);
+      if(createdRun && fs.existsSync(createdRun))fs.rmdirSync(createdRun);
+      for(const item of archivedRuns.reverse())fs.renameSync(item.to,item.from);
+      save(file,originalState);
+    } catch(failure) {rollbackError=failure;}
+    finally {fs.rmSync(lock,{recursive:true,force:true});}
+    if(rollbackError)throw Error('恢复准备失败且归档回滚受阻：'+rollbackError.message+'；原始失败：'+error.message);
+    throw error;
+  }
 }
 function stopOwnedBuild(state) {
   const pointer=read(path.join(repo,'env',state.project,'.build-tasks/current.json'));
@@ -382,7 +495,9 @@ export async function coordinate(file) {
   let state=load(file),code=1;
   if(state.baselineFile)process.env.STAGE_SKILL_BASELINE=state.baselineFile;
   const folder=path.dirname(file),log=path.join(folder,'raw.jsonl');
-  if(state.start==='environment'){state.coordinatorPid=process.pid;fs.writeFileSync(state.runDir+'.meta/supervisor.pid',String(process.pid));save(file,state);}
+  state.coordinatorPid=process.pid;
+  if(state.start==='environment')fs.writeFileSync(state.runDir+'.meta/supervisor.pid',String(process.pid));
+  save(file,state);
   let activePid=null,interrupted=false;
   const stop=()=>{interrupted=true;stopOwnedBuild(read(file) || state);const registered=read(file)?.activeTask;if(registered)stopTask(registered);terminateTree(activePid);const latest=read(file);if(latest?.activeAttempt)terminateTree(read(latest.activeAttempt)?.workerPid);};
   process.on('SIGTERM',stop);process.on('SIGINT',stop);

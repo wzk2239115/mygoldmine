@@ -15,13 +15,14 @@ def main():
     parser.add_argument("--raw", required=True)
     parser.add_argument("--health", required=True)
     parser.add_argument("--idle", type=float, default=180)
+    parser.add_argument("--tool-idle", type=float, default=1800)
     parser.add_argument("--setup-idle", type=float)
     parser.add_argument("--wall", type=float, required=True)
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
     setup_idle = args.setup_idle if args.setup_idle is not None else max(args.idle, 900)
-    if not command or min(args.idle, setup_idle, args.wall) <= 0:
+    if not command or min(args.idle, args.tool_idle, setup_idle, args.wall) <= 0:
         parser.error("command and positive budgets required")
     raw = Path(args.raw)
     initial_offset = raw.stat().st_size if raw.exists() else 0
@@ -66,6 +67,7 @@ def main():
             raw,
             initial_offset=initial_offset,
             idle=args.idle,
+            tool_idle=args.tool_idle,
             setup_idle=setup_idle,
             timeout=args.wall,
             stop=stop,
@@ -76,7 +78,7 @@ def main():
         stop()
         code, reason = 130, "interrupted"
     write_health(code, reason)
-    if reason in {"setup_timeout", "model_idle_timeout"}:
+    if reason in {"setup_timeout", "model_idle_timeout", "tool_idle_timeout"}:
         return 125
     return 128 - code if code < 0 else code
 

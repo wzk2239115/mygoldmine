@@ -199,6 +199,7 @@ def run(options):
         target_url=target_url,
         health_path=health_path,
         run_id=options.run_id,
+        candidate_id=finding.get("id") or finding.get("finding_id"),
         launch=scenario["launch"] if scenario else None,
         health=scenario.get("health") if scenario else None,
         pids_limit=options.pids_limit,

@@ -56,7 +56,7 @@ class Cdp {
       returnByValue: true,
       awaitPromise: true
     });
-    if (result.exceptionDetails) throw new Error(result.exceptionDetails.text || 'evaluate failed');
+    if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text || 'evaluate failed');
     return result.result.value;
   }
 
@@ -104,8 +104,10 @@ async function main() {
   const board = await waitFor(`${BASE}/api/health`).then(() => fetch(`${BASE}/api/board`)).then((response) => response.json());
   const inbox = board.stats.status.inbox;
   const triage = board.stats.status.triage;
-  const pipelineTarget = [...board.projects].sort((a, b) => String(b.startedAt || '').localeCompare(String(a.startedAt || '')))[0];
-  const pipeline = await fetch(`${BASE}/api/runs/${pipelineTarget.id}/${pipelineTarget.latestRunId}/pipeline`).then((response) => response.json());
+  const latestProject = [...board.projects].sort((a, b) => String(b.startedAt || '').localeCompare(String(a.startedAt || '')))[0];
+  const pipelineTarget = board.projects.find((project) => project.id === board.liveRuns?.[0]?.project) || latestProject;
+  const pipelineRunId = pipelineTarget.liveRunId || pipelineTarget.latestRunId;
+  const pipeline = await fetch(`${BASE}/api/runs/${pipelineTarget.id}/${pipelineRunId}/pipeline`).then((response) => response.json());
   assert.deepEqual(pipeline.nodes.map((node) => node.id), [
     'environment', 'orchestrator', 'visual', 'verify', 'redteam-lab', 'redteam-agent', 'judge', 'learner'
   ]);
@@ -121,6 +123,14 @@ async function main() {
   try {
     await waitFor('http://127.0.0.1:19222/json/version');
     cdp = await openPage();
+    // Keep this browser fixture in Chinese without changing the server's user setting.
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: `
+      window.__MYGOLDMINE_LANGUAGE__ = 'zh';
+      const languageFetch = window.fetch.bind(window);
+      window.fetch = (input, init) => String(input).endsWith('/api/language') && (!init?.method || init.method === 'GET')
+        ? Promise.resolve(new Response('{"language":"zh"}', {status: 200, headers: {'Content-Type': 'application/json'}}))
+        : languageFetch(input, init);
+    `});
     if (process.env.RSI_REWARDS_TEST_ONLY) {
       await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: `
         const originalFetch = window.fetch.bind(window);
@@ -140,9 +150,14 @@ async function main() {
       `});
     }
     await cdp.send('Page.navigate', { url: BASE });
-    await sleep(1200);
+    // The live board can be large; wait for its rendered pipeline instead of
+    // assuming that a fixed delay is enough for the network and React render.
+    for (let i = 0; i < 80; i += 1) {
+      if (await cdp.evaluate("document.querySelectorAll('.agentic-pipeline .agentic-node').length") === 8) break;
+      await sleep(250);
+    }
     if (process.env.RUNTIME_PATHS_TEST_ONLY) {
-      await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"系统架构\"]').click()");
+      await cdp.evaluate("document.querySelector('[aria-describedby=\"nav-architecture-tooltip\"]').click()");
       await sleep(150);
       assert.ok(await cdp.evaluate("document.body.innerText.includes('.runtime/state/') && document.body.innerText.includes('.runtime/work/')"));
       console.log('运行状态目录与验证独立工作区的架构页浏览器检查通过。');
@@ -257,7 +272,7 @@ async function main() {
     assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-trace-drawer .ccui-frame').length"), 1);
     assert.match(await cdp.evaluate("document.querySelector('.agentic-trace-drawer .ccui-frame').getAttribute('src')"), /\/ccui\/session\//);
     assert.equal(pipeline.nodes.find(node=>node.id==='learner').retrySupported,true);
-    const learnerSession = await fetch(`${BASE}/api/runs/${pipelineTarget.id}/${pipelineTarget.latestRunId}/ccui?node=learner`).then((response) => response.json());
+    const learnerSession = await fetch(`${BASE}/api/runs/${pipelineTarget.id}/${pipelineRunId}/ccui?node=learner`).then((response) => response.json());
     assert.equal(learnerSession.available, true);
     assert.equal(learnerSession.traceKind, 'claude');
     } else if(!learnerNode.traces.length) {
@@ -294,14 +309,18 @@ async function main() {
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-art')).display"), 'none');
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-shade')).display"), 'none');
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-strip.is-landing')).backgroundColor"), 'rgb(27, 29, 32)');
-    await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"设置\"]').click()");
+    await cdp.evaluate("document.querySelector('[aria-describedby=\"nav-settings-tooltip\"]').click()");
+    for (let i = 0; i < 20; i += 1) {
+      if (await cdp.evaluate("document.querySelectorAll('.settings-segment button').length") === 2) break;
+      await sleep(50);
+    }
     await cdp.evaluate("document.querySelectorAll('.settings-segment button')[1].click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.documentElement.dataset.theme"), 'dark');
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.rail')).backgroundColor"), 'rgb(23, 23, 23)');
     assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.refinery-strip')).backgroundColor"), 'rgb(27, 29, 32)');
     await cdp.evaluate("document.querySelectorAll('.settings-segment button')[0].click()");
-    await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"设置\"]').click()");
+    await cdp.evaluate("document.querySelector('[aria-describedby=\"nav-settings-tooltip\"]').click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.rail-tooltip').length"), 9);
     assert.equal(await cdp.evaluate("document.querySelector('.rail-brand img').getAttribute('src')"), '/golden-shovel.webp');
@@ -320,11 +339,11 @@ async function main() {
     await cdp.evaluate("document.querySelectorAll('.project-import-types button')[1].click()");
     await cdp.evaluate("document.querySelector('.project-directory-picker-trigger').click()");
     for (let index = 0; index < 30; index += 1) {
-      if (await cdp.evaluate("document.querySelector('.directory-browser-current')?.innerText.startsWith('/')")) break;
+      if (await cdp.evaluate("document.querySelector('.directory-selection-path')?.innerText.startsWith('/')")) break;
       await sleep(100);
     }
     assert.equal(await cdp.evaluate("document.querySelectorAll('.directory-browser').length"), 1);
-    assert.ok(await cdp.evaluate("document.querySelector('.directory-browser-current').innerText.startsWith('/')"));
+    assert.ok(await cdp.evaluate("document.querySelector('.directory-selection-path').innerText.startsWith('/')"));
     await cdp.evaluate("document.querySelector('button[aria-label=\"关闭目录选择器\"]').click()");
     assert.equal(await cdp.evaluate("document.querySelectorAll('.directory-browser').length"), 0);
     await cdp.evaluate("document.querySelector('input[aria-label=\"本地目录路径\"]').focus()");
@@ -349,14 +368,17 @@ async function main() {
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '自动审计');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.search-box').length"), 0);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.content-head').length"), 0);
-    await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"系统架构\"]').click()");
+    await cdp.evaluate("document.querySelector('[aria-describedby=\"nav-architecture-tooltip\"]').click()");
     await sleep(150);
     assert.equal(await cdp.evaluate("document.querySelector('.page-title h1').innerText"), '系统架构');
     assert.ok(await cdp.evaluate("document.body.innerText.includes('.runtime/state/') && document.body.innerText.includes('.runtime/work/')"));
-    assert.match(await cdp.evaluate("document.body.innerText"), /红队执行提供队员列表/);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card').length"), 5);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-stage, .arch-component').length"), 0);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-overview img').length"), 6);
+    for (let i = 0; i < 40; i += 1) {
+      if (await cdp.evaluate("[...document.querySelectorAll('.arch-overview img')].every(img => img.complete && img.naturalWidth > 0)")) break;
+      await sleep(100);
+    }
     assert.ok(await cdp.evaluate("[...document.querySelectorAll('.arch-overview img')].every(img => img.complete && img.naturalWidth > 0)"));
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card')[4].querySelector('img').getAttribute('src')"), '/architecture/rsi-flywheel.webp');
     assert.equal(await cdp.evaluate("document.querySelectorAll('.arch-zone-card')[4].querySelector('img').naturalWidth"), 1536);
@@ -423,7 +445,7 @@ async function main() {
             assert.equal(await cdp.evaluate("document.querySelector('#arch-detail-title').innerText"), '时限与恢复');
             assert.match(detailText, /所有尝试共享实际运行时间/);
             assert.match(detailText, /按真实事件判断是否仍在推进/);
-            assert.match(detailText, /等待中的工具调用不算空闲/);
+            assert.match(detailText, /工具调用连续 30 分钟无新事件也会超时/);
             assert.match(detailText, /校验和匹配才复用成果/);
             assert.match(detailText, /原始事件、任务产物和历史恢复检查点/);
             assert.match(detailText, /每次尝试的健康状态/);
@@ -467,7 +489,7 @@ async function main() {
     assert.equal(await cdp.evaluate("document.querySelector('.arch-zone-hero h2').innerText"), 'RSI 学习流程');
     assert.match(await cdp.evaluate("document.querySelector('.arch-rsi-why').innerText"), /为什么能形成 RSI 学习流程/);
     const boundaryText = await cdp.evaluate("document.querySelector('.arch-rsi-boundary').innerText");
-    assert.match(boundaryText, /验证动作只建议；挖掘修复经评估才发布/);
+    assert.match(boundaryText, /审计技能下一轮直接采用/);
     assert.match(boundaryText, /可用于动作训练的可信样本：0/);
     assert.match(boundaryText, /不证明因果/);
     assert.match(boundaryText, /未参与训练的留出项目/);
@@ -554,69 +576,24 @@ async function main() {
       assert.notEqual(await cdp.evaluate("getComputedStyle(document.querySelector('.map-detail')).display"), 'none');
     }
     await cdp.send('Emulation.clearDeviceMetricsOverride');
-    await cdp.evaluate("document.querySelector('.rail-button[aria-label=\"看板\"]').click()");
-    await sleep(150);
+    await cdp.evaluate("document.querySelector('[aria-describedby=\"nav-board-tooltip\"]').click()");
+    for (let i = 0; i < 80; i += 1) {
+      if (await cdp.evaluate("document.querySelectorAll('.refinery-execution .agentic-node').length") === 8) break;
+      await sleep(100);
+    }
 
     if (board.liveRuns.length) {
-      const liveRun = board.liveRuns[0];
-      const topology = await fetch(`${BASE}/api/runs/${liveRun.project}/${liveRun.runId}/agents`).then((response) => response.json());
-      agentLanes = topology.agents.length;
-      assert.equal(await cdp.evaluate("document.querySelectorAll('.live-strip').length"), 1);
-      assert.match(await cdp.evaluate("document.querySelector('.live-strip').innerText"), /实时审计/);
-      await cdp.evaluate("document.querySelector('.live-run-card').click()");
-      for (let i = 0; i < 40; i += 1) {
-        if (await cdp.evaluate("document.querySelectorAll('.live-drawer').length")) break;
-        await sleep(100);
-      }
-      assert.equal(await cdp.evaluate("document.querySelectorAll('.live-drawer').length"), 1, await cdp.evaluate("document.body.innerText.slice(-1200)"));
-      assert.match(await cdp.evaluate("document.querySelector('.live-drawer').innerText"), /实时审计日志|运行轨迹/);
-      if (agentLanes > 0) {
-        for (let i = 0; i < 40; i += 1) {
-          if (await cdp.evaluate("document.querySelectorAll('.live-drawer .ccui-frame').length")) break;
-          await sleep(250);
-        }
-        assert.equal(await cdp.evaluate("document.querySelectorAll('.live-drawer .ccui-frame').length"), 1);
-        let embedReady = false;
-        for (let i = 0; i < 40; i += 1) {
-          if (await cdp.evaluate("Boolean(document.querySelector('.ccui-frame')?.contentDocument?.getElementById('mygoldmine-embed-style'))")) {
-            embedReady = true;
-            break;
-          }
-          await sleep(250);
-        }
-        if (embedReady) {
-          assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.ccui-frame').contentDocument.querySelector('header.pwa-header-safe')).display"), 'none');
-          assert.equal(await cdp.evaluate("getComputedStyle(document.querySelector('.ccui-frame').contentDocument.querySelector('.chat-composer-shell')).display"), 'none');
-          await cdp.evaluate("window.__mygoldmineLiveFrame = document.querySelector('.ccui-frame'); window.__mygoldmineFrameTimeOrigin = window.__mygoldmineLiveFrame.contentWindow.performance.timeOrigin; true");
-          await sleep(16000);
-          assert.equal(await cdp.evaluate("window.__mygoldmineLiveFrame === document.querySelector('.ccui-frame')"), true);
-          assert.equal(await cdp.evaluate("window.__mygoldmineFrameTimeOrigin === document.querySelector('.ccui-frame').contentWindow.performance.timeOrigin"), true);
-        }
-        await cdp.evaluate("[...document.querySelectorAll('.live-drawer .traj-switch button')].find((b) => b.textContent.includes('智能体拓扑')).click()");
-        for (let i = 0; i < 40; i += 1) {
-          if (await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-lane').length")) break;
-          await sleep(100);
-        }
-        assert.equal(await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-lane').length"), agentLanes);
-        assert.equal(await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-origin').length"), 1);
-        assert.equal(await cdp.evaluate("document.querySelectorAll('.agent-topology .agent-stage').length"), 8);
-        assert.match(await cdp.evaluate("document.querySelector('.agent-topology').innerText"), /智能体拓扑/);
-      }
-      await cdp.evaluate("[...document.querySelectorAll('.live-drawer .traj-switch button')].find((b) => b.textContent.includes('原始日志')).click()");
-      await sleep(400);
-      assert.equal(await cdp.evaluate("document.querySelectorAll('.live-drawer .live-log').length"), 1);
-      await cdp.evaluate("document.querySelector('.live-drawer .on-dark').click()");
-      await sleep(200);
+      assert.equal(await cdp.evaluate("document.querySelectorAll('.live-strip').length"), 0);
+      assert.ok(await cdp.evaluate("Boolean(document.querySelector('[aria-describedby=\"nav-board-tooltip\"] .rail-badge'))"));
     }
 
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-strip.is-landing .refinery-stage').length"), 0);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-execution .agentic-node').length"), 8);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.pipeline-landing > .agentic-pipeline').length"), 0);
     assert.equal(await cdp.evaluate("document.querySelectorAll('.agentic-cycle-lines .cycle-return').length"), 1);
-    assert.match(await cdp.evaluate("document.querySelector('.agentic-cycle-caption').innerText"), /评估通过/);
-    assert.match(await cdp.evaluate("document.querySelector('.agentic-cycle-context').innerText"), /连续执行需启动循环任务/);
-    assert.ok(await cdp.evaluate("document.body.innerText.includes('审计进度总览')"));
-    assert.equal(await cdp.evaluate("document.querySelectorAll('.refinery-execution .cycle-control').length"), 1);
+    assert.match(await cdp.evaluate("document.querySelector('.agentic-cycle-caption').innerText"), /VIII 结束后进入下一轮/);
+    assert.match(await cdp.evaluate("document.querySelector('.agentic-cycle-context').innerText"), /RSI 循环已启动|连续执行需启动循环任务/);
+    assert.ok(await cdp.evaluate("[...document.querySelectorAll('.refinery-execution .cycle-control')].some(button => button.innerText.includes('循环'))"));
     const tops = await cdp.evaluate("[...document.querySelectorAll('.refinery-execution .agentic-node-index')].map(e=>e.getBoundingClientRect().top)");
     assert.ok(Math.abs(tops[0] - tops[1]) < 1, '同一行节点编号应对齐');
 

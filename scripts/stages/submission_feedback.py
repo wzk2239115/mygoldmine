@@ -1,7 +1,7 @@
 """Actionable producer feedback; examples never substitute for actual evidence."""
 from pathlib import Path
 
-def submission_feedback(stage, root, artifact, errors):
+def submission_feedback(stage, root, artifact, errors, *, tool_name=None, input_schema=None, draft_file=None, attachments=None):
     paths = {
         "environment": ("env-manifest.json", "scripts/stages/submission.py"),
         "orchestrator": ("audit-report.json", "scripts/mine/check_report.py"),
@@ -67,6 +67,49 @@ def submission_feedback(stage, root, artifact, errors):
             pass
     if not errors:
         return {"success": True, "next_action": "交付已接受；不要再修改已提交文件。可完成本次分析，后续调度由框架处理。"}
+    if tool_name:
+        if stage == "orchestrator":
+            if draft_file is not None:
+                sample = {"report_file": str(Path(draft_file).relative_to(root))}
+            else:
+                sample = {"findings": [{
+                    "id": "<真实候选编号>", "title": "<真实标题>",
+                    "severity": "medium", "root_cause": "<实际根因>",
+                    "impact": "<实际影响>", "reproduction": "<实际复现步骤或限制>",
+                    "remediation": "<修复建议>", "evidence": ["<真实证据>"],
+                    "verification": {"status": "unverified"},
+                }]}
+        elif stage == "redteam-lab":
+            sample = {"blocked": examples[stage]}
+        elif stage == "visual":
+            sample = {"design": examples[stage]}
+        elif stage == "redteam-agent":
+            sample = {}
+        else:
+            sample = examples.get(stage, {})
+        properties = (input_schema or {}).get("properties", {})
+        sample = {key: value for key, value in sample.items() if key in properties}
+        sample.update(summary="<真实交付说明>", limitations=["<实际限制；没有则使用空数组>"])
+        if stage == "orchestrator" and attachments:
+            sample["attachments"] = attachments
+        instruction = (
+            "修正草稿和错误指出的全部附件后，传 report_file 再次调用本工具；"
+            "保留全部真实候选，可用 finding_updates 按编号修正候选字段。"
+            if stage == "orchestrator" and draft_file is not None else
+            "根据字段错误补齐真实内容，再次调用本阶段专用工具；缺少证据时如实说明受阻。"
+        )
+        return {
+            "success": False,
+            "next_action": "修正后再次调用 " + tool_name,
+            "repair": {
+                "errors_to_fix": errors,
+                "input_schema": input_schema,
+                "arguments_example": sample,
+                "contract_reference": contract,
+                "instruction": instruction,
+                "example_notice": "示例含占位符，仅用于说明字段；不得清空或删除真实候选、伪造证据、降低实际结论。",
+            },
+        }
     return {
         "success": False, "next_action": "读取 errors，修正实际产物及引用附件，再调用 submit_stage_result；普通回复不算提交。",
         "repair": {

@@ -212,3 +212,20 @@ def test_continuous_cycle_does_not_stop_on_no_publication(tmp_path, monkeypatch)
     assert state['status']=='stopped'
     assert len(state['rounds'])==3
     assert all(not item['published'] for item in state['rounds'])
+
+
+def test_stage_two_skill_index_keeps_full_version_available_without_loading_it(tmp_path):
+    from skill_bank import audit_skill_summary
+    repo=tmp_path/'repo';repo.mkdir()
+    bank=SkillBank(repo)
+    evidence=repo/'proof.txt';evidence.write_text('真实审计记录')
+    content='## 权限边界审计\n'+'查看权限检查与调用路径。\n'*400
+    candidate=bank.propose('orchestrator','demo','project',content,[str(evidence)])
+    versions=[{'scope':'project','id':candidate['id'],'key':candidate['key']}]
+    index=audit_skill_summary(bank,'demo',versions)
+    assert len(index.encode()) < 6000
+    assert candidate['id'] in index
+    assert '权限边界审计' in index
+    assert str(bank.root/'candidates'/f"{candidate['id']}.md") in index
+    assert len((bank.root/'candidates'/f"{candidate['id']}.md").read_text()) > 5000
+    assert '按小段读取' in index

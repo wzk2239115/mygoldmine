@@ -122,6 +122,21 @@ def test_pending_tool_is_not_idle_killed_but_wall_limit_remains(tmp_path):
     assert clock.value == 70
 
 
+def test_pending_tool_without_progress_hits_independent_tool_idle_limit(tmp_path):
+    raw = tmp_path / "raw.jsonl"
+    clock = FakeClock(lambda: raw.write_text(
+        '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"stuck","name":"Agent"}]}}\n'
+    ) if not raw.exists() else None)
+    stopped = []
+    result = durable.watch_process(
+        FakeProcess(), raw, idle=10, tool_idle=30, setup_idle=25,
+        timeout=1000, stop=lambda: stopped.append(clock()), poll=10,
+        clock=clock, sleeper=clock.sleep,
+    )
+    assert result == (125, "tool_idle_timeout")
+    assert stopped == [40]
+
+
 @pytest.fixture
 def fake_mine(tmp_path):
     target = tmp_path / "target"
@@ -156,7 +171,20 @@ if mode == "old-429":
     raise SystemExit(1)
 if mode == "125":
     raise SystemExit(125)
+if mode == "idle-then-success" and count == 1:
+    import time
+    print(json.dumps({"type": "assistant", "message": {"content": []}}), flush=True)
+    time.sleep(5)
+    raise SystemExit(1)
 run = pathlib.Path(os.environ["RUN_DIR"])
+if mode == "idle-then-success":
+    resumed = sys.stdin.read()
+    if "正在继续项目" not in resumed or "从磁盘恢复" not in resumed:
+        print("continuation prompt missing", file=sys.stderr)
+        raise SystemExit(3)
+    (run / "audit-report.json").write_text(os.environ["VALID_REPORT"])
+    (run / "audit-report.md").write_text("# Valid")
+    raise SystemExit(0)
 if mode == "invalid":
     (run / "audit-report.json").write_text('{"findings":[{"id":"BAD"}]}')
     (run / "audit-report.md").write_text("# Invalid")
@@ -196,7 +224,7 @@ clock.write_text(str(int(clock.read_text()) + int(float(sys.argv[1]))))
     return target, prompt, binary, calls, clock
 
 
-def run_fake_mine(fake_mine, tmp_path, mode, *, timeout="100", attempts="3", delay="0"):
+def run_fake_mine(fake_mine, tmp_path, mode, *, timeout="100", attempts="3", delay="0", idle="5", setup_idle="10"):
     target, prompt, binary, calls, clock = fake_mine
     run = tmp_path / f"run-{mode}"
     env = {
@@ -210,8 +238,8 @@ def run_fake_mine(fake_mine, tmp_path, mode, *, timeout="100", attempts="3", del
         "FAKE_CALLS": str(calls),
         "TEST_TMP": str(tmp_path),
         "VALID_REPORT": json.dumps(VALID_REPORT, ensure_ascii=False),
-        "AUDIT_IDLE_TIMEOUT": "5",
-        "AUDIT_SETUP_IDLE_TIMEOUT": "10",
+        "AUDIT_IDLE_TIMEOUT": idle,
+        "AUDIT_SETUP_IDLE_TIMEOUT": setup_idle,
     }
     result = subprocess.run(
         [
@@ -260,6 +288,19 @@ def test_idle_exit_125_is_timeout(fake_mine, tmp_path):
     assert meta["status"] == "timeout" and meta["timed_out"] is True
 
 
+def test_model_idle_resumes_from_disk_within_shared_budget(fake_mine, tmp_path):
+    result, run, meta, calls = run_fake_mine(
+        fake_mine, tmp_path, "idle-then-success", attempts="2",
+        idle="1", setup_idle="2",
+    )
+    assert result.returncode == 0, result.stderr
+    assert meta["status"] == "success" and meta["attempts"] == 2
+    assert calls.read_text().splitlines() == ["1", "2"]
+    assert json.loads((run / "attempt-health-1.json").read_text())["reason"] == "model_idle_timeout"
+    assert "正在继续项目" in (run / "continuation-prompt-1.txt").read_text()
+    assert (run / "raw.jsonl").read_text().count("mine_one retry attempt") == 1
+
+
 def test_invalid_report_is_not_complete_or_successful(fake_mine, tmp_path):
     result, run, meta, _ = run_fake_mine(fake_mine, tmp_path, "invalid")
     assert result.returncode == 2
@@ -292,9 +333,11 @@ def make_supervisor_engine(tmp_path):
     shutil.copy2(ROOT / "run.sh", engine / "run.sh")
     shutil.copy2(ROOT / "scripts/env/phase0_env.sh", engine / "scripts/env/phase0_env.sh")
     shutil.copy2(ROOT / "scripts/mine/check_report.py", mine / "check_report.py")
-    shutil.copy2(
-        ROOT / "scripts/workflow/report_quality.py", engine / "scripts/workflow/report_quality.py"
-    )
+    for name in ("report_quality.py", "delivery_contract.py", "pipeline_stage.py"):
+        shutil.copy2(
+            ROOT / "scripts/workflow" / name,
+            engine / "scripts/workflow" / name,
+        )
     (mine / "render_claude_log.py").write_text(
         "import pathlib,sys\nargs=sys.argv\n"
         "pathlib.Path(args[args.index('--output')+1]).write_text('rendered')\n"
@@ -317,7 +360,7 @@ exit 125
     )
     (mine / "mine_one_docker.sh").chmod(0o755)
     (mine / "durable_recovery.py").write_text(
-        """import json, pathlib, sys
+        """import json, os, pathlib, sys
 
 def plan_from_trace(source):
     return {"infra-filesystem": {"status": "pending"}}
@@ -326,7 +369,10 @@ if __name__ == "__main__":
     args = sys.argv
     destination = pathlib.Path(args[args.index("--run-dir") + 1])
     destination.mkdir(parents=True)
-    (destination / "audit-report.json").write_text('{"findings":[]}')
+    (destination / "rsi").mkdir()
+    (destination / "audit-report.json").write_text(
+        os.environ["TEST_RECOVERY_REPORT"], encoding="utf-8"
+    )
     (destination / "audit-report.md").write_text('# Recovered')
     (destination / "run-meta.json").write_text(json.dumps({
         "status": "success", "reports_complete": True, "exit_code": 0
@@ -427,6 +473,9 @@ def run_supervisor(engine, binary, target, tmp_path, mode):
             "AUTO_RECOVER": "1" if mode == "recovery" else "0",
             "INITIAL_MODE": mode,
             "TEST_VERIFY": str(verify),
+            "TEST_RECOVERY_REPORT": json.dumps(
+                {"project": "demo", **VALID_REPORT}, ensure_ascii=False
+            ),
         },
         capture_output=True,
         text=True,
@@ -440,6 +489,10 @@ def test_successful_recovery_returns_to_phase4(tmp_path):
     result, run, verify = run_supervisor(engine, binary, target, tmp_path, "recovery")
     assert result.returncode == 0, result.stderr
     assert verify.read_text().strip() == str(run) + "-recovery"
+    recovered_run = Path(str(run) + "-recovery")
+    quality = json.loads((recovered_run / "report-quality.json").read_text())
+    assert quality["valid"] and quality["incomplete"] == 0
+    assert (recovered_run / "verify/agent/summary.json").is_file()
     original = json.loads(Path(str(run) + ".meta/status.json").read_text())
     recovered = json.loads(Path(str(run) + "-recovery.meta/status.json").read_text())
     assert original["state"] == "timeout" and original["exit_code"] == 125

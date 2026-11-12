@@ -28,10 +28,13 @@ export function cycleStatus(repo,project) {
   const claim=read(path.join(lock,'claim.json'));
   const rows=fs.existsSync(root)?fs.readdirSync(root).filter(valid).map(id=>read(path.join(root,id,'status.json'))).filter(row=>row?.project===project).sort((a,b)=>String(b.started_at).localeCompare(String(a.started_at))):[];
   const state=(claim && read(path.join(root,claim.id,'status.json'))) || rows[0];
-  const completed_rounds=completedRounds(repo,project);
-  if(!state)return {active:false,status:'not_started',completed_rounds};
+  const total_completed_rounds=completedRounds(repo,project);
+  if(!state)return {active:false,status:'not_started',completed_rounds:total_completed_rounds,total_completed_rounds};
+  const completed_rounds=new Set((state.rounds || [])
+    .filter(round=>Number.isInteger(round.index) && round.index>0 && ['partial','completed','success'].includes(round.state))
+    .map(round=>round.index)).size;
   const active=Boolean(claim?.id===state.id && ['queued','running','stopping'].includes(state.status));
-  return {...state,active,completed_rounds,stopRequested:fs.existsSync(path.join(root,state.id,'stop'))};
+  return {...state,active,completed_rounds,total_completed_rounds,stopRequested:fs.existsSync(path.join(root,state.id,'stop'))};
 }
 export function startCycle({repoRoot,run,liveRuns=[],rounds=8,patience=2,continuous=false,cooldown=300,launch=spawn}) {
   if(!Number.isInteger(rounds)||rounds<1||rounds>100 || !Number.isInteger(patience)||patience<1||patience>100)fail('循环轮数与停止阈值必须在 1 到 100 之间');
@@ -76,8 +79,14 @@ export function stopCycle(repo,project) {
 // A successful repair ending in learning resumes only its own failed cycle.
 export function resumeAfterLearning(repo,workflow,launch=spawn) {
  if(workflow.status!=='completed' || !workflow.receipts?.some(r=>r.node==='learner'))return null;
- const match=path.basename(workflow.runDir).match(/^learning-(.+)-(\d+)$/);
+ const name=path.basename(workflow.runDir);
+ const match=name.match(/^learning-(.+)-(\d+)(-recovery)?$/);
  if(!match || !valid(match[1]))return null;
+ if(match[3]) {
+  const original=path.join(repo,'runs',workflow.project,name.slice(0,-9));
+  const recovery=read(path.join(workflow.runDir,'run-meta.json'));
+  if(path.resolve(recovery?.recovered_from || '')!==original)return null;
+ }
  const {lock,guard,root}=paths(repo,workflow.project);
  const folder=path.join(root,match[1]),file=path.join(folder,'status.json'),state=read(file);
  if(!state || state.project!==workflow.project || state.status!=='failed' ||

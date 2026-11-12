@@ -7,7 +7,7 @@ import {sceneTasks} from './scene-tasks.mjs';
 import {agentTasks} from './agent-tasks.mjs';
 import {labTasks} from './lab-tasks.mjs';
 import {verifyTasks} from './verify-tasks.mjs';
-import { stageLearning } from './stage-learning.mjs';
+import { stageLearningForStages } from './stage-learning.mjs';
 import { nodeAttempts, retryEligibility, supportsNodeRetry } from './node-retries.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -387,12 +387,13 @@ export function buildAgenticPipeline(run) {
     }
     notice = `任务在${current.title}阶段中断，后续阶段未执行`;
   }
+  const learningByStage = stageLearningForStages(path.resolve(run.runDir, '../../..'), run.project, nodes.map(node => node.id));
   for (const node of nodes) {
     if (node.id === 'orchestrator') node.triage = jevTriage(run);
     if (node.id === 'verify') node.verification = verifyTasks(run);
     if (node.id === 'visual') node.scenes = sceneTasks(run);
     if (node.id === 'judge') node.review = judgeTasks(run);
-    node.learning = stageLearning(path.resolve(run.runDir, '../../..'), run.project, node.id);
+    node.learning = learningByStage[node.id];
     if (node.id === 'learner') node.detail += ` · 阶段技能待评估 ${node.learning.projectCandidates} 条`;
     node.retrySupported = supportsNodeRetry(node.id);
     node.retryReason = retryEligibility(run, node.id);

@@ -99,6 +99,8 @@ def test_rejected_revision_does_not_overwrite_previous_report(tmp_path):
     assert rejected["tool"] == "submit_audit_report"
     assert rejected["repair"]["arguments_example"]
     assert (tmp_path / "audit-report.json").read_bytes() == old
+    # A failed attempt cannot erase an earlier accepted delivery of unchanged bytes.
+    assert accepted_submissions("orchestrator", tmp_path)["accepted"] == 1
 
 
 def test_execution_tool_cannot_invent_success(tmp_path):
@@ -230,3 +232,102 @@ def test_empty_attack_design_and_zero_valid_deliveries_are_rejected(tmp_path):
     assert not result["success"]
     with pytest.raises(ValueError, match="至少 1"):
         accepted_submissions("visual", tmp_path, minimum=1, allow_partial=True)
+
+
+def _complete_finding(identifier):
+    return {
+        "id": identifier,
+        "title": "认证边界缺少检查",
+        "severity": "medium",
+        "root_cause": "入口未校验调用者身份",
+        "impact": "未经授权的调用者可以访问敏感操作",
+        "reproduction": "向入口发送未认证请求并观察拒绝条件",
+        "remediation": "在入口执行身份与权限校验",
+        "evidence": ["src/auth.py:12"],
+        "verification": {"status": "unverified"},
+    }
+
+
+def test_audit_report_reuses_rejected_draft_and_patches_one_finding(tmp_path):
+    first = _complete_finding("F-1")
+    second = _complete_finding("F-2")
+    second.pop("root_cause")
+    extra = tmp_path / "notes.txt"
+    extra.write_text("本轮补充证据")
+    rejected = submit_structured("orchestrator", tmp_path, {
+        "findings": [first, second],
+        "coverage": {"analysis_mode": "fresh"},
+        "attachments": ["notes.txt"],
+        "summary": "两条候选的审计结果",
+        "limitations": ["第二条待补根因"],
+    }, {"project": "demo"})
+    assert rejected["decision"] == "needs_revision"
+    assert rejected["tool"] == "submit_audit_report"
+    draft = tmp_path / rejected["report_draft_path"]
+    assert draft.is_file()
+    assert not (tmp_path / "audit-report.json").exists()
+    saved = json.loads((tmp_path / ".stage-submissions/orchestrator" /
+                        (rejected["id"] + ".json")).read_text())
+    assert saved["repair"]["arguments_example"]["report_file"] == rejected["report_draft_path"]
+    assert saved["repair"]["arguments_example"]["attachments"] == ["notes.txt"]
+    assert saved["next_action"] == "修正后再次调用 submit_audit_report"
+    assert "submit_stage_result" not in json.dumps(saved["repair"], ensure_ascii=False)
+
+    accepted = submit_structured("orchestrator", tmp_path, {
+        "report_file": rejected["report_draft_path"],
+        "finding_updates": [{"id": "F-2", "changes": {"root_cause": "入口绕过身份检查"}}],
+        "summary": "补齐第二条候选的根因",
+        "limitations": [],
+    }, {"project": "demo"})
+    assert accepted["success"], accepted
+    report = json.loads((tmp_path / "audit-report.json").read_text())
+    assert [row["id"] for row in report["findings"]] == ["F-1", "F-2"]
+    assert report["coverage"] == {"analysis_mode": "fresh"}
+    assert report["findings"][1]["root_cause"] == "入口绕过身份检查"
+    delivery = accepted_submissions("orchestrator", tmp_path)
+    assert delivery["accepted"] == 1
+    assert str(extra) in {row["path"] for row in delivery["deliveries"][0]["files"]}
+
+
+def test_audit_report_rejects_unknown_patch_without_dropping_findings(tmp_path):
+    first = _complete_finding("F-1")
+    source = tmp_path / "draft.json"
+    source.write_text(json.dumps({"project": "demo", "findings": [first]}))
+    rejected = submit_structured("orchestrator", tmp_path, {
+        "report_file": "draft.json",
+        "finding_updates": [{"id": "F-2", "changes": {"title": "其他"}}],
+        "summary": "尝试修正不存在的候选",
+        "limitations": [],
+    }, {"project": "demo"})
+    assert rejected["decision"] == "needs_revision"
+    assert "不存在" in str(rejected["errors"])
+    assert json.loads(source.read_text())["findings"] == [first]
+
+
+def test_early_specialized_rejection_has_persistent_receipt(tmp_path):
+    rejected = submit_structured("orchestrator", tmp_path, {
+        "summary": "缺少审计结果", "limitations": [],
+    }, {"project": "demo"})
+    assert rejected["decision"] == "needs_revision"
+    assert rejected["tool"] == "submit_audit_report"
+    assert rejected["repair"]["arguments_example"]["findings"]
+    saved = json.loads((tmp_path / ".stage-submissions/orchestrator" /
+                        (rejected["id"] + ".json")).read_text())
+    assert saved == rejected
+    assert not (tmp_path / "audit-report.json").exists()
+
+
+def test_latest_accepted_artifact_must_still_match_current_bytes(tmp_path):
+    args = {"findings": [], "summary": "首份报告", "limitations": []}
+    first = submit_structured("orchestrator", tmp_path, args, {"project": "demo"})
+    assert first["success"]
+    report = tmp_path / "audit-report.json"
+    original = report.read_bytes()
+    second = submit_structured("orchestrator", tmp_path, {
+        **args, "project_name": "演示项目",
+    }, {"project": "demo"})
+    assert second["success"]
+    assert report.read_bytes() != original
+    report.write_bytes(original)
+    with pytest.raises(ValueError, match="内容已改变"):
+        accepted_submissions("orchestrator", tmp_path)

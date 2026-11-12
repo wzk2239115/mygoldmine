@@ -33,6 +33,7 @@ def accepted_submissions(stage, root, minimum=1, allow_partial=False):
     if allow_partial and stage != "visual":
         raise ValueError("此部分验收入口仅用于攻击设计")
     latest = {}
+    rejected = {}
     receipt_roots = [root]
     summary = root / 'verify' / 'agent' / 'summary.json'
     if stage == 'verify' and summary.is_file():
@@ -68,10 +69,22 @@ def accepted_submissions(stage, root, minimum=1, allow_partial=False):
                 raise
             if not isinstance(receipt, dict) or receipt.get('stage') != stage:
                 raise ValueError(f'阶段交付回执格式无效：{receipt_file}')
+            # A rejected revision does not revoke earlier accepted bytes. Only the
+            # newest accepted receipt is authoritative; its files are checked below.
             key = receipt.get('artifact') or str(receipt_file)
+            if receipt.get('decision') != 'accepted':
+                previous = rejected.get(key)
+                if previous is None or receipt.get('checked_at', '') > previous[1].get('checked_at', ''):
+                    rejected[key] = (receipt_file, receipt)
+                continue
             previous = latest.get(key)
             if previous is None or receipt.get('checked_at', '') > previous[1].get('checked_at', ''):
                 latest[key] = (receipt_file, receipt)
+    if allow_partial:
+        excluded.extend(
+            {'receipt': str(receipt_file), 'reason': '交付未接受'}
+            for key, (receipt_file, _) in rejected.items() if key not in latest
+        )
     for receipt_file, receipt in latest.values():
             try:
                 if receipt.get('decision') != 'accepted':
@@ -137,7 +150,7 @@ def finalize_orchestrator(root):
             if file.is_symlink():
                 raise ValueError('交付回执不能是符号链接')
             value = json.loads(file.read_text(encoding='utf-8'))
-            if value.get('stage') == 'orchestrator':
+            if value.get('stage') == 'orchestrator' and value.get('decision') == 'accepted':
                 receipts.append(value)
         if not receipts:
             raise original_error
@@ -438,7 +451,8 @@ def serve(stage, root, task=None):
                     tools.extend(TOOLS)
                     from audit_skill_updates import SCHEMA as audit_schema
                     tools.append({'name':'update_audit_skill','description':'新增或优化通用/项目专属审计技能。同名技能更新、其他技能保留；返回编号须纳入 submit_learning，正式交付通过后下一轮直接使用，不等待评估或试用。','inputSchema':audit_schema})
-                    tools.append({'name':'get_audit_skills','description':'读取当前生效的通用和本项目阶段二技能及版本，便于优化已有技能而非重复堆叠。','inputSchema':{'type':'object','properties':{},'additionalProperties':False}})
+                    tools.append({'name':'get_audit_skills','description':'列出当前生效的通用和本项目第二阶段技能名称、版本与长度；按需再用 read_audit_skill 读取单项正文。','inputSchema':{'type':'object','properties':{},'additionalProperties':False}})
+                    tools.append({'name':'read_audit_skill','description':'按层级和名称分段读取一项现行第二阶段技能正文。单次最多 8000 字符，使用 next_offset 继续读取。','inputSchema':{'type':'object','properties':{'scope':{'type':'string','enum':['general','project']},'skill_name':{'type':'string'},'offset':{'type':'integer'},'length':{'type':'integer'}},'required':['scope','skill_name'],'additionalProperties':False}})
                     tools.append({'name':'request_skillopt_optimization','description':'提交一个由 SkillOpt 重写的阶段技能请求。只写请求，不直接发布；宿主机随后调用第三方优化引擎并转换为现有候选。','inputSchema':SKILLOPT_SCHEMA})
                     tools.append({'name':'get_rsi_scorecard','description':'读取本项目本轮 RSI 评分卡及相同源码版本的历史对照。只读；包含两项奖励、系数和计算依据，不改变任何验收状态。','inputSchema':{'type':'object','properties':{},'additionalProperties':False}})
                 result={'tools':tools}
@@ -448,20 +462,17 @@ def serve(stage, root, task=None):
                 if params.get('name')==tool(stage)['name']:
                     receipt=submit_structured(stage,root,params.get('arguments',{}),task=task)
                     result={'content':[{'type':'text','text':json.dumps(receipt,ensure_ascii=False)}],'structuredContent':receipt,'isError':not receipt['success']}
-                elif params.get('name') in ('update_audit_skill','get_audit_skills'):
-                    if stage!='learner':raise ValueError('只有学习阶段可以安排审计技能更新')
-                    from audit_skill_updates import request_update
+                elif params.get('name') in ('update_audit_skill','get_audit_skills','read_audit_skill'):
+                    if stage!='learner':raise ValueError('只有学习阶段可以读取或更新审计技能')
+                    from audit_skill_updates import audit_skill_index, read_named_audit_skill, request_update
                     if params['name']=='update_audit_skill':
                         data=request_update(stage,root,params.get('arguments',{}))
                     else:
-                        bank=SkillBank(); project=infer_project(root); active=bank.active()
-                        skills=[]
-                        for key,cid in active.items():
-                            if key in ('orchestrator/general/shared','orchestrator/project/'+project):
-                                current=bank.candidate(cid)
-                                skills.append({'id':cid,'scope':current['scope'],
-                                    'skills':current.get('provenance',{}).get('sections') or {'previous-audit-rules':current['content']}})
-                        data={'skills':skills}
+                        bank=SkillBank(); project=infer_project(root)
+                        if params['name']=='get_audit_skills':
+                            data=audit_skill_index(bank,project)
+                        else:
+                            data=read_named_audit_skill(bank,project,params.get('arguments',{}))
                     result={'content':[{'type':'text','text':json.dumps(data,ensure_ascii=False)}],'structuredContent':data}
                 elif params.get('name')=='propose_skill_update':
                     args=params.get('arguments',{})

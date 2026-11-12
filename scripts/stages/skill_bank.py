@@ -332,6 +332,39 @@ def ingest_requests(bank,run,project):
                 except (ValueError,OSError,KeyError) as exc:results.append({'request':request.get('id'),'error':str(exc)})
     return results
 
+def audit_skill_summary(bank, project, versions):
+    """Give stage II a bounded index; immutable skill files remain available on demand."""
+    lines = ["本轮审计技能索引。先依据仓库入口和信任边界选取相关主题，再用 Read 按小段读取对应技能原文；不要一次读取整份文件或把大段工具输出放入会话。版本在本轮固定，提交交付前仍须遵守所读技能的证据要求。"]
+    for item in versions:
+        if item["scope"] not in ("general", "project"):
+            continue
+        candidate = bank.candidate(item["id"])
+        content = candidate["content"]
+        headings = []
+        for line in content.splitlines():
+            title = line.strip()
+            if title.startswith(("## ", "### ")) and title not in headings:
+                headings.append(title)
+        label = "通用" if item["scope"] == "general" else "项目专属"
+        version = bank.root / "versions" / item["id"] / "SKILL.md"
+        legacy = bank.root / "candidates" / f'{item["id"]}.md'
+        active_version = bank.active().get(item["key"]) == item["id"]
+        source = version if version.is_file() else legacy
+        if active_version and not version.is_file():
+            raise ValueError(f'生效技能缺少版本原文：{item["id"]}')
+        if not source.is_file():
+            raise ValueError(f'技能缺少可读取的原文：{item["id"]}')
+        lines.append(f'{label}技能（版本 {item["id"]}）：{source}')
+        lines.append(f'原文 {len(content)} 字符。主题目录：')
+        for heading in headings[:32]:
+            lines.append(heading[:90])
+        if len(headings) > 32:
+            lines.append(f'另有 {len(headings)-32} 个小节；按需在原文中检索。')
+        if not headings:
+            lines.append(content[:500].replace("\n", " "))
+    return "\n".join(lines)
+
+
 def instruction(stage,root,project=None):
     root=Path(root).resolve()
     if root == ROOT.resolve():
@@ -346,8 +379,10 @@ def instruction(stage,root,project=None):
     pin=Path(root)/'.stage-skills-loaded'/f'{stage}.json'
     pin=pin.with_name(f'{stage}-{uuid.uuid4().hex}.json')
     write(pin,rendered)
+    if stage=='orchestrator' and rendered['versions']:
+        return audit_skill_summary(bank,project,rendered['versions'])+'\n\n本节点结束前从实际轨迹提炼可复用经验：仅适用于当前仓库的提交为 project；跨仓库的通用建议提交为 general。调用 propose_skill_update，引用本次输出目录中的真实证据；无有效新经验时不必机械生成。'
     if stage=='learner':
-        return rendered['text']+'\n\n本轮重点复盘第二阶段轨迹、覆盖与意图，鼓励优化通用审计技能、增加项目专属技能。通过 get_audit_skills 查看现有技能，用 update_audit_skill 提交命名更新，在 submit_learning 中引用编号；交付通过后下一轮直接采用，不等待评估或试用。'
+        return rendered['text']+'\n\n本轮重点复盘第二阶段轨迹、覆盖与意图，鼓励优化通用审计技能、增加项目专属技能。通过 get_audit_skills 查看技能目录，用 read_audit_skill 按名称读取所需正文，再用 update_audit_skill 提交命名更新，在 submit_learning 中引用编号；交付通过后下一轮直接采用，不等待评估或试用。'
     return rendered['text']+'\n\n本节点结束前从实际轨迹提炼可复用经验：仅适用于当前仓库的提交为 project；跨仓库的通用建议提交为 general。调用 propose_skill_update，引用本次输出目录中的真实证据；无有效新经验时不必机械生成。学习阶段通过 update_audit_skill 整理的阶段二通用与项目技能，在学习交付通过后直接供下一轮使用；其他阶段建议仅保留记录。'
 
 def main():

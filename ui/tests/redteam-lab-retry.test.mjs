@@ -3,14 +3,20 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import {startNodeRetry,nodeAttempts,retryEligibility} from '../server/node-retries.mjs';
 import {listAgenticTraces} from '../server/agentic-traces.mjs';
 import {labTasks} from '../server/lab-tasks.mjs';
 import {buildAgenticPipeline} from '../server/agentic-pipeline.mjs';
 const write=(file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value));};
+function accept(root,stage,artifact) {
+ const sha256=createHash('sha256').update(fs.readFileSync(artifact)).digest('hex');
+ write(path.join(root,'.stage-submissions',stage,'fixture.json'),{stage,decision:'accepted',checked_at:'2026-11-05T00:00:00Z',artifact,sha256,files:[{path:artifact,sha256}]});
+}
+
 function blueReports(repoRoot,run,findings) {
  write(path.join(repoRoot,'env/demo/env-manifest.json'),{image:'fixture:test',image_id:'sha256:fixture',commit:'a'.repeat(40)});
- const root=path.join(run.runDir,'verify/agent');write(path.join(root,'summary.json'),{project:'demo'});
+ const root=path.join(run.runDir,'verify/agent');write(path.join(root,'summary.json'),{project:'demo',findings:findings.map(item=>({finding_id:item.id}))});
  for(const finding of findings) {
   const folder=path.join(root,finding.id);
   write(path.join(folder,'finding.json'),finding);
@@ -18,6 +24,7 @@ function blueReports(repoRoot,run,findings) {
   fs.writeFileSync(path.join(folder,'verify-report.md'),'real fixture report');
   fs.mkdirSync(path.join(folder,'harness'),{recursive:true});fs.writeFileSync(path.join(folder,'harness/probe.py'),'print("fixture proof")');
   fs.mkdirSync(path.join(folder,'evidence'),{recursive:true});fs.writeFileSync(path.join(folder,'evidence/result.txt'),'fixture observation');
+  accept(folder,'verify',path.join(folder,'verify-report.json'));
  }
 }
 function fixture(t) {
@@ -49,10 +56,16 @@ lab=Path(arg('--lab-dir')); finding=json.loads(Path(arg('--finding')).read_text(
 assert '/node-retries/redteam-lab/' in str(lab)
 (lab/'builder.log').write_text(json.dumps({'type':'assistant','message':{'content':[]}})+'\\n')
 time.sleep(.25)
+import hashlib
+def accept(artifact):
+ digest=hashlib.sha256(artifact.read_bytes()).hexdigest()
+ folder=lab/'.stage-submissions'/'redteam-lab';folder.mkdir(parents=True,exist_ok=True)
+ (folder/'fixture.json').write_text(json.dumps({'stage':'redteam-lab','decision':'accepted','checked_at':'2026-11-05T00:00:00Z','artifact':str(artifact),'sha256':digest,'files':[{'path':str(artifact),'sha256':digest}]}))
 if identifier=='F-2':
  (lab/'BLOCKED.md').write_text('当前执行器不支持该攻击面')
- print(json.dumps({'scenario_valid':False,'finding_id':identifier,'error':'不支持的攻击面'}));sys.exit(2)
-scenario=lab/'scenario.json';scenario.write_text(json.dumps({'finding_id':identifier}))
+ blocked=lab/'blocked.json';blocked.write_text(json.dumps({'finding_id':identifier,'status':'blocked','reason':'不支持的攻击面'}));accept(blocked)
+ print(json.dumps({'finding_id':identifier,'status':'blocked','blocked_valid':True,'blocked_reason':'不支持的攻击面'}));sys.exit(2)
+scenario=lab/'scenario.json';scenario.write_text(json.dumps({'finding_id':identifier}));accept(scenario)
 print(json.dumps({'scenario_valid':True,'finding_id':identifier,'scenario':str(scenario)}))
 `);
  assert.equal(retryEligibility(run,'redteam-lab'),'');
@@ -145,23 +158,43 @@ test('无人值守04自动传递全部确认候选到05，受阻后自动交给0
  const original=path.join(repoRoot,'fixtures-blue');
  fs.cpSync(path.join(run.runDir,'verify/agent'),original,{recursive:true});
  const verifyDir=path.join(repoRoot,'scripts/verify');fs.mkdirSync(verifyDir,{recursive:true});
+ const rewrite=path.join(verifyDir,'fixture_receipts.py');
+ fs.writeFileSync(rewrite,`import hashlib,json,sys
+from pathlib import Path
+root=Path(sys.argv[1])
+for report in root.glob('*/verify-report.json'):
+ digest=hashlib.sha256(report.read_bytes()).hexdigest()
+ folder=report.parent/'.stage-submissions'/'verify';folder.mkdir(parents=True,exist_ok=True)
+ (folder/'fixture.json').write_text(json.dumps({'stage':'verify','decision':'accepted','checked_at':'2026-11-05T00:00:00Z','artifact':str(report),'sha256':digest,'files':[{'path':str(report),'sha256':digest}]}))
+`);
  fs.writeFileSync(path.join(verifyDir,'phase4_verify_agent.sh'),`#!/bin/bash
 while [ "$1" != "--output" ]; do shift; done
 mkdir -p "$2"
 cp -a '${original}/.' "$2"
+python3 '${rewrite}' "$2"
 `);
  const build=path.join(repoRoot,'scripts/redteam/build_lab.py');fs.mkdirSync(path.dirname(build),{recursive:true});
- fs.writeFileSync(build,`import sys,json
+ fs.writeFileSync(build,`import sys,json,hashlib
+from pathlib import Path
 args=sys.argv[1:];f=json.load(open(args[args.index('--finding')+1]))
+lab=Path(args[args.index('--lab-dir')+1])
+blocked=lab/'blocked.json';blocked.write_text(json.dumps({'finding_id':f['id'],'status':'blocked','reason':'fixture boundary'}))
+digest=hashlib.sha256(blocked.read_bytes()).hexdigest()
+folder=lab/'.stage-submissions'/'redteam-lab';folder.mkdir(parents=True,exist_ok=True)
+(folder/'fixture.json').write_text(json.dumps({'stage':'redteam-lab','decision':'accepted','checked_at':'2026-11-05T00:00:00Z','artifact':str(blocked),'sha256':digest,'files':[{'path':str(blocked),'sha256':digest}]}))
 print(json.dumps({'finding_id':f['id'],'status':'blocked','blocked_valid':True,'blocked_reason':'fixture boundary'}))
 sys.exit(2)
 `);
  const learner=path.join(repoRoot,'scripts/stages/retry_learning.py');fs.mkdirSync(path.dirname(learner),{recursive:true});
- fs.writeFileSync(learner,`import json,sys
+ fs.writeFileSync(learner,`import json,sys,hashlib
 from pathlib import Path
 args=sys.argv[1:];out=Path(args[args.index('--output')+1])
 (out/'rsi').mkdir(parents=True)
 (out/'rsi/learning-retry.json').write_text(json.dumps({'status':'completed'}))
+artifact=out/'rsi/learning-result.json';artifact.write_text(json.dumps({'status':'completed','decision':'continue','project':'demo'}))
+digest=hashlib.sha256(artifact.read_bytes()).hexdigest()
+folder=out/'.stage-submissions'/'learner';folder.mkdir(parents=True,exist_ok=True)
+(folder/'fixture.json').write_text(json.dumps({'stage':'learner','decision':'accepted','checked_at':'2026-11-05T00:00:00Z','artifact':str(artifact),'sha256':digest,'files':[{'path':str(artifact),'sha256':digest}]}))
 `);
  startNodeRetry({repoRoot,run,node:'verify',models:{audit:'fixture'},cascade:true});
  let learning;
