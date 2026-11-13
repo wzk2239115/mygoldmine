@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-13T01:48:54.742443+00:00",
+  "source_revision": "f83076e53651f41a7c9c80afb909f52a66f8905e",
+  "project_cohort": "GET /api/board?view=summary projects",
+  "projects": 45,
+  "strict_verified_reports": 74,
+  "source_generated_at": {
+    "board": "2026-11-13T01:48:50.808Z",
+    "token_usage": "2026-11-13T01:48:09.514319+00:00"
+  },
+  "files": {
+    "projects.csv": {
+      "rows": 45,
+      "sha256": "1ef40566eff2d52b94f64e98c64f1a29691328d657d54ce7b4d42eb1ad8a0c42"
+    },
+    "runs.csv": {
+      "rows": 303,
+      "sha256": "d0ee97f3364ca2d33596bc2f79922d4b7a1e32be14ef5d11b95c02598b65360c"
+    },
+    "workflow_stages.csv": {
+      "rows": 3127,
+      "sha256": "2a6da67b3e5832bc4ebe8fb209010146215d1990a185056527210b6e8fc95572"
+    },
+    "cycles.csv": {
+      "rows": 49,
+      "sha256": "84c6c7ae1bd41b71f1cea01334208b157167892f9ea370ddef80a44012b9efd3"
+    },
+    "cycle_rounds.csv": {
+      "rows": 234,
+      "sha256": "c096c5e5b83dffa91dfbde3c486780ea7e315fbc664683ed496beea500aa5812"
+    },
+    "stage_coverage.csv": {
+      "rows": 269,
+      "sha256": "ac3445c440689cb592320417ee513e8ef039ad3e7b1505209cf3936383574934"
+    },
+    "rsi_rewards.csv": {
+      "rows": 82,
+      "sha256": "da3d92be678e006a1595086e48b7ff6ff0448817a51ba026cfe092ebd3dadcea"
+    },
+    "token_usage.csv": {
+      "rows": 2466,
+      "sha256": "082d68129bf4bf7b28b47a726f087243a4abd48b866d1dd57166e2586775a8cd"
+    },
+    "verified_reports.csv": {
+      "rows": 74,
+      "sha256": "1bdd3573e43ae345acceb25d981b55827d252b9a8ca1a6f85fb4b1777cd44657"
+    }
+  },
+  "limitations": [
+    "Source records may change while active projects run.",
+    "Read lines have no whole-repository denominator.",
+    "Strict verified reports require an AI image; they are a subset of reviewed findings.",
+    "Token usage is partial and provider conventions differ."
+  ]
+}
