@@ -1,0 +1,324 @@
+{
+  "schema_version": 1,
+  "title": "FUXA 审计技能演进前后证据片段",
+  "generated_at_utc": "2026-11-16T09:26:47.731243+00:00",
+  "source_commit": "1e68854c7fc13c1d19f0b83685dd59f4ae02249c",
+  "cycle_id": "cf1a8f9d8ed14f2a90853db7278b8d4c",
+  "before_round": 3,
+  "after_round": 4,
+  "round_start_utc": {
+    "before": "2026-11-11T06:32:01Z",
+    "after": "2026-11-11T13:50:47Z"
+  },
+  "supported_claim": "前轮审计后的技能把 Electron 的 IPC 与项目路径列为下一轮重点；后轮实际加载该技能，并报告了前轮报告未列出的跨文件静态候选问题。",
+  "limitations": [
+    "候选标注为 static/unverified，不能称为动态利用验证成功。",
+    "这是连续运行的观察案例；没有关闭学习的同预算对照，不能证明新增发现完全由技能演进造成。",
+    "前后只比较该学习循环的第 3、4 轮，未证明此前所有历史运行都没有发现同类问题。",
+    "原始轨迹只公开相关摘录；源文件哈希用于持有原始备份时回查，不单独证明执行真实性。"
+  ],
+  "evidence": [
+    {
+      "id": "E1",
+      "kind": "前轮审计报告",
+      "source": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-3/audit-report.json",
+      "locator": "findings[*].id/title",
+      "excerpts": [
+        {
+          "id": "FUXA-AUTH-001",
+          "title": "Node-RED 认证模式在设置加载路径被静默降级为 legacy-open"
+        },
+        {
+          "id": "FUXA-AUTH-002",
+          "title": "Socket.IO 写事件仅校验已登录，未校验标签与对象级权限"
+        },
+        {
+          "id": "FUXA-DATA-003",
+          "title": "DAQ 查询未按标签 show 权限过滤，访客可读取任意标签历史"
+        },
+        {
+          "id": "FUXA-DATA-004",
+          "title": "Socket 标签订阅接受任意标签 ID，未做读权限校验"
+        },
+        {
+          "id": "FUXA-AUTH-004",
+          "title": "配方实例读取未校验配方类型权限"
+        },
+        {
+          "id": "FUXA-AUTH-005",
+          "title": "JWT 校验不区分令牌类型，刷新令牌可当访问令牌使用"
+        },
+        {
+          "id": "FUXA-AUTH-006",
+          "title": "访客可通过 /api/alarmack 确认告警"
+        },
+        {
+          "id": "FUXA-DATA-007",
+          "title": "调度器读取接口未拒绝访客"
+        },
+        {
+          "id": "FUXA-SECRET-010",
+          "title": "访问令牌可通过 URL 查询参数访问快照并被访问日志记录"
+        },
+        {
+          "id": "FUXA-CONF-011",
+          "title": "默认管理员账号以固定口令播种"
+        },
+        {
+          "id": "FUXA-CONF-012",
+          "title": "任意有效 API 密钥被直接授予管理员组"
+        },
+        {
+          "id": "FUXA-ELECTRON-013",
+          "title": "Electron 窗口启用 nodeIntegration 并关闭上下文隔离与沙箱"
+        },
+        {
+          "id": "FUXA-EXEC-014",
+          "title": "插件安装执行 npm install 未禁用生命周期脚本"
+        },
+        {
+          "id": "FUXA-CONF-008",
+          "title": "GET /api/reportsQuery 缺少管理员校验"
+        },
+        {
+          "id": "FUXA-CONF-009",
+          "title": "GET /api/resources/resources 缺少管理员校验"
+        }
+      ],
+      "interpretation": "本轮报告提到 Electron 配置风险；未列出后轮 NORM-IPC-001 与 NORM-IPC-004 所描述的问题。报告中未列出不等于证明所有原始推理中从未涉及。"
+    },
+    {
+      "id": "E2",
+      "kind": "由前轮形成的审计技能",
+      "source": "rsi/stage-skills/versions/f42aa77ce7ad9179bdc05097ad289bab8591d688e8dd031293dcf432784fafa4/SKILL.md",
+      "manifest_source": "rsi/stage-skills/versions/f42aa77ce7ad9179bdc05097ad289bab8591d688e8dd031293dcf432784fafa4/manifest.json",
+      "version": "f42aa77ce7ad9179bdc05097ad289bab8591d688e8dd031293dcf432784fafa4",
+      "created_at_utc": "2026-11-11T08:29:43.446789+00:00",
+      "source_evidence": [
+        {
+          "path": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-3.meta/node-retries/learner/87adc9e8-be1e-431b-8510-37aeb49bb6a6/output/.stage-skill-proposals/evidence/252626cc24da43a88113e4fb714b13db-0.txt",
+          "sha256": "d0b73e0bf8424510d72f2b83ba974e7005f9ae860ee552e3572d2c90745e82f7"
+        },
+        {
+          "path": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-3.meta/node-retries/learner/87adc9e8-be1e-431b-8510-37aeb49bb6a6/output/.stage-skill-proposals/evidence/252626cc24da43a88113e4fb714b13db-1.txt",
+          "sha256": "0cffd0e484819413cf559ea143f258bd957cd69d527f049fe23f7006a6fe71a8"
+        },
+        {
+          "path": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-3.meta/node-retries/learner/87adc9e8-be1e-431b-8510-37aeb49bb6a6/output/.stage-skill-proposals/evidence/252626cc24da43a88113e4fb714b13db-2.txt",
+          "sha256": "b001f6e3fd6b7946bc301c4d73102ab46d0929abeff0334a0909b420f866a98e"
+        },
+        {
+          "path": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-3.meta/node-retries/learner/87adc9e8-be1e-431b-8510-37aeb49bb6a6/output/.stage-skill-proposals/evidence/252626cc24da43a88113e4fb714b13db-3.txt",
+          "sha256": "0a4eeb33769b10d0378c1b794d5815cd38eee0be8fd6b69580d00489c4560e07"
+        }
+      ],
+      "excerpts": [
+        {
+          "line": 206,
+          "text": "源码版本：`1e68854c7fc13c1d19f0b83685dd59f4ae02249c`，包版本 `1.3.6-3032`。本轮阶段二只执行一波静态分析，报告 15 条全部未验证；验证阶段确认 3 条、否决 1 条、11 条因交付回执失效受阻。下一轮应换到未覆盖面，并先核对已确认结论是否仍成立，不重复消耗。"
+        },
+        {
+          "line": 222,
+          "text": "6. Electron 桌面链路：`app/electron/main.js` 已报告 `nodeIntegration` 与隔离配置；下一轮不要重复该条，改查 preload/contextBridge 是否最小化、外部导航与新窗口限制、项目文件打开路径、IPC 参数校验。预期证据：渲染进程可调用的能力清单与文件/进程边界。"
+        }
+      ],
+      "interpretation": "技能要求下一轮从配置检查转查 IPC 参数、项目路径等边界；其来源指向第 3 轮学习任务。"
+    },
+    {
+      "id": "E3",
+      "kind": "后轮实际加载记录",
+      "source": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-4/.stage-skills-loaded/orchestrator-f766c52592614556809faf5264542428.json",
+      "locator": "stage/project/versions",
+      "excerpt": {
+        "stage": "orchestrator",
+        "project": "fuxa",
+        "versions": [
+          {
+            "scope": "general",
+            "id": "64faeab3504b7225b71e6150f5e11cb3c4866c05cdabfa67d6a2df8bcce59c95",
+            "key": "orchestrator/general/shared"
+          },
+          {
+            "scope": "project",
+            "id": "f42aa77ce7ad9179bdc05097ad289bab8591d688e8dd031293dcf432784fafa4",
+            "key": "orchestrator/project/fuxa"
+          }
+        ]
+      },
+      "interpretation": "第 4 轮实际加载 E2 对应的项目技能版本。"
+    },
+    {
+      "id": "E4a",
+      "kind": "后轮实际工具返回的轨迹片段",
+      "source": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-4/raw.jsonl",
+      "jsonl_line": 1584,
+      "timestamp_utc": "2026-11-11T14:16:09.058Z",
+      "event_type": "user",
+      "tool_use_id": "call_00_00x1i4jw4zvtzs1dafklzdr0",
+      "extraction": "仅摘取 tool_result.content 中连续行；保留工具输出自带的行号，省略其余内容。",
+      "excerpt": [
+        "170\t                const row = document.createElement('tr');",
+        "171\t                row.innerHTML = '<td>' + project.name + '</td><td>' + project.path + '</td><td>' + new Date(project.createdAt).toLocaleDateString() + '</td>';",
+        "172\t                row.onclick = () => window.electronAPI.selectProject(project.path);",
+        "173\t                tbody.appendChild(row);"
+      ]
+    },
+    {
+      "id": "E4",
+      "kind": "后轮实际工具返回的轨迹片段",
+      "source": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-4/raw.jsonl",
+      "jsonl_line": 2424,
+      "timestamp_utc": "2026-11-11T14:28:22.152Z",
+      "event_type": "user",
+      "tool_use_id": "call_02_dh8e3as9vu8t8tvwo4hmqkot",
+      "extraction": "仅摘取 tool_result.content 中连续行；保留工具输出自带的行号，省略其余内容。",
+      "excerpt": [
+        "1\t{",
+        "2\t  \"skill\": \"ipc-serialization-analyzer\",",
+        "3\t  \"skill_sha256\": \"2130ed074f9c342b513550c6f0422b61ef978a5d583f263fe372daf1c131d192\",",
+        "4\t  \"audit_intent_id\": \"orch-ipc-001\",",
+        "5\t  \"coverage_id\": \"COV-IPC-001\",",
+        "6\t  \"project\": \"fuxa\",",
+        "7\t  \"source_version\": \"1e68854c7fc13c1d19f0b83685dd59f4ae02249c\",",
+        "8\t  \"candidates\": [",
+        "9\t    {",
+        "10\t      \"id\": \"IPC-001\",",
+        "11\t      \"title\": \"project-selected IPC 未校验路径：渲染进程可指定任意 dataDir 并作为 FUXA 服务器 userDir\",",
+        "12\t      \"severity\": \"medium\",",
+        "13\t      \"file\": \"app/electron/main.js\",",
+        "14\t      \"line\": 287,",
+        "15\t      \"root_cause\": \"ipcMain.once('project-selected', (event, projectPath) => { const dataDir = path.join(projectPath, 'data'); ... resolve(dataDir); }) 对渲染进程传入的 projectPath 不做绝对路径、存在性、归属或符号链接校验；解析后的 dataDir 直接进入 startApp/restartApp，并作为 env.userDir 传给 fork 的服务器进程。\",",
+        "16\t      \"reachability\": \"requires-config\",",
+        "17\t      \"evidence\": [",
+        "18\t        \"app/electron/main.js:287-292 ipcMain.once('project-selected') 仅 path.join(projectPath,'data') 后 resolve，无 fs.access/realpath/包含性检查\",",
+        "19\t        \"app/electron/main.js:512-513 fork(serverEntry, [], { env: { ...process.env, userDir: dataDir, PORT: 1881 } })\",",
+        "20\t        \"app/electron/main.js:564-566 startApp -> restartApp(dataDir, win)\",",
+        "21\t        \"app/electron/project-selection.html:161 selectProject: (path) => ipcRenderer.send('project-selected', path)\",",
+        "22\t        \"app/electron/settings.html:183 selectProject: (path) => ipcRenderer.send('project-selected', path)\",",
+        "23\t        \"app/electron/main.js:285,287 ipcMain 监听为全局监听，未以 event.senderFrame 限定来源窗口\",",
+        "24\t        \"server/main.js:62-64,67-69 process.env.userDir -> rootDir/workDir=path.resolve(userDir,'_appdata')\",",
+        "25\t        \"server/main.js:81,98 workDir/settings.js 由 require(settingsFile) 加载\""
+      ]
+    },
+    {
+      "id": "E5",
+      "kind": "后轮最终审计报告",
+      "source": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-4/audit-report.json",
+      "locator": "findings[id=NORM-IPC-001|NORM-IPC-004]",
+      "excerpts": [
+        {
+          "id": "NORM-IPC-001",
+          "title": "project-selected IPC 未校验路径：渲染进程可指定任意 dataDir 作为服务器 userDir",
+          "severity": "medium",
+          "category": "electron IPC / 参数校验缺失",
+          "root_cause": "ipcMain.once('project-selected') 对渲染进程传入的 projectPath 不做绝对路径、存在性、归属或符号链接校验，path.join(projectPath,'data') 后直接 resolve 并进入 startApp/restartApp，作为 env.userDir 传给 fork 的服务器进程；服务器会加载 <dataDir>/_appdata/settings.js。",
+          "evidence": [
+            {
+              "path": "app/electron/main.js",
+              "snippet": "ipcMain.once('project-selected', (event, projectPath) => { const dataDir = path.join(projectPath, 'data'); ... resolve(dataDir);",
+              "line": 287
+            },
+            {
+              "path": "app/electron/main.js",
+              "snippet": "fork(serverEntry, [], { env: { ...process.env, userDir: dataDir, PORT: 1881 } })",
+              "line": 512
+            },
+            {
+              "path": "app/electron/main.js",
+              "snippet": "startApp -> restartApp(dataDir, win)",
+              "line": 564
+            },
+            {
+              "path": "app/electron/project-selection.html",
+              "snippet": "selectProject: (path) => ipcRenderer.send('project-selected', path)",
+              "line": 161
+            },
+            {
+              "path": "server/main.js",
+              "snippet": "process.env.userDir -> rootDir/workDir=path.resolve(userDir,'_appdata')",
+              "line": 62
+            },
+            {
+              "path": "server/main.js",
+              "snippet": "workDir/settings.js 由 require(settingsFile) 加载",
+              "line": 98
+            }
+          ],
+          "verification": {
+            "status": "unverified",
+            "method": "static",
+            "note": "仅静态源码分析，未在隔离环境运行目标服务或浏览器；结论为待验证候选。"
+          },
+          "carry_over": false
+        },
+        {
+          "id": "NORM-IPC-004",
+          "title": "project-selection.html 用 innerHTML 拼接 recentProjects 的 name/path，nodeIntegration 窗口内可执行脚本",
+          "severity": "medium",
+          "category": "XSS / innerHTML 注入",
+          "root_cause": "row.innerHTML = '<td>' + project.name + '</td><td>' + project.path + '</td>...' 直接把主进程下发的 recentProjects 字段拼进 HTML；project.name 来自 path.basename(projectDir)，可通过工程目录名或篡改 config.json 注入 HTML。该窗口 nodeIntegration:true。",
+          "evidence": [
+            {
+              "path": "app/electron/project-selection.html",
+              "snippet": "row.innerHTML = '<td>' + project.name + '</td><td>' + project.path + '</td>...'",
+              "line": 171
+            },
+            {
+              "path": "app/electron/main.js",
+              "snippet": "addRecentProject 使用 path.basename(projectDir) 作为 name 写入 config",
+              "line": 125
+            },
+            {
+              "path": "app/electron/main.js",
+              "snippet": "项目选择窗口 nodeIntegration:true, contextIsolation:false, sandbox:false",
+              "line": 216
+            },
+            {
+              "path": "app/electron/project-selection.html",
+              "snippet": "该页面可直接 require('electron') 并调用 ipcRenderer",
+              "line": 150
+            }
+          ],
+          "verification": {
+            "status": "unverified",
+            "method": "static",
+            "note": "仅静态源码分析，未在隔离环境运行目标服务或浏览器；结论为待验证候选。"
+          },
+          "carry_over": false
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "path": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-3/audit-report.json",
+      "sha256": "0cffd0e484819413cf559ea143f258bd957cd69d527f049fe23f7006a6fe71a8",
+      "availability": "原始文件保存在 NAS 备份中，未随本证据包公开"
+    },
+    {
+      "path": "rsi/stage-skills/versions/f42aa77ce7ad9179bdc05097ad289bab8591d688e8dd031293dcf432784fafa4/SKILL.md",
+      "sha256": "af280d8cf5c9b431c3b27c8bbed23e82e16f67b1a10219fa7a285728cead9e48",
+      "availability": "原始文件保存在 NAS 备份中，未随本证据包公开"
+    },
+    {
+      "path": "rsi/stage-skills/versions/f42aa77ce7ad9179bdc05097ad289bab8591d688e8dd031293dcf432784fafa4/manifest.json",
+      "sha256": "167093b024a3de603662a5864705610c3e64caf2045e4f8559707fde70a3ba85",
+      "availability": "原始文件保存在 NAS 备份中，未随本证据包公开"
+    },
+    {
+      "path": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-4/.stage-skills-loaded/orchestrator-f766c52592614556809faf5264542428.json",
+      "sha256": "e0a552fbd53457e677ecdfbf394613eb9fbdec1f9f9134d467e1ccb5509c4407",
+      "availability": "原始文件保存在 NAS 备份中，未随本证据包公开"
+    },
+    {
+      "path": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-4/raw.jsonl",
+      "sha256": "ba05b19d19aa3a38aa215b39fe8fa881783787d6eb003b1b49526ad4673b3471",
+      "availability": "原始文件保存在 NAS 备份中，未随本证据包公开"
+    },
+    {
+      "path": "runs/fuxa/learning-cf1a8f9d8ed14f2a90853db7278b8d4c-4/audit-report.json",
+      "sha256": "5d011ac4f17ef6a350ff31b251e69960c0619bd6a6f1e7a846047041b01f3eb5",
+      "availability": "原始文件保存在 NAS 备份中，未随本证据包公开"
+    }
+  ]
+}
