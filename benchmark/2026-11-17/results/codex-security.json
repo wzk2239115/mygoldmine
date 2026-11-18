@@ -1,0 +1,104 @@
+{
+  "tool": "Codex Security",
+  "targets": [
+    "sol",
+    "pure-ftpd",
+    "libcoap",
+    "tlse"
+  ],
+  "configuration": "adapted custom provider; 360 /v1 Responses endpoint; DeepSeek V4.1 Flash; not official-hosted default",
+  "result_rows": [
+    {
+      "tool": "Codex Security",
+      "target": "sol",
+      "configuration": "adapted custom provider; 360 /v1 Responses endpoint; DeepSeek V4.1 Flash; not official-hosted default",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 8,
+      "unique_titles": 8,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "validation_present": 8,
+        "validated": 0,
+        "basis": "finding.validation.status or finding.validation.method",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/codex-security/sol/findings.json",
+      "markdown_report": "results/codex-security/sol/report.md",
+      "scan_manifest_status": "completed",
+      "started_at": "2026-11-17T10:24:04.760889+00:00",
+      "ended_at": "2026-11-17T10:56:22.674634+00:00"
+    },
+    {
+      "tool": "Codex Security",
+      "target": "pure-ftpd",
+      "configuration": "adapted custom provider; 360 /v1 Responses endpoint; DeepSeek V4.1 Flash; not official-hosted default",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 3,
+      "unique_titles": 3,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "validation_present": 3,
+        "validated": 3,
+        "basis": "finding.validation.status or finding.validation.method",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/codex-security/pure-ftpd/findings.json",
+      "markdown_report": "results/codex-security/pure-ftpd/report.md",
+      "scan_manifest_status": "completed",
+      "started_at": "2026-11-17T10:56:22.675632+00:00",
+      "ended_at": "2026-11-17T11:44:17.219913+00:00"
+    },
+    {
+      "tool": "Codex Security",
+      "target": "libcoap",
+      "configuration": "adapted custom provider; 360 /v1 Responses endpoint; DeepSeek V4.1 Flash; not official-hosted default",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 8,
+      "unique_titles": 8,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "validation_present": 8,
+        "validated": 0,
+        "basis": "finding.validation.status or finding.validation.method",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/codex-security/libcoap/findings.json",
+      "markdown_report": "results/codex-security/libcoap/report.md",
+      "scan_manifest_status": "completed",
+      "started_at": "2026-11-17T11:44:17.223272+00:00",
+      "ended_at": "2026-11-17T12:41:20.243391+00:00"
+    },
+    {
+      "tool": "Codex Security",
+      "target": "tlse",
+      "configuration": "adapted custom provider; 360 /v1 Responses endpoint; DeepSeek V4.1 Flash; not official-hosted default",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 3,
+      "unique_titles": 3,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "validation_present": 3,
+        "validated": 3,
+        "basis": "finding.validation.status or finding.validation.method",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/codex-security/tlse/findings.json",
+      "markdown_report": "results/codex-security/tlse/report.md",
+      "scan_manifest_status": "completed",
+      "started_at": "2026-11-17T12:41:20.245650+00:00",
+      "ended_at": "2026-11-17T13:12:50.516697+00:00"
+    }
+  ]
+}

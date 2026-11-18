@@ -1,0 +1,112 @@
+{
+  "tool": "Mygoldmine",
+  "targets": [
+    "sol",
+    "pure-ftpd",
+    "libcoap",
+    "tlse"
+  ],
+  "configuration": "stage-II-only; DeepSeek V4.1 Flash audit plus JEV triage; not full blue/red/independent review",
+  "result_rows": [
+    {
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "configuration": "stage-II-only; DeepSeek V4.1 Flash audit plus JEV triage; not full blue/red/independent review",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 15,
+      "raw_candidates_basis": "audit-report.json findings",
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "verified": 0,
+        "unverified": 15,
+        "basis": "finding.verification.status",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/mygoldmine-clean/sol/audit-report.json",
+      "started_at": "2026-11-17T05:48:15Z",
+      "ended_at": "2026-11-17T05:56:15Z",
+      "controller_status": "process_finished",
+      "timed_out": false,
+      "interrupted": false,
+      "timeout_basis": null
+    },
+    {
+      "tool": "Mygoldmine",
+      "target": "pure-ftpd",
+      "configuration": "stage-II-only; DeepSeek V4.1 Flash audit plus JEV triage; not full blue/red/independent review",
+      "status": "timeout_partial_report",
+      "report_complete": false,
+      "raw_candidates": 4,
+      "raw_candidates_basis": "audit-report.json findings",
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "verified": 0,
+        "unverified": 4,
+        "basis": "finding.verification.status",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/mygoldmine/pure-ftpd/audit-report.json",
+      "started_at": "2026-11-17T03:12:20Z",
+      "ended_at": "2026-11-17T04:12:23Z",
+      "controller_status": null,
+      "timed_out": true,
+      "interrupted": false,
+      "timeout_basis": null
+    },
+    {
+      "tool": "Mygoldmine",
+      "target": "libcoap",
+      "configuration": "stage-II-only; DeepSeek V4.1 Flash audit plus JEV triage; not full blue/red/independent review",
+      "status": "timeout_interrupted_no_final_report",
+      "report_complete": false,
+      "raw_candidates": 8,
+      "raw_candidates_basis": "candidate headings in partial audit-report.md",
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "verified": 0,
+        "unverified": 0,
+        "basis": "finding.verification.status",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/mygoldmine-clean/libcoap/audit-report.md",
+      "started_at": "2026-11-17T05:57:30Z",
+      "ended_at": "2026-11-17T06:57:32Z",
+      "controller_status": "timeout",
+      "timed_out": true,
+      "interrupted": true,
+      "timeout_basis": "external 3600s wall-clock budget; SIGTERM/exit 143 is not a normal scan failure"
+    },
+    {
+      "tool": "Mygoldmine",
+      "target": "tlse",
+      "configuration": "stage-II-only; DeepSeek V4.1 Flash audit plus JEV triage; not full blue/red/independent review",
+      "status": "timeout_interrupted_partial_report",
+      "report_complete": false,
+      "raw_candidates": 6,
+      "raw_candidates_basis": "audit-report.json findings",
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "verified": 0,
+        "unverified": 6,
+        "basis": "finding.verification.status",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/mygoldmine-clean/tlse/audit-report.json",
+      "started_at": "2026-11-17T06:57:38Z",
+      "ended_at": "2026-11-17T07:57:41Z",
+      "controller_status": "timeout",
+      "timed_out": true,
+      "interrupted": true,
+      "timeout_basis": "external 3600s wall-clock budget; SIGTERM/exit 143 is not a normal scan failure"
+    }
+  ]
+}

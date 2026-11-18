@@ -1,0 +1,104 @@
+{
+  "tool": "Strix",
+  "targets": [
+    "sol",
+    "pure-ftpd",
+    "libcoap",
+    "tlse"
+  ],
+  "configuration": "full-source; standard mode; DeepSeek V4.1 Flash; USD 10 estimated cost cap",
+  "result_rows": [
+    {
+      "tool": "Strix",
+      "target": "sol",
+      "configuration": "full-source; standard mode; DeepSeek V4.1 Flash; USD 10 estimated cost cap",
+      "status": "timeout_partial_report",
+      "report_complete": false,
+      "raw_candidates": 6,
+      "unique_titles": 6,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "separate_validation_stage": false,
+        "confidence_field_present": true,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/strix/sol/strix_runs/source_64d7/vulnerabilities.json",
+      "run_status": "interrupted",
+      "controller_status": "timeout",
+      "started_at": "2026-11-17T09:23:39.661594+00:00",
+      "ended_at": "2026-11-17T10:22:32.790785+00:00",
+      "limitations": "partial findings from an interrupted one-hour run"
+    },
+    {
+      "tool": "Strix",
+      "target": "pure-ftpd",
+      "configuration": "full-source; standard mode; DeepSeek V4.1 Flash; USD 10 estimated cost cap",
+      "status": "timeout_partial_report",
+      "report_complete": false,
+      "raw_candidates": 2,
+      "unique_titles": 2,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "separate_validation_stage": false,
+        "confidence_field_present": true,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/strix/pure-ftpd/strix_runs/source_f236/vulnerabilities.json",
+      "run_status": "interrupted",
+      "controller_status": "timeout",
+      "started_at": "2026-11-17T09:23:39.228187+00:00",
+      "ended_at": "2026-11-17T10:22:32.788804+00:00",
+      "limitations": "partial findings from an interrupted one-hour run"
+    },
+    {
+      "tool": "Strix",
+      "target": "libcoap",
+      "configuration": "full-source; standard mode; DeepSeek V4.1 Flash; USD 10 estimated cost cap",
+      "status": "timeout_partial_report",
+      "report_complete": false,
+      "raw_candidates": 4,
+      "unique_titles": 4,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "separate_validation_stage": false,
+        "confidence_field_present": true,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json",
+      "run_status": "interrupted",
+      "controller_status": "timeout",
+      "started_at": "2026-11-17T10:24:02.567347+00:00",
+      "ended_at": "2026-11-17T11:22:52.482898+00:00",
+      "limitations": "partial findings from an interrupted one-hour run"
+    },
+    {
+      "tool": "Strix",
+      "target": "tlse",
+      "configuration": "full-source; standard mode; DeepSeek V4.1 Flash; USD 10 estimated cost cap",
+      "status": "timeout_partial_report",
+      "report_complete": false,
+      "raw_candidates": 12,
+      "unique_titles": 12,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "separate_validation_stage": false,
+        "confidence_field_present": true,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "run_status": "interrupted",
+      "controller_status": "timeout",
+      "started_at": "2026-11-17T10:24:02.345208+00:00",
+      "ended_at": "2026-11-17T11:22:48.812029+00:00",
+      "limitations": "partial findings from an interrupted one-hour run"
+    }
+  ]
+}

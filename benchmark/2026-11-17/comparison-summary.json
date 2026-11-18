@@ -1,0 +1,749 @@
+{
+  "updated_at_utc": "2026-11-18T01:52:21.710853+00:00",
+  "base": "/vol1/1000/mygoldmine-benchmark/2026-11-17",
+  "targets": [
+    "sol",
+    "pure-ftpd",
+    "libcoap",
+    "tlse"
+  ],
+  "limitations": [
+    "Raw candidate counts are not true-positive counts, precision, recall, vulnerability counts, CVE counts, or a tool ranking.",
+    "Tool-internal filtering and validation are not a shared independent ground truth; independently confirmed counts remain unknown.",
+    "Model, provider, scope, and source settings were adapted and differ from official product defaults.",
+    "Timeout and interrupted reports are partial. Missing reports and unfinished categories must not be read as zero vulnerabilities.",
+    "Cross-tool deduplication has not been performed. RepoAudit sol raw records are deduplicated by persisted buggy_value root-cause key.",
+    "The targets are frozen default-branch snapshots, not historical vulnerable versions with a ground-truth set."
+  ],
+  "rows": [
+    {
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "configuration": "stage-II-only; DeepSeek V4.1 Flash audit plus JEV triage; not full blue/red/independent review",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 15,
+      "raw_candidates_basis": "audit-report.json findings",
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "verified": 0,
+        "unverified": 15,
+        "basis": "finding.verification.status",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/mygoldmine-clean/sol/audit-report.json",
+      "started_at": "2026-11-17T05:48:15Z",
+      "ended_at": "2026-11-17T05:56:15Z",
+      "controller_status": "process_finished",
+      "timed_out": false,
+      "interrupted": false,
+      "timeout_basis": null
+    },
+    {
+      "tool": "Strix",
+      "target": "sol",
+      "configuration": "full-source; standard mode; DeepSeek V4.1 Flash; USD 10 estimated cost cap",
+      "status": "timeout_partial_report",
+      "report_complete": false,
+      "raw_candidates": 6,
+      "unique_titles": 6,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "separate_validation_stage": false,
+        "confidence_field_present": true,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/strix/sol/strix_runs/source_64d7/vulnerabilities.json",
+      "run_status": "interrupted",
+      "controller_status": "timeout",
+      "started_at": "2026-11-17T09:23:39.661594+00:00",
+      "ended_at": "2026-11-17T10:22:32.790785+00:00",
+      "limitations": "partial findings from an interrupted one-hour run"
+    },
+    {
+      "tool": "RepoAudit",
+      "target": "sol",
+      "configuration": "NPD/MLK/UAF; 1200s per category; max 4 neural workers; only provider base URL adapted",
+      "status": "partial_timeout_with_persisted_results",
+      "report_complete": false,
+      "raw_candidates": 2,
+      "raw_candidates_complete": false,
+      "raw_candidates_basis": "persisted detect_info.json records only; unfinished categories are not counted as zero",
+      "deduplicated_issues": 1,
+      "deduplication_basis": "unique persisted buggy_value root-cause key among persisted records only",
+      "tool_internal_validation": {
+        "path_validator": "internal LLM path validator only",
+        "human_confirmed_true": 0,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "unknown_categories": [
+        "MLK"
+      ],
+      "timed_out_categories": [
+        "NPD",
+        "MLK"
+      ],
+      "completed_zero_categories": [
+        "UAF"
+      ],
+      "categories": [
+        {
+          "type": "NPD",
+          "run_status": "timeout",
+          "candidates": 2,
+          "coverage": "persisted_records",
+          "source": "tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/sol/2026-11-17-07-14-31-0/detect_info.json"
+        },
+        {
+          "type": "MLK",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        },
+        {
+          "type": "UAF",
+          "run_status": "finished",
+          "candidates": 0,
+          "coverage": "persisted_records",
+          "source": null
+        }
+      ],
+      "subtasks": [
+        {
+          "tool": "repoaudit",
+          "target": "sol",
+          "subtask": "-npd",
+          "status": "timeout",
+          "started_utc": "2026-11-17T07:13:14.964346+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.82,
+          "ended_utc": "2026-11-17T07:33:25.783755+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "sol",
+          "subtask": "-mlk",
+          "status": "timeout",
+          "started_utc": "2026-11-17T07:33:25.785343+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1211.01,
+          "ended_utc": "2026-11-17T07:53:36.791297+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "sol",
+          "subtask": "-uaf",
+          "status": "finished",
+          "started_utc": "2026-11-17T07:53:36.802987+00:00",
+          "limit_seconds": 1200,
+          "exit_code": 0,
+          "elapsed_seconds": 195.93,
+          "ended_utc": "2026-11-17T07:56:52.736836+00:00"
+        }
+      ]
+    },
+    {
+      "tool": "Claude Code Security Review",
+      "target": "sol",
+      "configuration": "adapted full-source review with DeepSeek V4.1 Flash; upstream audit/filter prompts retained; not Anthropic default model",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 4,
+      "filtered_candidates": 4,
+      "unparsed_candidate_mentions": null,
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "filtering_enabled": true,
+        "kept": 4,
+        "excluded": null,
+        "review_completed": true,
+        "files_reviewed": 22,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/claude-security-review/sol/filtered-findings.json",
+      "elapsed_seconds": 1157.92,
+      "parse_failure": false,
+      "notes": null
+    },
+    {
+      "tool": "Codex Security",
+      "target": "sol",
+      "configuration": "adapted custom provider; 360 /v1 Responses endpoint; DeepSeek V4.1 Flash; not official-hosted default",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 8,
+      "unique_titles": 8,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "validation_present": 8,
+        "validated": 0,
+        "basis": "finding.validation.status or finding.validation.method",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/codex-security/sol/findings.json",
+      "markdown_report": "results/codex-security/sol/report.md",
+      "scan_manifest_status": "completed",
+      "started_at": "2026-11-17T10:24:04.760889+00:00",
+      "ended_at": "2026-11-17T10:56:22.674634+00:00"
+    },
+    {
+      "tool": "Mygoldmine",
+      "target": "pure-ftpd",
+      "configuration": "stage-II-only; DeepSeek V4.1 Flash audit plus JEV triage; not full blue/red/independent review",
+      "status": "timeout_partial_report",
+      "report_complete": false,
+      "raw_candidates": 4,
+      "raw_candidates_basis": "audit-report.json findings",
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "verified": 0,
+        "unverified": 4,
+        "basis": "finding.verification.status",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/mygoldmine/pure-ftpd/audit-report.json",
+      "started_at": "2026-11-17T03:12:20Z",
+      "ended_at": "2026-11-17T04:12:23Z",
+      "controller_status": null,
+      "timed_out": true,
+      "interrupted": false,
+      "timeout_basis": null
+    },
+    {
+      "tool": "Strix",
+      "target": "pure-ftpd",
+      "configuration": "full-source; standard mode; DeepSeek V4.1 Flash; USD 10 estimated cost cap",
+      "status": "timeout_partial_report",
+      "report_complete": false,
+      "raw_candidates": 2,
+      "unique_titles": 2,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "separate_validation_stage": false,
+        "confidence_field_present": true,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/strix/pure-ftpd/strix_runs/source_f236/vulnerabilities.json",
+      "run_status": "interrupted",
+      "controller_status": "timeout",
+      "started_at": "2026-11-17T09:23:39.228187+00:00",
+      "ended_at": "2026-11-17T10:22:32.788804+00:00",
+      "limitations": "partial findings from an interrupted one-hour run"
+    },
+    {
+      "tool": "RepoAudit",
+      "target": "pure-ftpd",
+      "configuration": "NPD/MLK/UAF; 1200s per category; max 4 neural workers; only provider base URL adapted",
+      "status": "partial_timeout_with_persisted_results",
+      "report_complete": false,
+      "raw_candidates": 1,
+      "raw_candidates_complete": false,
+      "raw_candidates_basis": "persisted detect_info.json records only; unfinished categories are not counted as zero",
+      "deduplicated_issues": 1,
+      "deduplication_basis": "unique persisted buggy_value root-cause key among persisted records only",
+      "tool_internal_validation": {
+        "path_validator": "internal LLM path validator only",
+        "human_confirmed_true": 0,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "unknown_categories": [
+        "MLK",
+        "UAF"
+      ],
+      "timed_out_categories": [
+        "NPD",
+        "MLK",
+        "UAF"
+      ],
+      "completed_zero_categories": [],
+      "categories": [
+        {
+          "type": "NPD",
+          "run_status": "timeout",
+          "candidates": 1,
+          "coverage": "persisted_records",
+          "source": "tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/pure-ftpd/2026-11-17-07-24-36-0/detect_info.json"
+        },
+        {
+          "type": "MLK",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        },
+        {
+          "type": "UAF",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        }
+      ],
+      "subtasks": [
+        {
+          "tool": "repoaudit",
+          "target": "pure-ftpd",
+          "subtask": "-npd",
+          "status": "timeout",
+          "started_utc": "2026-11-17T07:24:06.181369+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1211.3,
+          "ended_utc": "2026-11-17T07:44:17.483484+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "pure-ftpd",
+          "subtask": "-mlk",
+          "status": "timeout",
+          "started_utc": "2026-11-17T07:44:17.506659+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.86,
+          "ended_utc": "2026-11-17T08:04:28.362703+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "pure-ftpd",
+          "subtask": "-uaf",
+          "status": "timeout",
+          "started_utc": "2026-11-17T08:04:28.364625+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.66,
+          "ended_utc": "2026-11-17T08:24:39.022608+00:00"
+        }
+      ]
+    },
+    {
+      "tool": "Claude Code Security Review",
+      "target": "pure-ftpd",
+      "configuration": "adapted full-source review with DeepSeek V4.1 Flash; upstream audit/filter prompts retained; not Anthropic default model",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 0,
+      "filtered_candidates": 0,
+      "unparsed_candidate_mentions": null,
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "filtering_enabled": true,
+        "kept": 0,
+        "excluded": null,
+        "review_completed": true,
+        "files_reviewed": 133,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/claude-security-review/pure-ftpd/filtered-findings.json",
+      "elapsed_seconds": 1751.95,
+      "parse_failure": false,
+      "notes": null
+    },
+    {
+      "tool": "Codex Security",
+      "target": "pure-ftpd",
+      "configuration": "adapted custom provider; 360 /v1 Responses endpoint; DeepSeek V4.1 Flash; not official-hosted default",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 3,
+      "unique_titles": 3,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "validation_present": 3,
+        "validated": 3,
+        "basis": "finding.validation.status or finding.validation.method",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/codex-security/pure-ftpd/findings.json",
+      "markdown_report": "results/codex-security/pure-ftpd/report.md",
+      "scan_manifest_status": "completed",
+      "started_at": "2026-11-17T10:56:22.675632+00:00",
+      "ended_at": "2026-11-17T11:44:17.219913+00:00"
+    },
+    {
+      "tool": "Mygoldmine",
+      "target": "libcoap",
+      "configuration": "stage-II-only; DeepSeek V4.1 Flash audit plus JEV triage; not full blue/red/independent review",
+      "status": "timeout_interrupted_no_final_report",
+      "report_complete": false,
+      "raw_candidates": 8,
+      "raw_candidates_basis": "candidate headings in partial audit-report.md",
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "verified": 0,
+        "unverified": 0,
+        "basis": "finding.verification.status",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/mygoldmine-clean/libcoap/audit-report.md",
+      "started_at": "2026-11-17T05:57:30Z",
+      "ended_at": "2026-11-17T06:57:32Z",
+      "controller_status": "timeout",
+      "timed_out": true,
+      "interrupted": true,
+      "timeout_basis": "external 3600s wall-clock budget; SIGTERM/exit 143 is not a normal scan failure"
+    },
+    {
+      "tool": "Strix",
+      "target": "libcoap",
+      "configuration": "full-source; standard mode; DeepSeek V4.1 Flash; USD 10 estimated cost cap",
+      "status": "timeout_partial_report",
+      "report_complete": false,
+      "raw_candidates": 4,
+      "unique_titles": 4,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "separate_validation_stage": false,
+        "confidence_field_present": true,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json",
+      "run_status": "interrupted",
+      "controller_status": "timeout",
+      "started_at": "2026-11-17T10:24:02.567347+00:00",
+      "ended_at": "2026-11-17T11:22:52.482898+00:00",
+      "limitations": "partial findings from an interrupted one-hour run"
+    },
+    {
+      "tool": "RepoAudit",
+      "target": "libcoap",
+      "configuration": "NPD/MLK/UAF; 1200s per category; max 4 neural workers; only provider base URL adapted",
+      "status": "partial_timeout_zero_in_completed_categories",
+      "report_complete": false,
+      "raw_candidates": 0,
+      "raw_candidates_complete": false,
+      "raw_candidates_basis": "persisted detect_info.json records only; unfinished categories are not counted as zero",
+      "deduplicated_issues": null,
+      "deduplication_basis": "not computed because some categories are unknown",
+      "tool_internal_validation": {
+        "path_validator": "internal LLM path validator only",
+        "human_confirmed_true": 0,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "unknown_categories": [
+        "NPD",
+        "MLK"
+      ],
+      "timed_out_categories": [
+        "NPD",
+        "MLK"
+      ],
+      "completed_zero_categories": [
+        "UAF"
+      ],
+      "categories": [
+        {
+          "type": "NPD",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        },
+        {
+          "type": "MLK",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        },
+        {
+          "type": "UAF",
+          "run_status": "finished",
+          "candidates": 0,
+          "coverage": "persisted_records",
+          "source": null
+        }
+      ],
+      "subtasks": [
+        {
+          "tool": "repoaudit",
+          "target": "libcoap",
+          "subtask": "-npd",
+          "status": "timeout",
+          "started_utc": "2026-11-17T07:56:52.774999+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.85,
+          "ended_utc": "2026-11-17T08:17:03.629151+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "libcoap",
+          "subtask": "-mlk",
+          "status": "timeout",
+          "started_utc": "2026-11-17T08:17:03.631068+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.91,
+          "ended_utc": "2026-11-17T08:37:14.545737+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "libcoap",
+          "subtask": "-uaf",
+          "status": "finished",
+          "started_utc": "2026-11-17T08:37:14.562310+00:00",
+          "limit_seconds": 1200,
+          "exit_code": 0,
+          "elapsed_seconds": 301.05,
+          "ended_utc": "2026-11-17T08:42:15.615967+00:00"
+        }
+      ]
+    },
+    {
+      "tool": "Claude Code Security Review",
+      "target": "libcoap",
+      "configuration": "adapted full-source review with DeepSeek V4.1 Flash; upstream audit/filter prompts retained; not Anthropic default model",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 1,
+      "filtered_candidates": 1,
+      "unparsed_candidate_mentions": null,
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "filtering_enabled": true,
+        "kept": 1,
+        "excluded": null,
+        "review_completed": true,
+        "files_reviewed": 15,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/claude-security-review/libcoap/filtered-findings.json",
+      "elapsed_seconds": 2414.31,
+      "parse_failure": false,
+      "notes": null
+    },
+    {
+      "tool": "Codex Security",
+      "target": "libcoap",
+      "configuration": "adapted custom provider; 360 /v1 Responses endpoint; DeepSeek V4.1 Flash; not official-hosted default",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 8,
+      "unique_titles": 8,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "validation_present": 8,
+        "validated": 0,
+        "basis": "finding.validation.status or finding.validation.method",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/codex-security/libcoap/findings.json",
+      "markdown_report": "results/codex-security/libcoap/report.md",
+      "scan_manifest_status": "completed",
+      "started_at": "2026-11-17T11:44:17.223272+00:00",
+      "ended_at": "2026-11-17T12:41:20.243391+00:00"
+    },
+    {
+      "tool": "Mygoldmine",
+      "target": "tlse",
+      "configuration": "stage-II-only; DeepSeek V4.1 Flash audit plus JEV triage; not full blue/red/independent review",
+      "status": "timeout_interrupted_partial_report",
+      "report_complete": false,
+      "raw_candidates": 6,
+      "raw_candidates_basis": "audit-report.json findings",
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "verified": 0,
+        "unverified": 6,
+        "basis": "finding.verification.status",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/mygoldmine-clean/tlse/audit-report.json",
+      "started_at": "2026-11-17T06:57:38Z",
+      "ended_at": "2026-11-17T07:57:41Z",
+      "controller_status": "timeout",
+      "timed_out": true,
+      "interrupted": true,
+      "timeout_basis": "external 3600s wall-clock budget; SIGTERM/exit 143 is not a normal scan failure"
+    },
+    {
+      "tool": "Strix",
+      "target": "tlse",
+      "configuration": "full-source; standard mode; DeepSeek V4.1 Flash; USD 10 estimated cost cap",
+      "status": "timeout_partial_report",
+      "report_complete": false,
+      "raw_candidates": 12,
+      "unique_titles": 12,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "separate_validation_stage": false,
+        "confidence_field_present": true,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "run_status": "interrupted",
+      "controller_status": "timeout",
+      "started_at": "2026-11-17T10:24:02.345208+00:00",
+      "ended_at": "2026-11-17T11:22:48.812029+00:00",
+      "limitations": "partial findings from an interrupted one-hour run"
+    },
+    {
+      "tool": "RepoAudit",
+      "target": "tlse",
+      "configuration": "NPD/MLK/UAF; 1200s per category; max 4 neural workers; only provider base URL adapted",
+      "status": "partial_timeout_zero_in_completed_categories",
+      "report_complete": false,
+      "raw_candidates": 0,
+      "raw_candidates_complete": false,
+      "raw_candidates_basis": "persisted detect_info.json records only; unfinished categories are not counted as zero",
+      "deduplicated_issues": null,
+      "deduplication_basis": "not computed because some categories are unknown",
+      "tool_internal_validation": {
+        "path_validator": "internal LLM path validator only",
+        "human_confirmed_true": 0,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "unknown_categories": [
+        "NPD"
+      ],
+      "timed_out_categories": [
+        "NPD"
+      ],
+      "completed_zero_categories": [
+        "MLK",
+        "UAF"
+      ],
+      "categories": [
+        {
+          "type": "NPD",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        },
+        {
+          "type": "MLK",
+          "run_status": "finished",
+          "candidates": 0,
+          "coverage": "persisted_records",
+          "source": null
+        },
+        {
+          "type": "UAF",
+          "run_status": "finished",
+          "candidates": 0,
+          "coverage": "persisted_records",
+          "source": null
+        }
+      ],
+      "subtasks": [
+        {
+          "tool": "repoaudit",
+          "target": "tlse",
+          "subtask": "-npd",
+          "status": "timeout",
+          "started_utc": "2026-11-17T08:24:39.049074+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.98,
+          "ended_utc": "2026-11-17T08:44:50.027690+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "tlse",
+          "subtask": "-mlk",
+          "status": "finished",
+          "started_utc": "2026-11-17T08:44:50.029462+00:00",
+          "limit_seconds": 1200,
+          "exit_code": 0,
+          "elapsed_seconds": 209.45,
+          "ended_utc": "2026-11-17T08:48:19.484256+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "tlse",
+          "subtask": "-uaf",
+          "status": "finished",
+          "started_utc": "2026-11-17T08:48:19.486225+00:00",
+          "limit_seconds": 1200,
+          "exit_code": 0,
+          "elapsed_seconds": 122.92,
+          "ended_utc": "2026-11-17T08:50:22.410669+00:00"
+        }
+      ]
+    },
+    {
+      "tool": "Claude Code Security Review",
+      "target": "tlse",
+      "configuration": "adapted full-source review with DeepSeek V4.1 Flash; upstream audit/filter prompts retained; not Anthropic default model",
+      "status": "invalid_json_parse_failure",
+      "report_complete": false,
+      "raw_candidates": null,
+      "filtered_candidates": null,
+      "unparsed_candidate_mentions": 2,
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "filtering_enabled": true,
+        "kept": 0,
+        "excluded": null,
+        "review_completed": false,
+        "files_reviewed": 0,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/claude-security-review/tlse/filtered-findings.json",
+      "elapsed_seconds": 860.88,
+      "parse_failure": true,
+      "notes": "execution.log contains two unparsed vulnerability sections"
+    },
+    {
+      "tool": "Codex Security",
+      "target": "tlse",
+      "configuration": "adapted custom provider; 360 /v1 Responses endpoint; DeepSeek V4.1 Flash; not official-hosted default",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 3,
+      "unique_titles": 3,
+      "deduplicated_issues": null,
+      "deduplication_status": "title-count only; root causes not independently verified",
+      "tool_internal_validation": {
+        "validation_present": 3,
+        "validated": 3,
+        "basis": "finding.validation.status or finding.validation.method",
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/codex-security/tlse/findings.json",
+      "markdown_report": "results/codex-security/tlse/report.md",
+      "scan_manifest_status": "completed",
+      "started_at": "2026-11-17T12:41:20.245650+00:00",
+      "ended_at": "2026-11-17T13:12:50.516697+00:00"
+    }
+  ],
+  "status_definitions": {
+    "completed": "Run and report completed; zero findings can be a valid result.",
+    "timeout_partial_report": "Hit the one-hour wall clock; report contains partial findings.",
+    "timeout_interrupted_no_final_report": "Hit the one-hour wall clock; only a partial Markdown report exists.",
+    "partial_timeout_with_persisted_results": "Some RepoAudit categories timed out; persisted records are partial.",
+    "invalid_json_parse_failure": "Process exited, but structured report parsing failed; empty JSON is not a valid zero result."
+  },
+  "published_scope": "aggregated status and candidate counts only; raw findings, exploit payloads, logs, traces, credentials, and provider configuration are excluded"
+}

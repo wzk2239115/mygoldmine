@@ -1,0 +1,112 @@
+{
+  "tool": "Claude Code Security Review",
+  "targets": [
+    "sol",
+    "pure-ftpd",
+    "libcoap",
+    "tlse"
+  ],
+  "configuration": "adapted full-source review with DeepSeek V4.1 Flash; upstream audit/filter prompts retained; not Anthropic default model",
+  "result_rows": [
+    {
+      "tool": "Claude Code Security Review",
+      "target": "sol",
+      "configuration": "adapted full-source review with DeepSeek V4.1 Flash; upstream audit/filter prompts retained; not Anthropic default model",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 4,
+      "filtered_candidates": 4,
+      "unparsed_candidate_mentions": null,
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "filtering_enabled": true,
+        "kept": 4,
+        "excluded": null,
+        "review_completed": true,
+        "files_reviewed": 22,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/claude-security-review/sol/filtered-findings.json",
+      "elapsed_seconds": 1157.92,
+      "parse_failure": false,
+      "notes": null
+    },
+    {
+      "tool": "Claude Code Security Review",
+      "target": "pure-ftpd",
+      "configuration": "adapted full-source review with DeepSeek V4.1 Flash; upstream audit/filter prompts retained; not Anthropic default model",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 0,
+      "filtered_candidates": 0,
+      "unparsed_candidate_mentions": null,
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "filtering_enabled": true,
+        "kept": 0,
+        "excluded": null,
+        "review_completed": true,
+        "files_reviewed": 133,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/claude-security-review/pure-ftpd/filtered-findings.json",
+      "elapsed_seconds": 1751.95,
+      "parse_failure": false,
+      "notes": null
+    },
+    {
+      "tool": "Claude Code Security Review",
+      "target": "libcoap",
+      "configuration": "adapted full-source review with DeepSeek V4.1 Flash; upstream audit/filter prompts retained; not Anthropic default model",
+      "status": "completed",
+      "report_complete": true,
+      "raw_candidates": 1,
+      "filtered_candidates": 1,
+      "unparsed_candidate_mentions": null,
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "filtering_enabled": true,
+        "kept": 1,
+        "excluded": null,
+        "review_completed": true,
+        "files_reviewed": 15,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/claude-security-review/libcoap/filtered-findings.json",
+      "elapsed_seconds": 2414.31,
+      "parse_failure": false,
+      "notes": null
+    },
+    {
+      "tool": "Claude Code Security Review",
+      "target": "tlse",
+      "configuration": "adapted full-source review with DeepSeek V4.1 Flash; upstream audit/filter prompts retained; not Anthropic default model",
+      "status": "invalid_json_parse_failure",
+      "report_complete": false,
+      "raw_candidates": null,
+      "filtered_candidates": null,
+      "unparsed_candidate_mentions": 2,
+      "deduplicated_issues": null,
+      "deduplication_status": "not_performed",
+      "tool_internal_validation": {
+        "filtering_enabled": true,
+        "kept": 0,
+        "excluded": null,
+        "review_completed": false,
+        "files_reviewed": 0,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "report": "results/claude-security-review/tlse/filtered-findings.json",
+      "elapsed_seconds": 860.88,
+      "parse_failure": true,
+      "notes": "execution.log contains two unparsed vulnerability sections"
+    }
+  ]
+}

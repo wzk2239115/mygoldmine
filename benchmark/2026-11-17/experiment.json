@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-17",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "provider": "360",
+  "wall_seconds_per_tool_target": 3600,
+  "targets": [
+    "codepr/sol",
+    "jedisct1/pure-ftpd",
+    "obgm/libcoap",
+    "eduardsui/tlse"
+  ],
+  "revision_policy": "upstream default branch HEAD frozen before execution",
+  "comparison": "source-audit discovery; distinguish raw static candidates, tool-internal validation, and independently confirmed results",
+  "mygoldmine_mode": "stage-II audit only; no prior runs or learned skills from these targets",
+  "repoaudit_scope": "NPD, MLK, UAF; 1200 seconds per category; preserve separate category results",
+  "claude_security_review_mode": "adapted full-source review; no GitHub comments or synthetic PR publication",
+  "strix_mode": "full-source, standard mode, USD 10 estimated cost cap",
+  "codex_security_mode": "adapted custom provider; 360 Responses API; DeepSeek V4.1 Flash",
+  "auxiliary_models": {
+    "mygoldmine_jev": {
+      "requested": "typesafe/jev-latest",
+      "returned": "typesafe/jev-1.14-20261014",
+      "included_in_wall_time": true
+    }
+  },
+  "storage": "NAS only",
+  "publication": "aggregated results only; raw findings and traces excluded",
+  "timing_limitation": "concurrent shared-host execution and unequal native sandbox defaults; wall times are operational observations, not controlled speed benchmarks"
+}

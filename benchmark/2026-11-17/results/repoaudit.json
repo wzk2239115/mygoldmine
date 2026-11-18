@@ -1,0 +1,349 @@
+{
+  "tool": "RepoAudit",
+  "targets": [
+    "sol",
+    "pure-ftpd",
+    "libcoap",
+    "tlse"
+  ],
+  "configuration": "NPD/MLK/UAF; 1200s per category; max 4 neural workers; only provider base URL adapted",
+  "result_rows": [
+    {
+      "tool": "RepoAudit",
+      "target": "sol",
+      "configuration": "NPD/MLK/UAF; 1200s per category; max 4 neural workers; only provider base URL adapted",
+      "status": "partial_timeout_with_persisted_results",
+      "report_complete": false,
+      "raw_candidates": 2,
+      "raw_candidates_complete": false,
+      "raw_candidates_basis": "persisted detect_info.json records only; unfinished categories are not counted as zero",
+      "deduplicated_issues": 1,
+      "deduplication_basis": "unique persisted buggy_value root-cause key among persisted records only",
+      "tool_internal_validation": {
+        "path_validator": "internal LLM path validator only",
+        "human_confirmed_true": 0,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "unknown_categories": [
+        "MLK"
+      ],
+      "timed_out_categories": [
+        "NPD",
+        "MLK"
+      ],
+      "completed_zero_categories": [
+        "UAF"
+      ],
+      "categories": [
+        {
+          "type": "NPD",
+          "run_status": "timeout",
+          "candidates": 2,
+          "coverage": "persisted_records",
+          "source": "tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/sol/2026-11-17-07-14-31-0/detect_info.json"
+        },
+        {
+          "type": "MLK",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        },
+        {
+          "type": "UAF",
+          "run_status": "finished",
+          "candidates": 0,
+          "coverage": "persisted_records",
+          "source": null
+        }
+      ],
+      "subtasks": [
+        {
+          "tool": "repoaudit",
+          "target": "sol",
+          "subtask": "-npd",
+          "status": "timeout",
+          "started_utc": "2026-11-17T07:13:14.964346+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.82,
+          "ended_utc": "2026-11-17T07:33:25.783755+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "sol",
+          "subtask": "-mlk",
+          "status": "timeout",
+          "started_utc": "2026-11-17T07:33:25.785343+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1211.01,
+          "ended_utc": "2026-11-17T07:53:36.791297+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "sol",
+          "subtask": "-uaf",
+          "status": "finished",
+          "started_utc": "2026-11-17T07:53:36.802987+00:00",
+          "limit_seconds": 1200,
+          "exit_code": 0,
+          "elapsed_seconds": 195.93,
+          "ended_utc": "2026-11-17T07:56:52.736836+00:00"
+        }
+      ]
+    },
+    {
+      "tool": "RepoAudit",
+      "target": "pure-ftpd",
+      "configuration": "NPD/MLK/UAF; 1200s per category; max 4 neural workers; only provider base URL adapted",
+      "status": "partial_timeout_with_persisted_results",
+      "report_complete": false,
+      "raw_candidates": 1,
+      "raw_candidates_complete": false,
+      "raw_candidates_basis": "persisted detect_info.json records only; unfinished categories are not counted as zero",
+      "deduplicated_issues": 1,
+      "deduplication_basis": "unique persisted buggy_value root-cause key among persisted records only",
+      "tool_internal_validation": {
+        "path_validator": "internal LLM path validator only",
+        "human_confirmed_true": 0,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "unknown_categories": [
+        "MLK",
+        "UAF"
+      ],
+      "timed_out_categories": [
+        "NPD",
+        "MLK",
+        "UAF"
+      ],
+      "completed_zero_categories": [],
+      "categories": [
+        {
+          "type": "NPD",
+          "run_status": "timeout",
+          "candidates": 1,
+          "coverage": "persisted_records",
+          "source": "tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/pure-ftpd/2026-11-17-07-24-36-0/detect_info.json"
+        },
+        {
+          "type": "MLK",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        },
+        {
+          "type": "UAF",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        }
+      ],
+      "subtasks": [
+        {
+          "tool": "repoaudit",
+          "target": "pure-ftpd",
+          "subtask": "-npd",
+          "status": "timeout",
+          "started_utc": "2026-11-17T07:24:06.181369+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1211.3,
+          "ended_utc": "2026-11-17T07:44:17.483484+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "pure-ftpd",
+          "subtask": "-mlk",
+          "status": "timeout",
+          "started_utc": "2026-11-17T07:44:17.506659+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.86,
+          "ended_utc": "2026-11-17T08:04:28.362703+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "pure-ftpd",
+          "subtask": "-uaf",
+          "status": "timeout",
+          "started_utc": "2026-11-17T08:04:28.364625+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.66,
+          "ended_utc": "2026-11-17T08:24:39.022608+00:00"
+        }
+      ]
+    },
+    {
+      "tool": "RepoAudit",
+      "target": "libcoap",
+      "configuration": "NPD/MLK/UAF; 1200s per category; max 4 neural workers; only provider base URL adapted",
+      "status": "partial_timeout_zero_in_completed_categories",
+      "report_complete": false,
+      "raw_candidates": 0,
+      "raw_candidates_complete": false,
+      "raw_candidates_basis": "persisted detect_info.json records only; unfinished categories are not counted as zero",
+      "deduplicated_issues": null,
+      "deduplication_basis": "not computed because some categories are unknown",
+      "tool_internal_validation": {
+        "path_validator": "internal LLM path validator only",
+        "human_confirmed_true": 0,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "unknown_categories": [
+        "NPD",
+        "MLK"
+      ],
+      "timed_out_categories": [
+        "NPD",
+        "MLK"
+      ],
+      "completed_zero_categories": [
+        "UAF"
+      ],
+      "categories": [
+        {
+          "type": "NPD",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        },
+        {
+          "type": "MLK",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        },
+        {
+          "type": "UAF",
+          "run_status": "finished",
+          "candidates": 0,
+          "coverage": "persisted_records",
+          "source": null
+        }
+      ],
+      "subtasks": [
+        {
+          "tool": "repoaudit",
+          "target": "libcoap",
+          "subtask": "-npd",
+          "status": "timeout",
+          "started_utc": "2026-11-17T07:56:52.774999+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.85,
+          "ended_utc": "2026-11-17T08:17:03.629151+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "libcoap",
+          "subtask": "-mlk",
+          "status": "timeout",
+          "started_utc": "2026-11-17T08:17:03.631068+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.91,
+          "ended_utc": "2026-11-17T08:37:14.545737+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "libcoap",
+          "subtask": "-uaf",
+          "status": "finished",
+          "started_utc": "2026-11-17T08:37:14.562310+00:00",
+          "limit_seconds": 1200,
+          "exit_code": 0,
+          "elapsed_seconds": 301.05,
+          "ended_utc": "2026-11-17T08:42:15.615967+00:00"
+        }
+      ]
+    },
+    {
+      "tool": "RepoAudit",
+      "target": "tlse",
+      "configuration": "NPD/MLK/UAF; 1200s per category; max 4 neural workers; only provider base URL adapted",
+      "status": "partial_timeout_zero_in_completed_categories",
+      "report_complete": false,
+      "raw_candidates": 0,
+      "raw_candidates_complete": false,
+      "raw_candidates_basis": "persisted detect_info.json records only; unfinished categories are not counted as zero",
+      "deduplicated_issues": null,
+      "deduplication_basis": "not computed because some categories are unknown",
+      "tool_internal_validation": {
+        "path_validator": "internal LLM path validator only",
+        "human_confirmed_true": 0,
+        "independent": false
+      },
+      "independently_confirmed": null,
+      "unknown_categories": [
+        "NPD"
+      ],
+      "timed_out_categories": [
+        "NPD"
+      ],
+      "completed_zero_categories": [
+        "MLK",
+        "UAF"
+      ],
+      "categories": [
+        {
+          "type": "NPD",
+          "run_status": "timeout",
+          "candidates": null,
+          "coverage": "timed_out_unknown",
+          "source": null
+        },
+        {
+          "type": "MLK",
+          "run_status": "finished",
+          "candidates": 0,
+          "coverage": "persisted_records",
+          "source": null
+        },
+        {
+          "type": "UAF",
+          "run_status": "finished",
+          "candidates": 0,
+          "coverage": "persisted_records",
+          "source": null
+        }
+      ],
+      "subtasks": [
+        {
+          "tool": "repoaudit",
+          "target": "tlse",
+          "subtask": "-npd",
+          "status": "timeout",
+          "started_utc": "2026-11-17T08:24:39.049074+00:00",
+          "limit_seconds": 1200,
+          "elapsed_seconds": 1210.98,
+          "ended_utc": "2026-11-17T08:44:50.027690+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "tlse",
+          "subtask": "-mlk",
+          "status": "finished",
+          "started_utc": "2026-11-17T08:44:50.029462+00:00",
+          "limit_seconds": 1200,
+          "exit_code": 0,
+          "elapsed_seconds": 209.45,
+          "ended_utc": "2026-11-17T08:48:19.484256+00:00"
+        },
+        {
+          "tool": "repoaudit",
+          "target": "tlse",
+          "subtask": "-uaf",
+          "status": "finished",
+          "started_utc": "2026-11-17T08:48:19.486225+00:00",
+          "limit_seconds": 1200,
+          "exit_code": 0,
+          "elapsed_seconds": 122.92,
+          "ended_utc": "2026-11-17T08:50:22.410669+00:00"
+        }
+      ]
+    }
+  ]
+}
