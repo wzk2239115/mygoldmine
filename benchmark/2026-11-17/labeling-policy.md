@@ -2,19 +2,20 @@
 
 ## Current status
 
-There is no unified TP/FP adjudication table and no reference vulnerability list for the four frozen targets in this benchmark:
+There is no human TP/FP adjudication table and no reference vulnerability list for the four frozen targets in this benchmark:
 
 - `codepr/sol` at `373d84877d22031b45a7f3599297f691eab09230`
 - `jedisct1/pure-ftpd` at `b64c56dc81bc4a7fa5d09d76afa59012ca5509a6`
 - `obgm/libcoap` at `a4de0faea54d3d548924c8b9f6e67b72a36cbac3`
 - `eduardsui/tlse` at `25be48a4f0176b7242d8c5955fc325e92b487838`
 
-The target commits are default-branch snapshots, not historical vulnerable versions paired with a known-bug list. Therefore this benchmark currently reports **candidate counts**, not TP/FP counts, precision, recall, or true vulnerability counts.
+The target commits are default-branch snapshots, not historical vulnerable versions paired with a known-bug list. Therefore this benchmark cannot compute recall against a known-bug reference set. An AI subagent adjudication table now exists and records `TP`/`FP`/`UNKNOWN` labels with `label_source=subagent`, `human_confirmed=false`, and `independently_confirmed=false`. These labels are AI adjudications, not human confirmation or independent dynamic confirmation.
 
 Existing files that define the current scope:
 
 - `benchmark/2026-11-17/comparison-summary.json`: statuses, candidate counts, and limitations.
 - `benchmark/2026-11-17/comparison-summary.md`: human-readable status and count tables.
+- `benchmark/2026-11-17/adjudication/`: subagent rubric, candidate inventory, per-target labels, merged labels, CSV, and counts.
 - `benchmark/2026-11-17/full-results/`: per-tool, per-target reports and metadata.
 - `benchmark/2026-11-17/revisions.json`: frozen target and tool commits.
 - `benchmark/2026-11-17/experiment.json`: model, provider, time limits, and modes.
@@ -46,13 +47,16 @@ The current benchmark cannot reproduce the RepoAudit paper's TP/FP protocol with
 - No independent human or dynamic adjudication has been performed.
 - Rows with timeouts, interrupted runs, missing reports, or JSON parse failures cannot be treated as true negatives or false positives.
 
-Until a reference list and independent adjudication exist, the correct labels are:
+The current label layers are:
 
 - `candidate`: a reported item from a tool.
 - `tool_internal_validation`: a tool's own filtering, confidence, path-validator, or static-review result.
-- `independently_confirmed`: a separately reproduced or manually adjudicated result. This field remains `unknown` for every row.
+- `subagent_label`: an AI subagent's `TP`/`FP`/`UNKNOWN` verdict, with `label_source=subagent` and `human_confirmed=false`.
+- `independently_confirmed`: a separately reproduced or human-adjudicated result. This field remains `false` for every row.
 
-## If a TP/FP table is added later
+The subagent table supports source-consistent TP/FP counts and cross-tool root-cause deduplication. It does not support recall, because no reference bug list exists, and it does not establish human confirmation.
+
+## If a human or dynamic TP/FP table is added later
 
 A defensible adjudication table should record at least:
 
@@ -65,4 +69,4 @@ A defensible adjudication table should record at least:
 - reviewer identity and review date;
 - whether the evidence is independent of the tool that produced the report.
 
-Only after such a table exists can precision be computed as `TP / (TP + FP)`. Recall can be computed only against a defined reference list of known bugs. Candidate counts must remain separate from both.
+Only after such a table exists can precision be computed as `TP / (TP + FP)`. Recall can be computed only against a defined reference list of known bugs. Candidate counts and subagent labels must remain separate from human confirmation.

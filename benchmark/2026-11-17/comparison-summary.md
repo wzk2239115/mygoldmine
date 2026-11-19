@@ -56,3 +56,16 @@ Counts are raw report entries, not true vulnerabilities. Only RepoAudit/sol was 
 ## Excluded material
 
 Raw reports, candidate descriptions, proof-of-concept payloads, execution logs, session traces, source snapshots, provider credentials, and private state are not included in this directory.
+
+## AI subagent TP/FP adjudication
+
+These labels were produced by four AI subagents, one per target. They are not human confirmation and not independent dynamic reproduction. Source-consistent `TP`/`FP`/`UNKNOWN` verdicts are in `adjudication/`, with `label_source=subagent` and `human_confirmed=false`.
+
+| Target | TP entries | FP entries | UNKNOWN | Unique TP root causes |
+|---|---:|---:|---:|---:|
+| sol | 32 | 3 | 0 | 18 |
+| pure-ftpd | 7 | 3 | 0 | 4 |
+| libcoap | 16 | 1 | 4 | 8 |
+| tlse | 19 | 1 | 3 | 12 |
+
+Across 89 assessed candidates: 74 TP entries, 8 FP entries, 7 UNKNOWN entries, and 42 unique TP root causes after cross-tool deduplication.

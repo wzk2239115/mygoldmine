@@ -1,0 +1,1812 @@
+{
+  "schema_version": 1,
+  "base": "/vol1/1000/mygoldmine-benchmark/2026-11-17",
+  "targets": [
+    "sol",
+    "pure-ftpd",
+    "libcoap",
+    "tlse"
+  ],
+  "label_policy": "benchmark/2026-11-17/adjudication-rubric.md",
+  "count": 89,
+  "candidates": [
+    {
+      "candidate_id": "mygoldmine:sol:SOL-001",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "Unvalidated client_id length in CONNECT leads to stack buffer overflow",
+      "severity": "Critical",
+      "location": [
+        "src/mqtt.c:220-260",
+        "src/mqtt.c:239-243",
+        "src/mqtt.h:40",
+        "src/mqtt.h:181",
+        "src/server.c:860"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-002",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "Unsigned integer underflow in PUBLISH remaining-length parsing causes huge allocation and exit()",
+      "severity": "High",
+      "location": [
+        "src/mqtt.c:296-322",
+        "src/mqtt.c:314-316",
+        "src/pack.c:411-418",
+        "src/memory.c:46-56"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-003",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "Integer underflow in SUBSCRIBE/UNSUBSCRIBE parsing leads to endless loop and OOB reads",
+      "severity": "High",
+      "location": [
+        "src/mqtt.c:324-367",
+        "src/mqtt.c:342-358",
+        "src/mqtt.c:369-410",
+        "src/mqtt.c:386-401"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-004",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "NULL/out-of-bounds function-pointer dispatch for packet types 2, 9 and 11",
+      "severity": "High",
+      "location": [
+        "src/mqtt.c:72-82",
+        "src/mqtt.c:422-437",
+        "src/handlers.c:59-75",
+        "src/handlers.c:877-880",
+        "src/server.c:512-523"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 3,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-005",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "NULL session dereference by ACK packets sent before CONNECT",
+      "severity": "High",
+      "location": [
+        "src/handlers.c:785-800",
+        "src/handlers.c:803-820",
+        "src/handlers.c:839-855",
+        "src/server.c:381-404"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 4,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-006",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "QoS0 发布给已离线的持久会话客户端时使用已关闭的 fd",
+      "severity": "Medium",
+      "location": [
+        "src/handlers.c:160-232",
+        "src/handlers.c:225-230",
+        "src/server.c:412-453"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 5,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-007",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "match_subscription 对 index() 返回值未判空导致空指针解引用",
+      "severity": "Medium",
+      "location": [
+        "src/handlers.c:261-303",
+        "src/handlers.c:290-294"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 6,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-008",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "SUBSCRIBE topic 长度为 0 时出现负下标栈越界读写",
+      "severity": "Medium",
+      "location": [
+        "src/handlers.c:545",
+        "src/handlers.c:557-569"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 7,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-009",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "mqtt_decode_length 无界读取续传位，可越过读缓冲末尾",
+      "severity": "High",
+      "location": [
+        "src/mqtt.c:136-153",
+        "src/server.c:545",
+        "src/server.c:551",
+        "src/server.c:867"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 8,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-010",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "内存上限未强制、写缓冲无容量检查、保留消息泄漏",
+      "severity": "Medium",
+      "location": [
+        "src/handlers.c:747",
+        "src/handlers.c:356-375",
+        "src/handlers.c:230",
+        "src/config.c:228-229",
+        "src/config.c:424",
+        "src/server.c:236"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 9,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-011",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "TLS 服务端不校验客户端证书且默认允许匿名访问",
+      "severity": "Medium",
+      "location": [
+        "src/network.c:373",
+        "src/network.c:353-359",
+        "src/config.c:369",
+        "conf/sol.conf:30-33"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 10,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-012",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "口令文件解析对畸形行越界读写",
+      "severity": "Low",
+      "location": [
+        "src/config.c:443-471"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 11,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-013",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "PUBLISH topic 长度为 0 时读取 topic[-1]",
+      "severity": "Low",
+      "location": [
+        "src/handlers.c:696-706"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 12,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-014",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "check_passwd 未处理 crypt() 返回 NULL",
+      "severity": "Low",
+      "location": [
+        "src/util.c:142-145"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 13,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:sol:SOL-015",
+      "tool": "Mygoldmine",
+      "target": "sol",
+      "title": "全局互斥锁与客户端互斥锁加锁顺序相反，可造成死锁",
+      "severity": "Medium",
+      "location": [
+        "src/handlers.c:151-152",
+        "src/handlers.c:209",
+        "src/handlers.c:225",
+        "src/handlers.c:580-581",
+        "src/handlers.c:654-655",
+        "src/server.h:39"
+      ],
+      "report_path": "results/mygoldmine-clean/sol/audit-report.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 14,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:pure-ftpd:NORM-TLS-001",
+      "tool": "Mygoldmine",
+      "target": "pure-ftpd",
+      "title": "CertResult cert_file/key_file leaked in ssl_servername_cb (per-handshake leak)",
+      "severity": "low",
+      "location": null,
+      "report_path": "results/mygoldmine/pure-ftpd/audit-report.json",
+      "source_path": "targets/pure-ftpd",
+      "status": "structured_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:pure-ftpd:NORM-PATH-001",
+      "tool": "Mygoldmine",
+      "target": "pure-ftpd",
+      "title": "Missing checknamesanity/simplify on NLST/MLSD/MLST/MDTM/SIZE paths",
+      "severity": "low",
+      "location": null,
+      "report_path": "results/mygoldmine/pure-ftpd/audit-report.json",
+      "source_path": "targets/pure-ftpd",
+      "status": "structured_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:pure-ftpd:NORM-INT-001",
+      "tool": "Mygoldmine",
+      "target": "pure-ftpd",
+      "title": "Unsigned sentinel for user_quota_size misclassifies file-count-only quota as exceeded",
+      "severity": "low",
+      "location": null,
+      "report_path": "results/mygoldmine/pure-ftpd/audit-report.json",
+      "source_path": "targets/pure-ftpd",
+      "status": "structured_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:pure-ftpd:AUTH-001",
+      "tool": "Mygoldmine",
+      "target": "pure-ftpd",
+      "title": "NULL crypto passed to strcasecmp in MySQL/PGSQL backends when MYSQLCrypt/PGSQLCrypt is unset",
+      "severity": "low",
+      "location": null,
+      "report_path": "results/mygoldmine/pure-ftpd/audit-report.json",
+      "source_path": "targets/pure-ftpd",
+      "status": "structured_report",
+      "record_index": 3,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:tlse:MEM-STUN-001",
+      "tool": "Mygoldmine",
+      "target": "tlse",
+      "title": "tls_stun_parse copies attacker-controlled REALM into fixed stack buffer key[0x4CE] before MESSAGE-INTEGRITY verification, causing a stack out-of-bounds write",
+      "severity": "critical",
+      "location": null,
+      "report_path": "results/mygoldmine-clean/tlse/audit-report.json",
+      "source_path": "targets/tlse",
+      "status": "structured_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:tlse:MEM-X509-001",
+      "tool": "Mygoldmine",
+      "target": "tlse",
+      "title": "Zero-length BIT STRING in the default ASN.1 parsing branch underflows len to -1 in tls_certificate_set_sign_key, making tls_certificate_set_copy perform a SIZE_MAX memcpy heap out-of-bounds write",
+      "severity": "high",
+      "location": null,
+      "report_path": "results/mygoldmine-clean/tlse/audit-report.json",
+      "source_path": "targets/tlse",
+      "status": "structured_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:tlse:IPC-SERIAL-001",
+      "tool": "Mygoldmine",
+      "target": "tlse",
+      "title": "tls_import_context reads mac_length without a preceding bounds check, allowing a one-byte out-of-bounds read",
+      "severity": "low",
+      "location": null,
+      "report_path": "results/mygoldmine-clean/tlse/audit-report.json",
+      "source_path": "targets/tlse",
+      "status": "structured_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:tlse:IPC-SERIAL-002",
+      "tool": "Mygoldmine",
+      "target": "tlse",
+      "title": "tls_import_context CBC branch uses uninitialized stack IV bytes",
+      "severity": "low",
+      "location": null,
+      "report_path": "results/mygoldmine-clean/tlse/audit-report.json",
+      "source_path": "targets/tlse",
+      "status": "structured_report",
+      "record_index": 3,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:tlse:IPC-SERIAL-003",
+      "tool": "Mygoldmine",
+      "target": "tlse",
+      "title": "TLS_REEXPORTABLE import path memcpy's into a TLS_MALLOC result without a NULL check",
+      "severity": "low",
+      "location": null,
+      "report_path": "results/mygoldmine-clean/tlse/audit-report.json",
+      "source_path": "targets/tlse",
+      "status": "structured_report",
+      "record_index": 4,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:tlse:MEM-CERTLEN-001",
+      "tool": "Mygoldmine",
+      "target": "tlse",
+      "title": "tls_parse_verify_request reads buf[13] past the DTLS HelloVerifyRequest buffer when its body is shorter than 3 bytes",
+      "severity": "low",
+      "location": null,
+      "report_path": "results/mygoldmine-clean/tlse/audit-report.json",
+      "source_path": "targets/tlse",
+      "status": "structured_report",
+      "record_index": 5,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:libcoap:LIBCOAP-MED-001",
+      "tool": "Mygoldmine",
+      "target": "libcoap",
+      "title": "OSCORE Appendix B.2 kid_context 的 CBOR 包装缓冲区空间少算 1 字节",
+      "severity": "中危（可达性受限，需启用 B.2 测试模式）",
+      "location": "`src/oscore/oscore.c:217-231`；缓冲区 `src/coap_oscore.c:418`（`oscore_option[255]`）；触发调用 `src/coap_oscore.c:540-543`",
+      "report_path": "results/mygoldmine-clean/libcoap/audit-report.md",
+      "source_path": "targets/libcoap",
+      "status": "partial_markdown_no_final_json",
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:libcoap:LIBCOAP-LOW-001",
+      "tool": "Mygoldmine",
+      "target": "libcoap",
+      "title": "Uri-Path-Abbrev 回退重传时载荷被加到旧 PDU 并随旧 PDU 释放",
+      "severity": "低危（功能/数据完整性问题）",
+      "location": "`src/coap_net.c:1801-1809`；`coap_pdu_duplicate_lkd()` `src/coap_pdu.c:271-327`",
+      "report_path": "results/mygoldmine-clean/libcoap/audit-report.md",
+      "source_path": "targets/libcoap",
+      "status": "partial_markdown_no_final_json",
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:libcoap:LIBCOAP-HIGH-001",
+      "tool": "Mygoldmine",
+      "target": "libcoap",
+      "title": "coap_ws_close 用 100 字节栈缓冲复读未完成 WebSocket 帧",
+      "severity": "高（内存破坏；需启用 WS 端点并满足关闭时序）",
+      "location": "`src/coap_ws.c:761-764`（续读）、`src/coap_ws.c:697-707`（唯一一次帧长校验）、`src/coap_ws.c:897-918`（`uint8_t buf[100]` + `coap_ws_close` 排空循环）、`src/coap_session.c:596-597`、`src/coap_io.c:415-426`",
+      "report_path": "results/mygoldmine-clean/libcoap/audit-report.md",
+      "source_path": "targets/libcoap",
+      "status": "partial_markdown_no_final_json",
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:libcoap:LIBCOAP-LOW-002",
+      "tool": "Mygoldmine",
+      "target": "libcoap",
+      "title": "单字节 WebSocket Close 载荷读取未初始化字节",
+      "severity": "低危",
+      "location": "`src/coap_ws.c:720-729`",
+      "report_path": "results/mygoldmine-clean/libcoap/audit-report.md",
+      "source_path": "targets/libcoap",
+      "status": "partial_markdown_no_final_json",
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:libcoap:LIBCOAP-MED-002",
+      "tool": "Mygoldmine",
+      "target": "libcoap",
+      "title": "OSCORE 响应侧短密文路径未回滚重放窗口（拒绝服务）",
+      "severity": "中危（需 OSCORE + 明文 UDP + on-path 攻击者）",
+      "location": "`src/coap_oscore.c:1368-1382`（先推进 `last_seq`）、`src/coap_oscore.c:1482-1501`（响应分支未回滚）、`src/coap_oscore.c:1542-1550`（其他失败路径有回滚）",
+      "report_path": "results/mygoldmine-clean/libcoap/audit-report.md",
+      "source_path": "targets/libcoap",
+      "status": "partial_markdown_no_final_json",
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:libcoap:LIBCOAP-LOW-003",
+      "tool": "Mygoldmine",
+      "target": "libcoap",
+      "title": "coap_rebuild_pdu_for_proxy 移除 Proxy-Uri 后使用旧指针",
+      "severity": "低危（语义/正确性，未确认越界）",
+      "location": "`src/coap_oscore.c:288-322`；`src/coap_pdu.c:635-639`",
+      "report_path": "results/mygoldmine-clean/libcoap/audit-report.md",
+      "source_path": "targets/libcoap",
+      "status": "partial_markdown_no_final_json",
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:libcoap:LIBCOAP-LOW-004",
+      "tool": "Mygoldmine",
+      "target": "libcoap",
+      "title": "代理 Hop-Limit 缺省与端点比较问题",
+      "severity": "低危（需代理配置）",
+      "location": "`src/coap_net.c:4094`、`src/coap_proxy.c:1214`、`src/coap_net.c:3954`",
+      "report_path": "results/mygoldmine-clean/libcoap/audit-report.md",
+      "source_path": "targets/libcoap",
+      "status": "partial_markdown_no_final_json",
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "mygoldmine:libcoap:LIBCOAP-LOW-005",
+      "tool": "Mygoldmine",
+      "target": "libcoap",
+      "title": "%2F 主机被解析为本地 AF_UNIX 目标",
+      "severity": "低危（需 FWD_DYNAMIC 代理）",
+      "location": "`src/coap_uri.c:260`、`src/coap_address.c:749`",
+      "report_path": "results/mygoldmine-clean/libcoap/audit-report.md",
+      "source_path": "targets/libcoap",
+      "status": "partial_markdown_no_final_json",
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:sol:vuln-0001",
+      "tool": "Strix",
+      "target": "sol",
+      "title": "Pre-authentication heap buffer overflow via unbounded appends to the per-client MQTT write buffer",
+      "severity": "high",
+      "location": "sol MQTT broker (C, v0.18.5) - src/",
+      "report_path": "results/strix/sol/strix_runs/source_64d7/vulnerabilities.json",
+      "source_path": "targets/sol",
+      "status": "partial_run_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:sol:vuln-0002",
+      "tool": "Strix",
+      "target": "sol",
+      "title": "Pre-authentication use-after-free of a shared MQTT session on ClientId reuse",
+      "severity": "medium",
+      "location": "sol MQTT broker (C, v0.18.5) - src/",
+      "report_path": "results/strix/sol/strix_runs/source_64d7/vulnerabilities.json",
+      "source_path": "targets/sol",
+      "status": "partial_run_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:sol:vuln-0003",
+      "tool": "Strix",
+      "target": "sol",
+      "title": "Pre-auth remote process kill via NULL dispatch on unimplemented MQTT packet types (`handlers[]` / `unpack_handlers[]`)",
+      "severity": "high",
+      "location": "sol MQTT v3.1.1 broker (C source snapshot, `src/`)",
+      "report_path": "results/strix/sol/strix_runs/source_64d7/vulnerabilities.json",
+      "source_path": "targets/sol",
+      "status": "partial_run_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:sol:vuln-0004",
+      "tool": "Strix",
+      "target": "sol",
+      "title": "Pre-auth process kill: PUBACK/PUBCOMP for an unallocated packet id DECREFs a NULL in-flight packet",
+      "severity": "high",
+      "location": "sol MQTT v3.1.1 broker (C source snapshot, `src/`)",
+      "report_path": "results/strix/sol/strix_runs/source_64d7/vulnerabilities.json",
+      "source_path": "targets/sol",
+      "status": "partial_run_report",
+      "record_index": 3,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:sol:vuln-0005",
+      "tool": "Strix",
+      "target": "sol",
+      "title": "Non-terminating SUBSCRIBE/UNSUBSCRIBE tuple loops: unsigned underflow lets one 7-byte pre-auth packet crash or exhaust the broker",
+      "severity": "high",
+      "location": "sol MQTT broker, source snapshot (repository /workspace/source)",
+      "report_path": "results/strix/sol/strix_runs/source_64d7/vulnerabilities.json",
+      "source_path": "targets/sol",
+      "status": "partial_run_report",
+      "record_index": 4,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:sol:vuln-0006",
+      "tool": "Strix",
+      "target": "sol",
+      "title": "Pre-auth heap out-of-bounds write from unbounded Remaining-Length decode and unchecked toread in recv_packet",
+      "severity": "high",
+      "location": "sol MQTT broker, source snapshot (repository /workspace/source)",
+      "report_path": "results/strix/sol/strix_runs/source_64d7/vulnerabilities.json",
+      "source_path": "targets/sol",
+      "status": "partial_run_report",
+      "record_index": 5,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:pure-ftpd:vuln-0001",
+      "tool": "Strix",
+      "target": "pure-ftpd",
+      "title": "PureDB IPv6 allow/deny IP rules are silently discarded, bypassing per-user deny lists",
+      "severity": "low",
+      "location": "/workspace/source",
+      "report_path": "results/strix/pure-ftpd/strix_runs/source_f236/vulnerabilities.json",
+      "source_path": "targets/pure-ftpd",
+      "status": "partial_run_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:pure-ftpd:vuln-0002",
+      "tool": "Strix",
+      "target": "pure-ftpd",
+      "title": "Uninitialized stack memory disclosed in EPRT IPv6 error reply",
+      "severity": "medium",
+      "location": "/workspace/source",
+      "report_path": "results/strix/pure-ftpd/strix_runs/source_f236/vulnerabilities.json",
+      "source_path": "targets/pure-ftpd",
+      "status": "partial_run_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:libcoap:vuln-0001",
+      "tool": "Strix",
+      "target": "libcoap",
+      "title": "Request payload silently dropped when retransmitting Uri-Path-Abbrev requests (coap_net.c)",
+      "severity": "low",
+      "location": "libcoap 4.3.5 (source snapshot)",
+      "report_path": "results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json",
+      "source_path": "targets/libcoap",
+      "status": "partial_run_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:libcoap:vuln-0002",
+      "tool": "Strix",
+      "target": "libcoap",
+      "title": "Unauthenticated memory exhaustion in OSCORE Appendix B.2 context handling",
+      "severity": "medium",
+      "location": "libcoap 4.3.5 OSCORE (src/coap_oscore.c, src/oscore/oscore_context.c)",
+      "report_path": "results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json",
+      "source_path": "targets/libcoap",
+      "status": "partial_run_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:libcoap:vuln-0003",
+      "tool": "Strix",
+      "target": "libcoap",
+      "title": "NULL pointer dereference in OSCORE external credential lookup crashes the server",
+      "severity": "medium",
+      "location": "libcoap 4.3.5 OSCORE (src/oscore/oscore_context.c, src/coap_oscore.c)",
+      "report_path": "results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json",
+      "source_path": "targets/libcoap",
+      "status": "partial_run_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:libcoap:vuln-0004",
+      "tool": "Strix",
+      "target": "libcoap",
+      "title": "Uninitialised heap memory disclosed through re-assembled Block1 body when the block size grows mid-transfer",
+      "severity": "medium",
+      "location": "libcoap 4.3.5 (source snapshot), src/coap_block.c",
+      "report_path": "results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json",
+      "source_path": "targets/libcoap",
+      "status": "partial_run_report",
+      "record_index": 3,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0001",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "Zero-length BIT STRING in X.509 DER causes memcpy with size -1 (remote crash) in TLSe",
+      "severity": "high",
+      "location": "TLSe (tlslayer) TLS library snapshot",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0002",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "Stack buffer overflow in tls_stun_parse() key construction (WebRTC/STUN, pre-auth)",
+      "severity": "high",
+      "location": "TLSe (tlslayer) TLS library snapshot - STUN / WebRTC DTLS path",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0003",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "TLS 1.3 client accepts Finished without CertificateVerify, enabling certificate impersonation",
+      "severity": "high",
+      "location": "tlse.c - TLS 1.3 client handshake state machine",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0004",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "DTLS cookie is not bound to the client source address, allowing replay to spoofed peers and amplification",
+      "severity": "medium",
+      "location": "tlse.c - DTLS HelloVerifyRequest cookie (_private_dtls_build_cookie, tls_parse_hello)",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 3,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0005",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "Zero-length CBC record triggers 1-byte heap out-of-bounds read (pt[-1]) in tls_parse_message",
+      "severity": "medium",
+      "location": "TLSe (tlslayer) TLS library snapshot - record layer",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 4,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0006",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "Pre-authentication stack buffer overflow in DTLS fragmented handshake reassembly (TLSe)",
+      "severity": "critical",
+      "location": "TLSe (tlslayer) — /workspace/source, tlse.c",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 5,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0007",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "Chain validation ignores basicConstraints and keyUsage: a non-CA certificate can issue certificates that TLSe reports as verified",
+      "severity": "high",
+      "location": "TLSe (tlslayer) TLS library, `tlse.c` chain validation",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 6,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0008",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "Out-of-bounds write in tls_certificate_to_string(): negative size passed to snprintf once the rendered peer certificate exceeds the caller's buffer",
+      "severity": "high",
+      "location": "TLSe (tlslayer) TLS library, `tlse.c` certificate rendering",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 7,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0009",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "DTLS short handshake record causes out-of-bounds read of the fragment header in tls_consume_stream",
+      "severity": "medium",
+      "location": "TLSe (tlslayer) TLS library snapshot - DTLS record layer",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 8,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0010",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "Stale public-key/signature length after the key is cleared leads to a NULL pointer dereference in tls_certificate_to_string()",
+      "severity": "medium",
+      "location": "TLSe (tlslayer) TLS library, `tlse.c` certificate setters",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 9,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0011",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "Client-certificate authentication is not enforced: handshake completes without a client certificate and tls_client_verified() returns true for an untrusted self-signed certificate",
+      "severity": "high",
+      "location": "/workspace/source",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 10,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "strix:tlse:vuln-0012",
+      "tool": "Strix",
+      "target": "tlse",
+      "title": "No DTLS anti-replay window: captured application-data records are re-delivered to the application indefinitely",
+      "severity": "medium",
+      "location": "/workspace/source",
+      "report_path": "results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json",
+      "source_path": "targets/tlse",
+      "status": "partial_run_report",
+      "record_index": 11,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "repoaudit:sol:NPD:0",
+      "tool": "RepoAudit",
+      "target": "sol",
+      "title": "NPD: ((*p = NULL, /vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/server.c, 314, -1), ValueLabel.SRC)",
+      "severity": null,
+      "location": [
+        "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/server.c",
+        "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/mqtt.c"
+      ],
+      "report_path": "tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/sol/2026-11-17-07-14-31-0/detect_info.json",
+      "source_path": "targets/sol",
+      "status": "persisted_partial_record",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "repoaudit:sol:NPD:1",
+      "tool": "RepoAudit",
+      "target": "sol",
+      "title": "NPD: ((*p = NULL, /vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/server.c, 314, -1), ValueLabel.SRC)",
+      "severity": null,
+      "location": [
+        "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/server.c",
+        "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/mqtt.c",
+        "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/mqtt.c"
+      ],
+      "report_path": "tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/sol/2026-11-17-07-14-31-0/detect_info.json",
+      "source_path": "targets/sol",
+      "status": "persisted_partial_record",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "repoaudit:pure-ftpd:NPD:0",
+      "tool": "RepoAudit",
+      "target": "pure-ftpd",
+      "title": "NPD: ((*resp = NULL, /vol1/1000/mygoldmine-benchmark/2026-11-17/targets/pure-ftpd/src/log_pam.c, 80, -1), ValueLabel.SRC)",
+      "severity": null,
+      "location": [
+        "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/pure-ftpd/src/log_pam.c"
+      ],
+      "report_path": "tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/pure-ftpd/2026-11-17-07-24-36-0/detect_info.json",
+      "source_path": "targets/pure-ftpd",
+      "status": "persisted_partial_record",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "claude:sol:1",
+      "tool": "Claude Code Security Review",
+      "target": "sol",
+      "title": "memory_corruption at src/mqtt.c:240",
+      "severity": "HIGH",
+      "location": "src/mqtt.c:240",
+      "report_path": "results/claude-security-review/sol/filtered-findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "claude:sol:2",
+      "tool": "Claude Code Security Review",
+      "target": "sol",
+      "title": "memory_corruption at src/handlers.c:617",
+      "severity": "HIGH",
+      "location": "src/handlers.c:617",
+      "report_path": "results/claude-security-review/sol/filtered-findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "claude:sol:3",
+      "tool": "Claude Code Security Review",
+      "target": "sol",
+      "title": "authentication_bypass at src/handlers.c:681",
+      "severity": "HIGH",
+      "location": "src/handlers.c:681",
+      "report_path": "results/claude-security-review/sol/filtered-findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "claude:sol:4",
+      "tool": "Claude Code Security Review",
+      "target": "sol",
+      "title": "weak_cryptography at passwd.py:10",
+      "severity": "MEDIUM",
+      "location": "passwd.py:10",
+      "report_path": "results/claude-security-review/sol/filtered-findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 3,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "claude:libcoap:1",
+      "tool": "Claude Code Security Review",
+      "target": "libcoap",
+      "title": "heap_buffer_overflow at src/coap_block.c:1879",
+      "severity": "MEDIUM",
+      "location": "src/coap_block.c:1879",
+      "report_path": "results/claude-security-review/libcoap/filtered-findings.json",
+      "source_path": "targets/libcoap",
+      "status": "structured_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "claude:tlse:unparsed-1",
+      "tool": "Claude Code Security Review",
+      "target": "tlse",
+      "title": "TLS 1.3 server authentication bypass: `tlse.c:9324` / `tlse.c:9379` / `tlse.c:10085`",
+      "severity": "High",
+      "location": "see execution.log",
+      "report_path": "results/claude-security-review/tlse/execution.log",
+      "source_path": "targets/tlse",
+      "status": "unparsed_json_parse_failure",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "claude:tlse:unparsed-2",
+      "tool": "Claude Code Security Review",
+      "target": "tlse",
+      "title": "Remote heap corruption via zero-length signature BIT STRING: `tlse.c:4598` / `tlse.c:4602`",
+      "severity": "High",
+      "location": "see execution.log",
+      "report_path": "results/claude-security-review/tlse/execution.log",
+      "source_path": "targets/tlse",
+      "status": "unparsed_json_parse_failure",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:sol:csf_f2461257ac40d1cc686f5889",
+      "tool": "Codex Security",
+      "target": "sol",
+      "title": "Pre-authenticated CONNECT client ID overflows a 64-byte field on the stack",
+      "severity": "critical",
+      "location": [
+        {
+          "endLine": 243,
+          "path": "src/mqtt.c",
+          "role": "sink",
+          "startLine": 235
+        },
+        {
+          "endLine": 40,
+          "path": "src/mqtt.h",
+          "role": "capacity",
+          "startLine": 40
+        },
+        {
+          "endLine": 867,
+          "path": "src/server.c",
+          "role": "stack-frame",
+          "startLine": 858
+        }
+      ],
+      "report_path": "results/codex-security/sol/findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:sol:csf_6268a97e8332fdb158973f8c",
+      "tool": "Codex Security",
+      "target": "sol",
+      "title": "Unbounded writes into the fixed per-client write buffer corrupt the heap",
+      "severity": "critical",
+      "location": [
+        {
+          "endLine": 399,
+          "path": "src/server.c",
+          "role": "allocation",
+          "startLine": 397
+        },
+        {
+          "endLine": 618,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 615
+        },
+        {
+          "endLine": 228,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 224
+        },
+        {
+          "endLine": 634,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 629
+        }
+      ],
+      "report_path": "results/codex-security/sol/findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:sol:csf_5b60ce4633836ded1816514e",
+      "tool": "Codex Security",
+      "target": "sol",
+      "title": "Packet type dispatch tables contain NULL and out-of-bounds entries",
+      "severity": "high",
+      "location": [
+        {
+          "endLine": 82,
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 72
+        },
+        {
+          "endLine": 434,
+          "path": "src/mqtt.c",
+          "role": "sink",
+          "startLine": 431
+        },
+        {
+          "endLine": 76,
+          "path": "src/handlers.c",
+          "role": "root-cause",
+          "startLine": 62
+        },
+        {
+          "endLine": 880,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 877
+        },
+        {
+          "endLine": 513,
+          "path": "src/server.c",
+          "role": "reachability",
+          "startLine": 505
+        }
+      ],
+      "report_path": "results/codex-security/sol/findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:sol:csf_e3613e6e319d7795ee580a56",
+      "tool": "Codex Security",
+      "target": "sol",
+      "title": "UNSUBSCRIBE packet is destroyed twice, causing a heap double free",
+      "severity": "high",
+      "location": [
+        {
+          "endLine": 678,
+          "path": "src/handlers.c",
+          "role": "first-free",
+          "startLine": 674
+        },
+        {
+          "endLine": 880,
+          "path": "src/server.c",
+          "role": "second-free",
+          "startLine": 877
+        },
+        {
+          "endLine": 587,
+          "path": "src/mqtt.c",
+          "role": "destructor",
+          "startLine": 582
+        }
+      ],
+      "report_path": "results/codex-security/sol/findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 3,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:sol:csf_0e8e471e474aae0c70a637ff",
+      "tool": "Codex Security",
+      "target": "sol",
+      "title": "Unsigned remaining-length arithmetic underflows in the MQTT decoder",
+      "severity": "high",
+      "location": [
+        {
+          "endLine": 316,
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 304
+        },
+        {
+          "endLine": 424,
+          "path": "src/pack.c",
+          "role": "sink",
+          "startLine": 411
+        },
+        {
+          "endLine": 358,
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 342
+        },
+        {
+          "endLine": 401,
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 385
+        }
+      ],
+      "report_path": "results/codex-security/sol/findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 4,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:sol:csf_4292b7a02a3db5a0227aa30c",
+      "tool": "Codex Security",
+      "target": "sol",
+      "title": "Packet handlers run before CONNECT, bypassing authentication and dereferencing a NULL session",
+      "severity": "high",
+      "location": [
+        {
+          "endLine": 867,
+          "path": "src/server.c",
+          "role": "root-cause",
+          "startLine": 858
+        },
+        {
+          "endLine": 375,
+          "path": "src/handlers.c",
+          "role": "auth-check",
+          "startLine": 362
+        },
+        {
+          "endLine": 593,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 583
+        },
+        {
+          "endLine": 795,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 789
+        }
+      ],
+      "report_path": "results/codex-security/sol/findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 5,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:sol:csf_23a3bf8eba641b6e840b8f80",
+      "tool": "Codex Security",
+      "target": "sol",
+      "title": "Duplicate client IDs share a session and free it while another connection still uses it",
+      "severity": "high",
+      "location": [
+        {
+          "endLine": 425,
+          "path": "src/handlers.c",
+          "role": "root-cause",
+          "startLine": 399
+        },
+        {
+          "endLine": 445,
+          "path": "src/server.c",
+          "role": "sink",
+          "startLine": 425
+        }
+      ],
+      "report_path": "results/codex-security/sol/findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 6,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:sol:csf_8985d173af3333bd56a6bfed",
+      "tool": "Codex Security",
+      "target": "sol",
+      "title": "Inflight ACK retransmission packs through a NULL packet pointer",
+      "severity": "medium",
+      "location": [
+        {
+          "endLine": 356,
+          "path": "src/server.c",
+          "role": "sink",
+          "startLine": 311
+        },
+        {
+          "endLine": 818,
+          "path": "src/handlers.c",
+          "role": "input",
+          "startLine": 803
+        }
+      ],
+      "report_path": "results/codex-security/sol/findings.json",
+      "source_path": "targets/sol",
+      "status": "structured_report",
+      "record_index": 7,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:pure-ftpd:csf_2c5d2d0b63eeb94ba1ce7fe7",
+      "tool": "Codex Security",
+      "target": "pure-ftpd",
+      "title": "IPv6 EPRT error reply discloses uninitialized stack memory",
+      "severity": "low",
+      "location": [
+        {
+          "endLine": 866,
+          "path": "src/ftpd.c",
+          "role": "source",
+          "startLine": 838
+        },
+        {
+          "endLine": 588,
+          "path": "src/ftpd.c",
+          "role": "transformation",
+          "startLine": 575
+        },
+        {
+          "endLine": 2352,
+          "path": "src/ftpd.c",
+          "role": "sink",
+          "startLine": 2305
+        }
+      ],
+      "report_path": "results/codex-security/pure-ftpd/findings.json",
+      "source_path": "targets/pure-ftpd",
+      "status": "structured_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:pure-ftpd:csf_3293fd73a622706a2d623cbb",
+      "tool": "Codex Security",
+      "target": "pure-ftpd",
+      "title": "PureDB IPv6 deny rules are silently discarded by colon-delimited record parsing",
+      "severity": "low",
+      "location": [
+        {
+          "endLine": 38,
+          "path": "src/pure-pw.h",
+          "role": "control",
+          "startLine": 36
+        },
+        {
+          "endLine": 731,
+          "path": "src/pure-pw.c",
+          "role": "source",
+          "startLine": 710
+        },
+        {
+          "endLine": 79,
+          "path": "src/utils.c",
+          "role": "transformation",
+          "startLine": 59
+        },
+        {
+          "endLine": 437,
+          "path": "src/log_puredb.c",
+          "role": "sink",
+          "startLine": 412
+        },
+        {
+          "endLine": 249,
+          "path": "src/log_puredb.c",
+          "role": "control",
+          "startLine": 219
+        }
+      ],
+      "report_path": "results/codex-security/pure-ftpd/findings.json",
+      "source_path": "targets/pure-ftpd",
+      "status": "structured_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:pure-ftpd:csf_1c8b9e21028e8538645a5b70",
+      "tool": "Codex Security",
+      "target": "pure-ftpd",
+      "title": "NLST/MLSD/MLST/MDTM/SIZE bypass the -X dot-file read policy",
+      "severity": "low",
+      "location": [
+        {
+          "endLine": 658,
+          "path": "src/ftp_parser.c",
+          "role": "entrypoint",
+          "startLine": 626
+        },
+        {
+          "endLine": 1046,
+          "path": "src/ls.c",
+          "role": "sink",
+          "startLine": 981
+        },
+        {
+          "endLine": 1110,
+          "path": "src/ls.c",
+          "role": "sink",
+          "startLine": 1062
+        },
+        {
+          "endLine": 4512,
+          "path": "src/ftpd.c",
+          "role": "sink",
+          "startLine": 4469
+        },
+        {
+          "endLine": 836,
+          "path": "src/ftpd.c",
+          "role": "control",
+          "startLine": 761
+        }
+      ],
+      "report_path": "results/codex-security/pure-ftpd/findings.json",
+      "source_path": "targets/pure-ftpd",
+      "status": "structured_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:libcoap:csf_ab0c516faf7fa934803d85e3",
+      "tool": "Codex Security",
+      "target": "libcoap",
+      "title": "WebSocket close path can overflow a 100-byte stack buffer with a partial frame",
+      "severity": "high",
+      "location": [
+        {
+          "endLine": 707,
+          "path": "src/coap_ws.c",
+          "role": "root_control",
+          "startLine": 697
+        },
+        {
+          "endLine": 764,
+          "path": "src/coap_ws.c",
+          "role": "sink",
+          "startLine": 762
+        },
+        {
+          "endLine": 914,
+          "path": "src/coap_ws.c",
+          "role": "source",
+          "startLine": 900
+        }
+      ],
+      "report_path": "results/codex-security/libcoap/findings.json",
+      "source_path": "targets/libcoap",
+      "status": "structured_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:libcoap:csf_e5a6f872843887c3c4589713",
+      "tool": "Codex Security",
+      "target": "libcoap",
+      "title": "OSCORE external credential lookup can return a context with no recipient and crash the server",
+      "severity": "high",
+      "location": [
+        {
+          "endLine": 396,
+          "path": "src/oscore/oscore_context.c",
+          "role": "root_control",
+          "startLine": 371
+        },
+        {
+          "endLine": 1069,
+          "path": "src/coap_oscore.c",
+          "role": "entrypoint",
+          "startLine": 1064
+        },
+        {
+          "endLine": 1157,
+          "path": "src/coap_oscore.c",
+          "role": "sink",
+          "startLine": 1146
+        }
+      ],
+      "report_path": "results/codex-security/libcoap/findings.json",
+      "source_path": "targets/libcoap",
+      "status": "structured_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:libcoap:csf_3c106f9bc73be3b8e1515ab2",
+      "tool": "Codex Security",
+      "target": "libcoap",
+      "title": "OSCORE Appendix B.2 kid_context encoder writes past the 255-byte stack buffer and underflows its remaining-space counter",
+      "severity": "medium",
+      "location": [
+        {
+          "endLine": 231,
+          "path": "src/oscore/oscore.c",
+          "role": "sink",
+          "startLine": 218
+        },
+        {
+          "endLine": 118,
+          "path": "src/oscore/oscore_cbor.c",
+          "role": "concrete_implementation",
+          "startLine": 104
+        },
+        {
+          "endLine": 418,
+          "path": "src/coap_oscore.c",
+          "role": "root_control",
+          "startLine": 418
+        },
+        {
+          "endLine": 543,
+          "path": "src/coap_oscore.c",
+          "role": "entrypoint",
+          "startLine": 540
+        }
+      ],
+      "report_path": "results/codex-security/libcoap/findings.json",
+      "source_path": "targets/libcoap",
+      "status": "structured_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:libcoap:csf_32734e421a875ddd2784abce",
+      "tool": "Codex Security",
+      "target": "libcoap",
+      "title": "Block1 reassembly can hand uninitialized heap bytes to the application",
+      "severity": "medium",
+      "location": [
+        {
+          "endLine": 3604,
+          "path": "src/coap_block.c",
+          "role": "root_control",
+          "startLine": 3604
+        },
+        {
+          "endLine": 4058,
+          "path": "src/coap_block.c",
+          "role": "sink",
+          "startLine": 4050
+        },
+        {
+          "endLine": 4624,
+          "path": "src/coap_block.c",
+          "role": "concrete_implementation",
+          "startLine": 4590
+        },
+        {
+          "endLine": 46,
+          "path": "src/coap_str.c",
+          "role": "root_control",
+          "startLine": 42
+        }
+      ],
+      "report_path": "results/codex-security/libcoap/findings.json",
+      "source_path": "targets/libcoap",
+      "status": "structured_report",
+      "record_index": 3,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:libcoap:csf_023ec23c2cbe953b45fc7827",
+      "tool": "Codex Security",
+      "target": "libcoap",
+      "title": "Appendix B.2 creates unbounded OSCORE contexts before authentication",
+      "severity": "medium",
+      "location": [
+        {
+          "endLine": 1122,
+          "path": "src/coap_oscore.c",
+          "role": "entrypoint",
+          "startLine": 1081
+        },
+        {
+          "endLine": 746,
+          "path": "src/oscore/oscore_context.c",
+          "role": "concrete_implementation",
+          "startLine": 657
+        },
+        {
+          "endLine": 1867,
+          "path": "src/coap_oscore.c",
+          "role": "root_control",
+          "startLine": 1856
+        }
+      ],
+      "report_path": "results/codex-security/libcoap/findings.json",
+      "source_path": "targets/libcoap",
+      "status": "structured_report",
+      "record_index": 4,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:libcoap:csf_e80e19758657003d888c192b",
+      "tool": "Codex Security",
+      "target": "libcoap",
+      "title": "Short OSCORE responses advance the replay window without rollback",
+      "severity": "low",
+      "location": [
+        {
+          "endLine": 1382,
+          "path": "src/coap_oscore.c",
+          "role": "source",
+          "startLine": 1364
+        },
+        {
+          "endLine": 1501,
+          "path": "src/coap_oscore.c",
+          "role": "sink",
+          "startLine": 1481
+        },
+        {
+          "endLine": 1551,
+          "path": "src/coap_oscore.c",
+          "role": "evidence",
+          "startLine": 1541
+        }
+      ],
+      "report_path": "results/codex-security/libcoap/findings.json",
+      "source_path": "targets/libcoap",
+      "status": "structured_report",
+      "record_index": 5,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:libcoap:csf_288fdb40ff0454c59f470c31",
+      "tool": "Codex Security",
+      "target": "libcoap",
+      "title": "pdu_408_build writes the payload marker without checking capacity",
+      "severity": "low",
+      "location": [
+        {
+          "endLine": 1880,
+          "path": "src/coap_block.c",
+          "role": "sink",
+          "startLine": 1867
+        },
+        {
+          "endLine": 412,
+          "path": "src/coap_pdu.c",
+          "role": "root_control",
+          "startLine": 395
+        },
+        {
+          "endLine": 446,
+          "path": "src/coap_pdu.c",
+          "role": "concrete_implementation",
+          "startLine": 439
+        }
+      ],
+      "report_path": "results/codex-security/libcoap/findings.json",
+      "source_path": "targets/libcoap",
+      "status": "structured_report",
+      "record_index": 6,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:libcoap:csf_fe20db137dc4af291df950fd",
+      "tool": "Codex Security",
+      "target": "libcoap",
+      "title": "Uri-Path-Abbrev fallback retransmit drops the request body",
+      "severity": "low",
+      "location": [
+        {
+          "endLine": 1811,
+          "path": "src/coap_net.c",
+          "role": "sink",
+          "startLine": 1793
+        },
+        {
+          "endLine": 281,
+          "path": "src/coap_pdu.c",
+          "role": "concrete_implementation",
+          "startLine": 271
+        }
+      ],
+      "report_path": "results/codex-security/libcoap/findings.json",
+      "source_path": "targets/libcoap",
+      "status": "structured_report",
+      "record_index": 7,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:tlse:csf_33f781cd28ee98927fe61556",
+      "tool": "Codex Security",
+      "target": "tlse",
+      "title": "Overlapping DTLS fragments overflow the stack reassembly buffer",
+      "severity": "high",
+      "location": [
+        {
+          "endLine": 12434,
+          "path": "tlse.c",
+          "role": "entrypoint",
+          "startLine": 12434
+        },
+        {
+          "endLine": 12550,
+          "path": "tlse.c",
+          "role": "root_control",
+          "startLine": 12524
+        },
+        {
+          "endLine": 9850,
+          "path": "tlse.c",
+          "role": "sink",
+          "startLine": 9801
+        },
+        {
+          "endLine": 14066,
+          "path": "tlse.c",
+          "role": "entrypoint/wrapper",
+          "startLine": 14006
+        }
+      ],
+      "report_path": "results/codex-security/tlse/findings.json",
+      "source_path": "targets/tlse",
+      "status": "structured_report",
+      "record_index": 0,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:tlse:csf_398b08305d312d64566b1098",
+      "tool": "Codex Security",
+      "target": "tlse",
+      "title": "STUN USERNAME and REALM attributes overflow the credential key buffer",
+      "severity": "high",
+      "location": [
+        {
+          "endLine": 13070,
+          "path": "tlse.c",
+          "role": "entrypoint",
+          "startLine": 13070
+        },
+        {
+          "endLine": 13085,
+          "path": "tlse.c",
+          "role": "root_control",
+          "startLine": 13085
+        },
+        {
+          "endLine": 13219,
+          "path": "tlse.c",
+          "role": "sink",
+          "startLine": 13201
+        },
+        {
+          "endLine": 14006,
+          "path": "tlse.c",
+          "role": "entrypoint/wrapper",
+          "startLine": 14000
+        }
+      ],
+      "report_path": "results/codex-security/tlse/findings.json",
+      "source_path": "targets/tlse",
+      "status": "structured_report",
+      "record_index": 1,
+      "duplicate_of": null,
+      "notes": null
+    },
+    {
+      "candidate_id": "codex:tlse:csf_fbc4abb098475ffba57d2e6e",
+      "tool": "Codex Security",
+      "target": "tlse",
+      "title": "Zero-length certificate BIT STRING underflows into an unbounded memcpy",
+      "severity": "medium",
+      "location": [
+        {
+          "endLine": 8702,
+          "path": "tlse.c",
+          "role": "entrypoint",
+          "startLine": 8637
+        },
+        {
+          "endLine": 11590,
+          "path": "tlse.c",
+          "role": "root_control",
+          "startLine": 11580
+        },
+        {
+          "endLine": 4604,
+          "path": "tlse.c",
+          "role": "concrete_implementation",
+          "startLine": 4597
+        },
+        {
+          "endLine": 4557,
+          "path": "tlse.c",
+          "role": "sink",
+          "startLine": 4546
+        }
+      ],
+      "report_path": "results/codex-security/tlse/findings.json",
+      "source_path": "targets/tlse",
+      "status": "structured_report",
+      "record_index": 2,
+      "duplicate_of": null,
+      "notes": null
+    }
+  ]
+}

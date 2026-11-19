@@ -1,5 +1,5 @@
 {
-  "updated_at_utc": "2026-11-18T01:52:21.710853+00:00",
+  "updated_at_utc": "2026-11-19T15:19:44.101238+00:00",
   "base": "/vol1/1000/mygoldmine-benchmark/2026-11-17",
   "targets": [
     "sol",
@@ -13,7 +13,8 @@
     "Model, provider, scope, and source settings were adapted and differ from official product defaults.",
     "Timeout and interrupted reports are partial. Missing reports and unfinished categories must not be read as zero vulnerabilities.",
     "Cross-tool deduplication has not been performed. RepoAudit sol raw records are deduplicated by persisted buggy_value root-cause key.",
-    "The targets are frozen default-branch snapshots, not historical vulnerable versions with a ground-truth set."
+    "The targets are frozen default-branch snapshots, not historical vulnerable versions with a ground-truth set.",
+    "Subagent TP/FP labels are AI adjudications, not human confirmation or independent dynamic reproduction."
   ],
   "rows": [
     {
@@ -39,7 +40,17 @@
       "controller_status": "process_finished",
       "timed_out": false,
       "interrupted": false,
-      "timeout_basis": null
+      "timeout_basis": null,
+      "subagent_adjudication": {
+        "tp_entries": 12,
+        "fp_entries": 3,
+        "unknown_entries": 0,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 12,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Strix",
@@ -62,7 +73,17 @@
       "controller_status": "timeout",
       "started_at": "2026-11-17T09:23:39.661594+00:00",
       "ended_at": "2026-11-17T10:22:32.790785+00:00",
-      "limitations": "partial findings from an interrupted one-hour run"
+      "limitations": "partial findings from an interrupted one-hour run",
+      "subagent_adjudication": {
+        "tp_entries": 6,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 6,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "RepoAudit",
@@ -146,7 +167,17 @@
           "elapsed_seconds": 195.93,
           "ended_utc": "2026-11-17T07:56:52.736836+00:00"
         }
-      ]
+      ],
+      "subagent_adjudication": {
+        "tp_entries": 2,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "duplicate_entries": 1,
+        "unique_tp_root_causes": 1,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Claude Code Security Review",
@@ -171,7 +202,17 @@
       "report": "results/claude-security-review/sol/filtered-findings.json",
       "elapsed_seconds": 1157.92,
       "parse_failure": false,
-      "notes": null
+      "notes": null,
+      "subagent_adjudication": {
+        "tp_entries": 4,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 4,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Codex Security",
@@ -194,7 +235,17 @@
       "markdown_report": "results/codex-security/sol/report.md",
       "scan_manifest_status": "completed",
       "started_at": "2026-11-17T10:24:04.760889+00:00",
-      "ended_at": "2026-11-17T10:56:22.674634+00:00"
+      "ended_at": "2026-11-17T10:56:22.674634+00:00",
+      "subagent_adjudication": {
+        "tp_entries": 8,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 8,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Mygoldmine",
@@ -219,7 +270,17 @@
       "controller_status": null,
       "timed_out": true,
       "interrupted": false,
-      "timeout_basis": null
+      "timeout_basis": null,
+      "subagent_adjudication": {
+        "tp_entries": 2,
+        "fp_entries": 2,
+        "unknown_entries": 0,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 2,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Strix",
@@ -242,7 +303,17 @@
       "controller_status": "timeout",
       "started_at": "2026-11-17T09:23:39.228187+00:00",
       "ended_at": "2026-11-17T10:22:32.788804+00:00",
-      "limitations": "partial findings from an interrupted one-hour run"
+      "limitations": "partial findings from an interrupted one-hour run",
+      "subagent_adjudication": {
+        "tp_entries": 2,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 2,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "RepoAudit",
@@ -325,7 +396,17 @@
           "elapsed_seconds": 1210.66,
           "ended_utc": "2026-11-17T08:24:39.022608+00:00"
         }
-      ]
+      ],
+      "subagent_adjudication": {
+        "tp_entries": 0,
+        "fp_entries": 1,
+        "unknown_entries": 0,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 0,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Claude Code Security Review",
@@ -373,7 +454,17 @@
       "markdown_report": "results/codex-security/pure-ftpd/report.md",
       "scan_manifest_status": "completed",
       "started_at": "2026-11-17T10:56:22.675632+00:00",
-      "ended_at": "2026-11-17T11:44:17.219913+00:00"
+      "ended_at": "2026-11-17T11:44:17.219913+00:00",
+      "subagent_adjudication": {
+        "tp_entries": 3,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "duplicate_entries": 3,
+        "unique_tp_root_causes": 0,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Mygoldmine",
@@ -398,7 +489,17 @@
       "controller_status": "timeout",
       "timed_out": true,
       "interrupted": true,
-      "timeout_basis": "external 3600s wall-clock budget; SIGTERM/exit 143 is not a normal scan failure"
+      "timeout_basis": "external 3600s wall-clock budget; SIGTERM/exit 143 is not a normal scan failure",
+      "subagent_adjudication": {
+        "tp_entries": 5,
+        "fp_entries": 1,
+        "unknown_entries": 2,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 5,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Strix",
@@ -421,7 +522,17 @@
       "controller_status": "timeout",
       "started_at": "2026-11-17T10:24:02.567347+00:00",
       "ended_at": "2026-11-17T11:22:52.482898+00:00",
-      "limitations": "partial findings from an interrupted one-hour run"
+      "limitations": "partial findings from an interrupted one-hour run",
+      "subagent_adjudication": {
+        "tp_entries": 4,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "duplicate_entries": 1,
+        "unique_tp_root_causes": 3,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "RepoAudit",
@@ -531,7 +642,17 @@
       "report": "results/claude-security-review/libcoap/filtered-findings.json",
       "elapsed_seconds": 2414.31,
       "parse_failure": false,
-      "notes": null
+      "notes": null,
+      "subagent_adjudication": {
+        "tp_entries": 0,
+        "fp_entries": 0,
+        "unknown_entries": 1,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 0,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Codex Security",
@@ -554,7 +675,17 @@
       "markdown_report": "results/codex-security/libcoap/report.md",
       "scan_manifest_status": "completed",
       "started_at": "2026-11-17T11:44:17.223272+00:00",
-      "ended_at": "2026-11-17T12:41:20.243391+00:00"
+      "ended_at": "2026-11-17T12:41:20.243391+00:00",
+      "subagent_adjudication": {
+        "tp_entries": 7,
+        "fp_entries": 0,
+        "unknown_entries": 1,
+        "duplicate_entries": 8,
+        "unique_tp_root_causes": 0,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Mygoldmine",
@@ -579,7 +710,17 @@
       "controller_status": "timeout",
       "timed_out": true,
       "interrupted": true,
-      "timeout_basis": "external 3600s wall-clock budget; SIGTERM/exit 143 is not a normal scan failure"
+      "timeout_basis": "external 3600s wall-clock budget; SIGTERM/exit 143 is not a normal scan failure",
+      "subagent_adjudication": {
+        "tp_entries": 3,
+        "fp_entries": 1,
+        "unknown_entries": 2,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 3,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Strix",
@@ -602,7 +743,17 @@
       "controller_status": "timeout",
       "started_at": "2026-11-17T10:24:02.345208+00:00",
       "ended_at": "2026-11-17T11:22:48.812029+00:00",
-      "limitations": "partial findings from an interrupted one-hour run"
+      "limitations": "partial findings from an interrupted one-hour run",
+      "subagent_adjudication": {
+        "tp_entries": 11,
+        "fp_entries": 0,
+        "unknown_entries": 1,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 11,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "RepoAudit",
@@ -712,7 +863,17 @@
       "report": "results/claude-security-review/tlse/filtered-findings.json",
       "elapsed_seconds": 860.88,
       "parse_failure": true,
-      "notes": "execution.log contains two unparsed vulnerability sections"
+      "notes": "execution.log contains two unparsed vulnerability sections",
+      "subagent_adjudication": {
+        "tp_entries": 2,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 2,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     },
     {
       "tool": "Codex Security",
@@ -735,7 +896,17 @@
       "markdown_report": "results/codex-security/tlse/report.md",
       "scan_manifest_status": "completed",
       "started_at": "2026-11-17T12:41:20.245650+00:00",
-      "ended_at": "2026-11-17T13:12:50.516697+00:00"
+      "ended_at": "2026-11-17T13:12:50.516697+00:00",
+      "subagent_adjudication": {
+        "tp_entries": 3,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 3,
+        "label_source": "subagent",
+        "human_confirmed": false,
+        "independently_confirmed": false
+      }
     }
   ],
   "status_definitions": {
@@ -745,5 +916,66 @@
     "partial_timeout_with_persisted_results": "Some RepoAudit categories timed out; persisted records are partial.",
     "invalid_json_parse_failure": "Process exited, but structured report parsing failed; empty JSON is not a valid zero result."
   },
-  "published_scope": "aggregated status and candidate counts only; raw findings, exploit payloads, logs, traces, credentials, and provider configuration are excluded"
+  "published_scope": "aggregated status and candidate counts only; raw findings, exploit payloads, logs, traces, credentials, and provider configuration are excluded",
+  "adjudication": {
+    "label_source": "subagent",
+    "human_confirmed": false,
+    "independently_confirmed": false,
+    "path": "adjudication/summary.json",
+    "overall": {
+      "candidates": 89,
+      "tp_entries": 74,
+      "fp_entries": 8,
+      "unknown_entries": 7,
+      "duplicate_entries": 13,
+      "unique_tp_root_causes": 42,
+      "unique_tp_root_causes_all_targets": 42
+    },
+    "by_target": [
+      {
+        "target": "sol",
+        "candidates": 35,
+        "tp_entries": 32,
+        "fp_entries": 3,
+        "unknown_entries": 0,
+        "duplicate_entries": 1,
+        "unique_tp_root_causes": 18
+      },
+      {
+        "target": "pure-ftpd",
+        "candidates": 10,
+        "tp_entries": 7,
+        "fp_entries": 3,
+        "unknown_entries": 0,
+        "duplicate_entries": 3,
+        "unique_tp_root_causes": 4
+      },
+      {
+        "target": "libcoap",
+        "candidates": 21,
+        "tp_entries": 16,
+        "fp_entries": 1,
+        "unknown_entries": 4,
+        "duplicate_entries": 9,
+        "unique_tp_root_causes": 8
+      },
+      {
+        "target": "tlse",
+        "candidates": 23,
+        "tp_entries": 19,
+        "fp_entries": 1,
+        "unknown_entries": 3,
+        "duplicate_entries": 0,
+        "unique_tp_root_causes": 12
+      }
+    ],
+    "caveats": [
+      "Labels are AI subagent adjudications, not human confirmation and not independent dynamic confirmation.",
+      "A TP label is a source-consistent defect assessment. A FP label requires source-level contradiction.",
+      "UNKNOWN includes feature-gated, runtime-dependent, or report-insufficient cases.",
+      "Timeout and missing-coverage results are not counted as false negatives.",
+      "Unique TP root causes are deduplicated by subagent root_cause_key; they are not a CVE count.",
+      "Claude tlse has two assessed candidates from an unparsed execution log; its structured report remains invalid."
+    ]
+  }
 }
