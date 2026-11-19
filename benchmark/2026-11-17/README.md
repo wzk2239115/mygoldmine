@@ -6,17 +6,19 @@ This directory contains the aggregated results of a five-tool, four-target secur
 
 - `comparison-summary.md`: human-readable status and candidate-count tables.
 - `comparison-summary.json`: machine-readable rows, status definitions, and limitations.
+- `labeling-policy.md`: TP/FP status, the RepoAudit paper's labeling protocol, and the missing reference-list requirements.
 - `experiment.json`: model, provider, time limits, modes, and revision policy.
 - `revisions.json`: frozen target and tool commits.
 - `target-sizes.json`: target size statistics.
 - `results/<tool>.json`: per-tool status and count breakdown.
+- `full-results/`: per-tool, per-target report artifacts; credentials and private runtime state are excluded.
 
 ## Reading the results
 
 Raw candidate counts are not true vulnerability counts. Several runs reached the one-hour limit, one Claude Code Security Review run has an invalid structured report, and some RepoAudit categories did not finish. Missing or unparsed results are not treated as zero.
 
-No independent confirmation was established for any row. The independent-confirmation count remains unknown.
+No unified TP/FP adjudication table and no reference vulnerability list exist for the four frozen targets. Therefore this benchmark reports candidates, tool-internal validation, and `independent_confirmation = unknown`, not TP/FP counts, precision, or recall. See `labeling-policy.md`.
 
 ## Excluded material
 
-Raw findings, candidate descriptions, proof-of-concept payloads, execution logs, session traces, source snapshots, credentials, and private state are not published here.
+Credentials, `provider.env`, private tool state, source snapshots, raw session traces, and setup-attempt records are not published. `full-results/` contains report artifacts but not those private materials.
