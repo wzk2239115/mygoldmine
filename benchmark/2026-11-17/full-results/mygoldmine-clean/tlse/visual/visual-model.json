@@ -1,0 +1,490 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-17T07:57:46.933045+00:00",
+  "project": "benchmark-tlse",
+  "project_name": "benchmark-tlse",
+  "audit_id": "",
+  "direction": "",
+  "run_dir": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/tlse",
+  "run_id": "tlse",
+  "source": "/vol1/1000/mygoldmine-benchmark/2026-11-17/tools/mygoldmine/targets/benchmark-tlse",
+  "url": "",
+  "commit": "",
+  "cover": "",
+  "trees": {
+    "project": {
+      "id": "project:benchmark-tlse",
+      "label": "benchmark-tlse",
+      "kind": "root",
+      "status": "root",
+      "children": [
+        {
+          "id": "dir:findings",
+          "label": "findings",
+          "kind": "domain",
+          "status": "scope",
+          "children": [
+            {
+              "id": "finding:MEM-STUN-001",
+              "label": "tls_stun_parse 在 MESSAGE-INTEGRITY 校验前把攻击者可控的 REALM 属性拷贝进固定栈缓冲区 key[0x4CE]，造成栈越界写",
+              "kind": "finding",
+              "status": "critical",
+              "children": [],
+              "finding_id": "MEM-STUN-001",
+              "severity": "critical",
+              "cve_tier": null,
+              "note": "",
+              "path": "tlse.c"
+            },
+            {
+              "id": "finding:MEM-X509-001",
+              "label": "默认 ASN.1 解析分支中零长度 BIT STRING 使 tls_certificate_set_sign_key 的 len 下溢为 -1，tls_certificate_set_copy 执行超长 memcpy ",
+              "kind": "finding",
+              "status": "high",
+              "children": [],
+              "finding_id": "MEM-X509-001",
+              "severity": "high",
+              "cve_tier": null,
+              "note": "",
+              "path": "tlse.c"
+            },
+            {
+              "id": "finding:IPC-SERIAL-001",
+              "label": "tls_import_context 读取 mac_length 前缺少边界检查，可越界读取 1 字节",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "IPC-SERIAL-001",
+              "severity": "low",
+              "cve_tier": null,
+              "note": "",
+              "path": "tlse.c"
+            },
+            {
+              "id": "finding:IPC-SERIAL-002",
+              "label": "tls_import_context 的 CBC 分支使用未初始化的栈 IV 字节",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "IPC-SERIAL-002",
+              "severity": "low",
+              "cve_tier": null,
+              "note": "",
+              "path": "tlse.c"
+            },
+            {
+              "id": "finding:IPC-SERIAL-003",
+              "label": "TLS_REEXPORTABLE 导入路径未检查 TLS_MALLOC 返回值即 memcpy",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "IPC-SERIAL-003",
+              "severity": "low",
+              "cve_tier": null,
+              "note": "",
+              "path": "tlse.c"
+            },
+            {
+              "id": "finding:MEM-CERTLEN-001",
+              "label": "tls_parse_verify_request 在 DTLS HelloVerifyRequest 握手体长度 < 3 时读取 buf[res] 造成 1 字节堆越界读",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "MEM-CERTLEN-001",
+              "severity": "low",
+              "cve_tier": null,
+              "note": "",
+              "path": "tlse.c"
+            }
+          ],
+          "files": 0,
+          "path": "findings"
+        }
+      ],
+      "project": "benchmark-tlse"
+    },
+    "coverage": {
+      "id": "coverage:benchmark-tlse",
+      "label": "Audit coverage",
+      "kind": "root",
+      "status": "root",
+      "children": [
+        {
+          "id": "stage:workspace_scan",
+          "label": "workspace scan",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:project_profile",
+          "label": "project profile",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:route_auth",
+          "label": "route auth",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:access_control",
+          "label": "access control",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:ssrf_analysis",
+          "label": "ssrf analysis",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:general_code_security",
+          "label": "general code security",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [
+            {
+              "id": "coverage-finding:MEM-STUN-001",
+              "label": "tls_stun_parse 在 MESSAGE-INTEGRITY 校验前把攻击者可控的 REALM 属性拷贝进固定栈缓冲区 key[0x4CE]，造成栈越界写",
+              "kind": "finding",
+              "status": "critical",
+              "children": [],
+              "finding_id": "MEM-STUN-001",
+              "severity": "critical",
+              "category": "",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:IPC-SERIAL-001",
+              "label": "tls_import_context 读取 mac_length 前缺少边界检查，可越界读取 1 字节",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "IPC-SERIAL-001",
+              "severity": "low",
+              "category": "",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:IPC-SERIAL-002",
+              "label": "tls_import_context 的 CBC 分支使用未初始化的栈 IV 字节",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "IPC-SERIAL-002",
+              "severity": "low",
+              "category": "",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:MEM-CERTLEN-001",
+              "label": "tls_parse_verify_request 在 DTLS HelloVerifyRequest 握手体长度 < 3 时读取 buf[res] 造成 1 字节堆越界读",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "MEM-CERTLEN-001",
+              "severity": "low",
+              "category": "",
+              "note": ""
+            }
+          ],
+          "raw": null
+        },
+        {
+          "id": "stage:model_loading",
+          "label": "model loading",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:deserialization",
+          "label": "deserialization",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:path_traversal",
+          "label": "path traversal",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:sensitive_info",
+          "label": "sensitive info",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:agent_config",
+          "label": "agent config",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [
+            {
+              "id": "coverage-finding:MEM-X509-001",
+              "label": "默认 ASN.1 解析分支中零长度 BIT STRING 使 tls_certificate_set_sign_key 的 len 下溢为 -1，tls_certificate_set_copy 执行超长 memcpy ",
+              "kind": "finding",
+              "status": "high",
+              "children": [],
+              "finding_id": "MEM-X509-001",
+              "severity": "high",
+              "category": "",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:IPC-SERIAL-003",
+              "label": "TLS_REEXPORTABLE 导入路径未检查 TLS_MALLOC 返回值即 memcpy",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "IPC-SERIAL-003",
+              "severity": "low",
+              "category": "",
+              "note": ""
+            }
+          ],
+          "raw": null
+        },
+        {
+          "id": "stage:combination_analysis",
+          "label": "combination analysis",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:final_crosscheck",
+          "label": "final crosscheck",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        }
+      ],
+      "project": "benchmark-tlse"
+    },
+    "attacks": [
+      {
+        "id": "attack:MEM-STUN-001",
+        "label": "tls_stun_parse 在 MESSAGE-INTEGRITY 校验前把攻击者可控的 REALM 属性拷贝进固定栈缓冲区 key[0x4CE]，造成栈越界写",
+        "kind": "goal",
+        "status": "critical",
+        "children": [
+          {
+            "id": "attack:MEM-STUN-001:entry",
+            "label": "tlse.c",
+            "kind": "entry",
+            "status": "scope",
+            "children": [
+              {
+                "id": "attack:MEM-STUN-001:gate",
+                "label": "auth / preconditions",
+                "kind": "precondition",
+                "status": "gate",
+                "children": [
+                  {
+                    "id": "attack:MEM-STUN-001:pre:0",
+                    "label": "宿主应用把网络/不可信对端数据交给公共 API tls_peerconnection_iterate（该库 WebRTC/DTLS 的预期用法；若宿主不在此网络路径调用该 API 则不可达）。",
+                    "kind": "precondition",
+                    "status": "gate",
+                    "children": []
+                  },
+                  {
+                    "id": "attack:MEM-STUN-001:pre:1",
+                    "label": "tls_stun_parse 与 tls_peerconnection_iterate 均不在 #ifdef TLS_SRTP 内：已核对 tlse.c:13945-13986 的 TLS_SRTP ",
+                    "kind": "precondition",
+                    "status": "gate",
+                    "children": []
+                  },
+                  {
+                    "id": "attack:MEM-STUN-001:pre:2",
+                    "label": "channel 由 tls_peerconnection_context 创建，local_pwd 恒为 24 字符加 NUL（tlse.c:13720-13723）。",
+                    "kind": "precondition",
+                    "status": "gate",
+                    "children": []
+                  },
+                  {
+                    "id": "attack:MEM-STUN-001:pre:3",
+                    "label": "报文为 STUN Binding Request：type=0x0001（13123-13125）、magic cookie 0x2112A442（13101-13104）、16 位 msg_len ",
+                    "kind": "precondition",
+                    "status": "gate",
+                    "children": []
+                  },
+                  {
+                    "id": "attack:MEM-STUN-001:sink",
+                    "label": "tls_stun_parse 在 tlse.c:13085 使用固定 1230 字节栈缓冲区 char key[0x4CE] 拼接 USERNAME:REALM:pwd；USERNAME 上限 513（13184）、REALM 上限 763",
+                    "kind": "sink",
+                    "status": "sink",
+                    "children": [
+                      {
+                        "id": "attack:MEM-STUN-001:impact",
+                        "label": "认证前栈越界写。按当前 ptr 步进，写偏移从 key+username_len 开始、长度 realm_len；username_len=513、realm_len=763 时最后一次写入位于 key+1276，越过合法末尾 key+12",
+                        "kind": "impact",
+                        "status": "impact",
+                        "children": []
+                      }
+                    ],
+                    "path": "tlse.h"
+                  }
+                ]
+              }
+            ],
+            "path": "tlse.c"
+          }
+        ],
+        "finding_id": "MEM-STUN-001",
+        "scene": {
+          "kind": "agent",
+          "variant": "agent tool execution",
+          "entry": "tlse.c",
+          "boundary": "tlse.c",
+          "precondition": "宿主应用把网络/不可信对端数据交给公共 API tls_peerconnection_iterate（该库 WebRTC/DTLS 的预期用法；若宿主不在此网络路径调用该 API 则不可达）。",
+          "reachability": "default",
+          "result": "认证前栈越界写。按当前 ptr 步进，写偏移从 key+username_len 开始、长度 realm_len；username_len=513、realm_len=763 时最后一次写入位于 key+1276，越过合法末尾 key+1…",
+          "attacker": [
+            "向 tlse.c 发送构造请求",
+            "满足前置条件：宿主应用把网络/不可信对端数据交给公共 API tls_peerconnection_iterate（该库 WebRTC/DTLS 的预期用法；若宿主不在此网络路径调用该 API 则不可达）。",
+            "读取结果：认证前栈越界写。按当前 ptr 步进，写偏移从 key+username_len 开始、长度 realm_len；username_len=513、realm_len=763 时最后一次写入位于 key+1276，越过合法末尾 key+1…"
+          ],
+          "victim": [
+            "tls_stun_parse 在 tlse.c:13085 使用固定 1230 字节栈缓冲区 char key[0x4CE] 拼接 USERNAME:REALM:pwd；USERNAME 上限 513（13184）、REALM 上限 763（13254）、local_pwd 恒 24 字符，拼接最…",
+            "tls_stun_parse 在 tlse.c:13085 使用固定 1230 字节栈缓冲区 char key[0x4CE] 拼接 USERNAME:REALM:pwd；USERNAME 上限 513（13184）、REALM 上限 76…",
+            "tls_stun_parse 在 tlse.c:13085 使用固定 1230 字节栈缓冲区 char key[0x4CE] 拼接 USERNAME:REALM:pwd；USERNAME 上限 513（13184）、REALM 上限 763（13254）、local_pwd 恒 24 字符，拼接最…"
+          ],
+          "flow": [
+            "tls_stun_parse 在 tlse.c:13085 使用固定 1230 字节栈缓冲区 char key[0x4CE] 拼接 USERNAME:REALM:pwd；USERNAME 上限 513（13184）、REALM 上限 763（13254）、local_pwd 恒 24 字符，拼接最…"
+          ],
+          "visual": "left attacker plants a plugin or configuration, right agent loads it and executes a tool",
+          "evidence": [
+            "tlse.c",
+            "tlse.h"
+          ],
+          "disclaimer": "场景由候选问题字段生成，用于解释；不是新的漏洞结论"
+        }
+      },
+      {
+        "id": "attack:MEM-X509-001",
+        "label": "默认 ASN.1 解析分支中零长度 BIT STRING 使 tls_certificate_set_sign_key 的 len 下溢为 -1，tls_certificate_set_copy 执行",
+        "kind": "goal",
+        "status": "high",
+        "children": [
+          {
+            "id": "attack:MEM-X509-001:entry",
+            "label": "tlse.c",
+            "kind": "entry",
+            "status": "scope",
+            "children": [
+              {
+                "id": "attack:MEM-X509-001:gate",
+                "label": "auth / preconditions",
+                "kind": "precondition",
+                "status": "gate",
+                "children": [
+                  {
+                    "id": "attack:MEM-X509-001:pre:0",
+                    "label": "默认构建未定义 TLS_FULL_X509：tlse.c:11308 的 #ifdef TLS_FULL_X509 在默认构建不成立，走 11370 的 #else _private_asn1_par",
+                    "kind": "precondition",
+                    "status": "gate",
+                    "children": []
+                  },
+                  {
+                    "id": "attack:MEM-X509-001:pre:1",
+                    "label": "宿主把对端网络数据交给库的 TLS 握手解析；tls_parse_certificate 在客户端接收服务端证书或服务端接收客户端证书时都会调用 asn1_parse（8702，is_server 为",
+                    "kind": "precondition",
+                    "status": "gate",
+                    "children": []
+                  },
+                  {
+                    "id": "attack:MEM-X509-001:pre:2",
+                    "label": "目标 C 库 malloc(0) 返回非 NULL；默认 TLS_MALLOC 为 malloc（tlse.c:663-664），glibc/Linux 成立。",
+                    "kind": "precondition",
+                    "status": "gate",
+                    "children": []
+                  },
+                  {
+                    "id": "attack:MEM-X509-001:pre:3",
+                    "label": "DER 证书中 tbsCertificate（顶层 SEQUENCE 的第 1 个元素）的第 3 个 TLV 为 BIT STRING（tag 0x03 或 0x23 且 length==0），并且紧",
+                    "kind": "precondition",
+                    "status": "gate",
+                    "children": []
+                  },
+                  {
+                    "id": "attack:MEM-X509-001:sink",
+                    "label": "默认构建（未定义 TLS_FULL_X509）走 tlse.c:11421 _private_asn1_parse 的 #else 分支。其 case 0x03（11580）未校验 length>0，在 level==2 && idx==3",
+                    "kind": "sink",
+                    "status": "sink",
+                    "children": [
+                      {
+                        "id": "attack:MEM-X509-001:impact",
+                        "label": "memcpy 以 SIZE_MAX 为长度从证书缓冲区向 malloc(0) 堆块写入，必然越界破坏大量堆内存并极可能立即崩溃；属远程可触发的堆越界写。触发发生在证书内容可信性/签名校验之前。若仅触发崩溃则为拒绝服务；若目标堆布局允许，存在",
+                        "kind": "impact",
+                        "status": "impact",
+                        "children": []
+                      }
+                    ],
+                    "path": "tlse.c"
+                  }
+                ]
+              }
+            ],
+            "path": "tlse.c"
+          }
+        ],
+        "finding_id": "MEM-X509-001",
+        "scene": {
+          "kind": "agent",
+          "variant": "agent tool execution",
+          "entry": "tlse.c",
+          "boundary": "tlse.c",
+          "precondition": "默认构建未定义 TLS_FULL_X509：tlse.c:11308 的 #ifdef TLS_FULL_X509 在默认构建不成立，走 11370 的 #else _private_asn1_pa…",
+          "reachability": "default",
+          "result": "memcpy 以 SIZE_MAX 为长度从证书缓冲区向 malloc(0) 堆块写入，必然越界破坏大量堆内存并极可能立即崩溃；属远程可触发的堆越界写。触发发生在证书内容可信性/签名校验之前。若仅触发崩溃则为拒绝服务；若目标堆布局允许，存…",
+          "attacker": [
+            "向 tlse.c 发送构造请求",
+            "满足前置条件：默认构建未定义 TLS_FULL_X509：tlse.c:11308 的 #ifdef TLS_FULL_X509 在默认构建不成立，走 11370 的 #else _private_asn1_pa…",
+            "读取结果：memcpy 以 SIZE_MAX 为长度从证书缓冲区向 malloc(0) 堆块写入，必然越界破坏大量堆内存并极可能立即崩溃；属远程可触发的堆越界写。触发发生在证书内容可信性/签名校验之前。若仅触发崩溃则为拒绝服务；若目标堆布局允许，存…"
+          ],
+          "victim": [
+            "默认构建（未定义 TLS_FULL_X509）走 tlse.c:11421 _private_asn1_parse 的 #else 分支。其 case 0x03（11580）未校验 length>0，在 level==2 && idx==3 && fields[0]==1 时调用 tls_cert…",
+            "默认构建（未定义 TLS_FULL_X509）走 tlse.c:11421 _private_asn1_parse 的 #else 分支。其 case 0x03（11580）未校验 length>0，在 level==2 && idx==…",
+            "默认构建（未定义 TLS_FULL_X509）走 tlse.c:11421 _private_asn1_parse 的 #else 分支。其 case 0x03（11580）未校验 length>0，在 level==2 && idx==3 && fields[0]==1 时调用 tls_cert…"
+          ],
+          "flow": [
+            "默认构建（未定义 TLS_FULL_X509）走 tlse.c:11421 _private_asn1_parse 的 #else 分支。其 case 0x03（11580）未校验 length>0，在 level==2 && idx==3 && fields[0]==1 时调用 tls_cert…"
+          ],
+          "visual": "left attacker plants a plugin or configuration, right agent loads it and executes a tool",
+          "evidence": [
+            "tlse.c"
+          ],
+          "disclaimer": "场景由候选问题字段生成，用于解释；不是新的漏洞结论"
+        }
+      }
+    ]
+  },
+  "counts": {
+    "findings": 6,
+    "critical": 1,
+    "high": 1
+  }
+}

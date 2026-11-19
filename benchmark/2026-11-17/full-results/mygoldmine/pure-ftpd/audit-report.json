@@ -1,0 +1,208 @@
+{
+  "project": "pure-ftpd",
+  "project_name": "pure-ftpd 1.0.54",
+  "source_version": "b64c56d",
+  "language": "zh",
+  "status": "final",
+  "analysis_mode": "static",
+  "generated_at": "2026-11-17T03:51:37.340628+00:00",
+  "summary": "对 pure-ftpd 1.0.54 源码做静态安全审计。当前确认 3 条低危静态候选（1 条需 TLS 扩展证书配置、1 条路径规范化策略不一致、1 条配额哨兵值转换），全部为 unverified；未发现可直接确证的内存破坏或认证绕过。",
+  "findings": [
+    {
+      "id": "NORM-TLS-001",
+      "title": "SNI 扩展证书路径的证书文件名在 ssl_servername_cb 中未释放（每次握手泄漏）",
+      "title_en": "CertResult cert_file/key_file leaked in ssl_servername_cb (per-handshake leak)",
+      "severity": "low",
+      "confidence": "high",
+      "reachability": "requires-config",
+      "cwe": "CWE-401",
+      "root_cause": "tls_extcert_get() 通过 callback_reply_cert_file()/callback_reply_key_file() 对 cert_file/key_file 执行 strdup()（src/tls_extcert.c:67、:82）；ssl_servername_cb() 在 tls_create_new_context() 之后直接 return SSL_TLSEXT_ERR_OK（src/tls.c:121），从未释放这两个指针。",
+      "impact": "每次 TLS 握手泄漏少量堆内存（约数百字节）。pure-ftpd 通常每连接 fork 子进程，泄漏随子进程退出回收，实际影响有限。",
+      "reproduction_idea": "构建启用 WITH_TLS 并开启 -E（extcert）+ 外部证书服务；客户端在 TLS ClientHello 中发送合法 SNI 指向已配置的虚拟主机，重复握手并在同一子进程内观察堆增长（不提供可用利用代码）。",
+      "remediation": "在 ssl_servername_cb() 所有返回路径释放 result.cert_file/result.key_file，或实现统一的 tls_extcert_result_free()；注意 key_file 可能等于 cert_file，释放前需判等。",
+      "evidence": [
+        {
+          "path": "src/tls.c",
+          "line": 121,
+          "snippet": "return SSL_TLSEXT_ERR_OK;"
+        },
+        {
+          "path": "src/tls_extcert.c",
+          "line": 67,
+          "snippet": "callback_reply_cert_file() 内 strdup(cert_file)"
+        },
+        {
+          "path": "src/tls_extcert.c",
+          "line": 82,
+          "snippet": "callback_reply_key_file() 内 strdup(key_file)"
+        },
+        {
+          "path": "src/tls_extcert.c",
+          "line": 141,
+          "snippet": "tls_extcert_get() 返回 CertResult"
+        }
+      ],
+      "verification": {
+        "status": "unverified",
+        "method": "static",
+        "note": "仅源码生命周期追踪，未运行。"
+      }
+    },
+    {
+      "id": "NORM-PATH-001",
+      "title": "NLST/MLSD/MLST/MDTM/SIZE 路径未调用 checknamesanity/simplify，可绕过 -X 点文件访问限制",
+      "title_en": "Missing checknamesanity/simplify on NLST/MLSD/MLST/MDTM/SIZE paths",
+      "severity": "low",
+      "confidence": "medium",
+      "reachability": "requires-config",
+      "cwe": "CWE-22",
+      "root_cause": "与 LIST/RETR/STOR 路径不同，这些命令把用户参数直接交给 chdir(base) 或 stat，未经 checknamesanity() 的 .. 与控制字符检查。",
+      "impact": "启用 -X（dot_read_ok=0）时，NLST/MLSD/MLST/MDTM/SIZE 仍可列出/stat 点文件，构成策略绕过（元数据泄露）；.. 仍受 chroot/权限边界约束，不构成 chroot 逃逸。",
+      "reproduction_idea": "在启用目录列表功能的实例上发送 NLST .. 与 MLSD ..，对比 LIST 命令的 553 拒绝行为，观察列表命令对上级目录的处理差异（不提供可用利用代码）。",
+      "remediation": "在 donlst/domlsd/domlst/MDTM/SIZE 入口统一调用 checknamesanity()（按读/写权限选择 dot_ok），或在协议解析层统一调用 simplify()。",
+      "evidence": [
+        {
+          "path": "src/ls.c",
+          "line": 992,
+          "snippet": "if (*base != 0 && chdir(base) != 0) {  /* donlst 未经 checknamesanity */"
+        },
+        {
+          "path": "src/ls.c",
+          "line": 1071,
+          "snippet": "domlsd: chdir(base) 未经 checknamesanity"
+        },
+        {
+          "path": "src/ftpd.c",
+          "line": 1172,
+          "snippet": "MDTM/SIZE 路径 stat 调用"
+        },
+        {
+          "path": "src/ftpd.c",
+          "line": 4476,
+          "snippet": "size 命令路径处理"
+        }
+      ],
+      "verification": {
+        "status": "unverified",
+        "method": "static",
+        "note": "仅静态阅读，未运行验证。"
+      }
+    },
+    {
+      "id": "NORM-INT-001",
+      "title": "仅配置文件数配额时，user_quota_size 的无符号哨兵值经减法转换误判为超配额，合法上传被拒",
+      "title_en": "Unsigned sentinel for user_quota_size misclassifies file-count-only quota as exceeded",
+      "severity": "low",
+      "confidence": "medium",
+      "reachability": "requires-config",
+      "cwe": "CWE-681",
+      "root_cause": "user_quota_size 默认值为 ULONG_LONG_MAX (1ULL<<63) 作为未配置大小配额的哨兵（src/globals.h:151-152、src/ftpd.h:689-690）；账户只配置文件数配额时 log_puredb 保持该默认值（src/log_puredb.c:406）。src/ftpd.c:4303 执行 (max_filesize = user_quota_size - quota.size) < (off_t) 0，quota.size==0 时无符号减法结果恰为 2^63，转 off_t 为实现定义负值，命中 <0 分支并置 overflow=1，STOR/APPE 在初始化数据连接前以 552 MSG_QUOTA_EXCEEDED 拒绝。doallo() 的无符号比较不命中，造成 ALLO 成功而 STOR 失败的不一致。",
+      "impact": "合法用户无法上传（可用性/功能缺陷），不构成配额绕过、越界或提权。",
+      "reproduction_idea": "启用 QUOTAS 构建，pure-pw useradd -n 1（不带 -N），登录后发送 STOR 小文件，观察 552 配额拒绝；对照检查 ALLO 返回成功（不提供可用利用代码）。",
+      "remediation": "在减法前先判定哨兵值：if (user_quota_size >= ULONG_LONG_MAX) max_filesize = (off_t)-1; else if (quota.size >= user_quota_size) { 超限 } else max_filesize = (off_t)(user_quota_size - quota.size); 或将哨兵改为 LLONG_MAX 并统一有符号比较。",
+      "evidence": [
+        {
+          "path": "src/ftpd.c",
+          "line": 4303,
+          "snippet": "(max_filesize = user_quota_size - quota.size) < (off_t) 0"
+        },
+        {
+          "path": "src/globals.h",
+          "line": 151,
+          "snippet": "GLOBAL(unsigned long long user_quota_size, ULONG_LONG_MAX);"
+        },
+        {
+          "path": "src/log_puredb.c",
+          "line": 406,
+          "snippet": "if (*line != 0) { result->quota_size_changed = 1; result->user_quota_size = strtoull(...); }"
+        }
+      ],
+      "verification": {
+        "status": "unverified",
+        "method": "static",
+        "note": "静态推导；转换结果依赖 ABI，未编译运行。"
+      }
+    },
+    {
+      "id": "AUTH-001",
+      "title": "MySQL/PGSQL 后端缺少 Crypt 配置时对 NULL 调用 strcasecmp，认证子进程崩溃（fail-closed DoS）",
+      "title_en": "NULL crypto passed to strcasecmp in MySQL/PGSQL backends when MYSQLCrypt/PGSQLCrypt is unset",
+      "severity": "low",
+      "confidence": "high",
+      "reachability": "requires-config",
+      "cwe": "CWE-476",
+      "root_cause": "log_mysql.c/log_pgsql.c 的 crypto 声明为文件作用域 static char *crypto;（零初始化），仅当配置出现 MYSQLCrypt/PGSQLCrypt 时由 generic_parser() 赋值；pw_mysql_parse()/pw_pgsql_parse() 只校验 server/socket_path（src/log_mysql.c:601-606），不校验 crypto；pw_mysql_check() 在 4 条查询均返回单行后执行 result->auth_ok--，随后无判空调用 strcasecmp(crypto, PASSWD_SQL_ANY)（src/log_mysql.c:424、src/log_pgsql.c:501）。",
+      "impact": "该次连接的认证子进程 SIGSEGV，连接中断；父进程与其他会话不受影响，属 fail-closed 可用性缺陷，不产生认证绕过或身份混淆。可重复触发消耗子进程资源。",
+      "reproduction_idea": "构建启用 WITH_MYSQL 或 WITH_PGSQL 并配置该后端，配置省略 MYSQLCrypt/PGSQLCrypt；使用数据库中已存在的账户名登录并发送 PASS，观察认证子进程崩溃（fail-closed，不提供可用利用代码）。",
+      "remediation": "在 pw_mysql_parse()/pw_pgsql_parse() 中为 crypto 设置安全默认或在缺失时拒绝启动；同时在 pw_mysql_check()/pw_pgsql_check() 中对 crypto == NULL 显式 goto bye。",
+      "evidence": [
+        {
+          "path": "src/log_mysql_p.h",
+          "line": 19,
+          "snippet": "static char *crypto;"
+        },
+        {
+          "path": "src/log_mysql_p.h",
+          "line": 50,
+          "snippet": "{ \"MYSQLCrypt\", &crypto },"
+        },
+        {
+          "path": "src/log_mysql.c",
+          "line": 424,
+          "snippet": "if (strcasecmp(crypto, PASSWD_SQL_ANY) == 0) {"
+        },
+        {
+          "path": "src/log_pgsql.c",
+          "line": 501,
+          "snippet": "if (strcasecmp(crypto, PASSWD_SQL_ANY) == 0) {"
+        },
+        {
+          "path": "src/log_mysql.c",
+          "line": 601,
+          "snippet": "void pw_mysql_parse(const char * const file) { ... if (server == NULL && socket_path == NULL) die(...); }"
+        }
+      ],
+      "verification": {
+        "status": "unverified",
+        "method": "static",
+        "note": "静态源码与配置解析路径核对，未编译运行。"
+      }
+    }
+  ],
+  "hypotheses": [
+    "src/tls.c:531-538 TLS_set_fd(NULL) 潜在 NPD（现有调用图不可达）",
+    "src/fakesnprintf.c:243-250 LLONG_MIN 负索引越界读（平台相关）",
+    "src/ftpd.c:590-606 no_syslog 分支未初始化 va_list 调 va_end",
+    "src/ftpd.c:358-363 SIGALRM 处理器内 malloc/syslog 重入 DoS",
+    "src/altlog.c:54-91 STATS 日志注入 CWE-117（前置控制字符替换后不可由客户端触发）",
+    "pure-authd/pure-certd 协议注入（前置控制字符替换后不可达）",
+    "src/ftpd.c:1571-1612 check_trustedgroup getgroups 二次调用失败导致负索引越界读",
+    "src/fakechroot.c:57-111 fakegetcwd 根目录返回 NULL 影响回复路径（非内存破坏）",
+    "src/ftpd.c:2061-2076 docwd getcwd 失败分支用 dir 而非 where 拼回复（逻辑缺陷）",
+    "整数方向其余 7 条假设见 .workspace/findings/integer.json（含 pure-pw 带宽回绕为 0 后除零 SIGFPE）"
+  ],
+  "coverage": {
+    "analysis_mode": "static",
+    "covered": [
+      "COV-PROFILE-001",
+      "COV-EXEC-001",
+      "COV-TLS-001",
+      "COV-LS-001",
+      "COV-PATH-001",
+      "COV-CMD-001",
+      "COV-INT-001",
+      "COV-MERGE-001",
+      "COV-VCHROOT-001",
+      "COV-AUTH-001",
+      "COV-TLSDATA-001",
+      "COV-GROUPS-001"
+    ],
+    "note": "静态审计；无运行时/动态验证；未做上游 diff（shallow clone 单 commit）。wave 1 候选由 hypothesis-critic 归一化（3 findings、21 hypotheses）；wave 2 新增 AUTH-001（未归一化并入 json findings）。"
+  },
+  "limitations": [
+    "全部为静态分析；未编译、未运行，未使用 ASan/Valgrind 或运行时插桩。",
+    "仓库为 shallow clone 单 commit b64c56d，无法与上游历史 diff。",
+    "ChangeLog 1.0.54 声明的加固项已逐项核对存在，未将仓库视为回退修复型注入目标。",
+    "未产生任何可直接武器化的利用代码；未发现明文密钥。"
+  ]
+}

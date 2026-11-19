@@ -1,0 +1,45 @@
+{
+  "success": true,
+  "results": {
+    "filtered_findings": [
+      {
+        "file": "src/coap_block.c",
+        "line": 1879,
+        "severity": "MEDIUM",
+        "category": "heap_buffer_overflow",
+        "description": "pdu_408_build() appends the payload marker with `pdu->token[pdu->used_size++] = COAP_PAYLOAD_START;` without any capacity check, and ignores the return value of the preceding coap_add_option_internal(COAP_OPTION_CONTENT_TYPE) call. coap_add_token() accepts a token whenever `len + bias <= pdu->max_size`, so a token can legitimately bring `used_size` exactly to `alloc_size` (which equals `max_size` on UDP, where `max_size = mtu - 4` and the initial allocation is `min(size, COAP_DEFAULT_MTU)`); the content-format option (3 bytes for value 272) then fails coap_pdu_check_resize() because growing would exceed `max_size`, but that failure is ignored and the payload marker is written at `token[alloc_size]`, i.e. exactly one byte past the end of the `alloc_size + max_hdr_size` heap buffer. This is a static-analysis candidate; the ASan/UBSan instrumented fuzzing performed during this review did not exercise this exact size/token combination, so the defect is not dynamically confirmed.",
+        "exploit_scenario": "A server built with Q-Block support (enabled by default) and with RFC 8974 extended tokens enabled by the application (e.g. coap-server -T / coap_context_set_max_token_size() with a value > 8) receives a Q-Block1 request whose token length is chosen as `coap_session_max_pdu_size() - 2` (for a default UDP MTU of 1152 the PDU size is 1148, so a 1146-byte extended token). The attacker then delivers Q-Block1 payload blocks out of order (or omits an early block) so that coap_request_missing_q_block1() calls pdu_408_build() for the 4.08 Missing-Blocks response. The token fills the PDU to capacity, the Content-Format option is silently dropped, and the unchecked marker write places 0xFF one byte past the heap allocation, corrupting the adjacent allocator chunk. The attacker can repeat this per session.",
+        "recommendation": "Do not write the payload marker unconditionally. Check the result of coap_add_option_internal() and call coap_pdu_check_resize(pdu, pdu->used_size + 1) before writing the marker; if the option or the resize fails, delete the PDU and return NULL (the caller already handles a NULL return by deferring the 4.08). Alternatively route the marker prepend through coap_add_data_after()/coap_add_data(), which perform the required bounds check.",
+        "confidence": 0.8,
+        "_filter_metadata": {
+          "confidence_score": 6,
+          "justification": "Concrete memory-safety issue in C code (not covered by the Rust exclusion). The finding describes a specific 1-byte heap out-of-bounds write at line 1879 in pdu_408_build(), with a plausible mechanism: coap_add_token() can bring used_size to alloc_size, the Content-Format option add fails resize but its failure is ignored, and the payload marker is written unconditionally one byte past the buffer. This has a clear attack path (Q-Block1 request with a max-length extended token delivered out of order). It is not dynamically confirmed and depends on the application enabling extended tokens (>8), which reduces exploitability but does not make it a false positive. Worth investigating and fixing with a bounds check."
+        }
+      }
+    ],
+    "excluded_findings": [],
+    "analysis_summary": {
+      "total_findings": 1,
+      "kept_findings": 1,
+      "excluded_findings": 0,
+      "hard_excluded": 0,
+      "claude_excluded": 0,
+      "exclusion_breakdown": {},
+      "average_confidence": 6.0,
+      "runtime_seconds": 18.2228786945343
+    }
+  },
+  "stats": {
+    "total_findings": 1,
+    "hard_excluded": 0,
+    "claude_excluded": 0,
+    "kept_findings": 1,
+    "exclusion_breakdown": {},
+    "confidence_scores": [
+      6
+    ],
+    "runtime_seconds": 18.2228786945343
+  },
+  "model": "deepseek/deepseek-v4.1-flash",
+  "filtering_enabled": true
+}

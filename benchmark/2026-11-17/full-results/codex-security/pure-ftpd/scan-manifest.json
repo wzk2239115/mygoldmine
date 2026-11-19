@@ -1,0 +1,137 @@
+{
+  "documentType": "codex-security.scan-manifest",
+  "scan": {
+    "artifacts": [
+      {
+        "mediaType": "application/json",
+        "path": "findings.json",
+        "sha256": "fe008f6f8ad11363a17e857587f9fd1eeac1487aea50594010530373de8bfb78"
+      }
+    ],
+    "completedAt": "2026-11-17T11:44:14.599756Z",
+    "findingsRef": "findings.json",
+    "id": "4149d915-b8f5-452a-bb55-55a7a18223b6",
+    "mode": "repository",
+    "preservedCheckpointHeads": {
+      ".": "checkpoint-heads/8679cf9801605cb15c8cea44d4fe033f85d6bc70fe199d761a722ff02109f724.json"
+    },
+    "preservedSources": {
+      "checkpoint-heads/8679cf9801605cb15c8cea44d4fe033f85d6bc70fe199d761a722ff02109f724.json": "8679cf9801605cb15c8cea44d4fe033f85d6bc70fe199d761a722ff02109f724",
+      "checkpoints/00e8b22cf411281d652b1e88501174452366a24f8a2040a4b1e58c24b961ac9e.json": "00e8b22cf411281d652b1e88501174452366a24f8a2040a4b1e58c24b961ac9e",
+      "checkpoints/14d35f78812cdaaeeb2e75c08b377b7b0851f2e89ba37c2984587592066fc47c.json": "e868b23e008c874341fffd57b265b7d624eca56fa69208f3b9d21b92ad34943b",
+      "checkpoints/c3bb0ac6ecdf77e1fd8fe0d48207c48134866b63993582dbe4cb24c1d95b6e86.json": "75893571b6e64bcd119e4ed7bc2cc17805f4ab0eac1336d73293e72bf9ed4fc9",
+      "checkpoints/e07b02e953f9c2968572ac6f3c5d3c4a791980cd11eb5fca927a1ff28137340a.json": "e07b02e953f9c2968572ac6f3c5d3c4a791980cd11eb5fca927a1ff28137340a",
+      "source-order/9fb43d1606a074f39e4060d31e56f90bda026280facbc1d97d3cfe795a817232.json": "9fb43d1606a074f39e4060d31e56f90bda026280facbc1d97d3cfe795a817232"
+    },
+    "producer": {
+      "name": "codex-security-plugin",
+      "version": "0.1.95"
+    },
+    "review": {
+      "excludedPaths": []
+    },
+    "scope": {
+      "artifactsReviewed": [
+        "src/ftpd.c",
+        "src/ftp_parser.c",
+        "src/ls.c",
+        "src/log_puredb.c",
+        "puredb/src/puredb_read.c",
+        "puredb/src/puredb_write.c",
+        "src/quotas.c",
+        "src/quotas.h",
+        "src/log_pam.c",
+        "src/log_ldap.c",
+        "src/log_extauth.c",
+        "src/log_mysql.c",
+        "src/log_pgsql.c",
+        "src/log_unix.c",
+        "src/tls.c",
+        "src/tls_extcert.c",
+        "src/pure-certd.c",
+        "src/pure-authd.c",
+        "src/privsep.c",
+        "src/upload-pipe.c",
+        "src/pure-uploadscript.c",
+        "src/altlog.c",
+        "src/pure-pwconvert.c",
+        "src/ipstack.c",
+        "src/safe_rw.c",
+        "src/crypto.c",
+        "src/main.c",
+        "src/simpleconf.c",
+        "src/parser.c",
+        "src/pure-pw.c",
+        "src/pure-pw.h",
+        "src/pure-quotacheck.c",
+        "src/ftpwho-read.c",
+        "src/pure-ftpwho.c",
+        "src/utils.c"
+      ],
+      "context": "Repository-wide Standard scan of pure-ftpd 1.0.54 source snapshot; runtime configuration and compiled binaries are not supplied.",
+      "excludePaths": [],
+      "includePaths": [
+        "."
+      ],
+      "limitations": [
+        "No compiler or runnable server binary was available for dynamic reproduction",
+        "Optional authentication and TLS paths depend on deployment-specific configuration",
+        "Local administrative utilities were reviewed for remote reachability, not exhaustively fuzzed"
+      ],
+      "runtimeStatus": "not executed",
+      "summary": "Repository-wide Standard scan of pure-ftpd 1.0.54 source snapshot. Focused review covered FTP control/data parsing, filesystem policy enforcement, PureDB/IP access rules, TLS/SNI helpers, authentication backends, quotas, upload notification, and local parsing utilities.",
+      "validationMode": "source-backed static validation with local libc behavior checks"
+    },
+    "sealedAt": "2026-11-17T11:44:14.599756Z",
+    "startedAt": "2026-11-17T10:56:33.784156Z",
+    "status": "completed",
+    "target": {
+      "displayName": "pure-ftpd",
+      "kind": "git_worktree",
+      "revision": "b64c56dc81bc4a7fa5d09d76afa59012ca5509a6",
+      "snapshotDigest": "codex-security-snapshot/v1:sha256:dde2c6b218b6b149b8492d93c4fd5db7e5d34594fbe5f5bef68006afbd6c559e",
+      "targetId": "target_sha256_842d551aeee2890af95a1fa77db8001fc2141dff5911f86adc004876eb72056b"
+    },
+    "threatModel": {
+      "assets": [
+        "host filesystem and files outside chroot",
+        "user credentials and authentication backend data",
+        "FTP user files and quota accounting",
+        "TLS private keys and certificate selection",
+        "service availability and privileged helper processes",
+        "audit logs and session metadata"
+      ],
+      "assumptions": [
+        "The repository is the authorized current source and is reviewed read-only.",
+        "Runtime deployment configuration is not supplied; optional features are assessed where reachable under documented configuration.",
+        "No SECURITY.md policy was found at the repository root."
+      ],
+      "attackerCapabilities": [
+        "send arbitrary FTP commands and arguments over the network",
+        "choose PORT/EPRT/PASV/EPSV data connection parameters",
+        "authenticate if anonymous access is enabled or valid credentials are available",
+        "create files and directories within permitted FTP namespace",
+        "supply TLS SNI names and client certificates when TLS is enabled",
+        "race concurrent uploads and quota operations"
+      ],
+      "securityObjectives": [
+        "prevent memory corruption and command injection from network input",
+        "enforce authentication and authorization before filesystem operations",
+        "prevent escape from chroot or access to files outside the user namespace",
+        "preserve credential secrecy and authentication backend integrity",
+        "keep quota accounting and upload notifications trustworthy",
+        "prevent denial of service of the FTP service or privileged helpers"
+      ],
+      "summary": "Pure-FTPd 1.0.54 is a network-facing FTP server. Untrusted remote clients speak FTP over cleartext or TLS and can authenticate as anonymous or virtual/real users. After authentication, the server exposes filesystem operations constrained by chroot/jail and per-user permissions; optional backends (PureDB, PAM, LDAP, SQL, external auth), TLS SNI helpers, upload scripts, quotas, logging, and local admin utilities create additional trust boundaries. The primary assets are host files outside the FTP jail, credentials and authentication decisions, user files and quotas, helper process integrity, and service availability.",
+      "trustBoundaries": [
+        "unauthenticated network client to FTP control parser",
+        "authenticated FTP user to chrooted filesystem namespace",
+        "FTP daemon to root-owned configuration, PureDB and quota files",
+        "FTP daemon to external auth/cert helper processes",
+        "TLS client SNI to certificate selection",
+        "upload notification pipe to external upload script"
+      ]
+    }
+  },
+  "schemaVersion": "1.0"
+}

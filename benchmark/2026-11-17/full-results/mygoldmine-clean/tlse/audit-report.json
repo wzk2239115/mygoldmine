@@ -1,0 +1,618 @@
+{
+  "project": "tlse",
+  "project_name": "TLSe（单文件 C 语言 TLS/DTLS 实现）",
+  "source_version": "25be48a4f0176b7242d8c5955fc325e92b487838",
+  "language": "zh",
+  "status": "final",
+  "findings": [
+    {
+      "id": "MEM-STUN-001",
+      "title": "tls_stun_parse 在 MESSAGE-INTEGRITY 校验前把攻击者可控的 REALM 属性拷贝进固定栈缓冲区 key[0x4CE]，造成栈越界写",
+      "title_en": "tls_stun_parse copies attacker-controlled REALM into fixed stack buffer key[0x4CE] before MESSAGE-INTEGRITY verification, causing a stack out-of-bounds write",
+      "severity": "critical",
+      "reachability": "default",
+      "cwe": "CWE-787",
+      "root_cause": "tls_stun_parse 在 tlse.c:13085 使用固定 1230 字节栈缓冲区 char key[0x4CE] 拼接 USERNAME:REALM:pwd；USERNAME 上限 513（13184）、REALM 上限 763（13254）、local_pwd 恒 24 字符，拼接最大 1303 字节，但拼接前未校验总长度是否 <= sizeof(key)。tlse.c:13210 memcpy(ptr, realm, realm_len) 以 key+username_len+1 为起点写入 realm_len 字节，最后写入下标 = username_len+realm_len；username_len+realm_len > 1229 即越界。另 tlse.c:13211 的 ptr += username_len（应为 realm_len）使后续分隔符/pwd/NUL 写偏移错误。该拼接发生在 tlse.c:13240 的 MESSAGE-INTEGRITY memcmp 之前。",
+      "impact": "认证前栈越界写。按当前 ptr 步进，写偏移从 key+username_len 开始、长度 realm_len；username_len=513、realm_len=763 时最后一次写入位于 key+1276，越过合法末尾 key+1229 共 47 字节。可破坏相邻栈变量/保存寄存器；未启用栈保护时存在控制流影响，启用 -fstack-protector 时至少可远程拒绝服务。",
+      "reproduction": "非武器化最小验证：在隔离构建（默认编译，不启用 TLS_SRTP）中开启 ASan，构造满足 tls_is_stun 的最小 STUN Binding Request，属性顺序为 USERNAME(len=513) -> REALM(len=717..763) -> MESSAGE-INTEGRITY(len=20)，使 16 位 msg_len 与实际长度一致；调用 tls_stun_parse 或 tls_peerconnection_iterate，预期 ASan 在 tlse.c:13210 报告 stack-buffer-overflow。仅用于确认缺陷，不构造利用载荷。",
+      "remediation": "1) 将 key 容量提高到至少 513+1+763+1+24+1=1303 字节，或在每次 memcpy 前校验累计长度 <= sizeof(key)；2) 修正 tlse.c:13211 为 ptr += realm_len；3) 对 USERNAME/REALM 使用统一边界检查并在越界前返回错误；4) 建议增加编译期断言或 nmemb 版本以同时覆盖 USERNAME/REALM。",
+      "evidence": [
+        {
+          "path": "tlse.c",
+          "line": 13085,
+          "snippet": "char key[0x4CE];"
+        },
+        {
+          "path": "tlse.c",
+          "line": 13184,
+          "snippet": "if (attr_len > 513) return TLS_BROKEN_PACKET; /* USERNAME */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 13200,
+          "snippet": "*(unsigned short *)&stun_message[2] = htons(stun_message_len + attr_len + 4 - 20);"
+        },
+        {
+          "path": "tlse.c",
+          "line": 13203,
+          "snippet": "memcpy(ptr, username, username_len); ptr += username_len;"
+        },
+        {
+          "path": "tlse.c",
+          "line": 13210,
+          "snippet": "memcpy(ptr, realm, realm_len);"
+        },
+        {
+          "path": "tlse.c",
+          "line": 13211,
+          "snippet": "ptr += username_len; /* 缺陷：应为 realm_len */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 13235,
+          "snippet": "hmac_process(&hmac, stun_message, stun_message_len);"
+        },
+        {
+          "path": "tlse.c",
+          "line": 13240,
+          "snippet": "if (memcmp(msg, hash, 16)) return TLS_INTEGRITY_FAILED; /* 校验在越界写之后 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 13254,
+          "snippet": "if (attr_len > 763) return TLS_BROKEN_PACKET; /* REALM */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 13721,
+          "snippet": "channel->local_pwd[i] = pwd_chars[buffer[i + 4] % (sizeof(pwd_chars) - 1)]; /* 24 字符 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 13723,
+          "snippet": "channel->local_pwd[24] = 0;"
+        },
+        {
+          "path": "tlse.c",
+          "line": 14006,
+          "snippet": "len = tls_stun_parse(buf, buf_len, channel->local_pwd, strlen(channel->local_pwd), is_ipv6, addr, port, response_buffer);"
+        },
+        {
+          "path": "tlse.h",
+          "line": 372,
+          "snippet": "int tls_stun_parse(...); /* 声明位于 TLS_SRTP 块之外 */"
+        }
+      ],
+      "counterevidence": [
+        "需要宿主应用实际调用 tls_peerconnection_iterate 并转发不可信网络数据；仅编译库而不使用该 API 的部署不可达。",
+        "pwd_len 来自 local_pwd 的 strlen，恒为 24，不放大溢出；主因是 REALM 拷贝与 key 容量不足。",
+        "ptr += username_len 使 ':'、pwd、NUL 的偏移错误，但其最大写入位置约 key+1053，未额外越界；它不是本次越界的唯一原因，但会破坏 key 内容并影响 HMAC。",
+        "未做 ASan/运行时验证；所有结论为静态源码推演，verification.status=unverified。",
+        "若宿主把 STUN 报文只交给受限长度的内部缓冲区，仍需 buf_len 覆盖约 1300 字节的报文字节；UDP 场景通常可行，但未在目标部署确认 MTU/缓冲上限。"
+      ],
+      "preconditions": [
+        "宿主应用把网络/不可信对端数据交给公共 API tls_peerconnection_iterate（该库 WebRTC/DTLS 的预期用法；若宿主不在此网络路径调用该 API 则不可达）。",
+        "tls_stun_parse 与 tls_peerconnection_iterate 均不在 #ifdef TLS_SRTP 内：已核对 tlse.c:13945-13986 的 TLS_SRTP 块位于 iterate 之前，且 tlse.h:372-374 的声明在 TLS_SRTP 块（tlse.h:468）之外；默认构建可编译。",
+        "channel 由 tls_peerconnection_context 创建，local_pwd 恒为 24 字符加 NUL（tlse.c:13720-13723）。",
+        "报文为 STUN Binding Request：type=0x0001（13123-13125）、magic cookie 0x2112A442（13101-13104）、16 位 msg_len 不超过实际 len-20（13115-13116）。",
+        "同一报文在 MESSAGE-INTEGRITY 属性之前包含 USERNAME 且 0<username_len<=513、REALM 且 0<realm_len<=763；随后包含长度恰为 20 的 MESSAGE-INTEGRITY。属性顺序是触发 key 拼接的必要条件。",
+        "存在满足 username_len + realm_len > 1229 的长度组合：最后写入下标 = username_len + realm_len，username_len 至少 467（因 realm_len<=763），例如 username_len=513、realm_len=717..763。",
+        "不需要知道 local_pwd/remote_pwd：越界写发生在 memcmp 完整性校验（13240）之前。"
+      ],
+      "verification": {
+        "status": "unverified",
+        "method": "static",
+        "report": "源码级候选，未构建、未运行、未做 ASan/Valgrind。最小无害验证为 ASan 下调用 tls_stun_parse/tls_peerconnection_iterate。"
+      }
+    },
+    {
+      "id": "MEM-X509-001",
+      "title": "默认 ASN.1 解析分支中零长度 BIT STRING 使 tls_certificate_set_sign_key 的 len 下溢为 -1，tls_certificate_set_copy 执行超长 memcpy 造成堆越界写",
+      "title_en": "Zero-length BIT STRING in the default ASN.1 parsing branch underflows len to -1 in tls_certificate_set_sign_key, making tls_certificate_set_copy perform a SIZE_MAX memcpy heap out-of-bounds write",
+      "severity": "high",
+      "reachability": "default",
+      "cwe": "CWE-787",
+      "root_cause": "默认构建（未定义 TLS_FULL_X509）走 tlse.c:11421 _private_asn1_parse 的 #else 分支。其 case 0x03（11580）未校验 length>0，在 level==2 && idx==3 && fields[0]==1 时调用 tls_certificate_set_sign_key(&buffer[pos], length)（11589-11590）。该函数在 !val[0] 时执行 val++/len--（4597-4599），len==0 时下溢为 -1；tls_certificate_set_copy 用 if(len) 判定后以 TLS_MALLOC(len+1)=malloc(0) 分配，再 memcpy(*member, val, len)（4551-4553），int -1 转为 size_t SIZE_MAX。",
+      "impact": "memcpy 以 SIZE_MAX 为长度从证书缓冲区向 malloc(0) 堆块写入，必然越界破坏大量堆内存并极可能立即崩溃；属远程可触发的堆越界写。触发发生在证书内容可信性/签名校验之前。若仅触发崩溃则为拒绝服务；若目标堆布局允许，存在进一步利用风险。",
+      "reproduction": "非武器化最小验证：在隔离构建（不定义 TLS_FULL_X509）中开启 ASan，构造 DER 证书，使顶层 SEQUENCE 第 1 个元素为 tbsCertificate SEQUENCE，且其第 3 个 TLV 为 03 00 00；调用 tls_parse_certificate(context, der, len, 0) 或 asn1_parse(NULL, der, len, 0)，预期 ASan 在 tlse.c:4553 报告 huge-size memcpy / heap-buffer-overflow。不包含任何利用步骤。",
+      "remediation": "1) 在 tls_certificate_set_sign_key 入口拒绝 len <= 0，或在 _private_asn1_parse 的 case 0x03 调用前要求 length > 0；2) tls_certificate_set_copy 改为 if (len > 0) 并对 len+1 做上限检查，避免有符号长度下溢转换为 size_t；3) 在调用 tls_certificate_set_sign_key 前校验 &buffer[pos] 与剩余长度，避免 val[0] 的越界读。",
+      "evidence": [
+        {
+          "path": "tlse.c",
+          "line": 11308,
+          "snippet": "#ifdef TLS_FULL_X509"
+        },
+        {
+          "path": "tlse.c",
+          "line": 11370,
+          "snippet": "#else  /* 默认构建编译 _private_asn1_parse 分支 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 11482,
+          "snippet": "if ((length) && (constructed)) { ... } else { switch (type) { ... } }  /* length==0 进入 else */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 11580,
+          "snippet": "case 0x03:  /* BIT STRING，未校验 length>0 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 11589,
+          "snippet": "if ((level == 2) && (idx == 3) && (fields[0] == 1)) {"
+        },
+        {
+          "path": "tlse.c",
+          "line": 11590,
+          "snippet": "tls_certificate_set_sign_key(cert, &buffer[pos], length);"
+        },
+        {
+          "path": "tlse.c",
+          "line": 4598,
+          "snippet": "if (!val[0]) { val++; len--; }  /* len==0 时先越界读 val[0]，再下溢为 -1 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 4550,
+          "snippet": "if (len) { *member = (unsigned char *)TLS_MALLOC(len + 1);"
+        },
+        {
+          "path": "tlse.c",
+          "line": 4553,
+          "snippet": "memcpy(*member, val, len);  /* len=-1 => SIZE_MAX 字节写入 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 11780,
+          "snippet": "_private_asn1_parse(context, cert, buffer, size, 1, fields, NULL, client_cert, NULL, NULL);  /* 返回值被忽略 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 8702,
+          "snippet": "cert = asn1_parse(context, &buf[res2], certificate_size2, is_server);  /* 网络 Certificate 消息 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 663,
+          "snippet": "#ifndef TLS_MALLOC"
+        },
+        {
+          "path": "tlse.c",
+          "line": 664,
+          "snippet": "#define TLS_MALLOC(size) malloc(size)"
+        }
+      ],
+      "counterevidence": [
+        "若目标 C 库 malloc(0) 返回 NULL，则 if (*member) 为假、不执行 memcpy，缺陷退化为 val[0] 的 1 字节越界读；glibc 返回非 NULL，故 Linux 上成立。",
+        "该路径仅在默认（未定义 TLS_FULL_X509）编译配置存在；定义 TLS_FULL_X509 时走 x509.c 的 parse_x509_cert_relaxed，本缺陷不编译。",
+        "攻击者需构造非标准但可通过解析器的 DER 结构（tbs 第 3 元素为 BIT STRING）；解析器不校验元素顺序/类型，因此不依赖签名校验，但需要精确构造。",
+        "未做 ASan/运行时验证；所有结论为静态源码推演，verification.status=unverified。"
+      ],
+      "preconditions": [
+        "默认构建未定义 TLS_FULL_X509：tlse.c:11308 的 #ifdef TLS_FULL_X509 在默认构建不成立，走 11370 的 #else _private_asn1_parse 分支。已核对仓库无 define TLS_FULL_X509，CMakeLists 只通过外部 TLSE_COMPILE_DEFINITIONS 注入。",
+        "宿主把对端网络数据交给库的 TLS 握手解析；tls_parse_certificate 在客户端接收服务端证书或服务端接收客户端证书时都会调用 asn1_parse（8702，is_server 为 0/1 均为非负，均进入默认分支）。",
+        "目标 C 库 malloc(0) 返回非 NULL；默认 TLS_MALLOC 为 malloc（tlse.c:663-664），glibc/Linux 成立。",
+        "DER 证书中 tbsCertificate（顶层 SEQUENCE 的第 1 个元素）的第 3 个 TLV 为 BIT STRING（tag 0x03 或 0x23 且 length==0），并且紧随其后的字节为 0x00，使 val[0]==0；解析器不校验 X.509 元素顺序/类型，构造无需通过签名校验。"
+      ],
+      "verification": {
+        "status": "unverified",
+        "method": "static",
+        "report": "源码级候选，未构建、未运行。最小无害验证为 ASan 下调用 tls_parse_certificate/asn1_parse 传入 tbs 第 3 个 TLV 为 03 00 00 的 DER。"
+      }
+    },
+    {
+      "id": "IPC-SERIAL-001",
+      "title": "tls_import_context 读取 mac_length 前缺少边界检查，可越界读取 1 字节",
+      "title_en": "tls_import_context reads mac_length without a preceding bounds check, allowing a one-byte out-of-bounds read",
+      "severity": "low",
+      "reachability": "requires-config",
+      "cwe": "CWE-125",
+      "root_cause": "tls_import_context 在 tlse.c:12858 读取 mac_length 前没有 TLS_IMPORT_CHECK_SIZE；前一步 key_lengths 的检查（12814）允许 buf_pos 恰好等于 buf_len，因此会读取 buffer[buf_len]，越界 1 字节。",
+      "impact": "单字节越界读。读到的值随后作为 mac_length：>48 或后续 CHECK_SIZE 失败都会销毁上下文并返回 NULL，因此未证明可泄漏或写内存；若 buffer 恰在页边界，可能触发崩溃（DoS）。",
+      "reproduction": "非武器化最小验证：在 ASan 下构造 buf_len=76 的导入缓冲区（iv_len=16、key_lengths=32、CBC cipher），使 12812 之后 buf_pos==buf_len，调用 tls_import_context，观察 12858 读取 buffer[76] 的越界读报告。",
+      "remediation": "在 tlse.c:12858 前增加 TLS_IMPORT_CHECK_SIZE(buf_pos, 1, buf_len)；并对 key_lengths 增加 key_lengths <= sizeof(temp) 与 key_lengths >= 2 的显式校验。更稳妥的是把 TLS_IMPORT_CHECK_SIZE 改为返回布尔值并统一采用先校验后读取/复制。",
+      "evidence": [
+        {
+          "path": "tlse.c",
+          "line": 788,
+          "snippet": "#define TLS_IMPORT_CHECK_SIZE(buf_pos, size, buf_size) if (((size) > (buf_size - buf_pos)) || ((buf_pos) > (buf_size))) { ... return NULL; }"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12812,
+          "snippet": "key_lengths = buffer[buf_pos++];"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12813,
+          "snippet": "TLS_IMPORT_CHECK_SIZE(buf_pos, key_lengths, buf_len)"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12814,
+          "snippet": "memcpy(temp, &buffer[buf_pos], key_lengths);"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12815,
+          "snippet": "buf_pos += key_lengths;"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12851,
+          "snippet": "if (_private_tls_crypto_create(context, key_lengths / 2, temp, local_iv, temp + key_lengths / 2, remote_iv)) {"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12858,
+          "snippet": "mac_length = buffer[buf_pos++];  /* 缺少 CHECK_SIZE */"
+        },
+        {
+          "path": "examples/tlshelloworld.c",
+          "line": 190,
+          "snippet": "仓库内唯一调用点，先 export 再 import 自身缓冲区"
+        }
+      ],
+      "counterevidence": [
+        "仓库内无跨信任域调用点；示例自导出后自导入，攻击者不能控制缓冲区内容。",
+        "越界值受后续 mac_length<=48 与 CHECK_SIZE 约束，未发现信息泄露或内存写入路径。",
+        "若调用方 allocation 大于 buf_len（常见接收缓冲区），该读取仍在分配范围内，实际影响进一步降低。",
+        "未编译/运行，未用 ASan/MSan 验证；verification.status=unverified。"
+      ],
+      "preconditions": [
+        "调用方把非自身导出的、或可能被篡改的缓冲区传给 tls_import_context；仓库内唯一调用点 examples/tlshelloworld.c:190-192 是自导出后自导入，因此仓库内默认不可达，计为 requires-config。",
+        "buf_len >= 64 且 header length == buf_len-5，使总长一致检查通过。",
+        "选择 iv_len（0..16）与 key_lengths（32/48/64 等使 key_lengths/2 被 libtomcrypt 接受）使 11 + 2*iv_len + 1 + key_lengths == buf_len，例如 iv_len=16、key_lengths=32、buf_len=76。",
+        "cipher 选择 CBC 类且 key_lengths/2 为 16/24/32，使 _private_tls_crypto_create 成功返回 0，流程到达 12858。"
+      ],
+      "verification": {
+        "status": "unverified",
+        "method": "static",
+        "report": "仅静态推演，未构造实际缓冲区或运行目标代码。"
+      }
+    },
+    {
+      "id": "IPC-SERIAL-002",
+      "title": "tls_import_context 的 CBC 分支使用未初始化的栈 IV 字节",
+      "title_en": "tls_import_context CBC branch uses uninitialized stack IV bytes",
+      "severity": "low",
+      "reachability": "requires-config",
+      "cwe": "CWE-457",
+      "root_cause": "tls_import_context 的 local_iv/remote_iv（12768-12769）是 16 字节未初始化栈数组，导入时只按 iv_len（12798，0..16）复制（12807-12810），随后 _private_tls_crypto_create（12851）经 cbc_start（libtomcrypt.c:33364-33366）复制完整 block_length 字节 IV，iv_len<16 时其余字节为栈残留。",
+      "impact": "首条 CBC 记录的 IV 部分来自栈残留。可能导致连接状态异常/拒绝服务，并使 IV 不可预测；未发现直接越界或可证明的明文泄露路径。",
+      "reproduction": "非武器化最小验证：在 MSan/Valgrind 下构造 CBC cipher 且 iv_len<16 的导入缓冲区，调用 tls_import_context，观察 local_iv/remote_iv 未初始化字节被传入 cbc_start。",
+      "remediation": "导入时按 cipher 校验 iv_len 必须等于该 cipher 的 IV/固定 nonce 长度并拒绝不一致值；或在 memcpy 前 memset(local_iv/remote_iv, 0, sizeof(...))；同时把 key_lengths 与 cipher 的期望密钥长度做显式交叉校验。",
+      "evidence": [
+        {
+          "path": "tlse.c",
+          "line": 12768,
+          "snippet": "unsigned char local_iv[TLS_AES_IV_LENGTH];"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12769,
+          "snippet": "unsigned char remote_iv[TLS_AES_IV_LENGTH];"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12798,
+          "snippet": "iv_len = buffer[10];"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12807,
+          "snippet": "memcpy(local_iv, &buffer[buf_pos], iv_len);"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12809,
+          "snippet": "memcpy(remote_iv, &buffer[buf_pos], iv_len);"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12851,
+          "snippet": "if (_private_tls_crypto_create(context, key_lengths / 2, temp, local_iv, temp + key_lengths / 2, remote_iv)) {"
+        },
+        {
+          "path": "tlse.c",
+          "line": 5017,
+          "snippet": "int res1 = cbc_start(cipherID, localiv, localkey, key_length, 0, &context->crypto.ctx_local.aes_local);"
+        },
+        {
+          "path": "libtomcrypt.c",
+          "line": 33364,
+          "snippet": "for (x = 0; x < cbc->blocklen; x++) { cbc->IV[x] = IV[x]; }"
+        }
+      ],
+      "counterevidence": [
+        "仓库内仅 examples/tlshelloworld.c 自导出后自导入，且导出固定 iv_len=16，默认不可达。",
+        "数组大小 16 字节，不存在越界写；问题局限于未初始化读取与加密状态异常。",
+        "未做 MSan/Valgrind 验证；verification.status=unverified。"
+      ],
+      "preconditions": [
+        "调用方传入攻击者可控/被篡改的缓冲区；自导出缓冲区固定写入 iv_len=16（tlse.c:12681-12684），因此仓库内自导入不触发。",
+        "cipher 为 CBC 类，_private_tls_is_aead 返回 0（tlse.c:3763-3783），且 key_lengths/2 为 libtomcrypt 接受的 AES 密钥长度（16/24/32，libtomcrypt.c:32345）。",
+        "iv_len 取 0..15；此时数组大小 16 字节不存在越界写，问题为未初始化栈内容进入加密 IV 状态。"
+      ],
+      "verification": {
+        "status": "unverified",
+        "method": "static",
+        "report": "仅静态推演。数组大小为 16 字节，不存在越界写；问题为未初始化栈内容进入加密 IV 状态。"
+      }
+    },
+    {
+      "id": "IPC-SERIAL-003",
+      "title": "TLS_REEXPORTABLE 导入路径未检查 TLS_MALLOC 返回值即 memcpy",
+      "title_en": "TLS_REEXPORTABLE import path memcpy's into a TLS_MALLOC result without a NULL check",
+      "severity": "low",
+      "reachability": "opt-in",
+      "cwe": "CWE-476",
+      "root_cause": "tlse.c:12818-12819 在 TLS_REEXPORTABLE 分支下 TLS_MALLOC(key_lengths) 后未判空即 memcpy，分配失败且 key_lengths>0 时对 NULL 写入。",
+      "impact": "低内存条件下对 NULL 写 key_lengths 字节，进程崩溃（DoS）。默认构建不编译该分支。",
+      "reproduction": "非武器化最小验证：定义 TLS_REEXPORTABLE 编译，配合 malloc 失败注入（如故障注入分配器）调用 tls_import_context，观察 12819 对 NULL 的 memcpy。",
+      "remediation": "分配后检查 exportable_keys 是否为 NULL，失败时 tls_destroy_context(context) 并返回 NULL，与同函数其他缓冲区处理保持一致。",
+      "evidence": [
+        {
+          "path": "tlse.c",
+          "line": 12816,
+          "snippet": "#ifdef TLS_REEXPORTABLE"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12818,
+          "snippet": "context->exportable_keys = (unsigned char *)TLS_MALLOC(key_lengths);"
+        },
+        {
+          "path": "tlse.c",
+          "line": 12819,
+          "snippet": "memcpy(context->exportable_keys, temp, key_lengths);"
+        }
+      ],
+      "counterevidence": [
+        "TLS_REEXPORTABLE 默认未定义，仓库构建脚本不注入该宏；需要显式 opt-in 构建。",
+        "触发还需内存分配失败（OOM/故障注入），正常运行难以命中。",
+        "未做分配失败注入验证；verification.status=unverified。"
+      ],
+      "preconditions": [
+        "编译时定义 -DTLS_REEXPORTABLE；仓库内该宏仅在 tlse.c:12816 使用，未在 CMakeLists/头文件/构建脚本中定义，默认构建不启用。",
+        "key_lengths > 0 且 TLS_MALLOC 返回 NULL（低内存）。"
+      ],
+      "verification": {
+        "status": "unverified",
+        "method": "static",
+        "report": "静态确认缺少 NULL 检查；未做分配失败注入验证。"
+      }
+    },
+    {
+      "id": "MEM-CERTLEN-001",
+      "title": "tls_parse_verify_request 在 DTLS HelloVerifyRequest 握手体长度 < 3 时读取 buf[res] 造成 1 字节堆越界读",
+      "title_en": "tls_parse_verify_request reads buf[13] past the DTLS HelloVerifyRequest buffer when its body is shorter than 3 bytes",
+      "severity": "low",
+      "reachability": "requires-config",
+      "cwe": "CWE-125",
+      "root_cause": "tls_parse_verify_request 以固定偏移 res=11 表示 DTLS 握手头长度，并在 7886 只校验 L <= buf_len-11（恒真），随后无条件 res += 2 到 13 再读取 buf[13]；缺少“剩余长度 >= 3”的边界检查。",
+      "impact": "1 字节堆越界读；不直接向攻击者回显读到的字节，但可能触发 ASan 报告或跨页访问时的崩溃（拒绝服务）。由于 7894 随后按 len>buf_len-res 返回 NEED_MORE_DATA，越界值不会驱动后续写操作，未发现信息泄露或内存破坏链。",
+      "reproduction": "使用 DTLS 客户端（context->dtls=1、is_server=0）在隔离 ASan 构建中调用 tls_consume_stream，向它投递单个最小记录：DTLS 记录头 13 字节（type=22/DTLS, version=0xFEFD, epoch=0, seq=0, record_len=12），随后是 12 字节握手消息（type=0x03 HelloVerifyRequest、24 位 length=0x000000、message_seq=0、fragment_offset=0、fragment_length=0，此处 L=0）。tlse.c:7888 处 res 前进为 13，7889 读取 buf[13]，ASan 报 heap-buffer-overflow READ of size 1（越界 3 字节，指向缓冲区末尾之后）。不要求真实网络对端，可在本地回环用测试桩完成。",
+      "remediation": "在 7886 之后、`res += 2` 之前补充边界检查，例如 `CHECK_SIZE(3, buf_len - res, TLS_NEED_MORE_DATA)`（或统一改成先计算 body_remaining = buf_len - 11 并要求 >= 3 再读取 version 与 cookie_len）；同时把 buf[res] 的读取放在所有长度校验之后。",
+      "evidence": [
+        {
+          "path": "tlse.c",
+          "line": 7874,
+          "snippet": "int bytes_to_follow;  /* 7882 由 _private_dtls_check_packet 返回，为 24 bit 握手体长度 L（0..0xFFFFFF） */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 7881,
+          "snippet": "res = 11;  /* 3 字节长度 + 2 字节 message_seq + 3 字节 fragment_offset + 3 字节 fragment_length */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 7886,
+          "snippet": "CHECK_SIZE(bytes_to_follow, buf_len - res, TLS_NEED_MORE_DATA)  /* 仅保证 L <= buf_len-11，未保证剩余 >= 3 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 7888,
+          "snippet": "res += 2;  /* res = 13，未做 CHECK_SIZE 即前进 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 7889,
+          "snippet": "len = buf[res];  /* buf[13] 越界读，当 buf_len < 14（即 L < 3） */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 7894,
+          "snippet": "CHECK_SIZE(len, buf_len - res, TLS_NEED_MORE_DATA)  /* 越界读之后才检查 len */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 9953,
+          "snippet": "payload_res = tls_parse_verify_request(context, buf + 1, payload_size, &write_packets);  /* case 0x03 调用点 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 9828,
+          "snippet": "payload_size = buf[1] * 0x10000 + buf[2] * 0x100 + buf[3] + 3;  /* 再加 8 = L+11 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 9856,
+          "snippet": "CHECK_SIZE(payload_size + 1, buf_len, TLS_NEED_MORE_DATA)  /* 记录载荷 >= L+12 才进入，故传给本函数的 buf_len = L+11 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 7847,
+          "snippet": "CHECK_SIZE(11, buf_len, TLS_NEED_MORE_DATA)  /* 只保证 buf_len>=11，L=0 时 buf_len=11 恰好通过 */"
+        },
+        {
+          "path": "tlse.c",
+          "line": 7854,
+          "snippet": "if ((fragment_offset) || (fragment_length != bytes_to_follow))  /* L=0/1/2 且 offset=0、fragment_length=L 时返回非负 L，不进入分片分支、不访问 dtls_data */"
+        }
+      ],
+      "counterevidence": [
+        "越界读取的 len 只在 7894 用于比较、7895 用于 malloc 长度；L∈{0,1} 时 buf_len-res = L-2 < 0，任何 len（含 0）都会因 7894 返回，不会执行 memcpy",
+        "L=2 且越界读到 len=0 时继续执行，但走 `if (len)` 假分支直接 reset 返回，无后续内存访问",
+        "若宿主把远大于单个记录的缓冲区一次交给 tls_consume_stream（分配按 buf_len），越界字节仍落在同一分配内，则无内存安全后果；定级依赖宿主调用方式"
+      ],
+      "preconditions": [
+        "context->dtls 为真且 context->is_server 为假（DTLS 客户端角色，opt-in 配置）",
+        "context->connection_status == 0（握手尚未推进）",
+        "tls_consume_stream 收到的 buf_len 与单个记录长度一致（常见用法：每次 recv/recvfrom 后原样传入），使 message_buffer 分配恰好为 L+25 字节"
+      ],
+      "verification": {
+        "status": "unverified",
+        "method": "static",
+        "report": "源码级候选，未构建/运行。最小无害验证：隔离 ASan 构建中令 context->dtls=1、is_server=0，构造 25 字节 DTLS 记录（type=0x03, epoch=0, seq=0, record_len=12, handshake: length=0x000000, msg_seq=0, frag_offset=0, frag_len=0, 12 字节载荷），调用 tls_consume_stream，观察 tlse.c:7889 READ of size 1 堆越界。"
+      }
+    }
+  ],
+  "hypotheses": [
+    {
+      "id": "HYP-STUN-001",
+      "title": "STUN 属性 padding 记账使 stun_message_len 最多超出实际报文 3 字节，hmac_process 在校验前产生最多 3 字节越界读",
+      "location": [
+        "tlse.c:13279-13284",
+        "tlse.c:13235",
+        "tlse.c:13989-14006"
+      ],
+      "why_not_promoted": "属性循环在 attr_len 非 4 对齐且恰好用尽 msg_len 时把填充后的长度计入 stun_message_len（tlse.c:13279-13284）；stun_message_len 最多可到 20+msg_len+3。若调用方 buf_len 恰等于 20+msg_len，则 hmac_process（13235）读取最多 3 字节越过 buf_len。"
+    },
+    {
+      "id": "HYP-STUN-002",
+      "title": "攻击者可控报文触发未对齐 16/32 位加载，在严格对齐架构上产生未定义行为",
+      "location": [
+        "tlse.c:13112-13113",
+        "tlse.c:13168-13169"
+      ],
+      "why_not_promoted": "tls_stun_parse 直接以 *(unsigned short*)msg 读取 type/msg_len/attr_type/attr_len（tlse.c:13112-13113、13168-13169 等），未使用 memcpy；x86 可容忍，ARM 等严格对齐平台可能异常。"
+    },
+    {
+      "id": "HYP-STUN-003",
+      "title": "tls_stun_build 公共 API 无输出缓冲区长度参数，外部调用方传入小缓冲区且 username_len 接近 513 时可越界写",
+      "location": [
+        "tlse.c:13374-13415",
+        "tlse.c:13922-13935"
+      ],
+      "why_not_promoted": "tls_stun_build(..., msg)（tlse.c:13374）按 username_len<=513 拼接最多约 577 字节且不接收目标容量；库内调用方 tls_peerconnection_connect 使用 msg[1024] 因而安全，但外部调用方可能按旧假设分配更小缓冲区。"
+    },
+    {
+      "id": "HYP-IMPORT-001",
+      "title": "序列化会话状态无完整性/来源认证，跨信任域导入可完全接管或伪造会话",
+      "location": [
+        "tlse.c:12757-12964",
+        "README.md:59"
+      ],
+      "why_not_promoted": "tls_import_context 直接接受 master_key、CBC/AEAD 密钥/IV、序列号、cipher、is_server、connection_status、dtls 及各缓冲区（tlse.c:12780-12961），无 HMAC/签名/允许列表。若调用方把网络或低信任 IPC 数据传入，可注入任意会话密钥与序列号。"
+    },
+    {
+      "id": "HYP-IMPORT-002",
+      "title": "cipher/version/is_server/connection_status/dtls 未校验，导入后可能出现状态不一致",
+      "location": [
+        "tlse.c:12780-12794",
+        "tlse.c:12824-12851",
+        "tlse.c:12953-12961"
+      ],
+      "why_not_promoted": "context->version（12780）、connection_status（12787）、cipher（12788，16 位任意值）、is_server（12789-12794）、dtls（12954）均未与版本/角色/密码套件集合校验。_private_tls_is_aead 与 _private_tls_mac_length 对未知 cipher 返回 0；但记录层在 mac_size==0 时直接丢弃报文（tlse.c:10753-10760），未发现完整性校验被绕过的具体路径。"
+    },
+    {
+      "id": "HYP-IMPORT-003",
+      "title": "iv_len 静默截断、key_lengths/mac_length 与 cipher 未做交叉一致性校验",
+      "location": [
+        "tlse.c:12798-12815",
+        "tlse.c:12843-12846",
+        "tlse.c:12859-12871",
+        "tlse.c:3787-3829"
+      ],
+      "why_not_promoted": "iv_len 只校验 >TLS_AES_IV_LENGTH，随后按分类静默裁到 4/12 字节（12843-12846 等），不拒绝异常值；key_lengths 由 libtomcrypt 的 AES 密钥长度检查（16/24/32）间接约束，mac_length 只校验 <=TLS_MAX_MAC_SIZE（12859），均未与 cipher 的期望值比对。"
+    },
+    {
+      "id": "HYP-IMPORT-004",
+      "title": "导入路径对缓冲区中的多字节字段使用未对齐指针强制转换",
+      "location": [
+        "tlse.c:12894-12960"
+      ],
+      "why_not_promoted": "*(const unsigned short *)&buffer[buf_pos]、*(const uint64_t *)&buffer[buf_pos]（tlse.c:12880-12885、12895、12909-12911、12915、12928、12941、12958-12960）在任意字节偏移读取；在要求对齐的架构上属于未定义行为。"
+    },
+    {
+      "id": "HYP-X509-001",
+      "title": "_private_asn1_parse 中 tls_certificate_set_key 在 length==0 时读取 val[0] 造成 1 字节越界读",
+      "location": [
+        "tlse.c:11444-11471",
+        "tlse.c:11546-11549",
+        "tlse.c:11590-11593",
+        "tlse.c:4581-4589",
+        "tlse.c:8684-8702"
+      ],
+      "why_not_promoted": "tlse.c:11546/11549/11593 与 11590 均以 &buffer[pos] 作为 val，且 length 可为 0；tls_certificate_set_key 无条件读取 val[0]（tlse.c:4582）。当该 TLV 位于证书 DER 末尾时 pos==size，读取 buffer[size] 越界 1 字节。"
+    },
+    {
+      "id": "HYP-X509-002",
+      "title": "asn1_parse 忽略 _private_asn1_parse 返回值，CHECK_SIZE 提前中止时返回半初始化证书，下游可能空指针解引用",
+      "location": [
+        "tlse.c:11456",
+        "tlse.c:11472",
+        "tlse.c:11766-11783",
+        "tlse.c:8703-8740"
+      ],
+      "why_not_promoted": "asn1_parse 在 tlse.c:11778/11780 丢弃 _private_asn1_parse 返回值，即使解析因 TLS_NEED_MORE_DATA 提前 return 仍返回已分配证书；后续 certificate_verify / tls_certificate_chain_is_valid / tls_certificate_to_string 可能访问未填充字段。"
+    },
+    {
+      "id": "HYP-X509-003",
+      "title": "X509_COPY_BYTES 宏仅校验 from_len < size，未校验 from_start + from_len <= size",
+      "location": [
+        "tlse.c:11312",
+        "tlse.c:11320-11367",
+        "x509.c:5630-5763",
+        "x509.c:5765-5830",
+        "x509.c:11863-11894"
+      ],
+      "why_not_promoted": "tlse.c:11312 的宏在 from_start 接近 size 且 from_len 接近 size 时会越界读；当前依赖 parse_x509_cert_relaxed/parse_x509_cert 各 helper 保证 *eaten<=len 且 serial/issuer/subject/sig 偏移严格落在 eaten 内（已逐函数核对），未构造出可触发输入。该路径仅在定义 TLS_FULL_X509 时编译。"
+    },
+    {
+      "id": "HYP-CERTLEN-001",
+      "title": "tls_parse_certificate 中 TLS1.3 context_size 使 res 超过 buf_len 后，CHECK_SIZE 的符号转换让越界读通过校验",
+      "location": [
+        {
+          "path": "tlse.c",
+          "line_start": 8637,
+          "line_end": 8710
+        }
+      ],
+      "why_not_promoted": "已被反证：tlse.c:8677 的 CHECK_SIZE(3, buf_len - res) 两实参均为 int（字面量 3 与 int 表达式），res>buf_len 时按有符号比较立即 return，不会到达 8678 的 buf[res]；且 8644 的 size_of_all_certificates 实为握手体长度 L，L<=4 时 8646 提前返回。"
+    },
+    {
+      "id": "HYP-CERTLEN-002",
+      "title": "同族 `buf_len - res` 模式在 tls_parse_hello / _private_tls_parse_dh / _private_tls_parse_random 中是否存在 res>buf_len 前置路径",
+      "location": [
+        {
+          "path": "tlse.c",
+          "line_start": 8170,
+          "line_end": 8840
+        }
+      ],
+      "why_not_promoted": "已核对为安全：8178 hello_min_size=41/49 保证 buf_len>res；8802/8805、8820/8824/8829 均先检查使 buf_len>=res，且 size 为 unsigned short，整型提升为 int 后有符号比较。"
+    }
+  ],
+  "coverage": {
+    "analysis_mode": "static-source-review",
+    "source_version": "25be48a4f0176b7242d8c5955fc325e92b487838",
+    "waves": 3,
+    "coverage_ledger": ".workspace/findings/coverage-ledger.json",
+    "normalized": ".workspace/reports/findings.normalized.json",
+    "hypothesis_review": ".workspace/reports/hypothesis-review.md"
+  },
+  "limitations": [
+    "全部结论为静态源码级候选；未构建、未运行目标代码，未做 ASan/UBSan/MSan/Valgrind 动态验证；所有 verification.status 均为 unverified。",
+    "未加载 rsi-shared-experience 共享修复规则：该技能目录只有 SKILL.md，rules/index.json 不存在；不存在 benchmark-tlse/tlse 的项目专属规则。结论是在缺少这些规则的情况下给出的，规则发布后需重新核对。",
+    "MEM-STUN-001 与 MEM-X509-001 的 default 可达性按库的预期用法（宿主把网络数据交给 tls_peerconnection_iterate / tls_parse_certificate）判定；若宿主不在网络路径调用相应 API，则降为不可达。",
+    "MEM-X509-001 的实际表现依赖目标 libc malloc(0) 返回非 NULL；glibc/Linux 成立，其它平台需复核。",
+    "IPC-SERIAL-001/002 的可达性依赖外部调用方把非自身导出的缓冲区交给 tls_import_context；仓库内仅有示例自导入，无法证明攻击者控制缓冲区。",
+    "IPC-SERIAL-003 仅在定义 TLS_REEXPORTABLE 的构建中编译，且需要分配失败才能触发。",
+    "未确认目标部署架构，STUN/导入路径的未对齐加载假设无法定级。",
+    "未验证 STUN padding 越界读的调用方缓冲区大小。",
+    "技能版本哈希由输入产物提供，本次审阅未独立核验对应技能是否实际加载；输入产物未记录 rsi-shared-experience 版本。"
+  ]
+}

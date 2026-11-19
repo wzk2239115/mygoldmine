@@ -1,0 +1,8488 @@
+{
+  "schema_version": "1",
+  "generated_at": "2026-11-17T06:58:17.595310+00:00",
+  "endpoint": "https://api.360.cn/v1/systemone",
+  "model_requested": "typesafe/jev-latest",
+  "model_returned": "typesafe/jev-1.14-20261014",
+  "profile": "infra",
+  "root": "/workspace/repo",
+  "top_k": 50,
+  "stats": {
+    "units": 192,
+    "requests": 192,
+    "cached": 0,
+    "errors": 0,
+    "input_tokens": 941745,
+    "output_tokens": 29376,
+    "cost": 0.03955329,
+    "elapsed_ms": 38593
+  },
+  "units": [
+    {
+      "id": "examples/tlssimpleserver.c",
+      "path": "examples/tlssimpleserver.c",
+      "line_start": 1,
+      "line_end": 102,
+      "priority": 0.93,
+      "flags": {
+        "default_exposure": 0.94
+      },
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.35
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.94
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "examples/tlshelloworld.c",
+      "path": "examples/tlshelloworld.c",
+      "line_start": 1,
+      "line_end": 239,
+      "priority": 0.92,
+      "flags": {
+        "default_exposure": 0.93
+      },
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.32
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.47
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.2
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.93
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "examples/tlsclienthello.c",
+      "path": "examples/tlsclienthello.c",
+      "line_start": 1,
+      "line_end": 170,
+      "priority": 0.765,
+      "flags": {
+        "auth_boundary": 0.55,
+        "outbound_url": 0.77
+      },
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.55
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.77
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.47
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "examples/tlssimple.c",
+      "path": "examples/tlssimple.c",
+      "line_start": 1,
+      "line_end": 170,
+      "priority": 0.75,
+      "flags": {
+        "outbound_url": 0.76
+      },
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.36
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.38
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.76
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.32
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L2414-2765",
+      "path": "tlse.c",
+      "line_start": 2414,
+      "line_end": 2765,
+      "priority": 0.64,
+      "flags": {
+        "default_exposure": 0.65
+      },
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.65
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L10841-11233",
+      "path": "tlse.c",
+      "line_start": 10841,
+      "line_end": 11233,
+      "priority": 0.53,
+      "flags": {
+        "default_exposure": 0.54
+      },
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.18
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.54
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L14202-14548",
+      "path": "tlse.c",
+      "line_start": 14202,
+      "line_end": 14548,
+      "priority": 0.53,
+      "flags": {
+        "default_exposure": 0.54
+      },
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.2
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.31
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.54
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.h#L1-292",
+      "path": "tlse.h",
+      "line_start": 1,
+      "line_end": 292,
+      "priority": 0.515,
+      "flags": {
+        "default_exposure": 0.52
+      },
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.52
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L7041-7331",
+      "path": "tlse.c",
+      "line_start": 7041,
+      "line_end": 7331,
+      "priority": 0.485,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.49
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L13811-14201",
+      "path": "tlse.c",
+      "line_start": 13811,
+      "line_end": 14201,
+      "priority": 0.475,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.48
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L1-428",
+      "path": "x509.c",
+      "line_start": 1,
+      "line_end": 428,
+      "priority": 0.43,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.44
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L8511-8812",
+      "path": "tlse.c",
+      "line_start": 8511,
+      "line_end": 8812,
+      "priority": 0.39,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.4
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L7332-7585",
+      "path": "tlse.c",
+      "line_start": 7332,
+      "line_end": 7585,
+      "priority": 0.38,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.39
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L7887-8238",
+      "path": "tlse.c",
+      "line_start": 7887,
+      "line_end": 8238,
+      "priority": 0.375,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.38
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L9789-10035",
+      "path": "tlse.c",
+      "line_start": 9789,
+      "line_end": 10035,
+      "priority": 0.375,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.38
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L12745-13069",
+      "path": "tlse.c",
+      "line_start": 12745,
+      "line_end": 13069,
+      "priority": 0.375,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.38
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.34
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L3167-3522",
+      "path": "tlse.c",
+      "line_start": 3167,
+      "line_end": 3522,
+      "priority": 0.37,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.38
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L8239-8510",
+      "path": "tlse.c",
+      "line_start": 8239,
+      "line_end": 8510,
+      "priority": 0.37,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.38
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L14549-14920",
+      "path": "tlse.c",
+      "line_start": 14549,
+      "line_end": 14920,
+      "priority": 0.37,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.38
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L10673-11192",
+      "path": "x509.c",
+      "line_start": 10673,
+      "line_end": 11192,
+      "priority": 0.37,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.38
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L6052-6374",
+      "path": "tlse.c",
+      "line_start": 6052,
+      "line_end": 6374,
+      "priority": 0.36,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.37
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "README.md",
+      "path": "README.md",
+      "line_start": 1,
+      "line_end": 99,
+      "priority": 0.35,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.17
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.36
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L5675-6051",
+      "path": "tlse.c",
+      "line_start": 5675,
+      "line_end": 6051,
+      "priority": 0.345,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.35
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L13117-13591",
+      "path": "libtomcrypt.c",
+      "line_start": 13117,
+      "line_end": 13591,
+      "priority": 0.34,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.35
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L7586-7886",
+      "path": "tlse.c",
+      "line_start": 7586,
+      "line_end": 7886,
+      "priority": 0.34,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.35
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L13070-13514",
+      "path": "tlse.c",
+      "line_start": 13070,
+      "line_end": 13514,
+      "priority": 0.34,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.35
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L10036-10260",
+      "path": "tlse.c",
+      "line_start": 10036,
+      "line_end": 10260,
+      "priority": 0.33,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.34
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L13515-13810",
+      "path": "tlse.c",
+      "line_start": 13515,
+      "line_end": 13810,
+      "priority": 0.33,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.21
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.34
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L11234-11555",
+      "path": "tlse.c",
+      "line_start": 11234,
+      "line_end": 11555,
+      "priority": 0.32,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.25
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.17
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.33
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L6713-7040",
+      "path": "tlse.c",
+      "line_start": 6713,
+      "line_end": 7040,
+      "priority": 0.31,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.32
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L10261-10568",
+      "path": "tlse.c",
+      "line_start": 10261,
+      "line_end": 10568,
+      "priority": 0.31,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.32
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L12450-12744",
+      "path": "tlse.c",
+      "line_start": 12450,
+      "line_end": 12744,
+      "priority": 0.305,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.31
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L17346-17807",
+      "path": "libtomcrypt.c",
+      "line_start": 17346,
+      "line_end": 17807,
+      "priority": 0.3,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.31
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L28578-28979",
+      "path": "libtomcrypt.c",
+      "line_start": 28578,
+      "line_end": 28979,
+      "priority": 0.3,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.31
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L8813-9169",
+      "path": "tlse.c",
+      "line_start": 8813,
+      "line_end": 9169,
+      "priority": 0.3,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.31
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L29295-29734",
+      "path": "libtomcrypt.c",
+      "line_start": 29295,
+      "line_end": 29734,
+      "priority": 0.29,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.3
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L9497-9788",
+      "path": "tlse.c",
+      "line_start": 9497,
+      "line_end": 9788,
+      "priority": 0.29,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.18
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.3
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L11810-12130",
+      "path": "tlse.c",
+      "line_start": 11810,
+      "line_end": 12130,
+      "priority": 0.29,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.3
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.h#L293-479",
+      "path": "tlse.h",
+      "line_start": 293,
+      "line_end": 479,
+      "priority": 0.29,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.3
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L7901-8482",
+      "path": "x509.c",
+      "line_start": 7901,
+      "line_end": 8482,
+      "priority": 0.29,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.3
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L14921-15009",
+      "path": "tlse.c",
+      "line_start": 14921,
+      "line_end": 15009,
+      "priority": 0.285,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.29
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L1778-2117",
+      "path": "tlse.c",
+      "line_start": 1778,
+      "line_end": 2117,
+      "priority": 0.28,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.29
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L4747-5088",
+      "path": "tlse.c",
+      "line_start": 4747,
+      "line_end": 5088,
+      "priority": 0.28,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.29
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L4464-4746",
+      "path": "tlse.c",
+      "line_start": 4464,
+      "line_end": 4746,
+      "priority": 0.28,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.29
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L5294-5674",
+      "path": "tlse.c",
+      "line_start": 5294,
+      "line_end": 5674,
+      "priority": 0.28,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.29
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L2118-2413",
+      "path": "tlse.c",
+      "line_start": 2118,
+      "line_end": 2413,
+      "priority": 0.27,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.28
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L17808-18260",
+      "path": "libtomcrypt.c",
+      "line_start": 17808,
+      "line_end": 18260,
+      "priority": 0.265,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.27
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L10569-10840",
+      "path": "tlse.c",
+      "line_start": 10569,
+      "line_end": 10840,
+      "priority": 0.26,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.27
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L12131-12449",
+      "path": "tlse.c",
+      "line_start": 12131,
+      "line_end": 12449,
+      "priority": 0.26,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.27
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L3644-4214",
+      "path": "x509.c",
+      "line_start": 3644,
+      "line_end": 4214,
+      "priority": 0.26,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.27
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L4215-4631",
+      "path": "x509.c",
+      "line_start": 4215,
+      "line_end": 4631,
+      "priority": 0.26,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.27
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L9538-10100",
+      "path": "x509.c",
+      "line_start": 9538,
+      "line_end": 10100,
+      "priority": 0.26,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.27
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L9170-9496",
+      "path": "tlse.c",
+      "line_start": 9170,
+      "line_end": 9496,
+      "priority": 0.25,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.26
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L11193-11754",
+      "path": "x509.c",
+      "line_start": 11193,
+      "line_end": 11754,
+      "priority": 0.245,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.25
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L3845-4139",
+      "path": "tlse.c",
+      "line_start": 3845,
+      "line_end": 4139,
+      "priority": 0.24,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.25
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L4140-4463",
+      "path": "tlse.c",
+      "line_start": 4140,
+      "line_end": 4463,
+      "priority": 0.24,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.25
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L4632-5168",
+      "path": "x509.c",
+      "line_start": 4632,
+      "line_end": 5168,
+      "priority": 0.24,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.25
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L6375-6712",
+      "path": "tlse.c",
+      "line_start": 6375,
+      "line_end": 6712,
+      "priority": 0.235,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.24
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L1352-1723",
+      "path": "tlse.c",
+      "line_start": 1352,
+      "line_end": 1723,
+      "priority": 0.23,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.24
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L11556-11809",
+      "path": "tlse.c",
+      "line_start": 11556,
+      "line_end": 11809,
+      "priority": 0.23,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.24
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L2766-3166",
+      "path": "tlse.c",
+      "line_start": 2766,
+      "line_end": 3166,
+      "priority": 0.225,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.23
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L378-699",
+      "path": "tlse.c",
+      "line_start": 378,
+      "line_end": 699,
+      "priority": 0.22,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.23
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L35374-35615",
+      "path": "libtomcrypt.c",
+      "line_start": 35374,
+      "line_end": 35615,
+      "priority": 0.215,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.22
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L5089-5293",
+      "path": "tlse.c",
+      "line_start": 5089,
+      "line_end": 5293,
+      "priority": 0.215,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.22
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L27713-28126",
+      "path": "libtomcrypt.c",
+      "line_start": 27713,
+      "line_end": 28126,
+      "priority": 0.21,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.22
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L6706-7339",
+      "path": "x509.c",
+      "line_start": 6706,
+      "line_end": 7339,
+      "priority": 0.21,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.22
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L28127-28577",
+      "path": "libtomcrypt.c",
+      "line_start": 28127,
+      "line_end": 28577,
+      "priority": 0.2,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.21
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L548-1121",
+      "path": "libtomcrypt.c",
+      "line_start": 548,
+      "line_end": 1121,
+      "priority": 0.19,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.2
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L14966-15367",
+      "path": "libtomcrypt.c",
+      "line_start": 14966,
+      "line_end": 15367,
+      "priority": 0.19,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.2
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L19153-19555",
+      "path": "libtomcrypt.c",
+      "line_start": 19153,
+      "line_end": 19555,
+      "priority": 0.19,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.18
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.2
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L3689-3730",
+      "path": "tls_root_ca.h",
+      "line_start": 3689,
+      "line_end": 3730,
+      "priority": 0.19,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.2
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L700-1009",
+      "path": "tlse.c",
+      "line_start": 700,
+      "line_end": 1009,
+      "priority": 0.19,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.2
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L1010-1351",
+      "path": "tlse.c",
+      "line_start": 1010,
+      "line_end": 1351,
+      "priority": 0.19,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.2
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L9010-9537",
+      "path": "x509.c",
+      "line_start": 9010,
+      "line_end": 9537,
+      "priority": 0.19,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.2
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L1130-1290",
+      "path": "tls_root_ca.h",
+      "line_start": 1130,
+      "line_end": 1290,
+      "priority": 0.185,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.2
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L14683-14965",
+      "path": "libtomcrypt.c",
+      "line_start": 14683,
+      "line_end": 14965,
+      "priority": 0.18,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.19
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L24527-24982",
+      "path": "libtomcrypt.c",
+      "line_start": 24527,
+      "line_end": 24982,
+      "priority": 0.18,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.18
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L27288-27712",
+      "path": "libtomcrypt.c",
+      "line_start": 27288,
+      "line_end": 27712,
+      "priority": 0.18,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.19
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L1453-1610",
+      "path": "tls_root_ca.h",
+      "line_start": 1453,
+      "line_end": 1610,
+      "priority": 0.18,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.2
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.17
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L1-377",
+      "path": "tlse.c",
+      "line_start": 1,
+      "line_end": 377,
+      "priority": 0.18,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.19
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L2499-3038",
+      "path": "x509.c",
+      "line_start": 2499,
+      "line_end": 3038,
+      "priority": 0.18,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.19
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L7340-7900",
+      "path": "x509.c",
+      "line_start": 7340,
+      "line_end": 7900,
+      "priority": 0.18,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.19
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L34805-35373",
+      "path": "libtomcrypt.c",
+      "line_start": 34805,
+      "line_end": 35373,
+      "priority": 0.175,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.18
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L17014-17345",
+      "path": "libtomcrypt.c",
+      "line_start": 17014,
+      "line_end": 17345,
+      "priority": 0.17,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.18
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L22856-23270",
+      "path": "libtomcrypt.c",
+      "line_start": 22856,
+      "line_end": 23270,
+      "priority": 0.17,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.18
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L2091-2252",
+      "path": "tls_root_ca.h",
+      "line_start": 2091,
+      "line_end": 2252,
+      "priority": 0.17,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L1771-1935",
+      "path": "tls_root_ca.h",
+      "line_start": 1771,
+      "line_end": 1935,
+      "priority": 0.17,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.19
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L3523-3844",
+      "path": "tlse.c",
+      "line_start": 3523,
+      "line_end": 3844,
+      "priority": 0.17,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.18
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L10101-10672",
+      "path": "x509.c",
+      "line_start": 10101,
+      "line_end": 10672,
+      "priority": 0.17,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.18
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L34386-34804",
+      "path": "libtomcrypt.c",
+      "line_start": 34386,
+      "line_end": 34804,
+      "priority": 0.165,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.17
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L969-1129",
+      "path": "tls_root_ca.h",
+      "line_start": 969,
+      "line_end": 1129,
+      "priority": 0.165,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.18
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "examples/CMakeLists.txt",
+      "path": "examples/CMakeLists.txt",
+      "line_start": 1,
+      "line_end": 5,
+      "priority": 0.165,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.17
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L33046-33560",
+      "path": "libtomcrypt.c",
+      "line_start": 33046,
+      "line_end": 33560,
+      "priority": 0.16,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.17
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L1936-2090",
+      "path": "tls_root_ca.h",
+      "line_start": 1936,
+      "line_end": 2090,
+      "priority": 0.16,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.18
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.h#L480-487",
+      "path": "tlse.h",
+      "line_start": 480,
+      "line_end": 487,
+      "priority": 0.16,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.17
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L11755-11945",
+      "path": "x509.c",
+      "line_start": 11755,
+      "line_end": 11945,
+      "priority": 0.16,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.17
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L33561-33930",
+      "path": "libtomcrypt.c",
+      "line_start": 33561,
+      "line_end": 33930,
+      "priority": 0.155,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L165-327",
+      "path": "tls_root_ca.h",
+      "line_start": 165,
+      "line_end": 327,
+      "priority": 0.155,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.17
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L328-490",
+      "path": "tls_root_ca.h",
+      "line_start": 328,
+      "line_end": 490,
+      "priority": 0.155,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.17
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L1291-1452",
+      "path": "tls_root_ca.h",
+      "line_start": 1291,
+      "line_end": 1452,
+      "priority": 0.155,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.17
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L1611-1770",
+      "path": "tls_root_ca.h",
+      "line_start": 1611,
+      "line_end": 1770,
+      "priority": 0.155,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.17
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L2413-2569",
+      "path": "tls_root_ca.h",
+      "line_start": 2413,
+      "line_end": 2569,
+      "priority": 0.155,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.17
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L3045-3208",
+      "path": "tls_root_ca.h",
+      "line_start": 3045,
+      "line_end": 3208,
+      "priority": 0.155,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.17
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L15644-16004",
+      "path": "libtomcrypt.c",
+      "line_start": 15644,
+      "line_end": 16004,
+      "priority": 0.15,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L19556-20043",
+      "path": "libtomcrypt.c",
+      "line_start": 19556,
+      "line_end": 20043,
+      "priority": 0.15,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L23687-24099",
+      "path": "libtomcrypt.c",
+      "line_start": 23687,
+      "line_end": 24099,
+      "priority": 0.15,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L32173-32571",
+      "path": "libtomcrypt.c",
+      "line_start": 32173,
+      "line_end": 32571,
+      "priority": 0.15,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L1-164",
+      "path": "tls_root_ca.h",
+      "line_start": 1,
+      "line_end": 164,
+      "priority": 0.15,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L32572-33045",
+      "path": "libtomcrypt.c",
+      "line_start": 32572,
+      "line_end": 33045,
+      "priority": 0.15,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L782-943",
+      "path": "x509.c",
+      "line_start": 782,
+      "line_end": 943,
+      "priority": 0.15,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.16
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L25440-25864",
+      "path": "libtomcrypt.c",
+      "line_start": 25440,
+      "line_end": 25864,
+      "priority": 0.145,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L2570-2728",
+      "path": "tls_root_ca.h",
+      "line_start": 2570,
+      "line_end": 2728,
+      "priority": 0.145,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L3209-3369",
+      "path": "tls_root_ca.h",
+      "line_start": 3209,
+      "line_end": 3369,
+      "priority": 0.145,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L2729-2885",
+      "path": "tls_root_ca.h",
+      "line_start": 2729,
+      "line_end": 2885,
+      "priority": 0.145,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L3531-3688",
+      "path": "tls_root_ca.h",
+      "line_start": 3531,
+      "line_end": 3688,
+      "priority": 0.145,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L1122-1662",
+      "path": "libtomcrypt.c",
+      "line_start": 1122,
+      "line_end": 1662,
+      "priority": 0.14,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L16351-16667",
+      "path": "libtomcrypt.c",
+      "line_start": 16351,
+      "line_end": 16667,
+      "priority": 0.14,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L23271-23686",
+      "path": "libtomcrypt.c",
+      "line_start": 23271,
+      "line_end": 23686,
+      "priority": 0.14,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L24983-25439",
+      "path": "libtomcrypt.c",
+      "line_start": 24983,
+      "line_end": 25439,
+      "priority": 0.14,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L28980-29294",
+      "path": "libtomcrypt.c",
+      "line_start": 28980,
+      "line_end": 29294,
+      "priority": 0.14,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L650-809",
+      "path": "tls_root_ca.h",
+      "line_start": 650,
+      "line_end": 809,
+      "priority": 0.14,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L810-968",
+      "path": "tls_root_ca.h",
+      "line_start": 810,
+      "line_end": 968,
+      "priority": 0.14,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.16
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tlse.c#L1724-1777",
+      "path": "tlse.c",
+      "line_start": 1724,
+      "line_end": 1777,
+      "priority": 0.14,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L944-1409",
+      "path": "x509.c",
+      "line_start": 944,
+      "line_end": 1409,
+      "priority": 0.14,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L3039-3643",
+      "path": "x509.c",
+      "line_start": 3039,
+      "line_end": 3643,
+      "priority": 0.14,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L30964-31316",
+      "path": "libtomcrypt.c",
+      "line_start": 30964,
+      "line_end": 31316,
+      "priority": 0.135,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L491-649",
+      "path": "tls_root_ca.h",
+      "line_start": 491,
+      "line_end": 649,
+      "priority": 0.135,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.1
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.15
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L2253-2412",
+      "path": "tls_root_ca.h",
+      "line_start": 2253,
+      "line_end": 2412,
+      "priority": 0.135,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.15
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L24100-24526",
+      "path": "libtomcrypt.c",
+      "line_start": 24100,
+      "line_end": 24526,
+      "priority": 0.13,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L5418-5861",
+      "path": "libtomcrypt.c",
+      "line_start": 5418,
+      "line_end": 5861,
+      "priority": 0.125,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L18261-18691",
+      "path": "libtomcrypt.c",
+      "line_start": 18261,
+      "line_end": 18691,
+      "priority": 0.125,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L3370-3530",
+      "path": "tls_root_ca.h",
+      "line_start": 3370,
+      "line_end": 3530,
+      "priority": 0.125,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.14
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.14
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L12531-13116",
+      "path": "libtomcrypt.c",
+      "line_start": 12531,
+      "line_end": 13116,
+      "priority": 0.12,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.09
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L15368-15643",
+      "path": "libtomcrypt.c",
+      "line_start": 15368,
+      "line_end": 15643,
+      "priority": 0.12,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L16005-16350",
+      "path": "libtomcrypt.c",
+      "line_start": 16005,
+      "line_end": 16350,
+      "priority": 0.12,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L18692-19152",
+      "path": "libtomcrypt.c",
+      "line_start": 18692,
+      "line_end": 19152,
+      "priority": 0.12,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L29735-30190",
+      "path": "libtomcrypt.c",
+      "line_start": 29735,
+      "line_end": 30190,
+      "priority": 0.12,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L33931-34385",
+      "path": "libtomcrypt.c",
+      "line_start": 33931,
+      "line_end": 34385,
+      "priority": 0.12,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L429-781",
+      "path": "x509.c",
+      "line_start": 429,
+      "line_end": 781,
+      "priority": 0.12,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L5404-5440",
+      "path": "x509.c",
+      "line_start": 5404,
+      "line_end": 5440,
+      "priority": 0.12,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L9199-9678",
+      "path": "libtomcrypt.c",
+      "line_start": 9199,
+      "line_end": 9678,
+      "priority": 0.115,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L26850-27287",
+      "path": "libtomcrypt.c",
+      "line_start": 26850,
+      "line_end": 27287,
+      "priority": 0.115,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L30559-30963",
+      "path": "libtomcrypt.c",
+      "line_start": 30559,
+      "line_end": 30963,
+      "priority": 0.115,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "tls_root_ca.h#L2886-3044",
+      "path": "tls_root_ca.h",
+      "line_start": 2886,
+      "line_end": 3044,
+      "priority": 0.115,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.12
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.13
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L1-547",
+      "path": "libtomcrypt.c",
+      "line_start": 1,
+      "line_end": 547,
+      "priority": 0.11,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L1941-2498",
+      "path": "x509.c",
+      "line_start": 1941,
+      "line_end": 2498,
+      "priority": 0.11,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.12
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L6072-6705",
+      "path": "x509.c",
+      "line_start": 6072,
+      "line_end": 6705,
+      "priority": 0.11,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.13
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "CMakeLists.txt",
+      "path": "CMakeLists.txt",
+      "line_start": 1,
+      "line_end": 21,
+      "priority": 0.105,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.06
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L13592-13888",
+      "path": "libtomcrypt.c",
+      "line_start": 13592,
+      "line_end": 13888,
+      "priority": 0.1,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.11
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L14403-14682",
+      "path": "libtomcrypt.c",
+      "line_start": 14403,
+      "line_end": 14682,
+      "priority": 0.1,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.11
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L30191-30558",
+      "path": "libtomcrypt.c",
+      "line_start": 30191,
+      "line_end": 30558,
+      "priority": 0.1,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.11
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L31851-32054",
+      "path": "libtomcrypt.c",
+      "line_start": 31851,
+      "line_end": 32054,
+      "priority": 0.1,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.11
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L1410-1940",
+      "path": "x509.c",
+      "line_start": 1410,
+      "line_end": 1940,
+      "priority": 0.1,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.11
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L5298-5403",
+      "path": "x509.c",
+      "line_start": 5298,
+      "line_end": 5403,
+      "priority": 0.1,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.11
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L6826-7287",
+      "path": "libtomcrypt.c",
+      "line_start": 6826,
+      "line_end": 7287,
+      "priority": 0.095,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L8726-9198",
+      "path": "libtomcrypt.c",
+      "line_start": 8726,
+      "line_end": 9198,
+      "priority": 0.095,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L12102-12530",
+      "path": "libtomcrypt.c",
+      "line_start": 12102,
+      "line_end": 12530,
+      "priority": 0.095,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L11644-12101",
+      "path": "libtomcrypt.c",
+      "line_start": 11644,
+      "line_end": 12101,
+      "priority": 0.095,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L20501-20934",
+      "path": "libtomcrypt.c",
+      "line_start": 20501,
+      "line_end": 20934,
+      "priority": 0.095,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L26328-26849",
+      "path": "libtomcrypt.c",
+      "line_start": 26328,
+      "line_end": 26849,
+      "priority": 0.095,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L2625-2965",
+      "path": "libtomcrypt.c",
+      "line_start": 2625,
+      "line_end": 2965,
+      "priority": 0.09,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L10689-11131",
+      "path": "libtomcrypt.c",
+      "line_start": 10689,
+      "line_end": 11131,
+      "priority": 0.09,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L20935-21382",
+      "path": "libtomcrypt.c",
+      "line_start": 20935,
+      "line_end": 21382,
+      "priority": 0.09,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L21383-21864",
+      "path": "libtomcrypt.c",
+      "line_start": 21383,
+      "line_end": 21864,
+      "priority": 0.09,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L25865-26327",
+      "path": "libtomcrypt.c",
+      "line_start": 25865,
+      "line_end": 26327,
+      "priority": 0.09,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L31317-31546",
+      "path": "libtomcrypt.c",
+      "line_start": 31317,
+      "line_end": 31546,
+      "priority": 0.09,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L5441-6071",
+      "path": "x509.c",
+      "line_start": 5441,
+      "line_end": 6071,
+      "priority": 0.09,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.1
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L1663-2235",
+      "path": "libtomcrypt.c",
+      "line_start": 1663,
+      "line_end": 2235,
+      "priority": 0.085,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.09
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L2236-2624",
+      "path": "libtomcrypt.c",
+      "line_start": 2236,
+      "line_end": 2624,
+      "priority": 0.085,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.09
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L13889-14402",
+      "path": "libtomcrypt.c",
+      "line_start": 13889,
+      "line_end": 14402,
+      "priority": 0.085,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.09
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L5862-6347",
+      "path": "libtomcrypt.c",
+      "line_start": 5862,
+      "line_end": 6347,
+      "priority": 0.08,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.09
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L20044-20500",
+      "path": "libtomcrypt.c",
+      "line_start": 20044,
+      "line_end": 20500,
+      "priority": 0.08,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.09
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L22361-22855",
+      "path": "libtomcrypt.c",
+      "line_start": 22361,
+      "line_end": 22855,
+      "priority": 0.08,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.09
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L8483-9009",
+      "path": "x509.c",
+      "line_start": 8483,
+      "line_end": 9009,
+      "priority": 0.08,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.09
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L6348-6825",
+      "path": "libtomcrypt.c",
+      "line_start": 6348,
+      "line_end": 6825,
+      "priority": 0.075,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L10205-10688",
+      "path": "libtomcrypt.c",
+      "line_start": 10205,
+      "line_end": 10688,
+      "priority": 0.075,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L7747-8215",
+      "path": "libtomcrypt.c",
+      "line_start": 7747,
+      "line_end": 8215,
+      "priority": 0.075,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L4918-5417",
+      "path": "libtomcrypt.c",
+      "line_start": 4918,
+      "line_end": 5417,
+      "priority": 0.075,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L9679-10204",
+      "path": "libtomcrypt.c",
+      "line_start": 9679,
+      "line_end": 10204,
+      "priority": 0.075,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L11132-11643",
+      "path": "libtomcrypt.c",
+      "line_start": 11132,
+      "line_end": 11643,
+      "priority": 0.075,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L16668-17013",
+      "path": "libtomcrypt.c",
+      "line_start": 16668,
+      "line_end": 17013,
+      "priority": 0.075,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.04
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "x509.c#L5169-5297",
+      "path": "x509.c",
+      "line_start": 5169,
+      "line_end": 5297,
+      "priority": 0.075,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L2966-3410",
+      "path": "libtomcrypt.c",
+      "line_start": 2966,
+      "line_end": 3410,
+      "priority": 0.07,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L31547-31735",
+      "path": "libtomcrypt.c",
+      "line_start": 31547,
+      "line_end": 31735,
+      "priority": 0.07,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.08
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.08
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L7288-7746",
+      "path": "libtomcrypt.c",
+      "line_start": 7288,
+      "line_end": 7746,
+      "priority": 0.065,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.07
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L8216-8725",
+      "path": "libtomcrypt.c",
+      "line_start": 8216,
+      "line_end": 8725,
+      "priority": 0.065,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.07
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L3902-4441",
+      "path": "libtomcrypt.c",
+      "line_start": 3902,
+      "line_end": 4441,
+      "priority": 0.06,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.07
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L21865-22360",
+      "path": "libtomcrypt.c",
+      "line_start": 21865,
+      "line_end": 22360,
+      "priority": 0.06,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.07
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L31736-31850",
+      "path": "libtomcrypt.c",
+      "line_start": 31736,
+      "line_end": 31850,
+      "priority": 0.06,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.07
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L32055-32172",
+      "path": "libtomcrypt.c",
+      "line_start": 32055,
+      "line_end": 32172,
+      "priority": 0.06,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.07
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.03
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.07
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L3411-3901",
+      "path": "libtomcrypt.c",
+      "line_start": 3411,
+      "line_end": 3901,
+      "priority": 0.055,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.06
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.06
+        }
+      },
+      "cached": false
+    },
+    {
+      "id": "libtomcrypt.c#L4442-4917",
+      "path": "libtomcrypt.c",
+      "line_start": 4442,
+      "line_end": 4917,
+      "priority": 0.055,
+      "flags": {},
+      "mitigations": {},
+      "answers": {
+        "control_plane": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "auth_boundary": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "untrusted_model_input": {
+          "type": "noul",
+          "noul": 0.05
+        },
+        "path_allowlist": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "subprocess_exec": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "deserialization": {
+          "type": "noul",
+          "noul": 0.02
+        },
+        "outbound_url": {
+          "type": "noul",
+          "noul": 0.01
+        },
+        "default_exposure": {
+          "type": "noul",
+          "noul": 0.06
+        }
+      },
+      "cached": false
+    }
+  ],
+  "errors": []
+}

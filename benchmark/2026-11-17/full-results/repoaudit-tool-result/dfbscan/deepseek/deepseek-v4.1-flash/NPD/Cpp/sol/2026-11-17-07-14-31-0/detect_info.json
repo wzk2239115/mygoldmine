@@ -1,0 +1,45 @@
+{
+    "0": {
+        "bug_type": "NPD",
+        "buggy_value": "((*p = NULL, /vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/server.c, 314, -1), ValueLabel.SRC)",
+        "relevant_functions": [
+            [
+                "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/server.c",
+                "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/mqtt.c"
+            ],
+            [
+                "inflight_msg_check",
+                "mqtt_pack"
+            ],
+            [
+                "static void inflight_msg_check(struct ev_ctx *ctx, void *data)\n{\n    (void)data;\n    (void)ctx;\n    size_t size           = 0;\n    time_t now            = time(NULL);\n    struct mqtt_packet *p = NULL;\n    struct client *c, *tmp;\n#if THREADSNR > 0\n    pthread_mutex_lock(&mutex);\n#endif\n    HASH_ITER(hh, server.clients_map, c, tmp)\n    {\n        if (!c || !c->connected || !c->session || !has_inflight(c->session))\n            continue;\n#if THREADSNR > 0\n        pthread_mutex_lock(&c->mutex);\n#endif\n        for (int i = 1; i < MAX_INFLIGHT_MSGS; ++i) {\n            // TODO remove 20 hardcoded value\n            // Messages\n            if (c->session->i_msgs[i].packet &&\n                (now - c->session->i_msgs[i].seen) > 20) {\n                log_debug(\"Re-sending message to %s\", c->client_id);\n                p                  = c->session->i_msgs[i].packet;\n                p->header.bits.qos = c->session->i_msgs[i].qos;\n                // Set DUP flag to 1\n                mqtt_set_dup(p);\n                size = mqtt_size(c->session->i_msgs[i].packet, NULL);\n                // Serialize the packet and send it out again\n                mqtt_pack(p, c->wbuf + c->towrite);\n                c->towrite += size;\n                enqueue_event_write(c);\n                // Update information stats\n                info.messages_sent++;\n            }\n            // ACKs\n            if (c->session->i_acks[i] > 0 &&\n                (now - c->session->i_acks[i]) > 20) {\n                log_debug(\"Re-sending ack to %s\", c->client_id);\n                struct mqtt_packet ack;\n                mqtt_ack(&ack, i);\n                // Set DUP flag to 1\n                mqtt_set_dup(&ack);\n                size = mqtt_size(&ack, NULL);\n                // Serialize the packet and send it out again\n                mqtt_pack(p, c->wbuf + c->towrite);\n                c->towrite += size;\n                enqueue_event_write(c);\n                // Update information stats\n                info.messages_sent++;\n            }\n        }\n#if THREADSNR > 0\n        pthread_mutex_unlock(&c->mutex);\n#endif\n    }\n#if THREADSNR > 0\n    pthread_mutex_unlock(&mutex);\n#endif\n}",
+                "usize mqtt_pack(const struct mqtt_packet *pkt, u8 *buf)\n{\n    u8 type = pkt->header.bits.type;\n    if (type == PINGREQ || type == PINGRESP)\n        return pack_mqtt_header(&pkt->header, buf);\n    return pack_handlers[type](pkt, buf);\n}"
+            ]
+        ],
+        "explanation": "Explanation: The propagation path is reachable. In `inflight_msg_check`, `p` is initialized to `NULL` at line 7. In the ACK-resend branch, when `c->session->i_acks[i] > 0` and `(now - c->session->i_acks[i]) > 20` is true, the code reaches line 47 and calls `mqtt_pack(p, c->wbuf + c->towrite)`. However, `p` is only assigned a non-NULL value in the separate message-resend branch at lines 22-25. The ACK branch does not ensure that this message-resend branch was taken, and there is no check that `p != NULL` before the call. Therefore, if the message branch is not taken but the ACK branch is taken, `p` remains `NULL` and is passed to `mqtt_pack`. Inside `mqtt_pack`, the parameter `pkt` is immediately dereferenced at line 3 via `pkt->header.bits.type`, with no NULL check. These conditions do not conflict, so the NULL pointer can reach the sink and cause an NPD bug.\nAnswer: Yes",
+        "is_human_confirmed_true": "False"
+    },
+    "1": {
+        "bug_type": "NPD",
+        "buggy_value": "((*p = NULL, /vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/server.c, 314, -1), ValueLabel.SRC)",
+        "relevant_functions": [
+            [
+                "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/server.c",
+                "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/mqtt.c",
+                "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/sol/src/mqtt.c"
+            ],
+            [
+                "inflight_msg_check",
+                "mqtt_pack",
+                "pack_mqtt_header"
+            ],
+            [
+                "static void inflight_msg_check(struct ev_ctx *ctx, void *data)\n{\n    (void)data;\n    (void)ctx;\n    size_t size           = 0;\n    time_t now            = time(NULL);\n    struct mqtt_packet *p = NULL;\n    struct client *c, *tmp;\n#if THREADSNR > 0\n    pthread_mutex_lock(&mutex);\n#endif\n    HASH_ITER(hh, server.clients_map, c, tmp)\n    {\n        if (!c || !c->connected || !c->session || !has_inflight(c->session))\n            continue;\n#if THREADSNR > 0\n        pthread_mutex_lock(&c->mutex);\n#endif\n        for (int i = 1; i < MAX_INFLIGHT_MSGS; ++i) {\n            // TODO remove 20 hardcoded value\n            // Messages\n            if (c->session->i_msgs[i].packet &&\n                (now - c->session->i_msgs[i].seen) > 20) {\n                log_debug(\"Re-sending message to %s\", c->client_id);\n                p                  = c->session->i_msgs[i].packet;\n                p->header.bits.qos = c->session->i_msgs[i].qos;\n                // Set DUP flag to 1\n                mqtt_set_dup(p);\n                size = mqtt_size(c->session->i_msgs[i].packet, NULL);\n                // Serialize the packet and send it out again\n                mqtt_pack(p, c->wbuf + c->towrite);\n                c->towrite += size;\n                enqueue_event_write(c);\n                // Update information stats\n                info.messages_sent++;\n            }\n            // ACKs\n            if (c->session->i_acks[i] > 0 &&\n                (now - c->session->i_acks[i]) > 20) {\n                log_debug(\"Re-sending ack to %s\", c->client_id);\n                struct mqtt_packet ack;\n                mqtt_ack(&ack, i);\n                // Set DUP flag to 1\n                mqtt_set_dup(&ack);\n                size = mqtt_size(&ack, NULL);\n                // Serialize the packet and send it out again\n                mqtt_pack(p, c->wbuf + c->towrite);\n                c->towrite += size;\n                enqueue_event_write(c);\n                // Update information stats\n                info.messages_sent++;\n            }\n        }\n#if THREADSNR > 0\n        pthread_mutex_unlock(&c->mutex);\n#endif\n    }\n#if THREADSNR > 0\n    pthread_mutex_unlock(&mutex);\n#endif\n}",
+                "usize mqtt_pack(const struct mqtt_packet *pkt, u8 *buf)\n{\n    u8 type = pkt->header.bits.type;\n    if (type == PINGREQ || type == PINGRESP)\n        return pack_mqtt_header(&pkt->header, buf);\n    return pack_handlers[type](pkt, buf);\n}",
+                "static usize pack_mqtt_header(const union mqtt_header *hdr, u8 *buf)\n{\n    pack(buf++, \"B\", hdr->byte);\n\n    /* Encode 0 length bytes, message like this have only a fixed header */\n    mqtt_encode_length(buf, 0);\n\n    return MQTT_HEADER_LEN;\n}"
+            ]
+        ],
+        "explanation": "Explanation: The pointer `p` is initialized to `NULL` at line 7. It is only assigned a non-NULL value inside the message-resend branch at lines 22\u201325. However, the ACK-resend branch at lines 38\u201347 is independent of that condition. Therefore, if `c->session->i_acks[i]` is old enough to trigger the ACK block while the corresponding message condition is false and no earlier iteration has assigned `p`, then `p` remains `NULL` at line 47 and is passed to `mqtt_pack(p, ...)`. Inside `mqtt_pack`, `pkt` is dereferenced at line 3 (`pkt->header.bits.type`) and can also propagate through `&pkt->header` to `pack_mqtt_header`, where `hdr->byte` is dereferenced. There is no check that `p` or `pkt` is non-NULL before these accesses, and there are no conflicting branch conditions preventing this case. Thus the NULL value can reach the dereference site and cause an NPD bug.\nAnswer: Yes",
+        "is_human_confirmed_true": "False"
+    }
+}

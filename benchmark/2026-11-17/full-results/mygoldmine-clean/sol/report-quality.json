@@ -1,0 +1,12 @@
+{
+  "report": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/audit-report.json",
+  "valid": true,
+  "errors": [],
+  "language": "zh",
+  "findings": 15,
+  "complete": 15,
+  "incomplete": 0,
+  "language_mismatch": 0,
+  "missing": {},
+  "findings_incomplete": []
+}

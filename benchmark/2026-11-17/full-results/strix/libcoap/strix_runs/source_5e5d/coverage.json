@@ -1,0 +1,914 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-17 11:22:52 UTC",
+  "run_id": "source_5e5d",
+  "run_name": "source_5e5d",
+  "scope": {
+    "targets": [
+      {
+        "type": "local_code",
+        "details": {
+          "target_path": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/libcoap/source",
+          "workspace_subdir": "source"
+        },
+        "original": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/libcoap/source"
+      }
+    ],
+    "scan_mode": "standard",
+    "scope_mode": "full",
+    "diff_scope": {
+      "active": false,
+      "mode": "full"
+    },
+    "instruction": "Audit only this local source snapshot and any service you build inside its sandbox. Do not contact upstream services or the LAN. Report validated findings with evidence."
+  },
+  "summary": {
+    "surfaces_reviewed": 53,
+    "outcomes": {
+      "reported": 2,
+      "no_issue_found": 24,
+      "ruled_out": 19,
+      "not_applicable": 3,
+      "needs_follow_up": 5
+    },
+    "findings_filed": 4,
+    "gaps": 13
+  },
+  "machine_observed": {
+    "agents": [
+      {
+        "agent_id": "298529b7",
+        "agent_name": "Block/Session/Observe Audit",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "race_conditions"
+        ],
+        "task": "You are the block-wise transfer / session / observe specialist for libcoap 4.3.5 at /workspace/source. Call get_threat_model(\"/workspace/source\") first.\n\nScope (deep manual audit):\n- src/coap_block.c (enormous: Block1/Block2 handling, coap_add_block, coap_handle_request_put_block, coap_handle_response_get_block, reassembly buffer growth, offset math, cache keys, per-session block slot arrays)\n- src/coap_session.c (session lookup, token/message-id maps, retransmit queue, refcount/lifetime)\n- src/coap_subscribe.c (observe register/deregister, notification fan-out, observer list growth, token handling)\n- src/coap_net.c receive/dispatch + response building interactions with the above\n\nLook for: attacker-controlled block NUM/SZX/M arithmetic (offset = num << (szx+4)) overflowing or exceeding buffer size, reassembly buffer allocation vs. append mismatch, missing MORE/ordering checks, unbounded per-peer state growth (memory exhaustion), use-after-free of block/observe state on token reuse or session close, list iteration while removing, and integer truncation between size_t and unsigned fields. Read the code against RFC 7959/7641 semantics; the snapshot may contain a deliberately injected defect that looks plausible.\n\nValidation: use /workspace/build-asan if ready, else build your own ASAN/UBSAN tree in /workspace/build-block (never modify source). Prove findings against a local ASAN coap-server on 127.0.0.1 using crafted Block1/Block2/observe sequences over UDP (Python script producing raw CoAP packets is preferred; examples/coap-client can send -b blocks too). Capture ASAN traces, packet bytes, and the exact reproduction command. Localhost only — no other network.\n\nRecord coverage per surface (block reassembly, observe registry, session table, dispatch) with honest outcomes. File create_vulnerability_report only for validated issues, with code_locations (verbatim fix_before/fix_after), fix_verification (commands run), CVSS from demonstrated impact, and evidence. Report agent_finish with confirmed/ruled_out/open list.",
+        "is_root": false
+      },
+      {
+        "agent_id": "e4683020",
+        "agent_name": "Build & Harness",
+        "status": "completed",
+        "skills": [
+          "tooling/python",
+          "tooling/agent_browser"
+        ],
+        "task": "You are the build/harness agent for a white-box audit of libcoap 4.3.5 (develop branch) at /workspace/source (a read-only-in-practice user directory: do NOT modify source files; build out-of-tree).\n\nGoal: produce a working, instrumented local test environment that other agents will use, and document it as a shared note.\n\nSteps:\n1. Call get_threat_model(\"/workspace/source\") first.\n2. Inventory tooling: clang/gcc, autotools, cmake, libtool, libfuzzer availability (`clang -fsanitize=fuzzer` test), and TLS dev libs (gnutls/openssl). Install build deps with apt if needed (you have sudo). Do NOT access external networks beyond apt/pip package installation; never contact upstream libcoap hosts.\n3. Build out-of-tree with ASAN+UBSAN into /workspace/build-asan: prefer `cmake -S /workspace/source -B /workspace/build-asan -DCMAKE_C_FLAGS=\"-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1\" -DCMAKE_EXE_LINKER_FLAGS=\"-fsanitize=address,undefined\" -DENABLE_DTLS=OFF ...` (or autotools if cmake fails). Ensure examples coap-server and coap-client are built and ASAN-instrumented. Verify `ldd`/`nm` shows asan linkage.\n4. Smoke test: run coap-server on 127.0.0.1:5683 (bind localhost only) and coap-client GET /time or /. Confirm a normal request/response works and ASAN is active.\n5. Build the upstream OSS-Fuzz targets from tests/oss-fuzz/ with libFuzzer + ASAN if possible (at minimum: pdu_parse_udp_target, pdu_parse_tcp_target, block_target, observe_target, oscore_decrypt_target, uri_extended_target, proxy_target, network_message_target). If the makefile is fiddly, compile individual targets manually against the built library. Put binaries in /workspace/build-asan/fuzz/.\n6. Produce helper scripts under /workspace/build-asan/: `serve.sh` (start ASAN coap-server on a chosen port, log to file), `client.sh`, and `runfuzz.sh <target> <seconds>`. Make them executable, bind only 127.0.0.1.\n7. Write ONE shared note (category wiki, tags [\"build\",\"harness\",\"libcoap\"]) with: exact binary paths, how to start/stop the server, ports, ASAN options in use, fuzz target paths and how to run with seed corpora, and any build caveats. Also record_coverage for surface \"/workspace/source build & harness\" / risk \"environment availability\" with outcome no_issue_found or needs_follow_up.\n8. Report back with agent_finish including what works, what does not, and any fuzzing already-obvious crashes (with the input file path and ASAN trace) but do NOT file vulnerability reports yourself unless you have a fully validated crash reproducible via a documented command — if so, spawn nothing; just report details to me and note that a specialist will validate.\n\nConstraints: no network access to anything other than localhost; keep disk usage bounded (clean build intermediates you no longer need); do not commit to git; do not edit source files. If a fix is needed to build, keep it in the build directory copy only and report it.",
+        "is_root": false
+      },
+      {
+        "agent_id": "9a0647a7",
+        "agent_name": "Cache Key Collision Audit",
+        "status": "running",
+        "skills": [
+          "semantic_confusion",
+          "source_aware_sast"
+        ],
+        "task": "New lead to validate or close: non-injective cache-key construction in libcoap 4.3.5 at /workspace/source. Call get_threat_model(\"/workspace/source\") first.\n\nBackground from prior agents (not yet a finding): `coap_get_uri_path()`/`coap_get_query()` (src/coap_uri.c) build a single string by percent-encoding each option and inserting '/' or '&' separators. Two DIFFERENT option sets can therefore produce the SAME string — e.g. Uri-Path option values {\"a/b\"} vs {\"a\",\"b\"} (a '/' inside a value is not escaped in path context), and Uri-Query {\"x=1&y=2\"} vs {\"x=1\",\"y=2\"}. That assembled string is reportedly used as a cache key at src/coap_block.c:788-790 and :2691 (large-body/Block2/observe cache) and src/coap_proxy.c:923/1463 (proxy response cache).\n\nQuestion to answer: does that collision let one client obtain another client's response body, or otherwise cross a trust boundary?\n\nDo:\n1. Read coap_get_uri_path/coap_get_query, the callers at coap_block.c and coap_proxy.c, coap_cache.c (coap_cache_derive_key / digest / lookup) and the block2 and proxy cache data structures. Determine precisely: what is the cache scope (per session? per token? global per context?), what identity components are mixed in (token, peer address, content format, method, OSCORE?), and whether the assembled path+query string is the ONLY discriminator.\n2. If the cache is global or per-context and the key is only the collided string, build a proof: run two local clients (different source ports) against a local ASAN coap-server with a resource whose body depends on the URI options (write a small test app or use an existing example that echoes path/query — examples/coap-server.c has resources that report the request; you may write your own minimal server in /workspace/cachelab linking the built library). Client A requests option set X (response body \"SECRET-A\"), client B requests the colliding set Y and observes whether it receives A's body. Test both the Block2/large-body path (force block-wise with -b / size limits) and the proxy response cache (run coap-server with proxy enabled: `-P`/`--proxy` options, see man page).\n3. Also test the reverse direction and observe-relations if reachable.\n\nOutcome: if B receives A's data (or any cross-identity reuse), file create_vulnerability_report with the exact resource, option sets, wire exchange, ASAN-free reproduction, CVSS reflecting demonstrated confidentiality impact, code_locations with verbatim fix_before/fix_after (likely escaping '/' and '&'/'=' inside option values, or including a canonical length-prefixed encoding), fix_verification. If the cache is correctly scoped per session/token so collisions cannot cross identities, record coverage ruled_out naming the scope control (file:line) and explain why. If you cannot reach the cache path, record needs_follow_up with the specific gap. Localhost only.",
+        "is_root": false
+      },
+      {
+        "agent_id": "fc740c2e",
+        "agent_name": "Core Dispatch and Cache",
+        "status": "running",
+        "skills": [
+          "source_aware_sast",
+          "business_logic"
+        ],
+        "task": "Focused sub-audit: libcoap 4.3.5 request dispatch and cache/resource layer at /workspace/source. Call get_threat_model(\"/workspace/source\") first. A prior SAST pass covered the wire parsers; this surface was only spot-checked, so it is yours.\n\nScope (deep manual review):\n- src/coap_net.c (6144 lines): coap_handle_dgram / coap_handle_message, token and message-id matching, duplicate detection, request dispatch to resource handlers, CSM/ping/pong/abort handling for TCP, response construction, coap_send / coap_send_internal ownership and error paths, option post-processing.\n- src/coap_cache.c: cache key derivation from options (including OSCORE option), cache entry lookup/expiry, buffer sizes.\n- src/coap_resource.c: resource tree add/remove/lookup, URI-Path option matching, wildcard/catch-all handling, handler invocation, observable resource flags.\n- src/coap_async.c: async state attach/detach, free paths.\n- src/coap_threadsafe.c lock discipline where it affects the above.\n\nHunt for attacker-reachable defects: use-after-free or double-free on duplicate/session teardown paths, token/message-id confusion letting one peer's response be delivered to another session, resource lookup that reads past the URI-Path option buffer, cache key buffer overflow/truncation collisions, missing checks on option presence before dereference, unbounded state creation per peer (memory exhaustion), and incorrect error paths that leak or reuse a PDU. Also look for logic that is subtly wrong versus RFC 7252 §5 (message layer) and §6.5 (request/response matching).\n\nValidation: use /workspace/build-asan (prebuilt ASAN binaries incl. coap-server/coap-client) or build your own dir /workspace/build-core (never modify source). Prove candidates by running a local ASAN coap-server / coap-rd on 127.0.0.1 and driving crafted sequences with Python raw UDP/TCP (token reuse, message-id collisions across two source ports, duplicate CON, empty tokens, malformed option ordering, pipelined TCP PDUs, cache/revalidation flows). Capture ASAN traces + exact packets + commands. Localhost only.\n\nRecord coverage per surface (dispatch, cache, resource lookup, async). File create_vulnerability_report only for validated issues with code_locations (verbatim fix_before/fix_after) + fix_verification + CVSS from demonstrated impact. agent_finish with confirmed/ruled_out/open.",
+        "is_root": false
+      },
+      {
+        "agent_id": "7e37aa46",
+        "agent_name": "DTLS Session Audit",
+        "status": "running",
+        "skills": [
+          "source_aware_sast"
+        ],
+        "task": "Focused audit: DTLS/TLS session identity and lifetime in libcoap 4.3.5 at /workspace/source. Prior agents covered the plaintext wire parsers and found them clean; the DTLS path is the remaining untested transport boundary. Call get_threat_model(\"/workspace/source\") first.\n\nScope:\n- src/coap_session.c: `coap_dtls_hello()` and the CID re-binding path (~1330-1400) where session->addr_info is reassigned while the session is in endpoint->sessions; session hash lookup (coap_endpoint_get_session / addr_hash), session free/refcount, retransmit queue keyed by message id.\n- src/coap_dtls.c and the backend glue (src/coap_openssl.c and/or coap_gnutls.c) for: handshake callback handling, cookie/HelloVerifyRequest, PSK identity handling, CID (connection ID) support, renegotiation, and where peer address/port is taken from the DTLS layer versus the UDP source.\n- src/coap_net.c / coap_dgrm_posix.c receive path: association of an incoming datagram to a session before/after DTLS decryption.\n\nQuestions: can an attacker (a) cause a session's peer address to be rebound to a different address and thereby receive another peer's traffic or inject requests as them (CID confusion / address rebinding), (b) create unbounded session/state growth with failed handshakes, (c) trigger a use-after-free by racing a re-handshake with session close, (d) bypass PSK identity checks or cause the server to accept a request without a completed handshake, (e) make the server allocate attacker-sized buffers during handshake?\n\nValidation: build (own dir /workspace/build-dtls, or /workspace/build-asan which has gnutls DTLS enabled) a DTLS-PSK coap-server on 127.0.0.1 with `-k secretPSK` and the example client; then use Python/openssl s_client or a raw DTLS script to send handshake traffic, malformed records, ClientHello floods, and — if CID support is compiled in — ClientHellos with connection IDs from multiple source ports. Observe session tables (you may add debug logging only in your own build copy, never in /workspace/source), memory growth, and any ASAN report. Also test what happens when a second source address presents an existing session's CID/identity.\n\nDeliver: record_coverage for each surface examined; create_vulnerability_report only for a validated, demonstrated issue (with code_locations + verbatim fix + fix_verification + evidence). If DTLS cannot be exercised for a specific sub-question, say so and mark needs_follow_up with the precise gap. agent_finish with a clear confirmed/ruled_out/open list. Localhost only — never contact external hosts.",
+        "is_root": false
+      },
+      {
+        "agent_id": "c48bf673",
+        "agent_name": "Debug String Audit",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast"
+        ],
+        "task": "Focused sub-audit: diagnostic string assembly in libcoap 4.3.5 at /workspace/source. Call get_threat_model(\"/workspace/source\") first.\n\nContext: the repo's single HEAD commit is \"coap_debug.c: Use bounded appends in coap_show_pdu\" and adds `coap_snprintf()` (src/coap_debug.c:229) plus a new test. Your job is to determine whether that hardening is COMPLETE and CORRECT, or whether a residual/analogous defect remains — because these functions run on attacker-controlled PDU contents.\n\nDo:\n1. Read src/coap_debug.c fully (coap_snprintf, print_readable, print_timestamp, print_content_format, coap_show_pdu, coap_show_tls_version/coap_string_tls_version, coap_log_impl / coap_log_oscore paths, coap_print_addr, coap_print_ip_addr) plus include/coap3/coap_debug_internal.h. For every write into a fixed buffer, prove the bound: name the buffer size, the offset source, and the check. Flag any place where a `snprintf`/`vsnprintf` return value is used as a length, where `sizeof(buf) - len` can underflow, where per-option/per-iteration length state is not reset, or where `%.*s` precision comes from an unchecked size_t.\n2. Check all call sites of coap_show_pdu() and print_readable() across src/ and examples/ — determine which are reachable from an incoming network PDU and at what log level (is it debug-only, or also on error paths?).\n3. Build an ASAN+UBSAN harness (own build dir /workspace/build-dbg, or reuse /workspace/build-asan/fuzz) that constructs PDUs with hostile option sets: very many options, maximum-length option values (extended length 65804+), all repeatable options, OSCORE option with large kid/piv, binary and text payloads, truncated options, and then calls coap_show_pdu() at max log level with output captured. Also fuzz it: mutate PDU bytes and call coap_show_pdu under libFuzzer/ASAN. Report any overflow, underflow, OOB read/write, or infinite loop with the exact bytes and ASAN trace.\n4. Run the project's own pdu tests (`/workspace/build-asan/testdriver` if built, else build tests) to confirm the new show_pdu test passes.\n\nDeliverables: record_coverage for \"src/coap_debug.c diagnostic buffers\" / \"buffer overflow\" with an honest outcome; file create_vulnerability_report only if you produce a reproducible ASAN crash/PoC (include exact packet bytes, code_locations with verbatim fix_before/fix_after, fix_verification). If the hardening is complete and no residual defect exists, say so explicitly in agent_finish (that is a useful negative result) — do not file a speculative report.",
+        "is_root": false
+      },
+      {
+        "agent_id": "3d5c8ea2",
+        "agent_name": "OSCORE Crypto Audit",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "insecure_deserialization"
+        ],
+        "task": "You are the OSCORE / COSE / CBOR specialist for libcoap 4.3.5 at /workspace/source. Call get_threat_model(\"/workspace/source\") first.\n\nScope (deep manual audit):\n- src/coap_oscore.c (message parse/encrypt/decrypt, option 9 handling, kid/kid-context/piv handling, sequence number and replay window, plaintext buffer assembly, coap_oscore_validate/decrypt paths)\n- src/oscore/oscore.c, oscore_cbor.c, oscore_cose.c, oscore_context.c, oscore_crypto.c (CBOR decoder, COSE header parsing, key derivation, AEAD wrapper, nonce construction)\n- src/coap_asn1.c if reachable from config parsing\n- interactions with src/coap_pdu.c option handling for OSCORE option values\n\nHunt for: pre-authentication parsing defects (CBOR/COSE decoded BEFORE AEAD verification: unchecked lengths, integer overflow in map/array/bstr counts, recursion depth, buffer size arithmetic), nonce/IV construction errors that reuse a nonce across messages, replay-window off-by-one that accepts replayed sequence numbers, plaintext length vs. ciphertext length mismatches, AEAD tag verification mistakes, and key/context handling that lets an unauthenticated peer influence state. Read against RFC 8613 / RFC 8152 semantics; the snapshot may contain a deliberately injected defect.\n\nValidation: build your own ASAN/UBSAN tree in /workspace/build-oscore if /workspace/build-asan is not ready (never modify source). Exercise the OSS-Fuzz targets oscore_decrypt_target, oscore_cbor_target, oscore_conf_parse_target with crafted inputs, and/or run the oscore example server (examples/oscore-interop-server.c) locally on 127.0.0.1 with a test context and send crafted OSCORE messages. Produce concrete crashes/incorrect-crypto evidence with full ASAN traces or a scripted demonstration. Localhost only.\n\nRecord coverage per surface. File create_vulnerability_report only for validated issues with code_locations + verbatim fix + fix_verification + CVSS from demonstrated impact. agent_finish with confirmed/ruled_out/open.",
+        "is_root": false
+      },
+      {
+        "agent_id": "229573a9",
+        "agent_name": "PDU Parser Memory Safety",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "rce"
+        ],
+        "task": "You are the wire-format parser specialist for libcoap 4.3.5 at /workspace/source (CoAP over UDP/TCP/WS). Call get_threat_model(\"/workspace/source\") first.\n\nScope (deep manual audit, not grep-only):\n- src/coap_pdu.c (coap_pdu_parse_udp/tcp/ws, coap_pdu_clear, coap_pdu_resize, option iteration, token handling, payload marker)\n- src/coap_option.c and src/coap_encode.c (extended option delta/length arithmetic, coap_option_value_to_int, insert/update)\n- src/coap_ws.c (frame header parsing, length fields, masking)\n- src/coap_debug.c (coap_show_pdu and log string builders — note HEAD commit \"Use bounded appends in coap_show_pdu\")\n- src/coap_layers.c if it parses length-prefixed layers\n\nHunt specifically for: off-by-one bounds, integer overflow/truncation in size_t vs unsigned arithmetic on wire lengths, missing `len >= N` checks before header field reads, token length > 8, option delta/length overflow, payload marker indexing, memcpy with attacker length, buffer size mismatch between allocation and append, and signed/unsigned comparison bugs. This snapshot may contain a deliberately injected defect: read each parse function line-by-line against RFC 7252/8323 semantics rather than trusting that the code is right.\n\nValidation requirement: build your own ASAN+UBSAN instrumented build if /workspace/build-asan (from the Build & Harness agent) is not ready — use a separate build dir /workspace/build-pdu. Then demonstrate impact with concrete PoCs: send crafted datagrams to a locally running ASAN coap-server (127.0.0.1 only) and/or drive the OSS-Fuzz targets (pdu_parse_udp_target, pdu_parse_tcp_target, ws_frame_target, network_message_target) with crafted inputs. Capture full ASAN stack traces and the exact packet bytes. Do NOT contact anything but localhost.\n\nRecord each surface you clear with record_coverage (outcome ruled_out only when you can name the specific bounds/length control and line that makes it safe on every reachable path; otherwise needs_follow_up). If you confirm a vulnerability, file create_vulnerability_report with: exact packet PoC (Python sending bytes is ideal), ASAN output as evidence, CVSS derived from demonstrated impact, code_locations with file/start_line/end_line, verbatim fix_before and a syntactically valid fix_after, and fix_verification stating what you ran. Prefer one report per distinct root cause. Then agent_finish with a summary of confirmed vs ruled out vs open.",
+        "is_root": false
+      },
+      {
+        "agent_id": "ca364ca3",
+        "agent_name": "Root Agent",
+        "status": "waiting",
+        "skills": [],
+        "task": "\n\nLocal Codebases: - /vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/libcoap/source (available at: /workspace/source; this is the user's real directory, mounted live and writable — .git/.agents/.codex are read-only)\n\nSpecial instructions: Audit only this local source snapshot and any service you build inside its sandbox. Do not contact upstream services or the LAN. Report validated findings with evidence.",
+        "is_root": true
+      },
+      {
+        "agent_id": "f8ff3abc",
+        "agent_name": "SAST Baseline",
+        "status": "completed",
+        "skills": [
+          "custom/source_aware_sast"
+        ],
+        "task": "You are the static-analysis (SAST) baseline agent for libcoap 4.3.5 at /workspace/source.\n\nCall get_threat_model(\"/workspace/source\") first.\n\nDeliver the source-aware triage bundle described in your skill, into /workspace/.source-aware (do not modify source):\n1. `opengrep scan --config /opt/opengrep-rules --taint-intrafile --json --output /workspace/.source-aware/opengrep.json /workspace/source` (narrow to c/cpp rules + generic/secrets if the full set is too slow; always keep an opengrep pass).\n2. Build sg-targets.txt from opengrep scope (paths.scanned, fallback results[].path) and run `sg run --pattern '$F($$$ARGS)'` bounded over it -> ast-grep.json.\n3. gitleaks detect + trufflehog filesystem -> JSON artifacts.\n4. trivy fs --scanners vuln,misconfig (offline) -> trivy-fs.json.\n\nThen do the important part: TRIAGE. Do not dump raw scanner output. Produce a shortlist of at most ~15 high-signal candidates, each with file:line, the untrusted input path, the sink, and why it is plausible in this codebase. Prioritize:\n- memory-safety in the packet path (src/coap_pdu.c, coap_option.c, coap_encode.c, coap_ws.c, coap_debug.c): memcpy/memmove/memset with computed lengths, malloc+offset arithmetic, size_t arithmetic on wire-controlled lengths, loops bounded by wire fields, strcpy/sprintf/snprintf with untrusted widths.\n- block/observe/session state (coap_block.c, coap_subscribe.c, coap_session.c, coap_net.c)\n- OSCORE pre-auth parsing (coap_oscore.c, src/oscore/*.c, coap_asn1.c)\n- URI/proxy (coap_uri.c, coap_proxy.c)\nGive particular scrutiny to any code that looks subtly WRONG relative to RFC semantics rather than merely ugly — this snapshot may contain a deliberately introduced defect (off-by-one, wrong constant, inverted check, missing bounds check, wrong variable, signed/unsigned mix).\n\nWrite a shared note (category findings, tags [\"sast\",\"candidates\"]) with the ranked shortlist, and record_coverage entries for the SAST pass per component area. Report agent_finish with the top candidates ranked by exploitability, naming exact file:line. Do not file vulnerability reports (specialists validate), unless you personally produced a validated PoC.",
+        "is_root": false
+      },
+      {
+        "agent_id": "5e434032",
+        "agent_name": "URI Option Assembly Audit",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast"
+        ],
+        "task": "Focused, independent audit of two functions in libcoap 4.3.5 at /workspace/source: `coap_get_query()` (src/coap_uri.c ~1111-1180) and `coap_get_uri_path()` (src/coap_uri.c ~1205-1300). Call get_threat_model(\"/workspace/source\") first.\n\nHypothesis to test: these functions allocate a `coap_string_t` from a size computed in a first pass and then write into it in a second pass; a mismatch (percent-encoding expansion, separator accounting, `uint16_t seg_len = coap_opt_length(q)` truncation, escape handling for '%', '&', '=', '/', or option-count effects) could produce a heap buffer overflow. The code has recently-added explanatory comments, consistent with a hand-written patch, so do not trust it.\n\nWork plan:\n1. Read both functions and the option iterator helpers line by line; write down the exact length formula and the exact bytes written for each case (printable run, EOF, '&', '=', '%', control byte, 0x00, >0x7f, and each segment boundary).\n2. Build a direct library harness (own ASAN/UBSAN build in /workspace/build-uria, or link against /workspace/build-asan/libcoap-3.a) that constructs PDUs with arbitrary URI-Path/URI-Query options using coap_add_option/coap_insert_option — including values of length 1, 254, 255, 256, 1000, 60000 bytes, hundreds of repeated options, all-'%' values, all-'&' values, and mixed. Call coap_get_query()/coap_get_uri_path() and verify: returned length == actual bytes before NUL, no ASAN overflow, no truncation-related mismatch.\n3. Also test the network path: send the same option sets to a local ASAN coap-server (127.0.0.1) that invokes these functions, and over TCP if per-option limits differ.\n4. If no overflow but some case is rejected earlier by the parser, state the exact control (file:line) that caps the length on every reachable path — otherwise record open_proof_gap.\n\nDeliver: record_coverage for \"coap_get_query / coap_get_uri_path buffer sizing\"; create_vulnerability_report only for a reproduced overflow/mismatch with ASAN evidence, code_locations with verbatim fix_before/fix_after and fix_verification. agent_finish with the definitive verdict (safe / unsafe) and evidence either way. Localhost only.",
+        "is_root": false
+      },
+      {
+        "agent_id": "d0953504",
+        "agent_name": "URI and Proxy Audit",
+        "status": "completed",
+        "skills": [
+          "ssrf",
+          "source_aware_sast"
+        ],
+        "task": "You are the URI-parsing and forward-proxy specialist for libcoap 4.3.5 at /workspace/source. Call get_threat_model(\"/workspace/source\") first.\n\nScope (deep manual audit):\n- src/coap_uri.c: coap_split_uri, coap_split_proxy_uri, coap_split_url, coap_uri_into_options, host/port/path/query split, percent-decoding, IPv6 bracket handling, buffer sizing (host buffer size assumptions), return-code handling\n- src/coap_proxy.c: forward-proxy request handling, destination determination from Proxy-Scheme/URI-Host/URI-Port/Proxy-Uri, outbound session creation, block-wise relay, response error paths\n- src/coap_resource.c and src/coap_net.c where URI-Path/URI-Query options are matched against resource trees (path matching, wildcard handling, buffer lengths)\n\nHunt for: attacker-controlled Proxy-Uri / URI-Host causing out-of-bounds reads/writes during parse or use, fixed-size host buffers with oversized input, missing NUL termination, signed/unsigned length bugs, percent-decoding over-read, port parsing overflow, proxy destination validation gaps (SSRF is by design in a forward proxy — only report if the implementation crosses a boundary it claims to enforce, e.g. scheme confusion, credential forwarding, or reaching non-CoAP services), and resource path matching bugs. The snapshot may contain a deliberately injected defect; read against RFC 7252 §6.4/6.5 and RFC 3986 semantics.\n\nValidation: build ASAN/UBSAN in /workspace/build-uri if /workspace/build-asan is unavailable (never modify source). Use the OSS-Fuzz uri_extended_target / split_uri_target / proxy_target and run a local proxy + server pair on 127.0.0.1 with crafted proxy requests. Provide concrete evidence (ASAN trace or scripted demonstration). Localhost only — never contact real upstream or LAN hosts.\n\nRecord coverage per surface. File create_vulnerability_report only for validated issues with code_locations + verbatim fix + fix_verification + CVSS from demonstrated impact. agent_finish with confirmed/ruled_out/open.",
+        "is_root": false
+      },
+      {
+        "agent_id": "daee39f2",
+        "agent_name": "Unit Test & Conformance",
+        "status": "running",
+        "skills": [
+          "source_aware_sast"
+        ],
+        "task": "Focused sub-audit: run libcoap 4.3.5's own test suite and protocol-conformance checks under sanitizers to surface latent defects. Call get_threat_model(\"/workspace/source\") first.\n\nDo:\n1. Build (out-of-tree, /workspace/build-tests, never modify /workspace/source) with -fsanitize=address,undefined and run `testdriver` from tests/ (all suites: pdu, options, block, oscore, uri, proxy, session, sendqueue, encode, wellknown, error_response, tls-if-available). Capture every failure, ASAN report and UBSAN runtime error with the exact test name and input.\n2. For each failure/UB report, determine whether it is (a) a real attacker-reachable library defect, (b) a test-harness artifact, or (c) unrelated/informational. For (a), reduce it to a minimal reproduction using library APIs or raw bytes.\n3. Write independent conformance probes (C or Python against the built library / oss-fuzz drivers) for the highest-risk parser invariants and check them empirically:\n   - UDP PDU: token length 9-15 must be rejected (message format error), payload marker 0xFF with zero-length payload must be rejected, option delta/length extended values 13/14 boundaries (0..12, 13+13..268, 14+269..65804) must round-trip exactly, option length beyond remaining PDU must be rejected, truncated PDU at every byte offset must not crash.\n   - TCP/WS: length field 0 (empty), 1-2 byte extended lengths, length larger than buffer, partial frames, continuation frames.\n   - Block: SZX=7 invalid, NUM overflow/offset overflow, reassembly with overlapping or out-of-order NUM.\n   - OSCORE: kid/piv/kc option length combinations, truncated COSE object, sequence number at window edges.\n   Run each probe under ASAN and record pass/fail. Treat any divergence between the observed behaviour and what RFC 7252/8323/7959/8613 requires as a candidate; validate before reporting.\n4. Record coverage for \"project unit tests under sanitizers\" and \"protocol conformance probes\" with honest outcomes; file create_vulnerability_report only for validated defects (code_locations + verbatim fix + fix_verification + evidence). agent_finish with the full list of failures, each classified.",
+        "is_root": false
+      }
+    ],
+    "skills_exercised": [
+      "agent_browser",
+      "business_logic",
+      "insecure_deserialization",
+      "python",
+      "race_conditions",
+      "rce",
+      "semantic_confusion",
+      "source_aware_sast",
+      "ssrf"
+    ],
+    "findings_filed": 4,
+    "source": "runtime"
+  },
+  "completeness": {
+    "complete": false,
+    "scan_status": "interrupted",
+    "exit_reason": null,
+    "caveats": [
+      "The scan ended with status 'interrupted' rather than completing, so coverage reflects only the work finished before it stopped.",
+      "5 agent(s) did not finish cleanly (Cache Key Collision Audit, Core Dispatch and Cache, DTLS Session Audit, Root Agent, Unit Test & Conformance); any surface they held is under-covered."
+    ]
+  },
+  "entries": [
+    {
+      "surface": "src/coap_pdu.c + src/coap_option.c (option iterator, extended delta/length, extended token, UDP/TCP/WS header parse)",
+      "risk_area": "Memory safety in pre-auth packet parsing (OOB read/write, size_t underflow)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Encode/decode symmetry checked against coap_opt_setheader/coap_add_token/coap_pdu_encode_header (13->+13, 269->+269, e_token_length bias 1/2, COAP_TOKEN_EXT_2B_BIAS 269, block-num limit 0xFFFFF) and every per-option length limit in coap_pdu_parse_opt_base matches RFC 7252/7959/8323/8613/8768/9455. Length control is ADVANCE_OPT/ADVANCE_OPT_CHECK plus `if (length < result->length) return 0` in coap_opt_parse (src/coap_option.c:41-107), which runs on every attacker-reachable option before the value is used. 1.6M ASAN fuzz execs over pdu_parse_udp/tcp/ws with no finding.",
+      "recorded_by": "SAST Baseline",
+      "recorded_at": "2026-11-17 10:52:38 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_debug.c coap_show_pdu COAP_OPTION_OSCORE sub-field printing (lines 994-1054)",
+      "risk_area": "Memory safety (OOB read from wire-controlled option value / index arithmetic)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Resolved dynamically rather than by hand-derivation only. I drove the OSCORE sub-field printer at src/coap_debug.c:994-1054 through the real parse path by sending 91 crafted CoAP options 9 (OSCORE) in request PDUs to a local ASAN+UBSAN coap-server running at debug log level (so coap_show_pdu executes): first byte b0 in {00,01,07,08,09,0F,10,18,20,28,30,38,3F} crossed with tails of length 0,1,2,4,255 including kid-context length prefixes of 0x00/0x05/0xFF, which is what selects the Group-flag, pIV, kid-context and kid branches. No ASAN/UBSAN report and the server stayed alive; 514 additional show_pdu probes and a 240 s libFuzzer run of a harness that parses then calls coap_show_pdu at COAP_LOG_DEBUG were also clean. Bounds control: option length for option 9 is capped at 255 by coap_pdu_parse_opt_base (src/coap_pdu.c:1338), pIV requires cnt <= opt_len-1 with ofs=1, kid-context requires ofs < opt_len and cnt <= opt_len-ofs-1 before ofs++, and kid takes cnt = opt_len-ofs after an ofs >= opt_len check, so every opt_val[ofs+i] read is inside the option value.",
+      "recorded_by": "PDU Parser Memory Safety",
+      "recorded_at": "2026-11-17 10:52:38 UTC",
+      "updated_at": "2026-11-17 11:02:36 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_debug.c coap_snprintf / print_readable / binary payload dump (lines 191-252, 1150-1200)",
+      "risk_area": "Stack buffer overflow in diagnostic formatting",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "coap_snprintf (src/coap_debug.c:229-252) truncates correctly (`*offset = buf_size-1`, early return when start>=buf_size-1) and print_readable (191-227) keeps one spare byte in both the printable (cnt+1<buflen) and escaped (cnt+4<buflen) branches; the binary hex/ascii dump and the readable-payload branch both re-anchor outbuflen and reserve headroom. No caller passes an offset >= buf_size.",
+      "recorded_by": "SAST Baseline",
+      "recorded_at": "2026-11-17 10:52:44 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_block.c lg_srcv Block1 reassembly + coap_block_build_body_lkd (3691-3870, 4589-4630)",
+      "risk_area": "Heap overflow in block-wise reassembly (offset/len arithmetic from Block1 fields and SIZE1)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "coap_block_build_body_lkd has the SIZE_MAX-8 overflow test, the caller rejects `total_len_set && offset+length > total_len` (src/coap_block.c:3752) and the fast memcpy requires body_data->length >= total, otherwise it resizes to offset+length first. Gap: the multi-iteration BERT walk at 3795-3818 recomputes offset = block.num << (block.szx+4) from wire values; only stateless fuzzing (block/block_check targets, 40k execs) was done, no stateful interleaved Block1 sequences with changing SZX/BERT.",
+      "recorded_by": "SAST Baseline",
+      "recorded_at": "2026-11-17 10:52:44 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_ws.c coap_ws_rd_http_header / coap_ws_read / coap_ws_build_key_hash (385-780)",
+      "risk_area": "Memory safety in WebSocket upgrade/frame parsing (mask handling, 64-bit lengths)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Resolved by bounds proof plus directed fuzzing/live testing. Correction to the earlier note: rd_header is 14 bytes (COAP_MAX_FS = 2+8+4, include/coap3/coap_ws_internal.h:34), not 128, so I re-derived every access. Control 1: the mask-key copy at src/coap_ws.c:658 uses offset 2+extra_hdr_len with extra_hdr_len <= 8 (len==127) before the +4, i.e. at most &rd_header[10]..[13], inside the 14-byte array. Control 2: src/coap_ws.c:661 returns before any use when hdr_ofs < 2+extra_hdr_len, so a partial header never reaches the copy sites. Control 3: in the leftover branch src/coap_ws.c:742-751, bytes_size < ret = hdr_ofs-2-extra, so source 2+extra+bytes_size < hdr_ofs <= 14 and source+len == hdr_ofs, keeping both memcpy and memmove inside rd_header. Control 4: src/coap_ws.c:698 rejects (size_t)bytes_size > datalen before any payload copy, and a 64-bit length >= 2^63 becomes a negative ssize_t that this cast turns into a huge size and rejects. Control 5: coap_ws_rd_http_header caps http_ofs at 159 and each read at 14 bytes, so the post-blank-line remainder copied into rd_header[14] at src/coap_ws.c:559 is <= 13 (verified from the live read pattern: handshake arrives in 14-byte reads). Evidence: 1,449,089 libFuzzer execs of a WS-layer harness (persistent context, modes: HTTP upgrade, post-handshake frames, write path) with ASAN+UBSAN, zero reports; 14 crafted frame probes (masked/unmasked, 7/16/64-bit lengths incl. 0xFFFFFFFF and 2^64-1, close/ping opcodes, declared length > datalen) and 54 split/coalesced delivery probes (every byte-boundary split, two-three frames in one segment, header-only then payload) against a local ASAN coap-server, all clean. Residual: only an uninitialised read of rd_header bytes 10-13 when a 127-length header is still partial; it is discarded and re-copied on the next read, so it is not a memory-safety issue.",
+      "recorded_by": "PDU Parser Memory Safety",
+      "recorded_at": "2026-11-17 10:52:51 UTC",
+      "updated_at": "2026-11-17 11:02:27 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_uri.c coap_split_uri_sub / coap_check_dots / coap_get_query / coap_get_uri_path (81-350, 675-715, 1111-1300)",
+      "risk_area": "Buffer overflow / path traversal semantics in URI parsing and URI-* option reassembly",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "coap_split_uri_sub only produces pointers/lengths into the caller's string (no copies); host is rejected >255 bytes, port parsing is bounded by UINT16_MAX, coap_check_dots handles \"..\",\"%2e%2e\" correctly. coap_get_query/coap_get_uri_path allocate coap_new_string(computed_len) and write exactly computed_len bytes (encoded bytes + nopts-1 separators), verified per-branch; the uint16_t seg_len truncation is unreachable for parsed PDUs because the option parser caps URI-Path/URI-Query at 255. Fuzzed via split_uri/uri_extended (280k+) and pdu_parse_*.",
+      "recorded_by": "SAST Baseline",
+      "recorded_at": "2026-11-17 10:52:51 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_oscore.c oscore_decode_option_value + Appendix B.2 kid_context + nonce composition (916-1450, 1080-1140), src/oscore/oscore.c, src/oscore/oscore_cbor.c",
+      "risk_area": "Pre-authentication parsing of OSCORE option / COSE / CBOR kid_context",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Resolved: the parsing itself is bounded (option_len>255, partial_iv_len 6/7, reserved bits, offset arithmetic all validated; 3M randomized OSCORE options plus 30k valid-AEAD inner-plaintext mutations produced no sanitizer report), but the Appendix B.2 branch that this entry flagged does contain two validated defects, now filed. vuln-0002: oscore_duplicate_ctx() links a new security context into the CoAP context chain before AEAD verification and the failure path never removes it, so one unauthenticated request per unique kid_context permanently adds a context (2000 requests -> 2001 contexts; shipped coap-server RSS 5.5MB -> 11.3MB over 120k packets with rfc8613_b_2 enabled, flat with it disabled). vuln-0003: oscore_find_context() returns a context with a NULL recipient when the external-credential callback supplies a recipient set without the requested kid; coap_oscore_decrypt_pdu() then dereferences it (SIGSEGV, exit 139 in a plain build; 4.01 with the fix). Both fixes built and verified, 37/37 OSCORE unit tests still pass.",
+      "recorded_by": "OSCORE Crypto Audit",
+      "recorded_at": "2026-11-17 10:52:59 UTC",
+      "updated_at": "2026-11-17 11:16:26 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_net.c coap_read_session TCP reassembly (2796-2905)",
+      "risk_area": "Memory safety in TCP/TLS stream PDU reassembly (partial header/PDU state)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "The partial-PDU copy is guarded by `n > alloc_size + hdr_size - partial_read` before the memcpy (src/coap_net.c:2805-2814) and the header copy by n <= hdr_size + tok_ext_bytes - partial_read (2849-2851); incoming PDU size is checked against csm_max_message_size before coap_pdu_init/resize (2858-2872). Only reachable state (partial_read, partial_pdu) is reset on each completion/disconnect path inspected.",
+      "recorded_by": "SAST Baseline",
+      "recorded_at": "2026-11-17 10:52:59 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_pdu.c option mutation path (340-390, 550-640, 693-800, 812-860, 869-940)",
+      "risk_area": "Heap overflow when adding/inserting/updating/removing options on attacker-influenced PDUs",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Every memmove in coap_remove_option/coap_insert_option/coap_update_option/coap_add_option_internal is sized as used_size - (option - token) [- shrink] and follows a coap_pdu_check_resize() on the same new size; coap_pdu_resize refuses new_size > max_size when max_size is set. Only logic quirk found is the RFC 8768 default Hop-Limit value being COAP_OPTION_HOP_LIMIT (252) at coap_pdu.c:889-895 — not attacker-controlled, matches upstream, reported as an observation only.",
+      "recorded_by": "SAST Baseline",
+      "recorded_at": "2026-11-17 10:53:06 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_subscribe.c observe registration and notification handling",
+      "risk_area": "Observe state confusion / use-after-free / unbounded per-peer state growth",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Skim of the observe registry functions (352/417/538/621/745/813/877/915/940/1042/1118) found no copy whose length comes from a wire field; state is keyed on token + cache key. Gap: re-registration ordering, token churn and notification fan-out are stateful and need a live client/server pair; observe_target only gives ~40k stateless execs.",
+      "recorded_by": "SAST Baseline",
+      "recorded_at": "2026-11-17 10:53:06 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Whole repository secret scan (gitleaks detect, trufflehog filesystem)",
+      "risk_area": "Hardcoded secrets / credential leakage in source and history",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "gitleaks (8 hits) and trufflehog (2 unverified) hits are all false positives: PEM header/title strings in src/coap_tinydtls.c:1391, tests/test_tls.c:1383/1401, option-name/doc strings in examples/coap-server.c:1465, examples/coap-client.c:1627, man/coap_encryption.txt.in:870. No usable credential material in the tree.",
+      "recorded_by": "SAST Baseline",
+      "recorded_at": "2026-11-17 10:53:13 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "trivy fs (vuln/misconfig), dependency manifests",
+      "risk_area": "Dependency / configuration vulnerability scanning (SCA, IaC)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "trivy fs --scanners misconfig reported 13 findings, all in Dockerfile / build-env Dockerfiles (DS-0002 root user, DS-0029 apt without --no-install-recommends, DS-0013 RUN cd); dev-tooling only, no shipped runtime impact. `--scanners vuln` could not run: trivy-db download failed through the proxy (502/timeout), and the project has no package manifests/lockfiles, so there is no dependency-CVE surface to assess.",
+      "recorded_by": "SAST Baseline",
+      "recorded_at": "2026-11-17 10:53:13 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Out-of-tree ASAN build + ctest (tests/testdriver, all tests/*.c)",
+      "risk_area": "Regression oracle: does the shipped test suite catch the defect under ASAN",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Built the snapshot out-of-tree with cmake + ASAN (no source modification) and ran the shipped testdriver: 100% passed, no ASAN report. This confirms the injected defect (if any) is not covered by the project's own tests, so the shortlist above rests on review plus directed fuzzing, not on a failing test.",
+      "recorded_by": "SAST Baseline",
+      "recorded_at": "2026-11-17 10:53:20 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "/workspace/source build & harness",
+      "risk_area": "environment availability",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Out-of-tree ASAN+UBSAN build works: /workspace/build-asan/coap-server|coap-client (nm shows 721 __asan / 109 ubsan symbols; ASAN_OPTIONS=help=1 prints the runtime flag list). UDP, TCP, WS (-w) and DTLS PSK (coaps on port+1) request/response all verified against 127.0.0.1. All 19 tests/oss-fuzz harnesses build with libFuzzer+ASAN against a fuzzer-no-link library (fuzzlib/libcoap-3.a); corpora accumulate in fuzz/corpus. 90s runs on pdu_parse_udp (cov 922), pdu_parse_tcp (960), pdu_parse_ws (914), block (4574), observe (3719+), oscore_decrypt (2801), proxy (2632), uri_extended produced no artifacts/crashes. Harness documented in shared wiki note 6eac06.",
+      "recorded_by": "Build & Harness",
+      "recorded_at": "2026-11-17 10:53:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_block.c coap_handle_request_put_block (server Block1 reassembly)",
+      "risk_area": "Heap overflow / integer arithmetic in block reassembly (block NUM/SZX/M, Size1, offsets)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "ASAN+UBSAN build (gcc -fsanitize=address,undefined) of all src/*.c and a local udp test server; tested in-order, reverse-order, gap-then-fill, duplicate blocks, SZX change mid-transfer (6->5), Size1 lying (2048/1024 vs 4096 actual), block num beyond end, undersized/oversized chunks, and max-num. Every completed transfer produced exactly the correct 4096-byte body checksum (af65244002c49800) and no ASAN/UBSAN report. Code review confirms coap_block_build_body_lkd() bounds memcpy via coap_resize_binary() to max(total, offset+length) after an explicit SIZE_MAX overflow check.",
+      "recorded_by": "Block/Session/Observe Audit",
+      "recorded_at": "2026-11-17 10:55:54 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_block.c BERT path (coap_get_block_b szx=7, coap_add_block_b_data, chunk_size)",
+      "risk_area": "BERT (RFC8323 szx=7) logical 1024-byte block loop arithmetic and reassembly",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "CoAP-over-TCP client (CSM Max-Message-Size 8MB + Block-Wise-Transfer) against local TCP ASAN server, BERT szx=7: 3072+1024 in-order, 2048+2048+1024 out-of-order, m=1 with non-1024-multiple payload, m=0 with 5000-byte payload, Size1 lying. Every delivered body matched the expected checksum (e.g. 5000-byte BERT body c16d611112c14a6c == server-reported sum); logical-block loop in coap_handle_request_put_block marks intermediate 1024-blocks with M=1 so total_blocks is only set by the final logical block, as intended.",
+      "recorded_by": "Block/Session/Observe Audit",
+      "recorded_at": "2026-11-17 10:56:05 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_block.c coap_handle_request_send_block / coap_add_block_b_data (server Block2)",
+      "risk_area": "Out-of-bounds read in Block2 response generation (offset = num*chunk, BERT chunk_size)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "12 crafted Block2 request patterns against local ASAN server: num 0/1/3/4(beyond end)/0xFFFFF, szx 0/2/6/7, M bit set with num!=0, szx downshift mid-transfer (6->2, 6->0). Responses: 2.05 with correct 1024/64/16-byte payloads for valid ranges, 4.00 for reserved SZX 7 (rejected in coap_net.c before dispatch), 4.00 for num beyond, 5.00 for offset+chunk == length (num=4 of 4096 bytes) - no crash, no over-read. 200-request randomized churn over 200 distinct sessions produced only expected 2.05/4.00.",
+      "recorded_by": "Block/Session/Observe Audit",
+      "recorded_at": "2026-11-17 10:56:05 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_block.c Q-Block1 path (coap_request_missing_q_block1, blocks_add_entry)",
+      "risk_area": "Q-Block1 (RFC9177) reassembly, missing-block ranges, blocks_add_entry/check_if_next_block",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Q-block enabled build (COAP_Q_BLOCK_SUPPORT=1, BLOCKMODE=0x07): 4-block Q-Block1 transfer with Size1+RTag produced correct 4096-byte reassembly (sum af65244002c49800); 450 randomized Q-Block1 sequences (random num/M/szx/Size1/RTag, NON) produced only 2.31/4.08/4.13/4.00 and no ASAN report. Q-Block1 is off by default in released builds and requires COAP_BLOCK_TRY_Q_BLOCK in the application, which bounds severity.",
+      "recorded_by": "Block/Session/Observe Audit",
+      "recorded_at": "2026-11-17 10:56:15 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_block.c coap_handle_response_get_block (client Block2, hostile server)",
+      "risk_area": "Client-side Block2 reassembly buffer growth and Size2/num/szx trust (hostile server)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Local libcoap client (COAP_BLOCK_USE_LIBCOAP|SINGLE_BODY) against crafted Python servers: normal multi-block, out-of-order (last block first), server-chosen SZX differing from request, Size2 lying (100 vs 3000), block num 0xFFFFF, ETag changing per block, oversized payload (2 chunks in one block), wrong block numbers. No ASAN/UBSAN report in any scenario; client degrades to partial delivery or drops the response (e.g. 1024-byte partial for wrong-num case), never corrupts memory.",
+      "recorded_by": "Block/Session/Observe Audit",
+      "recorded_at": "2026-11-17 10:56:15 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_resource.c coap_add_observer/coap_delete_observer + src/coap_subscribe.c (observe registry)",
+      "risk_area": "Observer list growth, token reuse, iteration while removing, refcount/UAF on session close",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Observe register (Observe=0) returned 2.05+Observe with periodic 2.05 notifications (Observe increments), cancel (Observe=1) stopped them, immediate re-register with the same token succeeded, Observe+Block2 num!=0 rejected 4.00, TKL=0 registration accepted, two source ports sharing a token create independent subscriptions. 40 observers registered, notifications delivered to 38, half cancelled, remaining re-registered 3x each, all sockets closed, then coap_free_context(): no ASAN/UBSAN report and no LeakSanitizer output. coap_add_observer/coap_delete_observer_internal maintain session->ref_subscriptions and use LL_PREPEND/LL_DELETE consistently (src/coap_resource.c:859,1071).",
+      "recorded_by": "Block/Session/Observe Audit",
+      "recorded_at": "2026-11-17 10:56:23 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_session.c session lookup/free + per-session block state",
+      "risk_area": "Session table growth, per-peer state (lg_srcv/lg_xmit) lifetime on session close",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "200 randomized source ports issuing Block1/Block2/observe requests (session creation/lookup churn) and 40 concurrent observe sessions produced no unexpected 4.04, no ASAN report; session lookup is by addr_hash with endpoint->sessions/context->sessions SESSIONS_FIND then idle/handshake limits (src/coap_session.c:1251-1330). Pending lg_srcv/lg_xmit/observe state freed cleanly at coap_free_context (no LeakSanitizer output with a half-completed Block1 transfer and an active observer).",
+      "recorded_by": "Block/Session/Observe Audit",
+      "recorded_at": "2026-11-17 10:56:23 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Fuzz campaigns: tests/oss-fuzz harnesses + raw wire grammar fuzzer",
+      "risk_area": "Coverage fuzzing of block/observe/session paths for memory-safety defects",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Custom mutation driver over the shipped harnesses (block_target, block_check_target, observe_target, network_message_target, async_target) built with ASAN+UBSAN and Q-Block enabled, ~1500-4000 mutated inputs each (seed corpora from tests/oss-fuzz), plus a wire-level grammar fuzzer sending ~2500 randomized Block1/Block2/observe/Size SZX combinations (including SZX 7, num 0xFFFFF, Size1 0xFFFFFFFF, random tokens, CON/NON) at the ASAN UDP server. No AddressSanitizer, UBSan or SEGV reports; the crashing input file was persisted per iteration for replay.",
+      "recorded_by": "Block/Session/Observe Audit",
+      "recorded_at": "2026-11-17 10:57:02 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_block.c Size1 / total_len driven reassembly allocation",
+      "risk_area": "Memory exhaustion / allocation amplification via attacker-controlled Size1 or block number",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Measured directly: a 1024-byte Block1 packet with Size1=0x10000000 (256MB) against the ASAN test server increased RSS by only 6.4MB (27804kB -> 34424kB) for an accepted 2.31 response, because coap_new_binary() is followed by a sparse memcpy of just the received block; pages are only committed as blocks actually arrive. Peak accepted body is capped at MAX_BLK_LEN (1GB at szx=6, src/coap_block.c:895) and the write is bounded by coap_resize_binary(offset+length), so the attacker must send as much data as they allocate. Failure of a large allocation is handled (500 \"Memory issue\"). No amplification beyond bytes sent, so not a viable DoS vector.",
+      "recorded_by": "Block/Session/Observe Audit",
+      "recorded_at": "2026-11-17 10:57:02 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_block.c:4351 (track_fetch_observe token copy) and src/coap_net.c extended-token handling",
+      "risk_area": "Stack buffer overflow via token length in the client FETCH/Observe block path",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Candidate: src/coap_block.c:4351 memcpy(buf[8], new_token->s, len) where len is lg_crcv->obs_token[n]->length. Traced the origin of obs_token: track_fetch_observe() stores pdu->actual_token (the client's own outgoing token), and the only other caller passes a token from coap_encode_var_safe8() (<=8). Outgoing client tokens come from coap_session_new_token() (uint64 -> <=8 bytes) or from the application; coap_send_lkd() rejects any request whose token exceeds session->max_token_size (src/coap_net.c:1754), which defaults to COAP_TOKEN_DEFAULT_MAX=8 (src/coap_net.c:815) and can only be raised by the application via coap_context_set_max_token_size(). A remote server cannot set the client's token length (it only negotiates support via CSM), so len>8 requires an application that opts into >8-byte tokens and uses a block-wise FETCH with Observe - an operator-controlled precondition, not a remote attacker capability.",
+      "recorded_by": "Block/Session/Observe Audit",
+      "recorded_at": "2026-11-17 10:57:30 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_pdu.c coap_pdu_parse_size (TCP/TLS stream length arithmetic, 1112-1174) fed by src/coap_net.c coap_read_session",
+      "risk_area": "Integer overflow/truncation in stream framing length (size_t vs uint64) leading to short allocation",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Controls: coap_pdu_parse_header_size() > length is rejected first (src/coap_pdu.c:1121); each Len/E/TKL form is only read after `length >= 2+extra_for_tkl` / `>= 3+extra_for_tkl` / `>= 5+extra_for_tkl` (1139-1162); TKL > 14 returns 0 (1134); the accumulator is uint64_t and is clamped to (size_t)-1 before the cast (1170-1173); the caller then rejects size > csm_max_message_size (src/coap_net.c:2858) and only after that allocates with coap_pdu_init(coap_session_max_pdu_rcv_size) + coap_pdu_resize(size), whose capacity is alloc_size + max_hdr_size with max_hdr_size = 6 in this build (src/coap_pdu.c:346, include/coap3/coap_pdu_internal.h:113), so T = size + hdr_size always fits; the body copy is additionally guarded by n > alloc_size + hdr_size - partial_read (src/coap_net.c:2805-2813). Verified live: 40+ TCP probes covering Len 0-12 exact/short/long, 8/16/32-bit extended lengths (0, 1, 255, 0xFFFF, 0xFFFFFFFF) and TKL 13/14/15 extended-token frames, plus 54 split-delivery probes that split every message at every byte boundary, dribble one byte at a time and coalesce two PDUs in one segment - all against a local ASAN+UBSAN coap-server, no report.",
+      "recorded_by": "PDU Parser Memory Safety",
+      "recorded_at": "2026-11-17 11:02:46 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_pdu.c coap_pdu_parse_opt error-dump block (write_prefix/write_char, static outbuf[COAP_DEBUG_BUF_SIZE], 1436-1580)",
+      "risk_area": "Stack buffer overflow in the malformed-option diagnostic dump",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "The dump runs on any PDU that reached the option loop with a bad option value/length, i.e. directly attacker-triggerable. Controls: write_prefix (src/coap_pdu.c:1436) returns without copying unless *len >= prflen+1, and write_char (1444) requires *len >= 3 and decrements by exactly 2, so obp can never pass outbuf+sizeof-1; the terminating *obp = '\\000' at 1571 is therefore in bounds even when the buffer is full. The tlen loop that copies the offending raw option bytes (1558-1566) stops writing as soon as ok becomes 0 (short-circuit), and when optsize==0 the code sets opt = token+used_size/length=0 before the loop, so the source range is always inside the PDU. Verified: 514 crafted option/delta/length PDUs and 60,000 mutated datagrams against a local ASAN+UBSAN coap-server, which produced hundreds of \"malformed option\" dumps in the log (e.g. \"O: *edfef2...\") with no ASAN report; libFuzzer on pdu_parse_udp (1,000,567 execs) plus the invariant oracle (2.4M parses) also clean.",
+      "recorded_by": "PDU Parser Memory Safety",
+      "recorded_at": "2026-11-17 11:02:46 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_encode.c coap_decode_var_bytes / coap_encode_var_safe / coap_encode_var_safe8 / coap_fls(ll)",
+      "risk_area": "Integer truncation in var-byte codecs used on wire option values",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "coap_decode_var_bytes (src/coap_encode.c:38) reads exactly the caller-supplied len into an unsigned int; every wire call site passes a length that coap_pdu_parse_opt_base already bounded for that option (<=4 for uint options, <=2 for Content-Format/Accept) or uses coap_decode_var_bytes8 which stops at min(len, sizeof(uint64_t)) (src/coap_encode.c:70). coap_encode_var_safe/safe8 (54, 74) return 0 when the encoded width exceeds the supplied buffer instead of writing past it, and callers (e.g. src/coap_pdu.c:454 coap_add_token, src/coap_block.c:711) size their buffers deliberately (uint8_t[8] with sizeof(uint32)/uint64). The size_t/unsigned truncations I looked for - option length into uint16_t seg_len in coap_get_uri_path/coap_get_query - cannot be reached with a length > 255 for Uri-Path/Uri-Query/Uri-Path-Abbrev because coap_pdu_parse_opt_base caps them at 1338/1352 and the option is rejected (402) before dispatch, and allocation and write loops use the same truncated value regardless. 2.4M invariant-checked parses over UDP/TCP/WS plus 1.9M libFuzzer execs of the pdu_parse harnesses found no length disagreement.",
+      "recorded_by": "PDU Parser Memory Safety",
+      "recorded_at": "2026-11-17 11:02:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_layers.c layer function-pointer table (COAP_PROTO_* x COAP_LAYER_*)",
+      "risk_area": "Wrong-layer dispatch (e.g. WS handshake before TLS) leading to parsing on an unestablished transport",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "coap_layers.c contains no parsing or arithmetic, only the dispatch table, so a memory-safety defect cannot sit there; I instead verified the table is semantically correct for the establish chain: coap_session_check_connect/accept call lfunc[COAP_LAYER_SESSION].l_establish, which is coap_session_establish for UDP/TCP, coap_tls_establish for TLS/WSS (starts the TLS handshake) and coap_ws_establish for WS; the TLS backends call lfunc[COAP_LAYER_TLS].l_establish on handshake completion, which is coap_ws_establish for WSS and NULL for TLS (src/coap_openssl.c:4039 etc.), and coap_ws_establish completes to lfunc[COAP_LAYER_WS].l_establish = coap_session_establish - so for WSS the order is TLS -> WS -> CoAP CSM. Verified end-to-end: coap+ws:// and coap+tcp:// GETs against the local server returned the resource list, and the debug log shows \"WS: established\" followed by \"sending CSM\".",
+      "recorded_by": "PDU Parser Memory Safety",
+      "recorded_at": "2026-11-17 11:02:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_uri.c: coap_split_uri / coap_split_proxy_uri (host, port, path, query split)",
+      "risk_area": "Out-of-bounds read/write, missing NUL termination, IPv6 bracket handling, 255-byte host limit, port overflow, return-code handling",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Line-by-line review against RFC 3986/7252 semantics: every pointer advance is bounded by the remaining length, the bracket branch requires a closing ']' and rejects empty hosts, both host branches cap at 255 chars, and the port accumulator cannot overflow because the loop stops as soon as the value exceeds UINT16_MAX. Dynamically: 240k randomized inputs through tests/oss-fuzz/uri_extended_target.c plus 60k structured URI seeds under ASAN/UBSAN with no diagnostic; boundary cases exercised explicitly (60KB hosts in both bracket forms → -6, 60KB port digit string → -4, many-colons → -1, empty host → -3, >=65536 → -4); the project's 201 unit tests pass.",
+      "recorded_by": "URI and Proxy Audit",
+      "recorded_at": "2026-11-17 11:11:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_uri.c: coap_split_path / coap_split_query / coap_path_into_optlist / coap_query_into_optlist / coap_uri_into_optlist",
+      "risk_area": "Percent-decoding over-read, dot-segment normalisation, caller buffer sizing",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Reviewed check_segment()/decode_segment() (both bound every '%' escape by the remaining length), make_decoded_option() (header-size and decoded-length checks before writing), coap_replace_percents() (requires >=3 bytes left before reading i+1/i+2), backup_segment()/backup_optlist() (only walk options the code itself wrote) and coap_uri_into_optlist()'s Uri-Host branch (INET6_ADDRSTRLEN buffer with NUL-terminated coap_print_ip_addr, strncasecmp bounded by the host length, %iface stripping). Dynamically: 240k random inputs through the shipped uri_extended_target (covers split_path/split_query/path_into_optlist/query_into_optlist with a 256-byte output buffer) plus explicit 60KB path/query/percent/dot cases; 18-URI driver for the dst!=NULL Uri-Host branch (the branch the shipped harness never reaches); no ASAN/UBSAN diagnostics.",
+      "recorded_by": "URI and Proxy Audit",
+      "recorded_at": "2026-11-17 11:12:04 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_uri.c: coap_get_uri_path / coap_get_query (+ resource lookup and well-known filter matching)",
+      "risk_area": "Buffer sizing / uninitialised tail in option-to-string reconstruction, resource path matching",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "coap_get_uri_path()/coap_get_query() length accounting was checked against their write loops (1 or 3 bytes per input byte, plus one separator per option minus one) and both are exact, including all-empty options; proxy-URI and Uri-Path-Abbrev early returns are length-consistent. Property tests over the shipped unit suite (test_uri cases covering empty/percent/dot paths and queries, plus query reconstruction expectations) all pass, and randomized PDU-level traffic against a local coap-server (including 400 randomized /.well-known/core query filters that run through this reconstruction and the resource match() filter) produced no ASAN diagnostics.",
+      "recorded_by": "URI and Proxy Audit",
+      "recorded_at": "2026-11-17 11:12:12 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_proxy.c: coap_proxy_forward_request_lkd / coap_proxy_get_ongoing_session (Proxy-Uri, Proxy-Scheme, Uri-Host, Uri-Port)",
+      "risk_area": "Destination determination / scheme confusion / outbound session creation from attacker-controlled URI options",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Reviewed coap_get_uri_proxy_scheme_info() (length-exact scheme matching, Uri-Host/Uri-Port sourcing, option length limits enforced by coap_pdu_parse_opt_base), coap_split_proxy_uri() use, coap_verify_proxy_scheme_supported() (http/https rejected), the STRIP option-rebuild loop, and coap_resolve_address_info_lkd() (host copied into a 256-byte buffer only after a >=255 length check, so no missing-NUL use). Dynamically: ~5k structured inputs through tests/oss-fuzz/proxy_target.c (all eight proxy type/bit combinations, Proxy-Scheme-only / Proxy-Uri-only / both, host lengths up to 300, uppercase and IPv6 forms) and 1.5k raw crafted packets against a live `coap-server -P ,proxy.local` proxy with a controlled upstream; no ASAN diagnostics. Proxy-Uri to an arbitrary AF_UNIX socket works (documented libcoap unix-domain URI support) and was assessed as designed forward-proxy behaviour, not a boundary crossing.",
+      "recorded_by": "URI and Proxy Audit",
+      "recorded_at": "2026-11-17 11:12:21 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_proxy.c: coap_proxy_forward_response_lkd / coap_proxy_call_response_handler / coap_proxy_process_incoming",
+      "risk_area": "Attacker-controlled upstream responses, observe cache refcounting, block-wise relay",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Exercised the response/cache path that the shipped proxy_target harness never reaches, by driving a live `coap-server -P ,proxy.local` proxy against a Python upstream that returns attacker-shaped responses (Observe 0/1/2, ETag, Max-Age, Content-Format, Size2, Block2, Location-Path, unknown option numbers 100-600, bodies up to 900 bytes, plus delayed CON notifications): 120 cached-observe requests and 400 PDU-level requests. Cache hits and observe cancellation paths were reached (\"Using Proxy Cache\", \"proxy rspc\", \"proxy miss\") with no ASAN/UBSAN diagnostic. Reviewed the ownership/refcount handling (rcvd_created error PDU, proxy_cache->ref, proxy_req->token_used, body_data handoff to coap_add_data_large_response_lkd) and found no double-free or OOB; the only defect found here is a size!=total body copy that cannot occur because the block layer sets body_length == body_total on the reassembled path and body_total = inline length otherwise.",
+      "recorded_by": "URI and Proxy Audit",
+      "recorded_at": "2026-11-17 11:12:29 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_proxy.c: coap_proxy_get_add_list_entry (proxy_list realloc + returned entry pointer)",
+      "risk_area": "Heap out-of-bounds write on proxy entry allocation (off-by-one)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Suspected an off-by-one: `context->proxy_list_count++; return &proxy_list[proxy_list_count];` looks like it returns one element past the allocation. Ruled out: `proxy_list_count` inside the function is a local copy taken before the increment, so the increment only updates the context field and the returned address is exactly the slot that was just zeroed, populated and counted. Confirmed with an instrumented build of the function (prints ret == list base and count field == 1 for the first entry) and with a driver that compares the returned pointer to context->proxy_list and reads a correct uri.host/uri.port through it; thousands of entry creations under ASAN produced no diagnostic.",
+      "recorded_by": "URI and Proxy Audit",
+      "recorded_at": "2026-11-17 11:12:37 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_net.c: coap_send_internal() Uri-Path-Abbrev expansion path",
+      "risk_area": "Integrity: request body silently dropped (wrong PDU receives the payload)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Reported as vuln-0001. When a session is in the no_path_abbrev state (set by the library after the peer answers 4.02 to a Uri-Path-Abbrev request), coap_send_internal() duplicates the request with the abbreviation expanded but calls coap_add_data(pdu, ...) on the source PDU that is deleted immediately afterwards, so the transmitted request has no payload. Reproduced end to end: a PUT with Uri-Path-Abbrev + payload 'BODY' leaves as 4103e19661b1610162e4000c452e497b (no 0xFF payload marker); with coap_add_data(new, ...) it leaves as 41037df061b1610162e4000c70293493ff424f4459 (payload present).",
+      "recorded_by": "URI and Proxy Audit",
+      "recorded_at": "2026-11-17 11:12:45 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_proxy.c: proxy request cleanup at context teardown (coap_proxy_cleanup_entry)",
+      "risk_area": "Use-after-free / dangling session pointer during proxy cleanup",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed under ASAN but deliberately not filed (full trace in shared note): coap_free_context() releases sessions (coap_net.c:909) before coap_proxy_cleanup() (coap_net.c:945), so coap_proxy_cleanup_entry→coap_proxy_del_req→coap_proxy_log_entry() reads freed memory via coap_session_get_addr_remote() (heap-use-after-free READ of size 2 at coap_debug.c:274). Trigger requires COAP_LOG_DEBUG plus a pending proxy request at context teardown; an attacker cannot force teardown or change the log level, so no security impact was demonstrated and no CVSS-bearing report was justified — orchestrator decision whether to file it as hardening.",
+      "recorded_by": "URI and Proxy Audit",
+      "recorded_at": "2026-11-17 11:12:54 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_debug.c diagnostic buffers (coap_show_pdu, print_readable, print_content_format, coap_snprintf)",
+      "risk_area": "buffer overflow / out-of-bounds read-write in attacker-controlled PDU rendering",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Static bound proof plus ASAN/UBSAN validation found no residual defect. Each write is bounded: coap_snprintf() clamps the offset to buf_size-1 and returns only bytes actually written (verified exhaustively for buf_size 1..300 at every valid offset, no canary write past the buffer); print_readable() reserves the NUL and returns <= buflen-1; outbuflen/buf_len are re-derived from strlen() on every branch and buf_len is reset per option, so the \"%.*s\" precision can never exceed the NUL-terminated content of buf. Hostile-PDU harness: 65804-byte extended-length unknown options, 1000-option lists, max-length Proxy-Uri/OSCORE kid+kid-context (including internally inconsistent kid/pIV lengths), 70KB text/binary payloads, CSM/Release/Abort signalling, TCP extended tokens (13/14 nibble). libFuzzer over parse+coap_show_pdu at COAP_LOG_DEBUG: 159,451 runs / 116,993 formatter calls on the default 2056-byte buffer and 622,050 runs / 431,512 formatter calls on a 32-byte buffer build, all clean (output capped at buf_size-1 exactly). Project testdriver: 240/240 pass including the new t_parse_pdu18.",
+      "recorded_by": "Debug String Audit",
+      "recorded_at": "2026-11-17 11:14:25 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "coap_show_pdu() call sites in src/coap_net.c, coap_block.c, coap_oscore.c, coap_proxy.c, coap_resource.c",
+      "risk_area": "reachability and log-level gating of the diagnostic formatter for inbound PDUs",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "coap_dispatch() renders every successfully parsed inbound PDU at COAP_LOG_DEBUG (src/coap_net.c:4884); all other library call sites are COAP_LOG_DEBUG except the OSCORE-encryption-failure dump at src/coap_net.c:2286 (COAP_LOG_WARN, only when maxlog < DEBUG). With the default maxlog=COAP_LOG_WARN the formatter returns at its level check; it runs whenever logging is raised, e.g. the shipped examples' -v debug. PDUs rejected by parse (invalid extended token, payload marker as last byte, malformed option) return before any dump in the UDP, WS and TCP receive paths, so only fully validated PDUs reach the formatter.",
+      "recorded_by": "Debug String Audit",
+      "recorded_at": "2026-11-17 11:14:25 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "analogous offset-append debug formatting in src/coap_async.c, src/coap_resource.c, src/coap_net.c, src/coap_proxy.c, src/coap_ws.c, src/coap_debug.c print_timestamp",
+      "risk_area": "snprintf return value used as a length, or fixed-buffer overflow in analogous diagnostic assembly",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Analogue sweep on the same offset-append pattern. In src/coap_async.c:74, src/coap_resource.c:1085, src/coap_net.c:3513 and src/coap_proxy.c:63-74 the offset is recomputed with strlen() and snprintf() is handed the true remaining size, so truncation is safe. src/coap_ws.c:157 sizes the hex dump 3*COAP_MAX_FS+1 for at most COAP_MAX_FS (14) header bytes and only logs after hdr_ofs >= 2+extra_hdr_len. src/coap_debug.c print_timestamp() is the only remaining site that adds a snprintf() return value to an offset, and the guard len > lensofar+4 guarantees room for the 4-byte suffix in a fixed 32-byte timebuf; strftime() returns 0 (never a value >= len) on overflow. No site feeds a snprintf/vsnprintf return value back in as a buffer length.",
+      "recorded_by": "Debug String Audit",
+      "recorded_at": "2026-11-17 11:14:31 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/oscore/oscore_cose.c + src/oscore/oscore_crypto.c (COSE Encrypt0, HKDF, AEAD wrapper)",
+      "risk_area": "AEAD tag verification, nonce reuse, key derivation correctness (RFC 8613 / RFC 8152 semantics)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Built the shipped tests/test_oscore.c against an ASAN+UBSAN build (CUnit) and ran all 37 tests: 37 passed, 389 asserts, 0 failures. This covers the RFC 8613 Appendix C vectors end to end (C.1.1-C.8.2: sender/recipient key and common-IV derivation, sender/recipient nonce for both request and response, external AAD/COSE AAD bytes, and full request/response encrypt/decrypt), so key derivation, nonce construction, AAD composition and tag handling match the RFC for the shipped algorithms. Additionally cross-checked libcoap's ciphertext against an independent Python HKDF-SHA256 + AES-CCM implementation: the captured client request and server response both decrypt with RFC-derived keys/nonce/AAD. Code review of cose_encrypt0_decrypt/encrypt found the length guards correct (ciphertext < tag_len rejected, ciphertext > plaintext+tag_len rejected, key/nonce length checked against the algorithm).",
+      "recorded_by": "OSCORE Crypto Audit",
+      "recorded_at": "2026-11-17 11:16:35 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/oscore/oscore.c (oscore_generate_nonce, oscore_validate_sender_seq, oscore_increment/roll_back)",
+      "risk_area": "Replay-window off-by-one / nonce reuse across messages",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Reviewed oscore_generate_nonce (S | ID_PIV(7, right aligned) | PIV(5, right aligned), XOR common IV), oscore_increment_sender_seq, oscore_validate_sender_seq and oscore_roll_back_seq against RFC 8613 §5.2/B.1.1. Nonce layout confirmed against an independent implementation and the RFC Appendix C vectors. Live tests with an independent OSCORE peer against a local interop server: a valid request was accepted, an exact replay of it was answered 4.01, a re-encrypted message reusing the same PIV was rejected, a fresh PIV was accepted, and an unseen older PIV inside the window was accepted while a seen one was not; PIVs >= 2^40-1 are rejected. Encryption failures roll the window back (the shipped t_oscore_short_ciphertext_rollback test also covers this). No way found for an attacker without the master secret to advance or poison the window, since every state change is gated by a successful AEAD check or is rolled back.",
+      "recorded_by": "OSCORE Crypto Audit",
+      "recorded_at": "2026-11-17 11:16:43 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_oscore.c coap_oscore_decrypt_pdu (request + response paths, inner PDU assembly)",
+      "risk_area": "Memory safety in pre-authentication parsing (OSCORE option, COSE, CBOR, plaintext/ciphertext length mismatch)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Two custom in-process harnesses fed coap_oscore_decrypt_pdu(): (a) 3,000,000 randomized OSCORE options (0-255 bytes, valid-ish first bytes, PIV/kid/kid_context permutations) with random ciphertext under ASAN+UBSAN, no report and stable RSS; (b) 30,000 iterations of *validly encrypted* messages (RFC keys, correct nonce/AAD, random inner plaintext including well-formed option streams with extended delta/length, Block/Observe/Uri-Path options and payloads) to exercise the post-decrypt inner-PDU copy path, no report. Also 400k randomized kid_context/PIV permutations with RFC 8613 Appendix B.2 enabled. Manual review of the ciphertext/plaintext length arithmetic (encrypt_len, tag_len, coap_pdu_init/resize sizing, plain_pdu->used_size) found the added `encrypt_len <= tag_len` guard prevents the previous empty-plaintext case. Outstanding anomalies from this surface are tracked in the B.2 and external-credential reports.",
+      "recorded_by": "OSCORE Crypto Audit",
+      "recorded_at": "2026-11-17 11:16:52 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_pdu.c OSCORE option length validation vs coap_oscore_decrypt_pdu osc_size (uint8_t)",
+      "risk_area": "Length truncation / unauthenticated option content influencing OSCORE state",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "coap_pdu_parse_opt() calls coap_pdu_parse_opt_base() for every parsed option, which rejects COAP_OPTION_OSCORE with len > 255 (src/coap_pdu.c:1343); coap_handle_dgram() then treats the PDU as malformed and answers 4.02 Bad Option without ever calling coap_oscore_decrypt_pdu(), so the `uint8_t osc_size = coap_opt_length(opt)` truncation in coap_oscore_decrypt_pdu() cannot be reached with a >255-byte option. Verified with a live server: a 258-byte OSCORE option is answered 4.02 and no OSCORE processing/log line is produced. Inside the decoder, option_len > 255, partial_iv_len 6/7, reserved bits and offset+kid_context.length > option_len are all rejected, so the kid/piv slices stay inside the option.",
+      "recorded_by": "OSCORE Crypto Audit",
+      "recorded_at": "2026-11-17 11:17:00 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_oscore.c coap_parse_oscore_conf_mem / get_split_entry / parse_hex_bin (OSCORE config text parser)",
+      "risk_area": "Memory safety in config parsing (line splitting, hex decoding, keyword tables)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Reviewed get_split_entry(), parse_hex_bin(), the oscore_config[] tables and coap_parse_oscore_conf_mem(); every memchr/strlen count is bounded by the remaining line/buffer length, parse_hex_bin allocates (end-begin)/2 and consumes exactly two hex digits per output byte, ids > 7 bytes are rejected, and duplicate keywords are refused. Fuzzed coap_new_oscore_conf() with a seed corpus of all documented keywords plus random mutation (insert/delete/byte-flip/quote/escape/newline, ~200k inputs) under ASAN+UBSAN together with oscore_decode_option_value: no sanitizer report. Input is operator-supplied configuration, not network-reachable.",
+      "recorded_by": "OSCORE Crypto Audit",
+      "recorded_at": "2026-11-17 11:17:09 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_subscribe.c coap_persist_observe_add OSCORE association blob (oscore_info) parsing",
+      "risk_area": "Pre-auth CBOR parsing / recursion depth / unchecked lengths",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "The CBOR parser is only used on data the application itself persisted (the association blob written by coap_add_observer and handed back through the observe-persist callback), not on network input, so an unauthenticated peer cannot supply it. Reviewed anyway: every byte-string length is compared against the remaining buffer before the slice is taken and before the pointer is advanced, and the array count is checked to be 5. Note two quirks worth knowing (no memory-safety impact): the nil case is compared with `oscore_cbor_get_element_size(...) == CBOR_NULL`, which can never be true because get_element_size returns the simple-value byte (0x16 for nil) rather than CBOR_NULL, and oscore_cbor_skip_value/strip_value (only used by unit tests) recurse without a depth limit — not reachable from this path.",
+      "recorded_by": "OSCORE Crypto Audit",
+      "recorded_at": "2026-11-17 11:17:17 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_asn1.c reachability from OSCORE configuration parsing",
+      "risk_area": "ASN.1 parser length/tag integer handling",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "src/coap_asn1.c (asn1_len/asn1_tag_c/get_asn1_tag) is referenced only by the TinyDTLS backend (src/coap_tinydtls.c), which is not built in an OpenSSL configuration and has nothing to do with OSCORE credential parsing; grep over the whole tree shows no call from the OSCORE config or COSE code. There is therefore no path from an OSCORE configuration file to the ASN.1 parser.",
+      "recorded_by": "OSCORE Crypto Audit",
+      "recorded_at": "2026-11-17 11:17:26 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/oscore/oscore_context.c oscore_find_context non-callback path + oscore_duplicate_ctx zero-length id_context",
+      "risk_area": "Security-context selection semantics / ID-context downgrade (zero-length id_context)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Open item. With rfc8613_b_2 enabled, a request whose CBOR kid_context is an empty byte string makes oscore_duplicate_ctx() store a zero-length id_context (coap_new_bin_const with length 0 yields a non-NULL object whose s pointer is NULL). Later lookups then compare it with memcmp(pt->id_context->s, ctxkey_id->s, 0), which UBSAN reports as \"null pointer passed as argument 2\" at src/oscore/oscore_context.c:426; a zero-length id_context also compares equal to any request that carries no kid_context, so the duplicated context can be selected for kid-only lookups. In a normal build memcmp with a zero length is harmless and selecting the context still requires the AEAD check to pass with that context's derived keys, so I could not demonstrate a security consequence (confidentiality/integrity/availability) and did not file it. Gap: whether an attacker who legitimately holds the master secret can use the zero-length context to reach a state the protocol forbids (e.g. an ID-context downgrade) was not established.",
+      "recorded_by": "OSCORE Crypto Audit",
+      "recorded_at": "2026-11-17 11:17:35 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_uri.c:1204-1291 coap_get_uri_path() (Uri-Path loop, Uri-Path-Abbrev and Proxy-Uri branches)",
+      "risk_area": "Heap buffer overflow / undersized allocation in path assembly",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Uri-Path loop: pass 1 (lines 1252-1265) adds sum(enc(seg_i)) + n then subtracts 1; pass 2 (lines 1273-1288) writes exactly (n-1) '/' separators plus sum(enc), same predicate, same iterator, same uint16_t truncation of coap_opt_length(), and uri_path->length is set to the same value, so writes == length and coap_new_string() zero-terminates at s[length]. Uri-Path-Abbrev branch (1213-1233) sizes with strlen(exp) and memcpy's exactly strlen(exp) (coap_new_string already stores the length). Proxy-Uri branch (1235-1249) sizes with uri.path.length, which coap_split_uri_sub derives from bounds already checked against the option length (src/coap_uri.c:315-341), and memcpy's exactly that many bytes. Verified under ASAN+UBSAN: h1.c (all path cases above incl. 1500 segments and 1000x255 all-'%'), h3.c (abbrev mappings of 1/5/64/255/1024/4096 bytes, unknown abbrev -> NULL, abbrev+Uri-Path -> NULL, 15 Proxy-Uri variants incl. a 1000-byte path, empty path, IPv6 host, '?'), h4.c (2983 randomized cases) - 0 failures, no sanitizer output. Over-cap (>255) segments are unreachable: src/coap_pdu.c:1336-1341 rejects them at parse, add, insert, update and optlist time.",
+      "recorded_by": "URI Option Assembly Audit",
+      "recorded_at": "2026-11-17 11:18:17 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/coap_uri.c:1110-1174 coap_get_query()",
+      "risk_area": "Heap buffer overflow from two-pass length/write mismatch",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control: both passes are provably the same function of the same inputs. Pass 1 (lines 1123-1136) computes length = sum(enc(seg_i)) + n, then subtracts exactly 1, i.e. sum(enc) + (n-1); pass 2 (lines 1150-1170) writes one '&' for every option except the first ((n-1) separators) plus sum(enc), using the same is_unescaped_in_query() predicate, the same iterator/filter, and the same `uint16_t seg_len = coap_opt_length(q)` truncation. coap_new_string() (src/coap_str.c:21-47) allocates size+1 and sets s[size]=0, so the buffer is exactly length+1. Verified with ASAN+UBSAN builds (clang -fsanitize=address,undefined) against build-asan/libcoap-3.a: 229 authored cases (/workspace/uria/h1.c) over lengths 0,1,2,3,63,127,254,255 with byte classes '%','&','=','/',0x00,0x7f,0x80,0xff,'A' and mixed soup, 1/2/3/17/300/1500 repeated options with leading/middle/trailing empty options, 1000x255 all-'%' and 200x255 all-'&', plus 2983 randomized differential cases (/workspace/uria/h4.c) comparing length, full content and s[length]==NUL against an independently written encoder: 0 failures, no sanitizer output. Over-length values (256/1000/60000) are rejected by coap_add_option at src/coap_pdu.c:872 via the per-option cap at src/coap_pdu.c:1359-1362.",
+      "recorded_by": "URI Option Assembly Audit",
+      "recorded_at": "2026-11-17 11:18:17 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "uint16_t seg_len truncation in coap_get_query()/coap_get_uri_path()",
+      "risk_area": "Integer truncation of the option length leading to undersized allocation",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Specific candidate: `uint16_t seg_len = coap_opt_length(q)` (src/coap_uri.c:1124 and :1277) truncates the uint32_t maximum option length (65804). Tested by hand-building wire PDUs that bypass the public API caps and feeding them to coap_pdu_parse (UDP and TCP), with declared option lengths 65534/65535/65536/65537/60000/65799/65804 (/workspace/uria/h2.c). For 65536 the truncated value is 0 and the returned string is 0 bytes; for 65804 it is 268 and the returned string is 268 encoded bytes; in every case returned length == bytes actually written and s[length] == NUL, with no ASAN/UBSAN report - because both passes truncate identically, so the allocation and the writes still agree. The truncation is data loss, not memory unsafety, and it is unreachable anyway: coap_pdu_parse_opt_base rejects every Uri-Path/Uri-Query option longer than 255 bytes (src/coap_pdu.c:1336-1341 and :1359-1362), called from every builder (coap_insert_option :711, coap_update_option :815, coap_add_option_internal :872) and from the parse path (:1511). Confirmed on the network path: an oversized option gets 4.02 'Bad Option' and is never dispatched (src/coap_net.c:3187-3199), so coap_get_uri_path()/coap_get_query() never see a >255 segment.",
+      "recorded_by": "URI Option Assembly Audit",
+      "recorded_at": "2026-11-17 11:18:28 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "coap_get_query() NULL-on-no-Uri-Query behaviour change",
+      "risk_area": "NULL dereference in callers due to NULL-on-absent-option semantics",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "coap_get_query() now returns NULL when no Uri-Query option exists (src/coap_uri.c:1137-1144), whereas upstream returned a zero-length string, so every library consumer was checked for a NULL dereference: src/coap_net.c:4215 (only forwarded to the app handler), src/coap_resource.c:1088-1099 (all uses are `uri_query ? ... : ...` ternaries and coap_delete_string(NULL) is safe), src/coap_resource.c:1326 and :1426, src/coap_subscribe.c:1001 (forwarded to handler), src/coap_proxy.c:923 and :1463 (passed to coap_add_data_large_response_lkd, which guards with `query ? query : &empty` at src/coap_block.c:788-790 and :2691, and copies under `if (query)` at :1219). No unguarded dereference exists; the change is a behaviour difference, not a crash. Exercised live: a no-query GET returns 2.05 from the ASAN example server over both UDP and TCP.",
+      "recorded_by": "URI Option Assembly Audit",
+      "recorded_at": "2026-11-17 11:18:28 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Live coap-server UDP+TCP request path exercising coap_get_uri_path()/coap_get_query()",
+      "risk_area": "Remote memory corruption via attacker-supplied Uri-Path/Uri-Query options",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Live ASAN+UBSAN build of examples/coap-server (build-asan) on 127.0.0.1:56831 with UDP and TCP endpoints, driven by hand-built CoAP PDUs (/workspace/uria/udp_test.py and tcp_test.py). UDP: valid /.well-known/core and /time?x=1 -> 2.05; 255-byte Uri-Path -> 4.04 (processed); 256-byte -> 4.02 with server log 'option 11 has bad length 256'; 60000-byte and 200x255 aggregate -> server log 'coap_pdu_resize: pdu too big' and the PDU is discarded. TCP: valid -> 2.05; 255-byte path -> 4.04; 256/60000/65804-byte Uri-Path -> 4.02; 256/60000/65804-byte Uri-Query -> 4.02; 200x255-byte Uri-Path (51 KB PDU) -> 4.04; 1000x255-byte all-'&' Uri-Query (257 KB PDU) -> 2.05, i.e. coap_get_query() really did assemble 1000 segments in-process. Server logs show only the expected cap/reject warnings; grep for AddressSanitizer/runtime error/SEGV returns 0 hits and the server stayed alive across all cases.",
+      "recorded_by": "URI Option Assembly Audit",
+      "recorded_at": "2026-11-17 11:18:49 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "'&'/'='/'/' literal-byte handling in the coap_get_query()/coap_get_uri_path() encoder",
+      "risk_area": "Cache-key / semantic confusion from a non-injective URI option encoding",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "coap_get_query()/coap_get_uri_path() escape every non-RFC3986-char byte but treat '&', '=' and '/' (query) plus '/' (path) as literal \"unescaped\" bytes (src/coap_uri.c:1083-1107), so the encoding is not injective: one Uri-Query option with value `a&b` and two options `a`,`b` both assemble to `a&b`; a Uri-Path value containing '/' assembles indistinguishable from two segments. Consequences that would matter: src/coap_block.c:788-790 and :2691 use the assembled query string as a Block2/observe large-body cache key, and src/coap_proxy.c:923 passes it as the cache key for proxied bodies, so two different option sets can share a cache entry even though the application handler sees different option objects. I could NOT demonstrate the impact: the example resources are query-insensitive, and building a query-sensitive handler plus a Block2 cache-collision scenario was outside this task's assigned functions. I also could not name a control that prevents collision - the encoding simply has no canonicalisation. Note this behaviour is inherited from upstream libcoap (same is_unescaped_in_path/is_unescaped_in_query definitions), i.e. not introduced by the recent comments/patch in these functions.",
+      "recorded_by": "URI Option Assembly Audit",
+      "recorded_at": "2026-11-17 11:19:15 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/coap_block.c lg_srcv Block1 reassembly + coap_block_build_body_lkd (3691-3870, 4589-4630)",
+      "risk_area": "Heap overflow in block-wise reassembly (offset/len arithmetic from Block1 fields and SIZE1)",
+      "detail": "coap_block_build_body_lkd has the SIZE_MAX-8 overflow test, the caller rejects `total_len_set && offset+length > total_len` (src/coap_block.c:3752) and the fast memcpy requires body_data->length >= total, otherwise it resizes to offset+length first. Gap: the multi-iteration BERT walk at 3795-3818 recomputes offset = block.num << (block.szx+4) from wire values; only stateless fuzzing (block/block_check targets, 40k execs) was done, no stateful interleaved Block1 sequences with changing SZX/BERT."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/coap_subscribe.c observe registration and notification handling",
+      "risk_area": "Observe state confusion / use-after-free / unbounded per-peer state growth",
+      "detail": "Skim of the observe registry functions (352/417/538/621/745/813/877/915/940/1042/1118) found no copy whose length comes from a wire field; state is keyed on token + cache key. Gap: re-registration ordering, token churn and notification fan-out are stateful and need a live client/server pair; observe_target only gives ~40k stateless execs."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/coap_proxy.c: proxy request cleanup at context teardown (coap_proxy_cleanup_entry)",
+      "risk_area": "Use-after-free / dangling session pointer during proxy cleanup",
+      "detail": "Confirmed under ASAN but deliberately not filed (full trace in shared note): coap_free_context() releases sessions (coap_net.c:909) before coap_proxy_cleanup() (coap_net.c:945), so coap_proxy_cleanup_entry→coap_proxy_del_req→coap_proxy_log_entry() reads freed memory via coap_session_get_addr_remote() (heap-use-after-free READ of size 2 at coap_debug.c:274). Trigger requires COAP_LOG_DEBUG plus a pending proxy request at context teardown; an attacker cannot force teardown or change the log level, so no security impact was demonstrated and no CVSS-bearing report was justified — orchestrator decision whether to file it as hardening."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/oscore/oscore_context.c oscore_find_context non-callback path + oscore_duplicate_ctx zero-length id_context",
+      "risk_area": "Security-context selection semantics / ID-context downgrade (zero-length id_context)",
+      "detail": "Open item. With rfc8613_b_2 enabled, a request whose CBOR kid_context is an empty byte string makes oscore_duplicate_ctx() store a zero-length id_context (coap_new_bin_const with length 0 yields a non-NULL object whose s pointer is NULL). Later lookups then compare it with memcmp(pt->id_context->s, ctxkey_id->s, 0), which UBSAN reports as \"null pointer passed as argument 2\" at src/oscore/oscore_context.c:426; a zero-length id_context also compares equal to any request that carries no kid_context, so the duplicated context can be selected for kid-only lookups. In a normal build memcmp with a zero length is harmless and selecting the context still requires the AEAD check to pass with that context's derived keys, so I could not demonstrate a security consequence (confidentiality/integrity/availability) and did not file it. Gap: whether an attacker who legitimately holds the master secret can use the zero-length context to reach a state the protocol forbids (e.g. an ID-context downgrade) was not established."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "'&'/'='/'/' literal-byte handling in the coap_get_query()/coap_get_uri_path() encoder",
+      "risk_area": "Cache-key / semantic confusion from a non-injective URI option encoding",
+      "detail": "coap_get_query()/coap_get_uri_path() escape every non-RFC3986-char byte but treat '&', '=' and '/' (query) plus '/' (path) as literal \"unescaped\" bytes (src/coap_uri.c:1083-1107), so the encoding is not injective: one Uri-Query option with value `a&b` and two options `a`,`b` both assemble to `a&b`; a Uri-Path value containing '/' assembles indistinguishable from two segments. Consequences that would matter: src/coap_block.c:788-790 and :2691 use the assembled query string as a Block2/observe large-body cache key, and src/coap_proxy.c:923 passes it as the cache key for proxied bodies, so two different option sets can share a cache entry even though the application handler sees different option objects. I could NOT demonstrate the impact: the example resources are query-insensitive, and building a query-sensitive handler plus a Block2 cache-collision scenario was outside this task's assigned functions. I also could not name a control that prevents collision - the encoding simply has no canonicalisation. Note this behaviour is inherited from upstream libcoap (same is_unescaped_in_path/is_unescaped_in_query definitions), i.e. not introduced by the recent comments/patch in these functions."
+    },
+    {
+      "kind": "unrecorded_risk_class",
+      "risk_area": "business logic",
+      "detail": "Agent(s) Core Dispatch and Cache were assigned the 'business_logic' skill, but no coverage entry records this class being assessed. Treat it as unexamined, not as clean."
+    },
+    {
+      "kind": "unrecorded_risk_class",
+      "risk_area": "insecure deserialization",
+      "detail": "Agent(s) OSCORE Crypto Audit were assigned the 'insecure_deserialization' skill, but no coverage entry records this class being assessed. Treat it as unexamined, not as clean."
+    },
+    {
+      "kind": "unrecorded_risk_class",
+      "risk_area": "race conditions",
+      "detail": "Agent(s) Block/Session/Observe Audit were assigned the 'race_conditions' skill, but no coverage entry records this class being assessed. Treat it as unexamined, not as clean."
+    },
+    {
+      "kind": "unrecorded_risk_class",
+      "risk_area": "ssrf",
+      "detail": "Agent(s) URI and Proxy Audit were assigned the 'ssrf' skill, but no coverage entry records this class being assessed. Treat it as unexamined, not as clean."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "Cache Key Collision Audit",
+      "detail": "Cache Key Collision Audit ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "Core Dispatch and Cache",
+      "detail": "Core Dispatch and Cache ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "DTLS Session Audit",
+      "detail": "DTLS Session Audit ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "Unit Test & Conformance",
+      "detail": "Unit Test & Conformance ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    }
+  ]
+}

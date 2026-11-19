@@ -1,0 +1,2 @@
+FROM mygoldmine-benchmark-tools:20261117
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple setuptools

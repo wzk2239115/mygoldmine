@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/vol1/1000/mygoldmine-restore/app/mygoldmine/scripts/stages/skill_bank.py", line 398, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/vol1/1000/mygoldmine-restore/app/mygoldmine/scripts/stages/skill_bank.py", line 390, in main
+    if a.action=='collect':value=bank.feedback(a.root,a.project)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/vol1/1000/mygoldmine-restore/app/mygoldmine/scripts/stages/skill_bank.py", line 119, in feedback
+    if not run.is_relative_to(self.repo/'runs'):raise ValueError('反馈仅从实际运行目录采集')
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 反馈仅从实际运行目录采集

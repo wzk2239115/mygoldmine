@@ -1,0 +1,9 @@
+{
+  "registry": "ghcr.io",
+  "repository": "usestrix/strix-sandbox",
+  "tag": "1.4.1",
+  "platform": "linux/amd64",
+  "image_id": "sha256:d852cd30fc0ef1df8283b82533dba2aa7dc997e59e344cb27bb5a480a94fef3e",
+  "compressed_layer_hashes_verified": true,
+  "uncompressed_diff_ids_verified": true
+}

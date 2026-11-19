@@ -1,0 +1,283 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-17T04:12:26.863263+00:00",
+  "project": "benchmark-pure-ftpd",
+  "project_name": "benchmark-pure-ftpd",
+  "audit_id": "",
+  "direction": "",
+  "run_dir": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine/pure-ftpd",
+  "run_id": "pure-ftpd",
+  "source": "/vol1/1000/mygoldmine-restore/app/mygoldmine/targets/benchmark-pure-ftpd",
+  "url": "",
+  "commit": "",
+  "cover": "",
+  "trees": {
+    "project": {
+      "id": "project:benchmark-pure-ftpd",
+      "label": "benchmark-pure-ftpd",
+      "kind": "root",
+      "status": "root",
+      "children": [
+        {
+          "id": "dir:findings",
+          "label": "findings",
+          "kind": "domain",
+          "status": "scope",
+          "children": [
+            {
+              "id": "dir:src/tls.c",
+              "label": "tls.c",
+              "kind": "module",
+              "status": "scope",
+              "children": [
+                {
+                  "id": "finding:NORM-TLS-001",
+                  "label": "SNI 扩展证书路径的证书文件名在 ssl_servername_cb 中未释放（每次握手泄漏）",
+                  "kind": "finding",
+                  "status": "low",
+                  "children": [],
+                  "finding_id": "NORM-TLS-001",
+                  "severity": "low",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/tls.c"
+                }
+              ],
+              "path": "src/tls.c"
+            },
+            {
+              "id": "dir:src/ls.c",
+              "label": "ls.c",
+              "kind": "module",
+              "status": "scope",
+              "children": [
+                {
+                  "id": "finding:NORM-PATH-001",
+                  "label": "NLST/MLSD/MLST/MDTM/SIZE 路径未调用 checknamesanity/simplify，可绕过 -X 点文件访问限制",
+                  "kind": "finding",
+                  "status": "low",
+                  "children": [],
+                  "finding_id": "NORM-PATH-001",
+                  "severity": "low",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/ls.c"
+                }
+              ],
+              "path": "src/ls.c"
+            },
+            {
+              "id": "dir:src/ftpd.c",
+              "label": "ftpd.c",
+              "kind": "module",
+              "status": "scope",
+              "children": [
+                {
+                  "id": "finding:NORM-INT-001",
+                  "label": "仅配置文件数配额时，user_quota_size 的无符号哨兵值经减法转换误判为超配额，合法上传被拒",
+                  "kind": "finding",
+                  "status": "low",
+                  "children": [],
+                  "finding_id": "NORM-INT-001",
+                  "severity": "low",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/ftpd.c"
+                }
+              ],
+              "path": "src/ftpd.c"
+            },
+            {
+              "id": "dir:src/log_mysql_p.h",
+              "label": "log_mysql_p.h",
+              "kind": "module",
+              "status": "scope",
+              "children": [
+                {
+                  "id": "finding:AUTH-001",
+                  "label": "MySQL/PGSQL 后端缺少 Crypt 配置时对 NULL 调用 strcasecmp，认证子进程崩溃（fail-closed DoS）",
+                  "kind": "finding",
+                  "status": "low",
+                  "children": [],
+                  "finding_id": "AUTH-001",
+                  "severity": "low",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/log_mysql_p.h"
+                }
+              ],
+              "path": "src/log_mysql_p.h"
+            }
+          ],
+          "files": 0,
+          "path": "findings"
+        }
+      ],
+      "project": "benchmark-pure-ftpd"
+    },
+    "coverage": {
+      "id": "coverage:benchmark-pure-ftpd",
+      "label": "Audit coverage",
+      "kind": "root",
+      "status": "root",
+      "children": [
+        {
+          "id": "stage:workspace_scan",
+          "label": "workspace scan",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:project_profile",
+          "label": "project profile",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:route_auth",
+          "label": "route auth",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:access_control",
+          "label": "access control",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:ssrf_analysis",
+          "label": "ssrf analysis",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:general_code_security",
+          "label": "general code security",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [
+            {
+              "id": "coverage-finding:NORM-TLS-001",
+              "label": "SNI 扩展证书路径的证书文件名在 ssl_servername_cb 中未释放（每次握手泄漏）",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "NORM-TLS-001",
+              "severity": "low",
+              "category": "",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:NORM-PATH-001",
+              "label": "NLST/MLSD/MLST/MDTM/SIZE 路径未调用 checknamesanity/simplify，可绕过 -X 点文件访问限制",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "NORM-PATH-001",
+              "severity": "low",
+              "category": "",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:NORM-INT-001",
+              "label": "仅配置文件数配额时，user_quota_size 的无符号哨兵值经减法转换误判为超配额，合法上传被拒",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "NORM-INT-001",
+              "severity": "low",
+              "category": "",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:AUTH-001",
+              "label": "MySQL/PGSQL 后端缺少 Crypt 配置时对 NULL 调用 strcasecmp，认证子进程崩溃（fail-closed DoS）",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "AUTH-001",
+              "severity": "low",
+              "category": "",
+              "note": ""
+            }
+          ],
+          "raw": null
+        },
+        {
+          "id": "stage:model_loading",
+          "label": "model loading",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:deserialization",
+          "label": "deserialization",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:path_traversal",
+          "label": "path traversal",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:sensitive_info",
+          "label": "sensitive info",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:agent_config",
+          "label": "agent config",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:combination_analysis",
+          "label": "combination analysis",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:final_crosscheck",
+          "label": "final crosscheck",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        }
+      ],
+      "project": "benchmark-pure-ftpd"
+    },
+    "attacks": []
+  },
+  "counts": {
+    "findings": 4,
+    "critical": 0,
+    "high": 0
+  }
+}

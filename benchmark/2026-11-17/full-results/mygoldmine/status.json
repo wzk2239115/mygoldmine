@@ -1,0 +1,21 @@
+[
+  {
+    "tool": "mygoldmine",
+    "target": "sol",
+    "start_utc": "2026-11-17T05:40:17.995888+00:00",
+    "status": "process_finished",
+    "limit_seconds": 3600,
+    "launcher_exit": 0,
+    "report_exists": false,
+    "elapsed_seconds": 81.72,
+    "end_utc": "2026-11-17T05:41:39.719353+00:00"
+  },
+  {
+    "tool": "mygoldmine",
+    "target": "pure-ftpd",
+    "start_utc": "2026-11-17T05:41:39.719571+00:00",
+    "status": "running",
+    "limit_seconds": 3600,
+    "launcher_exit": 0
+  }
+]

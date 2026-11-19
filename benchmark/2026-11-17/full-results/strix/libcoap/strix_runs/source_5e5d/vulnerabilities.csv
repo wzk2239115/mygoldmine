@@ -1,0 +1,5 @@
+id,title,severity,timestamp,file
+vuln-0002,Unauthenticated memory exhaustion in OSCORE Appendix B.2 context handling,MEDIUM,2026-11-17 11:14:54 UTC,vulnerabilities/vuln-0002.md
+vuln-0003,NULL pointer dereference in OSCORE external credential lookup crashes the server,MEDIUM,2026-11-17 11:15:28 UTC,vulnerabilities/vuln-0003.md
+vuln-0004,Uninitialised heap memory disclosed through re-assembled Block1 body when the block size grows mid-transfer,MEDIUM,2026-11-17 11:22:31 UTC,vulnerabilities/vuln-0004.md
+vuln-0001,Request payload silently dropped when retransmitting Uri-Path-Abbrev requests (coap_net.c),LOW,2026-11-17 11:11:21 UTC,vulnerabilities/vuln-0001.md

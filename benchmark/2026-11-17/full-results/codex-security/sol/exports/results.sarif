@@ -1,0 +1,902 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "e2734f35-14d6-4012-968e-66758e9463d2"
+      },
+      "properties": {
+        "codexSecuritySchemaVersion": "1.0",
+        "codexSecurityTargetKind": "git_worktree"
+      },
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "root-cause"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 867,
+                  "startLine": 858
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "auth-check"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 375,
+                  "startLine": 362
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 593,
+                  "startLine": 583
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 795,
+                  "startLine": 789
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Packet handlers run before CONNECT, bypassing authentication and dereferencing a NULL session\n\nprocess_message dispatches every decoded packet without checking client->connected or that a session exists. Authentication happens only inside connect_handler, so with allow_anonymous=false an unauthenticated client can still send PUBLISH (including RETAIN) and inject messages into broker topics. Session-dependent packets such as SUBSCRIBE, PUBACK, PUBREC and PUBCOMP similarly run with client->session == NULL and crash the broker.\n\nSeverity: high\n\nCategory: Access control\n\nWeaknesses: CWE-306, CWE-287, CWE-476\n\nRemediation:\nReject every packet other than CONNECT until the connection has completed a successful CONNECT and has a non-NULL session. Enforce authorization in the dispatch layer, not only in connect_handler, and return a protocol error for premature packets.\n\nRemediation tests:\n- With allow_anonymous=false, send PUBLISH as the first packet and assert the broker rejects it and does not store a retained message.\n- Send SUBSCRIBE, PUBACK, PUBREC and PUBCOMP before CONNECT; assert each is rejected without a crash.\n- Add a state-machine test that only CONNECT is accepted in the initial state.\n\nPreventive controls:\n- Add an explicit connection state machine and authorize at dispatch time.\n- Treat any non-CONNECT packet received before CONNECT as a protocol violation and close the connection."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:a35fde2686bd3da677426585f68f6c3ec235cf6fa2a1950b97a033545931a853"
+          },
+          "properties": {
+            "category": "access-control",
+            "confidence": "high",
+            "findingId": "csf_4292b7a02a3db5a0227aa30c",
+            "occurrenceId": "occ_10add1c5e70951aca755e2fc",
+            "severity": "high"
+          },
+          "ruleId": "access-control.missing-connect-state-check",
+          "ruleIndex": 0
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "allocation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 399,
+                  "startLine": 397
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 618,
+                  "startLine": 615
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 228,
+                  "startLine": 224
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 634,
+                  "startLine": 629
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:wbuf-allocation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 399,
+                  "startLine": 392
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:wbuf-fanout"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 231,
+                  "startLine": 224
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:wbuf-retained"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 619,
+                  "startLine": 613
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:wbuf-suback"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 634,
+                  "startLine": 626
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:wbuf-reset"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 652,
+                  "startLine": 642
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Unbounded writes into the fixed per-client write buffer corrupt the heap\n\nclient->wbuf is allocated with exactly max_request_size bytes, but SUBACK/UNSUBACK generation, retained-message replay, session resume replay and publish fan-out all append to wbuf + towrite without checking the remaining capacity. A retained PUBLISH close to max_request_size followed by a SUBSCRIBE (or two publishes delivered before the event loop flushes) writes past the allocation, corrupting heap metadata and adjacent objects.\n\nSeverity: critical\n\nCategory: Memory corruption\n\nWeaknesses: CWE-787, CWE-122\n\nRemediation:\nTrack the remaining capacity for wbuf and fail or disconnect when a reply would exceed it; grow the buffer dynamically for queued messages. Validate retained and fan-out message sizes against the destination's free space before packing.\n\nRemediation tests:\n- Publish a retained message of size max_request_size - small, then subscribe from another connection under ASan; assert no overflow and either delivery or a clean rejection.\n- Queue two near-maximum publishes for one subscriber before its socket drains; assert the write path bounds the buffer.\n- Add a unit test that asserts every append checks towrite + len <= max_request_size.\n\nPreventive controls:\n- Centralize all writes to wbuf in a helper that returns an error when the destination is full.\n- Size reply buffers from the actual packet being built and enforce a per-client output quota."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:2e3a37c8148ecddd1b11c6309400b56810b018250c1ddab25b628ae33e0b45b5"
+          },
+          "properties": {
+            "category": "memory-corruption",
+            "confidence": "high",
+            "findingId": "csf_6268a97e8332fdb158973f8c",
+            "occurrenceId": "occ_1cd0c8ecba2ecc761f7a6a3a",
+            "severity": "critical"
+          },
+          "ruleId": "memory-safety.client-write-buffer-overflow",
+          "ruleIndex": 1
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "first-free"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 678,
+                  "startLine": 674
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "second-free"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 880,
+                  "startLine": 877
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "destructor"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/mqtt.c"
+                },
+                "region": {
+                  "endLine": 587,
+                  "startLine": 582
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:unsub-second-free"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 880,
+                  "startLine": 868
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "UNSUBSCRIBE packet is destroyed twice, causing a heap double free\n\nunsubscribe_handler calls mqtt_packet_destroy(&e->data) before returning REPLY, and process_message then calls mqtt_packet_destroy(&io.data) again for every non-PUBLISH reply. The destructor frees the topic tuples without clearing the pointers, so a pre-CONNECT UNSUBSCRIBE triggers a double free of the tuple array and each topic string.\n\nSeverity: high\n\nCategory: Memory corruption\n\nWeaknesses: CWE-415, CWE-416\n\nRemediation:\nRemove the mqtt_packet_destroy call from unsubscribe_handler and let process_message own packet destruction, or transfer ownership explicitly. Make the destructor idempotent by clearing pointers and lengths after freeing.\n\nRemediation tests:\n- Send UNSUBSCRIBE with one topic on a fresh connection under ASan; assert no double-free report.\n- Add a test that verifies process_message is the sole owner of decoded packet destruction.\n\nPreventive controls:\n- Define one owner for each decoded packet and document the ownership transfer at the handler boundary.\n- Null out freed pointers in mqtt_packet_destroy to make repeated destruction harmless."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:a36abc76b24396d7a5508ccf4d3acd0071b2c403844f29569bfeac946b822122"
+          },
+          "properties": {
+            "category": "memory-corruption",
+            "confidence": "high",
+            "findingId": "csf_e3613e6e319d7795ee580a56",
+            "occurrenceId": "occ_3432793a87c49d552ee6d400",
+            "severity": "high"
+          },
+          "ruleId": "memory-safety.unsubscribe-double-free",
+          "ruleIndex": 7
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "root-cause"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/mqtt.c"
+                },
+                "region": {
+                  "endLine": 82,
+                  "startLine": 72
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/mqtt.c"
+                },
+                "region": {
+                  "endLine": 434,
+                  "startLine": 431
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root-cause"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 76,
+                  "startLine": 62
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 880,
+                  "startLine": 877
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "reachability"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 513,
+                  "startLine": 505
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:dispatch-unpack-call"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/mqtt.c"
+                },
+                "region": {
+                  "endLine": 435,
+                  "startLine": 425
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Packet type dispatch tables contain NULL and out-of-bounds entries\n\nmqtt_unpack indexes unpack_handlers[byte >> 4] and handle_command indexes handlers[type] without checking that the type is implemented. CONNACK (0x20), SUBACK (0x90) and the unmapped types 0xB0/0xD0 survive the opcode range check and reach a NULL function pointer or an out-of-bounds table read, crashing the single-process broker before authentication.\n\nSeverity: high\n\nCategory: Denial of service\n\nWeaknesses: CWE-476, CWE-129\n\nRemediation:\nValidate the packet type before both dispatch tables, reject every type the broker does not implement, and size the tables to the full 0-15 range with explicit NULL checks. Return a protocol error instead of calling through a missing entry.\n\nRemediation tests:\n- Send 0x20 0x00, 0x90 0x00, 0xB0 0x00 and 0xD0 0x00 to a fresh connection; assert each is rejected with a protocol error and the broker remains alive.\n- Fuzz all 256 first bytes with a zero remaining length under ASan/UBSan.\n\nPreventive controls:\n- Guard both dispatch sites with a range check and a non-NULL check.\n- Use a single table sized 16 with explicit handlers for every defined type and reject the rest."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:254634f01c141bce779fe5fdd3c9be274baff833465395cf3e19bf16ecf915c5"
+          },
+          "properties": {
+            "category": "denial-of-service",
+            "confidence": "high",
+            "findingId": "csf_5b60ce4633836ded1816514e",
+            "occurrenceId": "occ_8a55b70b7656b8bb966a2e0d",
+            "severity": "high"
+          },
+          "ruleId": "memory-safety.null-and-out-of-bounds-dispatch",
+          "ruleIndex": 5
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "root-cause"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 425,
+                  "startLine": 399
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 445,
+                  "startLine": 425
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:takeover-duplicate-map-entry"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 425,
+                  "startLine": 424
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Duplicate client IDs share a session and free it while another connection still uses it\n\nconnect_handler looks up an existing session by client ID and reuses it for the new connection without disconnecting the old client or removing its clients_map entry. If the new connection keeps clean_session=false, both connections point at the same session; when the original connection later disconnects with clean_session=true, client_deactivate frees that session while the new connection still references it. Duplicate HASH_ADD_STR entries and the HASH_DEL of a shared session worsen the corruption.\n\nSeverity: high\n\nCategory: Memory corruption\n\nWeaknesses: CWE-416, CWE-362\n\nRemediation:\nOn a duplicate client ID, disconnect and unregister the existing connection before adopting its session (MQTT takeover semantics), or reject the new connection. Keep exactly one clients_map entry per client ID and reference-count sessions by owning connection.\n\nRemediation tests:\n- Open two connections with the same client ID and clean_session=false, then disconnect the first with clean_session=true and publish/subscribe from the second under ASan.\n- Assert the broker keeps exactly one clients_map entry per client ID after a takeover.\n- Add a takeover test that verifies the old connection is closed before the new connection adopts the session.\n\nPreventive controls:\n- Implement MQTT 3.1.1 session takeover by closing the existing connection and removing its map entry before reusing the session.\n- Reference-count sessions by connection and free them only when the last owner releases them."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:36190936656c60bfc5bdde3986e862b8bf82eecc7332e6135cd8b9b7f9395740"
+          },
+          "properties": {
+            "category": "memory-corruption",
+            "confidence": "high",
+            "findingId": "csf_23a3bf8eba641b6e840b8f80",
+            "occurrenceId": "occ_93033fa80f23e1a3f603ab59",
+            "severity": "high"
+          },
+          "ruleId": "memory-safety.session-takeover-use-after-free",
+          "ruleIndex": 6
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/mqtt.c"
+                },
+                "region": {
+                  "endLine": 243,
+                  "startLine": 235
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "capacity"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/mqtt.h"
+                },
+                "region": {
+                  "endLine": 40,
+                  "startLine": 40
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "stack-frame"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 867,
+                  "startLine": 858
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Pre-authenticated CONNECT client ID overflows a 64-byte field on the stack\n\nunpack_mqtt_connect reads an attacker-controlled 16-bit client ID length and copies that many bytes into connect.payload.client_id, a 64-byte array, then writes a NUL at client_id[cid_len]. The decoded packet lives in the stack-local io_event of process_message, so a CONNECT whose client ID exceeds 63 bytes overwrites the process_message stack frame with attacker bytes before any authentication.\n\nSeverity: critical\n\nCategory: Memory corruption\n\nWeaknesses: CWE-121, CWE-787\n\nRemediation:\nReject CONNECT when cid_len >= MQTT_CLIENT_ID_LEN or when cid_len exceeds the remaining packet body, and copy with a bounded length. Prefer allocating client IDs dynamically or enforcing the MQTT 3.1.1 23-byte minimum limit.\n\nRemediation tests:\n- Send a CONNECT with a 64-byte client ID; assert it is rejected without corruption.\n- Send a CONNECT with a 4096-byte client ID; assert the broker rejects it and stays alive (ASan build).\n- Fuzz cid_len against lengths just under and over the 64-byte boundary.\n\nPreventive controls:\n- Validate every attacker-supplied length against both the remaining packet size and the destination capacity before copying.\n- Keep decoded packet storage off the stack or use dynamically sized fields."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:626b7c313a2050966b0acc616a93d4eb510b4c1588c3a21e98f85cf4197fb1d2"
+          },
+          "properties": {
+            "category": "memory-corruption",
+            "confidence": "high",
+            "findingId": "csf_f2461257ac40d1cc686f5889",
+            "occurrenceId": "occ_d30f04ccd00d9ada834ab090",
+            "severity": "critical"
+          },
+          "ruleId": "memory-safety.connect-client-id-overflow",
+          "ruleIndex": 2
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 356,
+                  "startLine": 311
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "input"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/handlers.c"
+                },
+                "region": {
+                  "endLine": 818,
+                  "startLine": 803
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:inflight-p-initial"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 315,
+                  "startLine": 311
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:inflight-ack-pack"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/server.c"
+                },
+                "region": {
+                  "endLine": 356,
+                  "startLine": 345
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Inflight ACK retransmission packs through a NULL packet pointer\n\ninflight_msg_check resends pending ACKs with mqtt_pack(p, c->wbuf + c->towrite), but p is only assigned in the preceding message branch and is NULL when only an ACK is pending. A client can create an ACK-only inflight entry by sending PUBREC for an unused packet ID; after the 20-second retransmission timer, mqtt_pack dereferences NULL and crashes the broker. The call also uses the wrong buffer size, since size was computed from the ACK packet.\n\nSeverity: medium\n\nCategory: Denial of service\n\nWeaknesses: CWE-476\n\nRemediation:\nPass &ack to mqtt_pack in the ACK branch and compute the size from the same packet that is serialized. Reset p per iteration or avoid sharing it between the two branches.\n\nRemediation tests:\n- Send PUBREC with an unused packet ID from a connected client, wait for the timer, and assert no crash.\n- Unit-test inflight_msg_check with an ACK-only session entry.\n\nPreventive controls:\n- Serialize the packet that was built in the same branch and scope the retransmission pointer to each branch.\n- Validate packet identifiers before storing ACK state."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:4369fa800a3e3ba37c788d690d6b4881ec4b80a1e3c643bd8cbaf99dd35aa6c9"
+          },
+          "properties": {
+            "category": "denial-of-service",
+            "confidence": "high",
+            "findingId": "csf_8985d173af3333bd56a6bfed",
+            "occurrenceId": "occ_e763d69bc01d5420a2c23bcb",
+            "severity": "medium"
+          },
+          "ruleId": "memory-safety.inflight-ack-stale-pointer",
+          "ruleIndex": 4
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "root-cause"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/mqtt.c"
+                },
+                "region": {
+                  "endLine": 316,
+                  "startLine": 304
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/pack.c"
+                },
+                "region": {
+                  "endLine": 424,
+                  "startLine": 411
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root-cause"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/mqtt.c"
+                },
+                "region": {
+                  "endLine": 358,
+                  "startLine": 342
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root-cause"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/mqtt.c"
+                },
+                "region": {
+                  "endLine": 401,
+                  "startLine": 385
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:len-unpack-bytes"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/pack.c"
+                },
+                "region": {
+                  "endLine": 417,
+                  "startLine": 411
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Unsigned remaining-length arithmetic underflows in the MQTT decoder\n\nunpack_mqtt_publish, unpack_mqtt_subscribe and unpack_mqtt_unsubscribe subtract header, topic and QoS lengths from the usize remaining length without checking that each field fits. A PUBLISH whose remaining length is smaller than 2 + topiclen wraps len to a huge value, and unpack_bytes then allocates len + 1 and memcpy's len bytes from the packet buffer. SUBSCRIBE/UNSUBSCRIBE loops similarly wrap and keep allocating and reading past the packet.\n\nSeverity: high\n\nCategory: Memory safety\n\nWeaknesses: CWE-191, CWE-125, CWE-787\n\nRemediation:\nBefore each subtraction, verify that the field length fits in the remaining bytes (remaining >= 1 + 2 + topic_len for SUBSCRIBE tuples, and remaining >= 2 + topic_len for PUBLISH). Reject truncated packets with a protocol error instead of subtracting.\n\nRemediation tests:\n- Send PUBLISH packets with remaining lengths 0-4 and topic length 0 under ASan; assert a clean protocol error.\n- Send SUBSCRIBE and UNSUBSCRIBE packets with a single trailing byte; assert the decoder terminates with an error.\n- Fuzz remaining length, topic length and tuple count combinations under ASan/UBSan.\n\nPreventive controls:\n- Use checked subtraction helpers that return an error when the field does not fit in the remaining bytes.\n- Bound every decoder allocation by the received packet size."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:f34bb683986e78a0569fc1f6a6eb75a9e17e08e7450010055cc6501e4ce1498c"
+          },
+          "properties": {
+            "category": "memory-safety",
+            "confidence": "high",
+            "findingId": "csf_0e8e471e474aae0c70a637ff",
+            "occurrenceId": "occ_eb3368c883ea7c72daeb5eda",
+            "severity": "high"
+          },
+          "ruleId": "memory-safety.decoder-length-underflow",
+          "ruleIndex": 3
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Codex Security",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Access control: Missing connect state check. Categories: Access control. Weaknesses: CWE-287, CWE-306, CWE-476."
+              },
+              "help": {
+                "markdown": "Access control: Missing connect state check. Categories: Access control. Weaknesses: CWE-287, CWE-306, CWE-476.\n\n## Remediation\n\nReject every packet other than CONNECT until the connection has completed a successful CONNECT and has a non-NULL session. Enforce authorization in the dispatch layer, not only in connect_handler, and return a protocol error for premature packets.",
+                "text": "Access control: Missing connect state check. Categories: Access control. Weaknesses: CWE-287, CWE-306, CWE-476.\n\nRemediation:\n\nReject every packet other than CONNECT until the connection has completed a successful CONNECT and has a non-NULL session. Enforce authorization in the dispatch layer, not only in connect_handler, and return a protocol error for premature packets."
+              },
+              "id": "access-control.missing-connect-state-check",
+              "name": "Access control: Missing connect state check",
+              "properties": {
+                "security-severity": "8.2",
+                "tags": [
+                  "access-control",
+                  "external/cwe/cwe-287",
+                  "external/cwe/cwe-306",
+                  "external/cwe/cwe-476",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Access control: Missing connect state check"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Client write buffer overflow. Categories: Memory corruption. Weaknesses: CWE-122, CWE-787."
+              },
+              "help": {
+                "markdown": "Memory safety: Client write buffer overflow. Categories: Memory corruption. Weaknesses: CWE-122, CWE-787.\n\n## Remediation\n\nTrack the remaining capacity for wbuf and fail or disconnect when a reply would exceed it; grow the buffer dynamically for queued messages. Validate retained and fan-out message sizes against the destination's free space before packing.",
+                "text": "Memory safety: Client write buffer overflow. Categories: Memory corruption. Weaknesses: CWE-122, CWE-787.\n\nRemediation:\n\nTrack the remaining capacity for wbuf and fail or disconnect when a reply would exceed it; grow the buffer dynamically for queued messages. Validate retained and fan-out message sizes against the destination's free space before packing."
+              },
+              "id": "memory-safety.client-write-buffer-overflow",
+              "name": "Memory safety: Client write buffer overflow",
+              "properties": {
+                "security-severity": "9.1",
+                "tags": [
+                  "external/cwe/cwe-122",
+                  "external/cwe/cwe-787",
+                  "memory-corruption",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Client write buffer overflow"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Connect client ID overflow. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787."
+              },
+              "help": {
+                "markdown": "Memory safety: Connect client ID overflow. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787.\n\n## Remediation\n\nReject CONNECT when cid_len >= MQTT_CLIENT_ID_LEN or when cid_len exceeds the remaining packet body, and copy with a bounded length. Prefer allocating client IDs dynamically or enforcing the MQTT 3.1.1 23-byte minimum limit.",
+                "text": "Memory safety: Connect client ID overflow. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787.\n\nRemediation:\n\nReject CONNECT when cid_len >= MQTT_CLIENT_ID_LEN or when cid_len exceeds the remaining packet body, and copy with a bounded length. Prefer allocating client IDs dynamically or enforcing the MQTT 3.1.1 23-byte minimum limit."
+              },
+              "id": "memory-safety.connect-client-id-overflow",
+              "name": "Memory safety: Connect client ID overflow",
+              "properties": {
+                "security-severity": "9.8",
+                "tags": [
+                  "external/cwe/cwe-121",
+                  "external/cwe/cwe-787",
+                  "memory-corruption",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Connect client ID overflow"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Decoder length underflow. Categories: Memory safety. Weaknesses: CWE-125, CWE-191, CWE-787."
+              },
+              "help": {
+                "markdown": "Memory safety: Decoder length underflow. Categories: Memory safety. Weaknesses: CWE-125, CWE-191, CWE-787.\n\n## Remediation\n\nBefore each subtraction, verify that the field length fits in the remaining bytes (remaining >= 1 + 2 + topic_len for SUBSCRIBE tuples, and remaining >= 2 + topic_len for PUBLISH). Reject truncated packets with a protocol error instead of subtracting.",
+                "text": "Memory safety: Decoder length underflow. Categories: Memory safety. Weaknesses: CWE-125, CWE-191, CWE-787.\n\nRemediation:\n\nBefore each subtraction, verify that the field length fits in the remaining bytes (remaining >= 1 + 2 + topic_len for SUBSCRIBE tuples, and remaining >= 2 + topic_len for PUBLISH). Reject truncated packets with a protocol error instead of subtracting."
+              },
+              "id": "memory-safety.decoder-length-underflow",
+              "name": "Memory safety: Decoder length underflow",
+              "properties": {
+                "security-severity": "8.2",
+                "tags": [
+                  "external/cwe/cwe-125",
+                  "external/cwe/cwe-191",
+                  "external/cwe/cwe-787",
+                  "memory-safety",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Decoder length underflow"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Inflight ack stale pointer. Categories: Denial of service. Weaknesses: CWE-476."
+              },
+              "help": {
+                "markdown": "Memory safety: Inflight ack stale pointer. Categories: Denial of service. Weaknesses: CWE-476.\n\n## Remediation\n\nPass &ack to mqtt_pack in the ACK branch and compute the size from the same packet that is serialized. Reset p per iteration or avoid sharing it between the two branches.",
+                "text": "Memory safety: Inflight ack stale pointer. Categories: Denial of service. Weaknesses: CWE-476.\n\nRemediation:\n\nPass &ack to mqtt_pack in the ACK branch and compute the size from the same packet that is serialized. Reset p per iteration or avoid sharing it between the two branches."
+              },
+              "id": "memory-safety.inflight-ack-stale-pointer",
+              "name": "Memory safety: Inflight ack stale pointer",
+              "properties": {
+                "security-severity": "5.3",
+                "tags": [
+                  "denial-of-service",
+                  "external/cwe/cwe-476",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Inflight ack stale pointer"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Null and out of bounds dispatch. Categories: Denial of service. Weaknesses: CWE-129, CWE-476."
+              },
+              "help": {
+                "markdown": "Memory safety: Null and out of bounds dispatch. Categories: Denial of service. Weaknesses: CWE-129, CWE-476.\n\n## Remediation\n\nValidate the packet type before both dispatch tables, reject every type the broker does not implement, and size the tables to the full 0-15 range with explicit NULL checks. Return a protocol error instead of calling through a missing entry.",
+                "text": "Memory safety: Null and out of bounds dispatch. Categories: Denial of service. Weaknesses: CWE-129, CWE-476.\n\nRemediation:\n\nValidate the packet type before both dispatch tables, reject every type the broker does not implement, and size the tables to the full 0-15 range with explicit NULL checks. Return a protocol error instead of calling through a missing entry."
+              },
+              "id": "memory-safety.null-and-out-of-bounds-dispatch",
+              "name": "Memory safety: Null and out of bounds dispatch",
+              "properties": {
+                "security-severity": "7.5",
+                "tags": [
+                  "denial-of-service",
+                  "external/cwe/cwe-129",
+                  "external/cwe/cwe-476",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Null and out of bounds dispatch"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Session takeover use after free. Categories: Memory corruption. Weaknesses: CWE-362, CWE-416."
+              },
+              "help": {
+                "markdown": "Memory safety: Session takeover use after free. Categories: Memory corruption. Weaknesses: CWE-362, CWE-416.\n\n## Remediation\n\nOn a duplicate client ID, disconnect and unregister the existing connection before adopting its session (MQTT takeover semantics), or reject the new connection. Keep exactly one clients_map entry per client ID and reference-count sessions by owning connection.",
+                "text": "Memory safety: Session takeover use after free. Categories: Memory corruption. Weaknesses: CWE-362, CWE-416.\n\nRemediation:\n\nOn a duplicate client ID, disconnect and unregister the existing connection before adopting its session (MQTT takeover semantics), or reject the new connection. Keep exactly one clients_map entry per client ID and reference-count sessions by owning connection."
+              },
+              "id": "memory-safety.session-takeover-use-after-free",
+              "name": "Memory safety: Session takeover use after free",
+              "properties": {
+                "security-severity": "8.1",
+                "tags": [
+                  "external/cwe/cwe-362",
+                  "external/cwe/cwe-416",
+                  "memory-corruption",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Session takeover use after free"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Unsubscribe double free. Categories: Memory corruption. Weaknesses: CWE-415, CWE-416."
+              },
+              "help": {
+                "markdown": "Memory safety: Unsubscribe double free. Categories: Memory corruption. Weaknesses: CWE-415, CWE-416.\n\n## Remediation\n\nRemove the mqtt_packet_destroy call from unsubscribe_handler and let process_message own packet destruction, or transfer ownership explicitly. Make the destructor idempotent by clearing pointers and lengths after freeing.",
+                "text": "Memory safety: Unsubscribe double free. Categories: Memory corruption. Weaknesses: CWE-415, CWE-416.\n\nRemediation:\n\nRemove the mqtt_packet_destroy call from unsubscribe_handler and let process_message own packet destruction, or transfer ownership explicitly. Make the destructor idempotent by clearing pointers and lengths after freeing."
+              },
+              "id": "memory-safety.unsubscribe-double-free",
+              "name": "Memory safety: Unsubscribe double free",
+              "properties": {
+                "security-severity": "8.1",
+                "tags": [
+                  "external/cwe/cwe-415",
+                  "external/cwe/cwe-416",
+                  "memory-corruption",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Unsubscribe double free"
+              }
+            }
+          ],
+          "version": "0.1.95"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

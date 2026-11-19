@@ -1,0 +1,1192 @@
+{
+  "documentType": "codex-security.findings",
+  "findings": [
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "Stack memory overwrite with attacker-controlled bytes in process_message",
+          "sink": "memcpy(pkt->connect.payload.client_id, buf, cid_len) and client_id[cid_len] = 0",
+          "source": "MQTT CONNECT packet client ID length and bytes",
+          "summary": "CONNECT body bytes -> cid_len -> memcpy into stack-local client_id[64]"
+        },
+        "impact": {
+          "level": "critical",
+          "rationale": "Attacker-controlled overwrite of a live stack frame can redirect control flow, leading to broker code execution or a crash."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "The overflow is a single packet with no protocol or authentication prerequisite."
+        },
+        "reachability": {
+          "attacker": "unauthenticated network client",
+          "entrypoint": "TCP listener -> recv_packet -> process_message",
+          "preconditions": [
+            "network reachability to the broker port"
+          ],
+          "summary": "Any unauthenticated TCP client that can reach the MQTT listener sends one CONNECT packet."
+        },
+        "summary": "A remote client can corrupt the broker's stack before authenticating."
+      },
+      "codeEvidence": [
+        {
+          "code": "    buf += unpack(buf, \"BHH\", &pkt->connect.byte,\n                  &pkt->connect.payload.keepalive, &cid_len);\n\n    /* Read the client id */\n    if (cid_len > 0) {\n        memcpy(pkt->connect.payload.client_id, buf, cid_len);\n        pkt->connect.payload.client_id[cid_len] = '\\0';\n        buf += cid_len;\n    }",
+          "endLine": 243,
+          "explanation": "cid_len comes directly from the packet (u16). memcpy copies cid_len bytes into the 64-byte client_id and index write client_id[cid_len] adds a NUL past the array when cid_len >= 64.",
+          "id": "connect-cid-copy",
+          "label": "Unbounded client ID copy into 64-byte field",
+          "language": "c",
+          "path": "src/mqtt.c",
+          "role": "sink",
+          "startLine": 235
+        },
+        {
+          "code": "#define MQTT_CLIENT_ID_LEN                 64 // including nul char",
+          "endLine": 40,
+          "explanation": "MQTT_CLIENT_ID_LEN is 64. Any client ID longer than 63 bytes overflows the destination.",
+          "id": "connect-cid-capacity",
+          "label": "Client ID field is 64 bytes",
+          "language": "c",
+          "path": "src/mqtt.h",
+          "role": "capacity",
+          "startLine": 40
+        },
+        {
+          "code": "static void process_message(struct ev_ctx *ctx, struct client *c)\n{\n    struct io_event io = {.client = c};\n    /*\n     * Unpack received bytes into a mqtt_packet structure and execute the\n     * correct handler based on the type of the operation.\n     */\n    mqtt_unpack(c->rbuf + c->rpos, &io.data, *c->rbuf, c->read - c->rpos);\n    c->toread = c->read = c->rpos = 0;\n    c->rc = handle_command(io.data.header.bits.type, &io);",
+          "endLine": 867,
+          "explanation": "io_event io is allocated on the process_message stack. The connect union member and its client_id array are therefore on the stack, immediately before the saved frame state.",
+          "id": "connect-stack-frame",
+          "label": "Decoded packet is a stack local of process_message",
+          "language": "c",
+          "path": "src/server.c",
+          "role": "stack-frame",
+          "startLine": 858
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The unchecked memcpy and the trailing NUL write are visible at mqtt.c:240-241; the destination is a 64-byte array in mqtt.h, and io_event is a stack local in process_message at server.c:860. Packet size is bounded only by max_request_size, so a multi-kilobyte client ID is accepted."
+      },
+      "findingId": "csf_f2461257ac40d1cc686f5889",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:626b7c313a2050966b0acc616a93d4eb510b4c1588c3a21e98f85cf4197fb1d2"
+      },
+      "identity": {
+        "anchor": "connect-client-id-overflow"
+      },
+      "locations": [
+        {
+          "endLine": 243,
+          "path": "src/mqtt.c",
+          "role": "sink",
+          "startLine": 235
+        },
+        {
+          "endLine": 40,
+          "path": "src/mqtt.h",
+          "role": "capacity",
+          "startLine": 40
+        },
+        {
+          "endLine": 867,
+          "path": "src/server.c",
+          "role": "stack-frame",
+          "startLine": 858
+        }
+      ],
+      "occurrenceId": "occ_d30f04ccd00d9ada834ab090",
+      "preventiveControls": [
+        "Validate every attacker-supplied length against both the remaining packet size and the destination capacity before copying.",
+        "Keep decoded packet storage off the stack or use dynamically sized fields."
+      ],
+      "provenance": {
+        "candidateId": "cand-connect-client-id-overflow",
+        "source": "local_plugin"
+      },
+      "remediation": "Reject CONNECT when cid_len >= MQTT_CLIENT_ID_LEN or when cid_len exceeds the remaining packet body, and copy with a bounded length. Prefer allocating client IDs dynamically or enforcing the MQTT 3.1.1 23-byte minimum limit.",
+      "remediationTests": [
+        "Send a CONNECT with a 64-byte client ID; assert it is rejected without corruption.",
+        "Send a CONNECT with a 4096-byte client ID; assert the broker rejects it and stays alive (ASan build).",
+        "Fuzz cid_len against lengths just under and over the 64-byte boundary."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "connect-cid-copy",
+          "connect-cid-capacity",
+          "connect-stack-frame"
+        ],
+        "summary": "The decoder trusts the packet-supplied client ID length and copies it into a fixed 64-byte array on the stack."
+      },
+      "ruleId": "memory-safety.connect-client-id-overflow",
+      "severity": {
+        "level": "critical",
+        "score": 9.8,
+        "scoringSystem": "CVSS:3.1",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "summary": "unpack_mqtt_connect reads an attacker-controlled 16-bit client ID length and copies that many bytes into connect.payload.client_id, a 64-byte array, then writes a NUL at client_id[cid_len]. The decoded packet lives in the stack-local io_event of process_message, so a CONNECT whose client ID exceeds 63 bytes overwrites the process_message stack frame with attacker bytes before any authentication.",
+      "taxonomy": {
+        "category": "memory-corruption",
+        "cwe": [
+          "CWE-121",
+          "CWE-787"
+        ]
+      },
+      "title": "Pre-authenticated CONNECT client ID overflows a 64-byte field on the stack",
+      "validation": {
+        "method": "Static source review with attacker-controlled data-flow tracing",
+        "summary": "Source tracing shows a single unauthenticated CONNECT packet controls the copy length and the destination is the stack-resident io_event. No parser, size, or authentication check constrains cid_len before the copy."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "Heap overflow beyond a max_request_size allocation",
+          "sink": "memcpy/mqtt_pack into client->wbuf at towerite",
+          "source": "attacker-supplied PUBLISH payload and topic",
+          "summary": "PUBLISH with RETAIN -> retained_msg copy -> SUBSCRIBE -> memcpy(wbuf + towrite) and SUBACK append"
+        },
+        "impact": {
+          "level": "critical",
+          "rationale": "Heap corruption with attacker-influenced bytes can lead to code execution or broker crash."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "The sequence is simple and the default max_request_size leaves no headroom for the follow-up SUBACK."
+        },
+        "reachability": {
+          "attacker": "unauthenticated network client",
+          "entrypoint": "PUBLISH handler and SUBSCRIBE handler",
+          "preconditions": [
+            "anonymous access enabled (default) or any authenticated session",
+            "retained flag set on the large publish"
+          ],
+          "summary": "Two unauthenticated connections suffice: one publishes a large retained message, another subscribes to the topic."
+        },
+        "summary": "A remote publisher can place a large retained message and then cause another client to subscribe to its topic, overflowing the subscriber's heap write buffer."
+      },
+      "codeEvidence": [
+        {
+          "code": "    if (!client->rbuf)\n        client->rbuf =\n            try_calloc(conf->max_request_size, sizeof(unsigned char));\n    client->wrote   = ATOMIC_VAR_INIT(0);\n    client->towrite = ATOMIC_VAR_INIT(0);\n    if (!client->wbuf)\n        client->wbuf =\n            try_calloc(conf->max_request_size, sizeof(unsigned char));",
+          "endLine": 399,
+          "explanation": "rbuf and wbuf are both try_calloc(conf->max_request_size, 1). No spare capacity or growth is reserved for responses.",
+          "id": "wbuf-allocation",
+          "label": "Write buffer is exactly max_request_size",
+          "language": "c",
+          "path": "src/server.c",
+          "role": "allocation",
+          "startLine": 392
+        },
+        {
+          "code": "#if THREADSNR > 0\n        pthread_mutex_lock(&sc->mutex);\n#endif\n        mqtt_pack(pkt, sc->wbuf + sc->towrite);\n        sc->towrite += len;\n#if THREADSNR > 0\n        pthread_mutex_unlock(&sc->mutex);\n#endif",
+          "endLine": 231,
+          "explanation": "mqtt_pack writes the entire publish at wbuf + towrite, then towrite advances by len. Nothing checks towrite + len against max_request_size.",
+          "id": "wbuf-fanout",
+          "label": "Publish fan-out appends a whole packet to towrite",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 224
+        },
+        {
+          "code": "        // Retained message? Publish it\n        // TODO move after SUBACK response\n        if (t->retained_msg) {\n            size_t len = alloc_size(t->retained_msg);\n            memcpy(c->wbuf + c->towrite, t->retained_msg, len);\n            c->towrite += len;\n        }",
+          "endLine": 619,
+          "explanation": "Each retained message matching a SUBSCRIBE is memcpy'd at wbuf + towrite and towrite grows by the retained size.",
+          "id": "wbuf-retained",
+          "label": "Retained-message replay memcpy has no capacity check",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 613
+        },
+        {
+          "code": "    struct mqtt_packet pkt = {.header = (union mqtt_header){.byte = SUBACK_B}};\n    mqtt_suback(&pkt, s->pkt_id, rcs, s->tuples_len);\n\n#if THREADSNR > 0\n    pthread_mutex_lock(&c->mutex);\n#endif\n    size_t len = mqtt_size(&pkt, NULL);\n    mqtt_pack(&pkt, c->wbuf + c->towrite);\n    c->towrite += len;",
+          "endLine": 634,
+          "explanation": "The SUBACK is packed at the current towrite after all retained messages, so even a retained message that fills wbuf overflows by the SUBACK length.",
+          "id": "wbuf-suback",
+          "label": "SUBACK is appended after retained replay",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 626
+        },
+        {
+          "code": "    ssize_t wrote =\n        send_data(&c->conn, c->wbuf + c->wrote, c->towrite - c->wrote);\n    if (errno != EAGAIN && errno != EWOULDBLOCK && wrote < 0)\n        goto clientdc;\n    c->wrote += wrote > 0 ? wrote : 0;\n    if (c->wrote < c->towrite && errno == EAGAIN)\n        goto eagain;\n    // Update information stats\n    info.bytes_sent += c->towrite;\n    // Reset client written bytes track fields\n    c->towrite = c->wrote = 0;",
+          "endLine": 652,
+          "explanation": "towrite accumulates across queued replies and is reset only when the whole buffer has been sent, so consecutive outputs do not start from zero.",
+          "id": "wbuf-reset",
+          "label": "towrite is only reset after a complete send",
+          "language": "c",
+          "path": "src/server.c",
+          "role": "lifecycle",
+          "startLine": 642
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The allocation is exact at server.c:397-399. Appends at handlers.c:227-228 and 615-618 and 632-634, handlers.c:331-338, handlers.c:668-669 and server.c:338-339 add packet sizes to towrite with no remaining-space check. towrite is reset only after a complete send at server.c:652, so multiple queued outputs accumulate."
+      },
+      "findingId": "csf_6268a97e8332fdb158973f8c",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:2e3a37c8148ecddd1b11c6309400b56810b018250c1ddab25b628ae33e0b45b5"
+      },
+      "identity": {
+        "anchor": "client-write-buffer-overflow"
+      },
+      "locations": [
+        {
+          "endLine": 399,
+          "path": "src/server.c",
+          "role": "allocation",
+          "startLine": 397
+        },
+        {
+          "endLine": 618,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 615
+        },
+        {
+          "endLine": 228,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 224
+        },
+        {
+          "endLine": 634,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 629
+        }
+      ],
+      "occurrenceId": "occ_1cd0c8ecba2ecc761f7a6a3a",
+      "preventiveControls": [
+        "Centralize all writes to wbuf in a helper that returns an error when the destination is full.",
+        "Size reply buffers from the actual packet being built and enforce a per-client output quota."
+      ],
+      "provenance": {
+        "candidateId": "cand-write-buffer-overflow",
+        "source": "local_plugin"
+      },
+      "remediation": "Track the remaining capacity for wbuf and fail or disconnect when a reply would exceed it; grow the buffer dynamically for queued messages. Validate retained and fan-out message sizes against the destination's free space before packing.",
+      "remediationTests": [
+        "Publish a retained message of size max_request_size - small, then subscribe from another connection under ASan; assert no overflow and either delivery or a clean rejection.",
+        "Queue two near-maximum publishes for one subscriber before its socket drains; assert the write path bounds the buffer.",
+        "Add a unit test that asserts every append checks towrite + len <= max_request_size."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "wbuf-allocation",
+          "wbuf-fanout",
+          "wbuf-retained",
+          "wbuf-suback",
+          "wbuf-reset"
+        ],
+        "summary": "Every response path treats the per-client write buffer as unbounded even though it is allocated with exactly max_request_size bytes."
+      },
+      "ruleId": "memory-safety.client-write-buffer-overflow",
+      "severity": {
+        "level": "critical",
+        "score": 9.1,
+        "scoringSystem": "CVSS:3.1",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "summary": "client->wbuf is allocated with exactly max_request_size bytes, but SUBACK/UNSUBACK generation, retained-message replay, session resume replay and publish fan-out all append to wbuf + towrite without checking the remaining capacity. A retained PUBLISH close to max_request_size followed by a SUBSCRIBE (or two publishes delivered before the event loop flushes) writes past the allocation, corrupting heap metadata and adjacent objects.",
+      "taxonomy": {
+        "category": "memory-corruption",
+        "cwe": [
+          "CWE-787",
+          "CWE-122"
+        ]
+      },
+      "title": "Unbounded writes into the fixed per-client write buffer corrupt the heap",
+      "validation": {
+        "method": "Static source review with attacker-controlled data-flow tracing",
+        "summary": "The fixed allocation and each unchecked append were traced. A retained PUBLISH of nearly max_request_size followed by a SUBSCRIBE reaches the retained replay memcpy and then appends a SUBACK past the end of wbuf."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "NULL or out-of-bounds function pointer dereference",
+          "sink": "indirect call through unpack_handlers[type] and handlers[type]",
+          "source": "attacker-controlled MQTT fixed header",
+          "summary": "first MQTT byte -> type nibble -> unpack_handlers[type] / handlers[type]"
+        },
+        "impact": {
+          "level": "high",
+          "rationale": "A single small packet terminates the shared broker process, disrupting every connected client."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "The triggering packets are trivially generated and no state or authentication is required."
+        },
+        "reachability": {
+          "attacker": "unauthenticated network client",
+          "entrypoint": "recv_packet -> process_message -> mqtt_unpack/handle_command",
+          "preconditions": [
+            "network reachability"
+          ],
+          "summary": "Any client able to connect to the broker port can send one two-byte packet."
+        },
+        "summary": "An unauthenticated packet with an unimplemented type crashes the broker."
+      },
+      "codeEvidence": [
+        {
+          "code": "static mqtt_unpack_handler *unpack_handlers[11] = {NULL,\n                                                   unpack_mqtt_connect,\n                                                   NULL,\n                                                   unpack_mqtt_publish,\n                                                   unpack_mqtt_ack,\n                                                   unpack_mqtt_ack,\n                                                   unpack_mqtt_ack,\n                                                   unpack_mqtt_ack,\n                                                   unpack_mqtt_subscribe,\n                                                   NULL,\n                                                   unpack_mqtt_unsubscribe};",
+          "endLine": 82,
+          "explanation": "unpack_handlers has 11 entries: index 0, 2 and 9 are NULL; indexes 11 and above are out of bounds. mqtt_unpack indexes it with the 4-bit packet type.",
+          "id": "dispatch-unpack-table",
+          "label": "Unpack table is shorter than the packet-type space and has NULL slots",
+          "language": "c",
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 72
+        },
+        {
+          "code": "    int rc      = MQTT_OK;\n    u8 type     = byte >> 4;\n\n    pkt->header = (union mqtt_header){.byte = byte};\n\n    /* Call the appropriate unpack handler based on the message type */\n    if (type >= PINGREQ && type <= DISCONNECT)\n        return rc;\n\n    rc = unpack_handlers[type](buf, pkt, len);\n",
+          "endLine": 435,
+          "explanation": "Only PINGREQ..DISCONNECT (12..14) return early. Every other type calls unpack_handlers[type], including NULL entries and types past the array end.",
+          "id": "dispatch-unpack-call",
+          "label": "Unchecked indirect call through the unpack table",
+          "language": "c",
+          "path": "src/mqtt.c",
+          "role": "sink",
+          "startLine": 425
+        },
+        {
+          "code": "static handler *handlers[15] = {NULL,\n                                connect_handler,\n                                NULL,\n                                publish_handler,\n                                puback_handler,\n                                pubrec_handler,\n                                pubrel_handler,\n                                pubcomp_handler,\n                                subscribe_handler,\n                                NULL,\n                                unsubscribe_handler,\n                                NULL,\n                                pingreq_handler,\n                                NULL,\n                                disconnect_handler};",
+          "endLine": 76,
+          "explanation": "handlers[15] leaves index 0, 2, 9, 11 and 13 NULL; type 15 or greater would index past the array.",
+          "id": "dispatch-handler-table",
+          "label": "Handler table also has NULL slots",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "root-cause",
+          "startLine": 62
+        },
+        {
+          "code": "int handle_command(unsigned type, struct io_event *event)\n{\n    return handlers[type](event);\n}",
+          "endLine": 880,
+          "explanation": "handle_command calls handlers[type] with the type derived from the packet header, without validating that the slot is non-NULL.",
+          "id": "dispatch-handler-call",
+          "label": "Unchecked indirect call through the handler table",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 877
+        },
+        {
+          "code": "        if (c->read == 2) {\n            opcode = *c->rbuf >> 4;\n\n            /*\n             * Check for OPCODE, if an unknown OPCODE is received return an\n             * error\n             */\n            if (DISCONNECT < opcode || CONNECT > opcode)\n                return -ERRPACKETERR;",
+          "endLine": 513,
+          "explanation": "The guard rejects only opcode < CONNECT or opcode > DISCONNECT, so CONNACK (2), SUBACK (9), 11 and 13 continue to the decoder.",
+          "id": "dispatch-opcode-check",
+          "label": "Opcode guard admits unimplemented types",
+          "language": "c",
+          "path": "src/server.c",
+          "role": "reachability",
+          "startLine": 505
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "unpack_handlers[11] has NULL at indexes 0, 2 and 9, while handlers[15] has NULL at 0, 2, 9, 11 and 13. server.c:512-513 admits opcodes 1 through 14, so 0x20, 0x90, 0xB0 and 0xD0 reach the unchecked calls at mqtt.c:434 and handlers.c:879."
+      },
+      "findingId": "csf_5b60ce4633836ded1816514e",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:254634f01c141bce779fe5fdd3c9be274baff833465395cf3e19bf16ecf915c5"
+      },
+      "identity": {
+        "anchor": "null-and-out-of-bounds-dispatch"
+      },
+      "locations": [
+        {
+          "endLine": 82,
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 72
+        },
+        {
+          "endLine": 434,
+          "path": "src/mqtt.c",
+          "role": "sink",
+          "startLine": 431
+        },
+        {
+          "endLine": 76,
+          "path": "src/handlers.c",
+          "role": "root-cause",
+          "startLine": 62
+        },
+        {
+          "endLine": 880,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 877
+        },
+        {
+          "endLine": 513,
+          "path": "src/server.c",
+          "role": "reachability",
+          "startLine": 505
+        }
+      ],
+      "occurrenceId": "occ_8a55b70b7656b8bb966a2e0d",
+      "preventiveControls": [
+        "Guard both dispatch sites with a range check and a non-NULL check.",
+        "Use a single table sized 16 with explicit handlers for every defined type and reject the rest."
+      ],
+      "provenance": {
+        "candidateId": "cand-null-dispatch",
+        "source": "local_plugin"
+      },
+      "remediation": "Validate the packet type before both dispatch tables, reject every type the broker does not implement, and size the tables to the full 0-15 range with explicit NULL checks. Return a protocol error instead of calling through a missing entry.",
+      "remediationTests": [
+        "Send 0x20 0x00, 0x90 0x00, 0xB0 0x00 and 0xD0 0x00 to a fresh connection; assert each is rejected with a protocol error and the broker remains alive.",
+        "Fuzz all 256 first bytes with a zero remaining length under ASan/UBSan."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "dispatch-unpack-table",
+          "dispatch-unpack-call",
+          "dispatch-handler-table",
+          "dispatch-handler-call",
+          "dispatch-opcode-check"
+        ],
+        "summary": "The dispatch tables do not cover the entire packet-type space, and neither dispatch site validates table bounds or NULL entries."
+      },
+      "ruleId": "memory-safety.null-and-out-of-bounds-dispatch",
+      "severity": {
+        "level": "high",
+        "score": 7.5,
+        "scoringSystem": "CVSS:3.1",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "summary": "mqtt_unpack indexes unpack_handlers[byte >> 4] and handle_command indexes handlers[type] without checking that the type is implemented. CONNACK (0x20), SUBACK (0x90) and the unmapped types 0xB0/0xD0 survive the opcode range check and reach a NULL function pointer or an out-of-bounds table read, crashing the single-process broker before authentication.",
+      "taxonomy": {
+        "category": "denial-of-service",
+        "cwe": [
+          "CWE-476",
+          "CWE-129"
+        ]
+      },
+      "title": "Packet type dispatch tables contain NULL and out-of-bounds entries",
+      "validation": {
+        "method": "Static source review with attacker-controlled data-flow tracing",
+        "summary": "Table contents and both indirect calls were inspected. A two-byte packet with type 2, 9, 11 or 13 reaches a NULL or out-of-bounds function pointer before CONNECT, so no authentication is needed."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "Heap double free and allocator corruption",
+          "sink": "free_memory on the same tuples and topic strings twice",
+          "source": "attacker-controlled UNSUBSCRIBE packet",
+          "summary": "UNSUBSCRIBE packet -> unsubscribe_handler frees e->data -> process_message frees io.data again"
+        },
+        "impact": {
+          "level": "high",
+          "rationale": "Double free corrupts the allocator and can be turned into controlled heap reuse, potentially code execution."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "Every UNSUBSCRIBE reply exercises the double free deterministically."
+        },
+        "reachability": {
+          "attacker": "unauthenticated network client",
+          "entrypoint": "UNSUBSCRIBE handler",
+          "preconditions": [
+            "one valid UNSUBSCRIBE packet"
+          ],
+          "summary": "A single pre-CONNECT UNSUBSCRIBE packet reaches the handler; CONNECT is not required."
+        },
+        "summary": "One UNSUBSCRIBE packet frees the same heap objects twice."
+      },
+      "codeEvidence": [
+        {
+          "code": "    log_debug(\"Sending UNSUBACK to %s\", c->client_id);\n\n    mqtt_packet_destroy(&e->data);\n\n    return REPLY;",
+          "endLine": 678,
+          "explanation": "The handler frees e->data (which is io.data) and then returns REPLY.",
+          "id": "unsub-first-free",
+          "label": "UNSUBSCRIBE handler destroys the decoded packet",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "first-free",
+          "startLine": 674
+        },
+        {
+          "code": "    switch (c->rc) {\n    case REPLY:\n    case MQTT_NOT_AUTHORIZED:\n    case MQTT_BAD_USERNAME_OR_PASSWORD:\n        /*\n         * Write out to client, after a request has been processed in\n         * worker thread routine. Just send out all bytes stored in the\n         * reply buffer to the reply file descriptor.\n         */\n        enqueue_event_write(c);\n        /* Free resource, ACKs will be free'd closing the server */\n        if (io.data.header.bits.type != PUBLISH)\n            mqtt_packet_destroy(&io.data);",
+          "endLine": 880,
+          "explanation": "For REPLY, process_message calls mqtt_packet_destroy(&io.data) unless the type is PUBLISH. UNSUBSCRIBE is not exempt.",
+          "id": "unsub-second-free",
+          "label": "process_message destroys the same packet for REPLY",
+          "language": "c",
+          "path": "src/server.c",
+          "role": "second-free",
+          "startLine": 868
+        },
+        {
+          "code": "    case SUBSCRIBE:\n    case UNSUBSCRIBE:\n        for (unsigned i = 0; i < pkt->subscribe.tuples_len; i++)\n            free_memory(pkt->subscribe.tuples[i].topic);\n        free_memory(pkt->subscribe.tuples);\n        break;",
+          "endLine": 587,
+          "explanation": "SUBSCRIBE and UNSUBSCRIBE share this case: every tuple topic and the tuple array are freed, leaving dangling pointers in the packet.",
+          "id": "unsub-destructor",
+          "label": "Destructor frees tuple storage without clearing pointers",
+          "language": "c",
+          "path": "src/mqtt.c",
+          "role": "destructor",
+          "startLine": 582
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "unsubscribe_handler destroys the packet at handlers.c:676. process_message destroys the same io.data at server.c:880. mqtt_packet_destroy frees pkt->subscribe.tuples and tuples[i].topic at mqtt.c:582-587 without nulling them."
+      },
+      "findingId": "csf_e3613e6e319d7795ee580a56",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:a36abc76b24396d7a5508ccf4d3acd0071b2c403844f29569bfeac946b822122"
+      },
+      "identity": {
+        "anchor": "unsubscribe-double-free"
+      },
+      "locations": [
+        {
+          "endLine": 678,
+          "path": "src/handlers.c",
+          "role": "first-free",
+          "startLine": 674
+        },
+        {
+          "endLine": 880,
+          "path": "src/server.c",
+          "role": "second-free",
+          "startLine": 877
+        },
+        {
+          "endLine": 587,
+          "path": "src/mqtt.c",
+          "role": "destructor",
+          "startLine": 582
+        }
+      ],
+      "occurrenceId": "occ_3432793a87c49d552ee6d400",
+      "preventiveControls": [
+        "Define one owner for each decoded packet and document the ownership transfer at the handler boundary.",
+        "Null out freed pointers in mqtt_packet_destroy to make repeated destruction harmless."
+      ],
+      "provenance": {
+        "candidateId": "cand-unsubscribe-double-free",
+        "source": "local_plugin"
+      },
+      "remediation": "Remove the mqtt_packet_destroy call from unsubscribe_handler and let process_message own packet destruction, or transfer ownership explicitly. Make the destructor idempotent by clearing pointers and lengths after freeing.",
+      "remediationTests": [
+        "Send UNSUBSCRIBE with one topic on a fresh connection under ASan; assert no double-free report.",
+        "Add a test that verifies process_message is the sole owner of decoded packet destruction."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "unsub-first-free",
+          "unsub-second-free",
+          "unsub-destructor"
+        ],
+        "summary": "Ownership of the decoded packet is split: the UNSUBSCRIBE handler frees it and the common dispatch loop frees it again."
+      },
+      "ruleId": "memory-safety.unsubscribe-double-free",
+      "severity": {
+        "level": "high",
+        "score": 8.1,
+        "scoringSystem": "CVSS:3.1",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "summary": "unsubscribe_handler calls mqtt_packet_destroy(&e->data) before returning REPLY, and process_message then calls mqtt_packet_destroy(&io.data) again for every non-PUBLISH reply. The destructor frees the topic tuples without clearing the pointers, so a pre-CONNECT UNSUBSCRIBE triggers a double free of the tuple array and each topic string.",
+      "taxonomy": {
+        "category": "memory-corruption",
+        "cwe": [
+          "CWE-415",
+          "CWE-416"
+        ]
+      },
+      "title": "UNSUBSCRIBE packet is destroyed twice, causing a heap double free",
+      "validation": {
+        "method": "Static source review with attacker-controlled data-flow tracing",
+        "summary": "Both free sites operate on the same io.data object and the destructor does not null the freed pointers. The UNSUBSCRIBE handler returns REPLY, which selects the second free in process_message."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "Out-of-bounds read, oversized allocation, or infinite loop terminating the process",
+          "sink": "try_alloc(len + 1) / memcpy(dest, buf, len) / try_realloc loop",
+          "source": "MQTT PUBLISH/SUBSCRIBE/UNSUBSCRIBE fixed and variable headers",
+          "summary": "remaining length and topic length are both attacker-controlled; usize subtraction wraps; unpack_bytes/realloc consume the wrapped size"
+        },
+        "impact": {
+          "level": "high",
+          "rationale": "The underflow can crash or hang the shared broker and can expose memory through oversized reads."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "Crafting a truncated packet requires no special state and the wrapping arithmetic is unconditional."
+        },
+        "reachability": {
+          "attacker": "unauthenticated network client",
+          "entrypoint": "mqtt_unpack",
+          "preconditions": [
+            "network reachability"
+          ],
+          "summary": "Any client can send a truncated PUBLISH/SUBSCRIBE/UNSUBSCRIBE packet; no CONNECT is required."
+        },
+        "summary": "A short packet can force enormous allocation/copy sizes or an endless decode loop."
+      },
+      "codeEvidence": [
+        {
+          "code": "    /* Read packet id */\n    if (pkt->header.bits.qos > AT_MOST_ONCE) {\n        pkt->publish.pkt_id = unpack_integer(&buf, 'H');\n        len -= sizeof(u16);\n    }\n\n    /*\n     * Message len is calculated subtracting the length of the variable header\n     * from the Remaining Length field that is in the Fixed Header\n     */\n    len -= (sizeof(u16) + pkt->publish.topiclen);\n    pkt->publish.payloadlen = len;\n    pkt->publish.payload    = unpack_bytes(&buf, len);",
+          "endLine": 316,
+          "explanation": "len is usize. After subtracting 2 + topiclen, any packet shorter than the declared topic length wraps len to a very large value, which becomes payloadlen.",
+          "id": "len-publish-underflow",
+          "label": "PUBLISH subtracts topic length without a bounds check",
+          "language": "c",
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 304
+        },
+        {
+          "code": "u8 *unpack_bytes(u8 **buf, usize len)\n{\n    u8 *dest = try_alloc(len + 1);\n    memcpy(dest, *buf, len);\n    dest[len] = '\\0';\n    *buf += len;\n    return dest;",
+          "endLine": 417,
+          "explanation": "try_alloc(len + 1) and memcpy(dest, *buf, len) use the wrapped length. For SIZE_MAX the allocation size wraps and memcpy reads and writes far beyond the packet and the allocated chunk.",
+          "id": "len-unpack-bytes",
+          "label": "unpack_bytes trusts the computed length",
+          "language": "c",
+          "path": "src/pack.c",
+          "role": "sink",
+          "startLine": 411
+        },
+        {
+          "code": "    for (; len > 0; ++i) {\n        /* Read length bytes of the first topic filter */\n        len -= sizeof(u16);\n\n        /* We have to make room for additional incoming tuples */\n        subscribe.tuples =\n            try_realloc(subscribe.tuples, (i + 1) * sizeof(*subscribe.tuples));\n        subscribe.tuples[i].topic_len =\n            unpack_string16(&buf, &subscribe.tuples[i].topic);\n\n        if (!subscribe.tuples[i].topic)\n            goto err;\n\n        len -= subscribe.tuples[i].topic_len;\n        subscribe.tuples[i].qos = unpack_integer(&buf, 'B');\n        len -= sizeof(u8);\n    }",
+          "endLine": 358,
+          "explanation": "When len is 1, len -= sizeof(u16) wraps to SIZE_MAX, so the loop does not terminate and repeatedly reads tuple headers past the received packet while reallocating.",
+          "id": "len-subscribe-loop",
+          "label": "SUBSCRIBE loop subtracts without checking remaining bytes",
+          "language": "c",
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 342
+        },
+        {
+          "code": "    usize i = 0;\n    for (; len > 0; ++i) {\n\n        /* Read length bytes of the first topic filter */\n        len -= sizeof(u16);\n\n        /* We have to make room for additional incoming tuples */\n        unsubscribe.tuples = try_realloc(unsubscribe.tuples,\n                                         (i + 1) * sizeof(*unsubscribe.tuples));\n        unsubscribe.tuples[i].topic_len =\n            unpack_string16(&buf, &unsubscribe.tuples[i].topic);\n\n        if (!unsubscribe.tuples[i].topic)\n            goto err;\n\n        len -= unsubscribe.tuples[i].topic_len;\n    }",
+          "endLine": 401,
+          "explanation": "The same underflow allows an unbounded loop and out-of-bounds topic reads for UNSUBSCRIBE packets.",
+          "id": "len-unsubscribe-loop",
+          "label": "UNSUBSCRIBE loop has the same unchecked subtraction",
+          "language": "c",
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 385
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The subtraction sites are mqtt.c:314, 344/355/357 and 389/400. unpack_bytes at pack.c:411-417 uses the resulting len directly in try_alloc and memcpy. Because len is usize, any deficit becomes near SIZE_MAX rather than negative."
+      },
+      "findingId": "csf_0e8e471e474aae0c70a637ff",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:f34bb683986e78a0569fc1f6a6eb75a9e17e08e7450010055cc6501e4ce1498c"
+      },
+      "identity": {
+        "anchor": "decoder-length-underflow"
+      },
+      "locations": [
+        {
+          "endLine": 316,
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 304
+        },
+        {
+          "endLine": 424,
+          "path": "src/pack.c",
+          "role": "sink",
+          "startLine": 411
+        },
+        {
+          "endLine": 358,
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 342
+        },
+        {
+          "endLine": 401,
+          "path": "src/mqtt.c",
+          "role": "root-cause",
+          "startLine": 385
+        }
+      ],
+      "occurrenceId": "occ_eb3368c883ea7c72daeb5eda",
+      "preventiveControls": [
+        "Use checked subtraction helpers that return an error when the field does not fit in the remaining bytes.",
+        "Bound every decoder allocation by the received packet size."
+      ],
+      "provenance": {
+        "candidateId": "cand-parser-length-underflow",
+        "source": "local_plugin"
+      },
+      "remediation": "Before each subtraction, verify that the field length fits in the remaining bytes (remaining >= 1 + 2 + topic_len for SUBSCRIBE tuples, and remaining >= 2 + topic_len for PUBLISH). Reject truncated packets with a protocol error instead of subtracting.",
+      "remediationTests": [
+        "Send PUBLISH packets with remaining lengths 0-4 and topic length 0 under ASan; assert a clean protocol error.",
+        "Send SUBSCRIBE and UNSUBSCRIBE packets with a single trailing byte; assert the decoder terminates with an error.",
+        "Fuzz remaining length, topic length and tuple count combinations under ASan/UBSan."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "len-publish-underflow",
+          "len-unpack-bytes",
+          "len-subscribe-loop",
+          "len-unsubscribe-loop"
+        ],
+        "summary": "The decoder uses unsigned remaining-length arithmetic without validating each variable-length field against the bytes actually received."
+      },
+      "ruleId": "memory-safety.decoder-length-underflow",
+      "severity": {
+        "level": "high",
+        "score": 8.2,
+        "scoringSystem": "CVSS:3.1",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:H"
+      },
+      "summary": "unpack_mqtt_publish, unpack_mqtt_subscribe and unpack_mqtt_unsubscribe subtract header, topic and QoS lengths from the usize remaining length without checking that each field fits. A PUBLISH whose remaining length is smaller than 2 + topiclen wraps len to a huge value, and unpack_bytes then allocates len + 1 and memcpy's len bytes from the packet buffer. SUBSCRIBE/UNSUBSCRIBE loops similarly wrap and keep allocating and reading past the packet.",
+      "taxonomy": {
+        "category": "memory-safety",
+        "cwe": [
+          "CWE-191",
+          "CWE-125",
+          "CWE-787"
+        ]
+      },
+      "title": "Unsigned remaining-length arithmetic underflows in the MQTT decoder",
+      "validation": {
+        "method": "Static source review with attacker-controlled data-flow tracing",
+        "summary": "Each subtraction and the unpack_bytes sink were inspected. A three-byte PUBLISH with remaining length 1 and a zero topic length, or a SUBSCRIBE with one trailing byte, produces the underflow deterministically."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "Authentication bypass for PUBLISH; NULL session dereference for SUBSCRIBE/PUBACK/PUBREC/PUBCOMP",
+          "sink": "publish_handler and session-dependent handlers",
+          "source": "any MQTT packet sent before a successful CONNECT",
+          "summary": "TCP packet before CONNECT -> process_message -> handle_command -> PUBLISH/SUBSCRIBE/ACK handler"
+        },
+        "impact": {
+          "level": "high",
+          "rationale": "The broker's authentication boundary is bypassed for message injection, and premature session packets crash the service."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "No state or credentials are required; the first packet after connect can be PUBLISH or SUBSCRIBE."
+        },
+        "reachability": {
+          "attacker": "unauthenticated network client",
+          "entrypoint": "process_message",
+          "preconditions": [
+            "network reachability",
+            "allow_anonymous=false to demonstrate the authorization bypass"
+          ],
+          "summary": "Any client can send PUBLISH or SUBSCRIBE as its first packet."
+        },
+        "summary": "An unauthenticated client can publish into the broker and can crash it with premature session-dependent packets."
+      },
+      "codeEvidence": [
+        {
+          "code": "static void process_message(struct ev_ctx *ctx, struct client *c)\n{\n    struct io_event io = {.client = c};\n    /*\n     * Unpack received bytes into a mqtt_packet structure and execute the\n     * correct handler based on the type of the operation.\n     */\n    mqtt_unpack(c->rbuf + c->rpos, &io.data, *c->rbuf, c->read - c->rpos);\n    c->toread = c->read = c->rpos = 0;\n    c->rc = handle_command(io.data.header.bits.type, &io);",
+          "endLine": 867,
+          "explanation": "process_message decodes and calls handle_command for the packet type. There is no client->connected or client->session test before dispatch.",
+          "id": "preconnect-dispatch",
+          "label": "Every packet is dispatched without a connected/session check",
+          "language": "c",
+          "path": "src/server.c",
+          "role": "root-cause",
+          "startLine": 858
+        },
+        {
+          "code": "    /*\n     * If allow_anonymous is false we need to check for an existing\n     * username:password pair match in the authentications table\n     */\n    if (conf->allow_anonymous == false) {\n        if (c->bits.username == 0 || c->bits.password == 0)\n            goto bad_auth;\n        else {\n            struct authentication *auth = NULL;\n            HASH_FIND_STR(server.auths, (char *)c->payload.username, auth);\n            if (!auth || !check_passwd((char *)c->payload.password, auth->salt))\n                goto bad_auth;\n        }\n    }",
+          "endLine": 375,
+          "explanation": "The allow_anonymous=false branch rejects missing or invalid credentials only while handling CONNECT. A PUBLISH never passes through this check.",
+          "id": "preconnect-auth-location",
+          "label": "Authentication is only performed inside CONNECT",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "auth-check",
+          "startLine": 362
+        },
+        {
+          "code": "        if (!index(topic, '+')) {\n            struct subscriber *tmp;\n            HASH_FIND_STR(t->subscribers, c->client_id, tmp);\n            if (c->clean_session == true || !tmp) {\n                if (!tmp) {\n                    tmp = topic_add_subscriber(t, e->client->session,\n                                               s->tuples[i].qos);\n                    // we increment reference for the subscriptions session\n                    INCREF(tmp, struct subscriber);\n                }\n                list_push(e->client->session->subscriptions, t);",
+          "endLine": 593,
+          "explanation": "subscribe_handler passes e->client->session to topic_add_subscriber and dereferences it via list_push; a pre-CONNECT client has session == NULL.",
+          "id": "preconnect-subscribe-null",
+          "label": "SUBSCRIBE uses the session pointer without checking it",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 583
+        },
+        {
+          "code": "    log_debug(\"Received PUBACK from %s (m%u)\", c->client_id, pkt_id);\n#if THREADSNR > 0\n    pthread_mutex_lock(&c->mutex);\n#endif\n    inflight_msg_clear(&c->session->i_msgs[pkt_id]);\n    c->session->i_msgs[pkt_id].packet = NULL;\n    c->session->i_acks[pkt_id]        = -1;",
+          "endLine": 795,
+          "explanation": "puback_handler indexes c->session->i_msgs and c->session->i_acks with no check that c->session exists.",
+          "id": "preconnect-puback-null",
+          "label": "PUBACK dereferences the session pointer",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 789
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "server.c:867 calls handle_command unconditionally. The allow_anonymous check is confined to connect_handler at handlers.c:366-375. subscribe_handler dereferences e->client->session at handlers.c:588/593, and the PUBACK/PUBREC/PUBCOMP handlers dereference c->session at handlers.c:793/817/847."
+      },
+      "findingId": "csf_4292b7a02a3db5a0227aa30c",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:a35fde2686bd3da677426585f68f6c3ec235cf6fa2a1950b97a033545931a853"
+      },
+      "identity": {
+        "anchor": "missing-connect-state-check"
+      },
+      "locations": [
+        {
+          "endLine": 867,
+          "path": "src/server.c",
+          "role": "root-cause",
+          "startLine": 858
+        },
+        {
+          "endLine": 375,
+          "path": "src/handlers.c",
+          "role": "auth-check",
+          "startLine": 362
+        },
+        {
+          "endLine": 593,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 583
+        },
+        {
+          "endLine": 795,
+          "path": "src/handlers.c",
+          "role": "sink",
+          "startLine": 789
+        }
+      ],
+      "occurrenceId": "occ_10add1c5e70951aca755e2fc",
+      "preventiveControls": [
+        "Add an explicit connection state machine and authorize at dispatch time.",
+        "Treat any non-CONNECT packet received before CONNECT as a protocol violation and close the connection."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Reject every packet other than CONNECT until the connection has completed a successful CONNECT and has a non-NULL session. Enforce authorization in the dispatch layer, not only in connect_handler, and return a protocol error for premature packets.",
+      "remediationTests": [
+        "With allow_anonymous=false, send PUBLISH as the first packet and assert the broker rejects it and does not store a retained message.",
+        "Send SUBSCRIBE, PUBACK, PUBREC and PUBCOMP before CONNECT; assert each is rejected without a crash.",
+        "Add a state-machine test that only CONNECT is accepted in the initial state."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "preconnect-dispatch",
+          "preconnect-auth-location",
+          "preconnect-subscribe-null",
+          "preconnect-puback-null"
+        ],
+        "summary": "The packet dispatch layer has no connection-state authentication gate, so handler-level authentication in CONNECT can be bypassed and session-dependent handlers run with a NULL session."
+      },
+      "ruleId": "access-control.missing-connect-state-check",
+      "severity": {
+        "level": "high",
+        "score": 8.2,
+        "scoringSystem": "CVSS:3.1",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+      },
+      "summary": "process_message dispatches every decoded packet without checking client->connected or that a session exists. Authentication happens only inside connect_handler, so with allow_anonymous=false an unauthenticated client can still send PUBLISH (including RETAIN) and inject messages into broker topics. Session-dependent packets such as SUBSCRIBE, PUBACK, PUBREC and PUBCOMP similarly run with client->session == NULL and crash the broker.",
+      "taxonomy": {
+        "category": "access-control",
+        "cwe": [
+          "CWE-306",
+          "CWE-287",
+          "CWE-476"
+        ]
+      },
+      "title": "Packet handlers run before CONNECT, bypassing authentication and dereferencing a NULL session",
+      "validation": {
+        "method": "Static source review with attacker-controlled data-flow tracing",
+        "summary": "The dispatch call site and the CONNECT-only authentication branch were compared. PUBLISH has no session prerequisite and its handler performs no authorization, while SUBSCRIBE/PUBACK/PUBREC/PUBCOMP dereference the NULL pre-CONNECT session."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "Use-after-free of the shared client_session",
+          "sink": "client_deactivate -> DECREF(client->session)",
+          "source": "attacker-chosen client ID and clean-session flag",
+          "summary": "client ID -> HASH_FIND_STR(server.sessions) -> shared session -> clean-session disconnect -> free while second client still references it"
+        },
+        "impact": {
+          "level": "high",
+          "rationale": "A freed session remains reachable from a live connection, allowing heap reuse and potential code execution or data corruption."
+        },
+        "likelihood": {
+          "level": "high",
+          "rationale": "Client IDs are attacker-chosen and the broker never terminates the prior connection during takeover."
+        },
+        "reachability": {
+          "attacker": "unauthenticated network client",
+          "entrypoint": "connect_handler and client_deactivate",
+          "preconditions": [
+            "two connections with the same client ID"
+          ],
+          "summary": "Two connections using the same client ID; the second uses clean_session=false and the first disconnects with clean_session=true."
+        },
+        "summary": "An attacker can force two connections to share a session and then free it while the other connection continues to use it."
+      },
+      "codeEvidence": [
+        {
+          "code": "    // First we check if a session is present\n    HASH_FIND_STR(server.sessions, cc->client_id, cc->session);\n    if (cc->session && c->bits.clean_session == true)\n        // Clean session true, we have to clean old session, if any\n        HASH_DEL(server.sessions, cc->session);\n    else if (cc->session)\n        session_present = 1;\n\n    cc->connected = true;\n\n    log_info(\"New client connected as %s (c%i, k%u)\", c->payload.client_id,\n             c->bits.clean_session, c->payload.keepalive);\n\n    /*\n     * If no session was found or the client is a new connecting client or an\n     * anonymous one, we create a session here\n     */\n    if (c->bits.clean_session == true || !cc->session) {\n        cc->session = client_session_alloc(cc->client_id);\n        INCREF(cc->session, struct client_session);\n        HASH_ADD_STR(server.sessions, session_id, cc->session);\n    }\n\n    cc->session->clean_session = c->bits.clean_session;\n\n    // Let's track client on the global map to be used on publish\n    HASH_ADD_STR(server.clients_map, client_id, cc);",
+          "endLine": 425,
+          "explanation": "When a session already exists and clean_session is false, cc->session is reused and session_present is set. The previous client remains connected and still points to the same session object.",
+          "id": "takeover-session-reuse",
+          "label": "Existing session is reused without disconnecting the prior client",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "root-cause",
+          "startLine": 399
+        },
+        {
+          "code": "    // Let's track client on the global map to be used on publish\n    HASH_ADD_STR(server.clients_map, client_id, cc);",
+          "endLine": 425,
+          "explanation": "HASH_ADD_STR inserts the new client under the same client_id key that the old client already uses, so lookups and deletions become ambiguous.",
+          "id": "takeover-duplicate-map-entry",
+          "label": "A second clients_map entry is added for the same client ID",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "root-cause",
+          "startLine": 424
+        },
+        {
+          "code": "    client->online = false;\n\n#if THREADSNR > 0\n    pthread_mutex_lock(&mutex);\n#endif\n    if (client->clean_session == true) {\n        if (client->session) {\n            topic_store_remove_wildcard(server.store, client->client_id);\n            list_foreach(item, client->session->subscriptions)\n            {\n                topic_del_subscriber(item->data, client);\n            }\n            HASH_DEL(server.sessions, client->session);\n            DECREF(client->session, struct client_session);\n        }\n        if (client->connected == true)\n            HASH_DEL(server.clients_map, client);\n        memorypool_free(server.pool, client);\n    }\n#if THREADSNR > 0\n    pthread_mutex_unlock(&mutex);",
+          "endLine": 445,
+          "explanation": "client_deactivate frees client->session when the disconnecting client's clean_session is true, even if another connected client still references that same session.",
+          "id": "takeover-session-free",
+          "label": "Disconnect frees the shared session",
+          "language": "c",
+          "path": "src/server.c",
+          "role": "sink",
+          "startLine": 425
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "connect_handler finds cc->session by client ID at handlers.c:400 and keeps it when clean_session is false. It never closes the previous client, and it adds a second clients_map entry with the same key at handlers.c:425. client_deactivate frees the shared session at server.c:438-439 based only on the disconnecting client's clean_session flag."
+      },
+      "findingId": "csf_23a3bf8eba641b6e840b8f80",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:36190936656c60bfc5bdde3986e862b8bf82eecc7332e6135cd8b9b7f9395740"
+      },
+      "identity": {
+        "anchor": "session-takeover-use-after-free"
+      },
+      "locations": [
+        {
+          "endLine": 425,
+          "path": "src/handlers.c",
+          "role": "root-cause",
+          "startLine": 399
+        },
+        {
+          "endLine": 445,
+          "path": "src/server.c",
+          "role": "sink",
+          "startLine": 425
+        }
+      ],
+      "occurrenceId": "occ_93033fa80f23e1a3f603ab59",
+      "preventiveControls": [
+        "Implement MQTT 3.1.1 session takeover by closing the existing connection and removing its map entry before reusing the session.",
+        "Reference-count sessions by connection and free them only when the last owner releases them."
+      ],
+      "provenance": {
+        "candidateId": "cand-session-takeover",
+        "source": "local_plugin"
+      },
+      "remediation": "On a duplicate client ID, disconnect and unregister the existing connection before adopting its session (MQTT takeover semantics), or reject the new connection. Keep exactly one clients_map entry per client ID and reference-count sessions by owning connection.",
+      "remediationTests": [
+        "Open two connections with the same client ID and clean_session=false, then disconnect the first with clean_session=true and publish/subscribe from the second under ASan.",
+        "Assert the broker keeps exactly one clients_map entry per client ID after a takeover.",
+        "Add a takeover test that verifies the old connection is closed before the new connection adopts the session."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "takeover-session-reuse",
+          "takeover-duplicate-map-entry",
+          "takeover-session-free"
+        ],
+        "summary": "Session ownership is not exclusive to one connection: a reused session can be referenced by multiple clients and freed by whichever clean-session client disconnects first."
+      },
+      "ruleId": "memory-safety.session-takeover-use-after-free",
+      "severity": {
+        "level": "high",
+        "score": 8.1,
+        "scoringSystem": "CVSS:3.1",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+      },
+      "summary": "connect_handler looks up an existing session by client ID and reuses it for the new connection without disconnecting the old client or removing its clients_map entry. If the new connection keeps clean_session=false, both connections point at the same session; when the original connection later disconnects with clean_session=true, client_deactivate frees that session while the new connection still references it. Duplicate HASH_ADD_STR entries and the HASH_DEL of a shared session worsen the corruption.",
+      "taxonomy": {
+        "category": "memory-corruption",
+        "cwe": [
+          "CWE-416",
+          "CWE-362"
+        ]
+      },
+      "title": "Duplicate client IDs share a session and free it while another connection still uses it",
+      "validation": {
+        "method": "Static source review with attacker-controlled data-flow tracing",
+        "summary": "The session lookup, the missing disconnect of the old client, the duplicate hash insertion and the session free on disconnect were traced as one ownership chain. Two connections with the same client ID are sufficient to obtain a dangling session pointer."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "NULL pointer dereference and broker crash",
+          "sink": "mqtt_pack(p) with p == NULL",
+          "source": "attacker-controlled PUBREC packet identifier",
+          "summary": "PUBREC pkt_id -> i_acks[pkt_id] set -> 20-second timer -> ACK branch -> mqtt_pack(NULL)"
+        },
+        "impact": {
+          "level": "medium",
+          "rationale": "The broker process terminates after a short delay, disrupting all clients, but exploitation is limited to denial of service."
+        },
+        "likelihood": {
+          "level": "medium",
+          "rationale": "Requires a valid session and the retransmission interval, but the input is a single ordinary PUBREC."
+        },
+        "reachability": {
+          "attacker": "network client with an MQTT session",
+          "entrypoint": "inflight_msg_check timer",
+          "preconditions": [
+            "a connected client",
+            "20 seconds elapsed"
+          ],
+          "summary": "A connected (or pre-CONNECT PUBREC-crashing) client sends PUBREC with an unused packet ID and waits for the timer."
+        },
+        "summary": "A connected client can make the broker dereference NULL during ACK retransmission."
+      },
+      "codeEvidence": [
+        {
+          "code": "    (void)ctx;\n    size_t size           = 0;\n    time_t now            = time(NULL);\n    struct mqtt_packet *p = NULL;\n    struct client *c, *tmp;",
+          "endLine": 315,
+          "explanation": "struct mqtt_packet *p = NULL is declared once for the whole timer callback; the message retransmission branch is the only assignment.",
+          "id": "inflight-p-initial",
+          "label": "p starts NULL and is set only in the message branch",
+          "language": "c",
+          "path": "src/server.c",
+          "role": "sink",
+          "startLine": 311
+        },
+        {
+          "code": "            if (c->session->i_acks[i] > 0 &&\n                (now - c->session->i_acks[i]) > 20) {\n                log_debug(\"Re-sending ack to %s\", c->client_id);\n                struct mqtt_packet ack;\n                mqtt_ack(&ack, i);\n                // Set DUP flag to 1\n                mqtt_set_dup(&ack);\n                size = mqtt_size(&ack, NULL);\n                // Serialize the packet and send it out again\n                mqtt_pack(p, c->wbuf + c->towrite);\n                c->towrite += size;\n                enqueue_event_write(c);",
+          "endLine": 356,
+          "explanation": "The ACK branch builds a local struct mqtt_packet ack but serializes p, which is NULL when no message was resent for this index.",
+          "id": "inflight-ack-pack",
+          "label": "ACK branch passes p instead of &ack",
+          "language": "c",
+          "path": "src/server.c",
+          "role": "sink",
+          "startLine": 345
+        },
+        {
+          "code": "static int pubrec_handler(struct io_event *e)\n{\n    struct client *c = e->client;\n    unsigned pkt_id  = e->data.ack.pkt_id;\n    log_debug(\"Received PUBREC from %s (m%u)\", c->client_id, pkt_id);\n#if THREADSNR > 0\n    pthread_mutex_lock(&c->mutex);\n#endif\n    mqtt_pack_mono(c->wbuf + c->towrite, PUBREL, pkt_id);\n    c->towrite += MQTT_ACK_LEN;\n#if THREADSNR > 0\n    pthread_mutex_unlock(&c->mutex);\n#endif\n    // Update inflight acks table\n    c->session->i_acks[pkt_id] = time(NULL);\n    log_debug(\"Sending PUBREL to %s (m%u)\", c->client_id, pkt_id);",
+          "endLine": 818,
+          "explanation": "pubrec_handler writes c->session->i_acks[pkt_id] = time(NULL) without creating a corresponding i_msgs entry, so the ACK branch can run alone.",
+          "id": "inflight-pubrec-sets-ack",
+          "label": "PUBREC creates an ACK-only inflight entry",
+          "language": "c",
+          "path": "src/handlers.c",
+          "role": "input",
+          "startLine": 803
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "p is initialized to NULL at server.c:314 and assigned only inside the i_msgs branch. The ACK branch at server.c:354 calls mqtt_pack(p, ...) instead of mqtt_pack(&ack, ...). pubrec_handler sets c->session->i_acks[pkt_id] without creating an i_msgs entry."
+      },
+      "findingId": "csf_8985d173af3333bd56a6bfed",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:4369fa800a3e3ba37c788d690d6b4881ec4b80a1e3c643bd8cbaf99dd35aa6c9"
+      },
+      "identity": {
+        "anchor": "inflight-ack-stale-pointer"
+      },
+      "locations": [
+        {
+          "endLine": 356,
+          "path": "src/server.c",
+          "role": "sink",
+          "startLine": 311
+        },
+        {
+          "endLine": 818,
+          "path": "src/handlers.c",
+          "role": "input",
+          "startLine": 803
+        }
+      ],
+      "occurrenceId": "occ_e763d69bc01d5420a2c23bcb",
+      "preventiveControls": [
+        "Serialize the packet that was built in the same branch and scope the retransmission pointer to each branch.",
+        "Validate packet identifiers before storing ACK state."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Pass &ack to mqtt_pack in the ACK branch and compute the size from the same packet that is serialized. Reset p per iteration or avoid sharing it between the two branches.",
+      "remediationTests": [
+        "Send PUBREC with an unused packet ID from a connected client, wait for the timer, and assert no crash.",
+        "Unit-test inflight_msg_check with an ACK-only session entry."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "inflight-p-initial",
+          "inflight-ack-pack",
+          "inflight-pubrec-sets-ack"
+        ],
+        "summary": "The retransmission helper reuses a pointer from the message branch for the ACK branch and never reinitializes it."
+      },
+      "ruleId": "memory-safety.inflight-ack-stale-pointer",
+      "severity": {
+        "level": "medium",
+        "score": 5.3,
+        "scoringSystem": "CVSS:3.1",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "summary": "inflight_msg_check resends pending ACKs with mqtt_pack(p, c->wbuf + c->towrite), but p is only assigned in the preceding message branch and is NULL when only an ACK is pending. A client can create an ACK-only inflight entry by sending PUBREC for an unused packet ID; after the 20-second retransmission timer, mqtt_pack dereferences NULL and crashes the broker. The call also uses the wrong buffer size, since size was computed from the ACK packet.",
+      "taxonomy": {
+        "category": "denial-of-service",
+        "cwe": [
+          "CWE-476"
+        ]
+      },
+      "title": "Inflight ACK retransmission packs through a NULL packet pointer",
+      "validation": {
+        "method": "Static source review with attacker-controlled data-flow tracing",
+        "summary": "The pointer lifetime and the PUBREC input path were inspected. A connected client that sends PUBREC for an unused packet ID creates an ACK-only entry that reaches the NULL pack after the retransmission delay."
+      }
+    }
+  ],
+  "scanId": "e2734f35-14d6-4012-968e-66758e9463d2",
+  "schemaVersion": "1.0"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "9450253201864898bc92b9ec33ad951f",
+  "stage": "orchestrator",
+  "project": "benchmark-sol",
+  "scope": "general",
+  "content": "针对 C 语言网络协议解析器（自研长度前缀协议、MQTT/Redis/HTTP 风格二进制报文）的审计清单补充：\n\n1. 长度算术优先于 memcpy 审查。对每个由报文控制的长度字段（u8/u16/u32），画出“声明长度 vs 函数收到的剩余字节数 len”两条线，重点找 `len -= x` 形式的无符号减法（usize/size_t）。任何 x 大于 len 都会回绕为接近 SIZE_MAX，后续可能表现为：(a) try_alloc/malloc 巨量分配 → 失败后 exit() 或 abort（DoS）；(b) memcpy(dst, src, SIZE_MAX)。建议把\"声明长度字段\"与\"剩余长度\"的一致性校验作为独立覆盖视角，而不是只读 memcpy 目标缓冲区大小。\n\n2. 协议派发表必须逐槽核对。对 `handler *table[N] = {...}` 的静态初始化，数清 N 与枚举最大值，检查每个可能被客户端置位的索引：NULL 槽位会产生空指针调用，索引 >= N 会产生越界函数指针读取。还要注意“分帧层允许的类型范围”与“派发表覆盖范围”是否一致（常见缺口：分帧层放行 1..14，派发表只填了部分槽位）。\n\n3. 固定大小字段的 16 位长度是高频溢出点。形如 `u16 len; memcpy(fixed_buf, src, len)` 且 fixed_buf 只有 64/128 字节的模式，应作为 Critical 候选优先确认；同时检查 `buf[len] = '\\0'` 这个第二处越界写。\n\n4. 连接状态机前置条件。ACK/查询类命令处理函数常直接解引用 session/context 指针；确认入口是否强制先完成握手（CONNECT/登录）。缺失时一个未认证报文即可空指针崩溃。\n\n5. 多线程服务额外检查锁顺序：发布路径若\"全局锁 → 客户端锁\"，而订阅路径\"客户端锁 → 全局锁\"，即构成 ABBA 死锁，可作为 DoS 候选（需确认线程数宏默认 > 0）。\n\n6. 对\"无 C 编译器\"的审计容器，提前在报告中声明 static-only 与 unverified，并用两包序列/最小报文布局描述复现思路，不要伪造动态结果。",
+  "evidence": [
+    "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/.stage-skill-proposals/evidence/9450253201864898bc92b9ec33ad951f-0.txt"
+  ],
+  "conditions": {},
+  "created_at": "2026-11-17T05:56:06.288666+00:00",
+  "provenance": {
+    "change_kind": "method",
+    "note": "来自 sol MQTT broker 审计：15 条候选中有 9 条由长度下溢/派发表/状态机前置条件三类模式发现"
+  }
+}

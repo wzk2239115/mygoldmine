@@ -1,0 +1,102 @@
+/vol1/1000/mygoldmine-benchmark/2026-11-17/tools/RepoAudit/src/llmtool/LLM_utils.py:5: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+/usr/local/lib/python3.13/site-packages/tree_sitter/__init__.py:36: FutureWarning: Language(path, name) is deprecated. Use Language(ptr, name) instead.
+  warn("{} is deprecated. Use {} instead.".format(old, new), FutureWarning)
+Parsing files:   0%|          | 0/131 [00:00<?, ?it/s]Parsing files:   1%|          | 1/131 [00:00<01:58,  1.10it/s]Parsing files: 100%|██████████| 131/131 [00:00<00:00, 139.71it/s]
+Analyzing functions:   0%|          | 0/698 [00:00<?, ?it/s]Analyzing functions:   0%|          | 1/698 [00:01<15:04,  1.30s/it]Analyzing functions: 100%|█████████▉| 695/698 [00:01<00:00, 670.19it/s]Analyzing functions: 100%|██████████| 698/698 [00:01<00:00, 484.76it/s]
+Analyzing call graphs:   0%|          | 0/698 [00:00<?, ?it/s]Analyzing call graphs:   0%|          | 1/698 [00:00<08:38,  1.34it/s]Analyzing call graphs:  77%|███████▋  | 535/698 [00:00<00:00, 771.55it/s]Analyzing call graphs: 100%|██████████| 698/698 [00:01<00:00, 599.85it/s]
+Parsing files:   0%|          | 0/698 [00:00<?, ?it/s]Parsing files:  26%|██▌       | 182/698 [00:00<00:00, 1773.72it/s]Parsing files:  60%|██████    | 420/698 [00:00<00:00, 1987.73it/s]Parsing files:  98%|█████████▊| 682/698 [00:00<00:00, 2246.39it/s]Parsing files: 100%|██████████| 698/698 [00:00<00:00, 1923.22it/s]
+2026-11-17 08:05:54,381 - INFO - Start data-flow bug scanning in parallel...
+2026-11-17 08:05:54,381 - INFO - Max number of workers: 4
+Processing Source Values:   0%|          | 0/168 [00:00<?, ?src/s]2026-11-17 08:05:54,382 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:05:54,383 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:05:54,385 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:05:54,387 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   1%|          | 1/168 [00:29<1:23:12, 29.89s/src]2026-11-17 08:06:24,275 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   1%|          | 2/168 [00:38<48:51, 17.66s/src]  2026-11-17 08:06:33,369 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   2%|▏         | 3/168 [00:40<28:42, 10.44s/src]2026-11-17 08:06:35,217 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   2%|▏         | 4/168 [01:03<41:35, 15.22s/src]2026-11-17 08:06:57,763 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:07:02,488 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   3%|▎         | 5/168 [01:08<31:03, 11.44s/src]Processing Source Values:   4%|▎         | 6/168 [01:15<26:48,  9.93s/src]2026-11-17 08:07:09,499 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:07:26,537 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   4%|▍         | 7/168 [01:32<32:52, 12.25s/src]Processing Source Values:   5%|▍         | 8/168 [01:52<39:46, 14.92s/src]2026-11-17 08:07:47,154 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   5%|▌         | 9/168 [02:00<33:22, 12.60s/src]2026-11-17 08:07:54,647 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:07:58,476 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   6%|▌         | 10/168 [02:04<26:02,  9.89s/src]Processing Source Values:   7%|▋         | 11/168 [02:07<20:30,  7.84s/src]2026-11-17 08:08:01,661 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   7%|▋         | 12/168 [02:37<38:27, 14.79s/src]2026-11-17 08:08:32,350 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   8%|▊         | 13/168 [02:38<27:19, 10.58s/src]2026-11-17 08:08:33,247 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   8%|▊         | 14/168 [02:39<19:11,  7.48s/src]2026-11-17 08:08:33,555 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:   9%|▉         | 15/168 [02:46<18:39,  7.32s/src]2026-11-17 08:08:40,506 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  10%|▉         | 16/168 [03:21<39:44, 15.69s/src]2026-11-17 08:09:15,624 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  10%|█         | 17/168 [03:27<32:00, 12.72s/src]2026-11-17 08:09:21,440 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  11%|█         | 18/168 [03:43<34:14, 13.69s/src]2026-11-17 08:09:37,405 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  11%|█▏        | 19/168 [03:55<32:51, 13.23s/src]2026-11-17 08:09:49,554 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:10:06,144 - INFO - The LLM Tool PathValidator is invoked.
+Processing Source Values:  12%|█▏        | 20/168 [04:17<39:28, 16.00s/src]2026-11-17 08:10:12,020 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:10:23,033 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  12%|█▎        | 21/168 [04:28<35:32, 14.51s/src]2026-11-17 08:10:23,404 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  13%|█▎        | 22/168 [04:29<24:58, 10.26s/src]Processing Source Values:  14%|█▎        | 23/168 [04:45<29:09, 12.06s/src]2026-11-17 08:10:39,662 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  14%|█▍        | 24/168 [05:02<32:22, 13.49s/src]2026-11-17 08:10:56,479 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  15%|█▍        | 25/168 [05:43<52:02, 21.84s/src]2026-11-17 08:11:37,795 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  15%|█▌        | 26/168 [05:50<40:55, 17.29s/src]2026-11-17 08:11:44,485 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:11:44,488 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  17%|█▋        | 28/168 [06:16<35:53, 15.38s/src]2026-11-17 08:12:10,778 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:12:16,489 - INFO - The LLM Tool PathValidator is invoked.
+Processing Source Values:  17%|█▋        | 29/168 [06:25<31:52, 13.76s/src]2026-11-17 08:12:19,615 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  18%|█▊        | 30/168 [06:27<24:35, 10.69s/src]2026-11-17 08:12:21,654 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:12:41,249 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  18%|█▊        | 31/168 [06:46<29:56, 13.11s/src]Processing Source Values:  19%|█▉        | 32/168 [06:53<25:45, 11.37s/src]2026-11-17 08:12:48,123 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  20%|█▉        | 33/168 [07:36<45:47, 20.35s/src]2026-11-17 08:13:30,942 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  20%|██        | 34/168 [07:37<33:09, 14.85s/src]2026-11-17 08:13:32,298 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  21%|██        | 35/168 [07:46<29:04, 13.11s/src]2026-11-17 08:13:41,229 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  21%|██▏       | 36/168 [07:53<24:22, 11.08s/src]2026-11-17 08:13:47,447 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  22%|██▏       | 37/168 [08:32<42:34, 19.50s/src]2026-11-17 08:14:26,940 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  23%|██▎       | 38/168 [08:56<44:58, 20.76s/src]2026-11-17 08:14:50,672 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:14:59,528 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  23%|██▎       | 39/168 [09:05<37:00, 17.21s/src]Processing Source Values:  24%|██▍       | 40/168 [09:07<27:09, 12.73s/src]2026-11-17 08:15:01,742 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  24%|██▍       | 41/168 [09:27<31:29, 14.88s/src]2026-11-17 08:15:21,659 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  25%|██▌       | 42/168 [09:56<40:20, 19.21s/src]2026-11-17 08:15:51,006 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  26%|██▌       | 43/168 [10:09<36:04, 17.32s/src]2026-11-17 08:16:03,901 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  26%|██▌       | 44/168 [10:39<43:25, 21.02s/src]2026-11-17 08:16:33,555 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  27%|██▋       | 45/168 [11:00<43:13, 21.08s/src]2026-11-17 08:16:54,801 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  27%|██▋       | 46/168 [11:10<36:02, 17.72s/src]2026-11-17 08:17:04,677 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  28%|██▊       | 47/168 [11:10<25:20, 12.56s/src]2026-11-17 08:17:05,197 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  29%|██▊       | 48/168 [11:28<28:17, 14.15s/src]2026-11-17 08:17:23,039 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  29%|██▉       | 49/168 [11:42<27:45, 14.00s/src]2026-11-17 08:17:36,692 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:18:04,686 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  30%|██▉       | 50/168 [12:10<35:47, 18.20s/src]2026-11-17 08:18:08,628 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  30%|███       | 51/168 [12:14<27:08, 13.92s/src]Processing Source Values:  31%|███       | 52/168 [12:22<23:23, 12.10s/src]2026-11-17 08:18:16,478 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:18:16,851 - INFO - The LLM Tool PathValidator is invoked.
+2026-11-17 08:18:33,915 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  32%|███▏      | 53/168 [12:39<26:15, 13.70s/src]Processing Source Values:  32%|███▏      | 54/168 [12:44<21:15, 11.19s/src]2026-11-17 08:18:39,239 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  33%|███▎      | 55/168 [12:49<17:14,  9.15s/src]2026-11-17 08:18:43,645 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  33%|███▎      | 56/168 [13:33<36:44, 19.68s/src]2026-11-17 08:19:27,891 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:19:29,163 - INFO - The LLM Tool PathValidator is invoked.
+2026-11-17 08:19:31,963 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  34%|███▍      | 57/168 [13:37<27:44, 15.00s/src]2026-11-17 08:19:47,225 - INFO - The LLM Tool PathValidator is invoked.
+2026-11-17 08:19:56,688 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  35%|███▍      | 58/168 [14:02<32:50, 17.92s/src]2026-11-17 08:20:20,586 - INFO - The LLM Tool PathValidator is invoked.
+Processing Source Values:  35%|███▌      | 59/168 [14:29<37:33, 20.67s/src]2026-11-17 08:20:23,786 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  36%|███▌      | 60/168 [14:54<39:34, 21.99s/src]2026-11-17 08:20:48,839 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  36%|███▋      | 61/168 [15:33<48:32, 27.22s/src]2026-11-17 08:21:28,271 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 08:21:39,979 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  37%|███▋      | 62/168 [15:45<39:51, 22.57s/src]2026-11-17 08:21:40,592 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  38%|███▊      | 63/168 [15:46<27:57, 15.98s/src]2026-11-17 08:21:54,794 - INFO - The LLM Tool PathValidator is invoked.
+Processing Source Values:  38%|███▊      | 64/168 [16:46<50:50, 29.33s/src]2026-11-17 08:22:41,072 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  39%|███▊      | 65/168 [16:51<37:49, 22.03s/src]2026-11-17 08:22:46,092 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  39%|███▉      | 66/168 [17:05<33:09, 19.51s/src]2026-11-17 08:22:59,710 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  40%|███▉      | 67/168 [17:11<26:18, 15.63s/src]2026-11-17 08:23:06,304 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  40%|████      | 68/168 [17:24<24:31, 14.71s/src]2026-11-17 08:23:18,853 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  41%|████      | 69/168 [17:32<21:08, 12.81s/src]2026-11-17 08:23:27,239 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  42%|████▏     | 70/168 [17:59<27:34, 16.88s/src]2026-11-17 08:23:53,614 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  42%|████▏     | 71/168 [18:07<23:19, 14.43s/src]2026-11-17 08:24:02,317 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  43%|████▎     | 72/168 [18:17<20:39, 12.91s/src]2026-11-17 08:24:11,680 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  43%|████▎     | 73/168 [18:23<17:12, 10.87s/src]2026-11-17 08:24:17,772 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+benchmark-repoaudit-pure-ftpd-uaf

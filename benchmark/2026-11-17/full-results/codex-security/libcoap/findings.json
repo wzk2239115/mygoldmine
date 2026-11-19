@@ -1,0 +1,1407 @@
+{
+  "documentType": "codex-security.findings",
+  "findings": [
+    {
+      "attackPath": {
+        "dataflow": {
+          "summary": "A WS peer sends a masked binary frame header announcing more than 100 bytes (for example 1400), delivers only part of the payload, and leaves data_ofs < data_size with all_hdr_in set. On teardown coap_ws_close() drains with buf[100]; the resume path skips header parsing and requests data_size - data_ofs bytes from l_read, which writes the peer's remaining payload past buf."
+        },
+        "reachability": {
+          "summary": "Requires an exposed WS/WSS endpoint and a close while a partial frame is outstanding. The built-in 300 s idle-session timeout frees the session (src/coap_io.c:420-427); an application-configured max_idle_sessions evicts it deterministically (src/coap_session.c:1324-1327). The peer supplies the remaining bytes for the 5 x 1 ms select() drain windows."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "session->ws->data_size = bytes_size;\nif ((size_t)bytes_size > datalen) {\n  coap_handle_event_lkd(session->context, COAP_EVENT_WS_PACKET_SIZE, session);\n  session->ws->close_reason = 1009;\n  session->ws->data_size = 0;\n  session->ws->data_ofs = 0;\n  coap_ws_close(session);\n  return 0;\n}",
+          "endLine": 707,
+          "explanation": "The only capacity check compares the frame size with the datalen of the call that parsed the header; it is not repeated on later resumptions.",
+          "id": "ws-size-check",
+          "label": "Frame size is checked only against the buffer of the header-parsing call",
+          "path": "src/coap_ws.c",
+          "startLine": 697
+        },
+        {
+          "code": "ret = session->sock.lfunc[COAP_LAYER_WS].l_read(session,\n                                                &data[session->ws->data_ofs],\n                                                session->ws->data_size - session->ws->data_ofs);",
+          "endLine": 764,
+          "explanation": "When all_hdr_in is set, the remaining frame bytes are requested without bounding the request to the caller-supplied datalen.",
+          "id": "ws-cont-read",
+          "label": "Continuation read uses the stored frame size",
+          "path": "src/coap_ws.c",
+          "startLine": 762
+        },
+        {
+          "code": "uint8_t buf[100];\n...\ntv.tv_usec = 1000;\nresult = select((int)(session->sock.fd+1), &readfds, NULL, NULL, &tv);\n\nif (result < 0) {\n  break;\n} else if (result > 0) {\n  coap_ws_read(session, buf, sizeof(buf));\n}",
+          "endLine": 914,
+          "explanation": "The close handshake re-enters coap_ws_read with a 100-byte buffer while a frame with a larger stored data_size can still be in progress.",
+          "id": "ws-close-drain",
+          "label": "Close drain supplies a 100-byte stack buffer",
+          "path": "src/coap_ws.c",
+          "startLine": 900
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The one-time size check, the stale-size continuation read, and the 100-byte close buffer are all explicit in source. The only residual uncertainty is timing the remaining bytes into the drain window, not whether the unchecked write exists."
+      },
+      "findingId": "csf_ab0c516faf7fa934803d85e3",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:8716a6cef3b8408ba7fdd4f420d5d9e8fca8fe2e1dc1085603a09fa27e971f7f"
+      },
+      "identity": {
+        "anchor": "websocket-close-path-can-overflow-a-100-byte-stack-buffer-with-a-partial-frame"
+      },
+      "locations": [
+        {
+          "endLine": 707,
+          "path": "src/coap_ws.c",
+          "role": "root_control",
+          "startLine": 697
+        },
+        {
+          "endLine": 764,
+          "path": "src/coap_ws.c",
+          "role": "sink",
+          "startLine": 762
+        },
+        {
+          "endLine": 914,
+          "path": "src/coap_ws.c",
+          "role": "source",
+          "startLine": 900
+        }
+      ],
+      "occurrenceId": "occ_b3156905fd5b245ba63119e7",
+      "provenance": {
+        "previousFindings": [
+          {
+            "attackPath": {
+              "dataflow": {
+                "summary": "A WS peer sends a masked binary frame larger than 100 bytes but withholds part of the payload. libcoap parses the header, sets all_hdr_in, and returns with data_ofs less than data_size. When the session closes or times out, coap_ws_close drains using a 100-byte stack buffer. coap_ws_read skips the header check and asks l_read for data_size - data_ofs bytes, overflowing buf with the remaining peer data."
+              },
+              "reachability": {
+                "summary": "Requires a reachable WS/WSS endpoint and the ability to trigger close (idle timeout or peer-initiated close) while a partial frame is outstanding. The peer can send the remaining frame bytes during the 1 ms select drain windows."
+              }
+            },
+            "codeEvidence": [
+              {
+                "code": "session->ws->data_size = bytes_size;\nif ((size_t)bytes_size > datalen) {\n  ...\n  coap_ws_close(session);\n  return 0;\n}",
+                "endLine": 707,
+                "explanation": "The check compares the frame size against the datalen of the call that parsed the header, not the datalen of later continuation or close-drain calls.",
+                "id": "ws-size-check",
+                "label": "Frame size is checked only while parsing the header",
+                "path": "src/coap_ws.c",
+                "startLine": 697
+              },
+              {
+                "code": "ret = session->sock.lfunc[COAP_LAYER_WS].l_read(session,\n                                                &data[session->ws->data_ofs],\n                                                session->ws->data_size - session->ws->data_ofs);",
+                "endLine": 764,
+                "explanation": "When all_hdr_in is set, the header block is skipped and the remaining frame bytes are requested without bounding the request to datalen.",
+                "id": "ws-cont-read",
+                "label": "Continuation read ignores the current datalen",
+                "path": "src/coap_ws.c",
+                "startLine": 761
+              },
+              {
+                "code": "uint8_t buf[100];\n...\nresult = select(...);\nif (result > 0) {\n  coap_ws_read(session, buf, sizeof(buf));\n}",
+                "endLine": 915,
+                "explanation": "The close handshake can invoke coap_ws_read with a 100-byte buffer while a frame with a much larger data_size is still in progress.",
+                "id": "ws-close-drain",
+                "label": "Close drain supplies a 100-byte stack buffer",
+                "path": "src/coap_ws.c",
+                "startLine": 897
+              }
+            ],
+            "confidence": {
+              "level": "high",
+              "rationale": "The close drain buffer, the one-time frame-size check, and the unbounded continuation read are all visible in source. Triggering requires a partial frame followed by the close drain, which the peer controls."
+            },
+            "identity": {
+              "anchor": "websocket-close-path-can-overflow-a-100-byte-stack-buffer-with-a-partial-frame"
+            },
+            "locations": [
+              {
+                "endLine": 707,
+                "path": "src/coap_ws.c",
+                "role": "root_control",
+                "startLine": 697
+              },
+              {
+                "endLine": 764,
+                "path": "src/coap_ws.c",
+                "role": "sink",
+                "startLine": 761
+              },
+              {
+                "endLine": 915,
+                "path": "src/coap_ws.c",
+                "role": "source",
+                "startLine": 897
+              }
+            ],
+            "preventiveControls": [
+              "Route all frame payload reads through a helper that always takes the caller's remaining capacity.",
+              "Keep a single frame-size validation at the point of each read, not only during header parsing."
+            ],
+            "provenance": {
+              "source": "local_plugin"
+            },
+            "remediation": "Clamp the continuation read to min(data_size - data_ofs, datalen) and abort the frame if it cannot fit, or reject the frame when all_hdr_in is set and data_size exceeds datalen. In coap_ws_close(), use a drain buffer at least as large as the maximum accepted frame or do not call coap_ws_read with a smaller buffer.",
+            "remediationTests": [
+              "Build with ASan, send a masked binary frame of length 500 with only 10 payload bytes, trigger close, then send the remaining 490 bytes during the drain window; verify no stack write occurs.",
+              "Add a unit test that calls coap_ws_read with a partial frame and then a 100-byte buffer and asserts the read length is clamped."
+            ],
+            "ruleId": "memory-safety.websocket-close-stack-overflow",
+            "severity": {
+              "changeConditions": "Lower if the close path cannot be reached while all_hdr_in is set, or if the platform l_read implementation never writes more than the caller's supplied buffer size.",
+              "level": "high",
+              "rationale": "A remote WebSocket peer can leave a partially read frame and then race the close drain, causing a stack buffer overflow with attacker-controlled length and contents. The path is unauthenticated once the WS endpoint is exposed."
+            },
+            "summary": "coap_ws_close() drains pending input into a 100-byte stack buffer by calling coap_ws_read(session, buf, 100). When a large binary frame was only partially consumed, all_hdr_in remains set; coap_ws_read() then skips the header/parsing size check and calls l_read() with data_size - data_ofs, which can exceed 100 and write attacker-controlled bytes past buf.",
+            "taxonomy": {
+              "category": "memory-corruption",
+              "cwe": [
+                "CWE-121",
+                "CWE-787"
+              ]
+            },
+            "title": "WebSocket close path can overflow a 100-byte stack buffer with a partial frame",
+            "validation": {
+              "method": "Static source review and source-backed attack-path tracing",
+              "summary": "The continuation read at line 762 uses the stored frame size, while the only size check at line 698 applies during header parsing. The close drain at line 914 passes a 100-byte buffer, establishing the overflow condition."
+            }
+          }
+        ],
+        "source": "local_plugin"
+      },
+      "remediation": "Clamp the continuation read to min(data_size - data_ofs, datalen) and reject the frame if it cannot fit; in coap_ws_close(), size the drain buffer for the maximum accepted frame or do not call coap_ws_read with a smaller buffer.",
+      "ruleId": "memory-safety.websocket-close-stack-overflow",
+      "severity": {
+        "changeConditions": "Lower if the platform read never writes more than the caller-supplied capacity or if the close drain cannot run while all_hdr_in is set. Raise confidence with a dynamic reproducer.",
+        "level": "high",
+        "rationale": "An unauthenticated WebSocket peer can reach a 100-byte stack buffer with a stale, attacker-chosen frame length and write past it. The resulting memory corruption can crash the process and may permit control-flow hijack on any WS/WSS listener."
+      },
+      "summary": "coap_ws_close() drains pending input into uint8_t buf[100] by calling coap_ws_read(session, buf, 100). If a large binary frame was only partially consumed, all_hdr_in remains set and data_ofs < data_size; coap_ws_read() skips the header-time size check and calls l_read(&data[data_ofs], data_size - data_ofs), so a peer that supplies the remaining frame bytes during the 1 ms drain windows writes attacker-controlled data past buf.",
+      "taxonomy": {
+        "category": "memory-corruption",
+        "cwe": [
+          "CWE-121",
+          "CWE-787"
+        ]
+      },
+      "title": "WebSocket close path can overflow a 100-byte stack buffer with a partial frame",
+      "validation": {
+        "method": "Static source review and source-backed attack-path tracing",
+        "summary": "The continuation read at line 762 uses the stored frame size, while the size check at line 698 applies only during header parsing. The close drain at line 914 passes a 100-byte buffer, establishing the overflow condition."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "summary": "An OSCORE request supplies a KID absent from the multi-recipient configuration returned by the application callback. oscore_find_context returns the context but leaves the recipient pointer NULL. The request path stores the NULL recipient and immediately reads rcp_ctx->initial_state."
+        },
+        "reachability": {
+          "summary": "Any peer that can send an OSCORE option to a server using the external credential callback with multiple recipients. The KID is carried in the OSCORE option and can be chosen by the attacker."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "if (tmp_ctx->recipient_chain != NULL &&\n    tmp_ctx->recipient_chain->next_recipient != NULL) {\n  ...\n  if (coap_binary_equal(ref_ctx->recipient_id, &rcpkey_id)) {\n    ref_ctx->next_recipient = NULL;\n    *recipient_ctx = ref_ctx;\n  } else {\n    coap_delete_bin_const(ref_ctx->recipient_key);\n    coap_delete_bin_const(ref_ctx->recipient_id);\n    coap_free_type(COAP_OSCORE_REC, (void *)ref_ctx);\n  }\n  ...\n  tmp_ctx->recipient_chain = *recipient_ctx;\n  ...\n  return tmp_ctx;",
+          "endLine": 396,
+          "explanation": "Only a KID match assigns *recipient_ctx. With no match every recipient is freed, the output stays NULL, and the context is still returned.",
+          "id": "oscore-no-match",
+          "label": "No matching recipient leaves the output NULL",
+          "path": "src/oscore/oscore_context.c",
+          "startLine": 371
+        },
+        {
+          "code": "osc_ctx = oscore_find_context(session,\n                              cose->key_id,\n                              &cose->kid_context,\n                              NULL,\n                              &rcp_ctx);",
+          "endLine": 1068,
+          "explanation": "rcp_ctx is initialized to NULL at line 939 and is expected to receive the matched recipient from the lookup.",
+          "id": "oscore-call",
+          "label": "Request path uses the returned context and recipient",
+          "path": "src/coap_oscore.c",
+          "startLine": 1064
+        },
+        {
+          "code": "coap_oscore_session_set_recipient_ctx(session, rcp_ctx);\nsnd_ctx = osc_ctx->sender_context;\n...\nif ((rcp_ctx->initial_state == 0 || osc_ctx->rfc8613_b_1_2 == 0) &&\n    !oscore_validate_sender_seq(rcp_ctx, cose)) {",
+          "endLine": 1157,
+          "explanation": "The setter returns early for NULL; the next use of rcp_ctx dereferences it before any authentication check.",
+          "id": "oscore-null-deref",
+          "label": "Recipient is dereferenced without a NULL check",
+          "path": "src/coap_oscore.c",
+          "startLine": 1146
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The no-match path leaves *recipient_ctx unset and explicitly assigns NULL to the context chain; the caller initializes rcp_ctx to NULL at line 939 and dereferences it after checking only osc_ctx."
+      },
+      "findingId": "csf_e5a6f872843887c3c4589713",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:d5b9f600e60c65f126fd23d4cb4b608c5aa27bc50a23977653a4b7e78027c071"
+      },
+      "identity": {
+        "anchor": "oscore-external-credential-lookup-can-return-a-context-with-no-recipient-and-crash-the-server"
+      },
+      "locations": [
+        {
+          "endLine": 396,
+          "path": "src/oscore/oscore_context.c",
+          "role": "root_control",
+          "startLine": 371
+        },
+        {
+          "endLine": 1069,
+          "path": "src/coap_oscore.c",
+          "role": "entrypoint",
+          "startLine": 1064
+        },
+        {
+          "endLine": 1157,
+          "path": "src/coap_oscore.c",
+          "role": "sink",
+          "startLine": 1146
+        }
+      ],
+      "occurrenceId": "occ_5ebe420f55e7fc4ab5dba4c5",
+      "provenance": {
+        "previousFindings": [
+          {
+            "attackPath": {
+              "dataflow": {
+                "summary": "An OSCORE request supplies a KID that is absent from the multi-recipient configuration returned by the application callback. oscore_find_context returns the context but leaves the recipient pointer NULL. The request path stores the NULL recipient and immediately reads rcp_ctx->initial_state."
+              },
+              "reachability": {
+                "summary": "Any peer that can send an OSCORE option to a server using the external credential callback with multiple recipients. The KID is carried in the OSCORE option and can be chosen by the attacker."
+              }
+            },
+            "codeEvidence": [
+              {
+                "code": "if (tmp_ctx->recipient_chain != NULL &&\n    tmp_ctx->recipient_chain->next_recipient != NULL) {\n  ...\n  if (coap_binary_equal(ref_ctx->recipient_id, &rcpkey_id)) {\n    *recipient_ctx = ref_ctx;\n  } else {\n    ... free ref_ctx ...\n  }\n  ...\n  tmp_ctx->recipient_chain = *recipient_ctx;\n  ...\n  return tmp_ctx;\n}",
+                "endLine": 396,
+                "explanation": "In the multi-recipient branch, *recipient_ctx is only written on a match. With no match it remains NULL from the caller, yet the context is still returned.",
+                "id": "oscore-no-match",
+                "label": "No matching recipient leaves the output NULL",
+                "path": "src/oscore/oscore_context.c",
+                "startLine": 371
+              },
+              {
+                "code": "osc_ctx = oscore_find_context(session,\n                              cose->key_id,\n                              &cose->kid_context,\n                              NULL,\n                              &rcp_ctx);",
+                "endLine": 1069,
+                "explanation": "rcp_ctx is initialized to NULL and is expected to receive the matched recipient.",
+                "id": "oscore-call",
+                "label": "Request path uses the returned context and recipient",
+                "path": "src/coap_oscore.c",
+                "startLine": 1064
+              },
+              {
+                "code": "coap_oscore_session_set_recipient_ctx(session, rcp_ctx);\nsnd_ctx = osc_ctx->sender_context;\n...\nif ((rcp_ctx->initial_state == 0 || osc_ctx->rfc8613_b_1_2 == 0) &&\n    !oscore_validate_sender_seq(rcp_ctx, cose)) {",
+                "endLine": 1157,
+                "explanation": "The setter ignores a NULL recipient; the next use of rcp_ctx dereferences it and crashes.",
+                "id": "oscore-null-deref",
+                "label": "Recipient is dereferenced without a NULL check",
+                "path": "src/coap_oscore.c",
+                "startLine": 1146
+              }
+            ],
+            "confidence": {
+              "level": "high",
+              "rationale": "The no-match path leaves *recipient_ctx unset and explicitly assigns NULL to the context chain, after which the caller dereferences the NULL pointer before any authentication check."
+            },
+            "identity": {
+              "anchor": "oscore-external-credential-lookup-can-return-a-context-with-no-recipient-and-crash-the-server"
+            },
+            "locations": [
+              {
+                "endLine": 396,
+                "path": "src/oscore/oscore_context.c",
+                "role": "root_control",
+                "startLine": 371
+              },
+              {
+                "endLine": 1069,
+                "path": "src/coap_oscore.c",
+                "role": "entrypoint",
+                "startLine": 1064
+              },
+              {
+                "endLine": 1157,
+                "path": "src/coap_oscore.c",
+                "role": "sink",
+                "startLine": 1146
+              }
+            ],
+            "preventiveControls": [
+              "Treat (osc_ctx != NULL, rcp_ctx == NULL) as an invalid state at every lookup site."
+            ],
+            "provenance": {
+              "source": "local_plugin"
+            },
+            "remediation": "Initialize *recipient_ctx = NULL at the start of the callback path and return NULL when no recipient matches, freeing the temporary context. Also reject the request when osc_ctx is non-NULL but rcp_ctx is NULL before storing or dereferencing the recipient.",
+            "remediationTests": [
+              "Register an external callback returning two recipients, send an OSCORE request with an unknown KID, and verify the server returns 4.01 instead of crashing.",
+              "Add a unit test for oscore_find_context with a multi-recipient conf and an unmatched KID asserting a NULL result."
+            ],
+            "ruleId": "memory-safety.oscore-recipient-null-deref",
+            "severity": {
+              "changeConditions": "Lower if the application never uses coap_oscore_register_external_handlers(), or always returns a single-recipient configuration.",
+              "level": "high",
+              "rationale": "A single crafted OSCORE packet can crash a server that uses the public external credential store API with a multi-recipient configuration. The attacker needs no valid OSCORE key, only a KID that is not in the returned recipient set."
+            },
+            "summary": "When an application registers oscore_find_cb and the callback returns a configuration with multiple recipients, oscore_find_context() assigns *recipient_ctx only when a recipient matches the request KID. If none matches, it frees every recipient, leaves *recipient_ctx NULL, sets tmp_ctx->recipient_chain = NULL, and returns the context. coap_oscore_decrypt_pdu() then calls coap_oscore_session_set_recipient_ctx(session, NULL) (a no-op) and dereferences rcp_ctx->initial_state, crashing on a single unauthenticated OSCORE request with an unknown KID.",
+            "taxonomy": {
+              "category": "null-pointer-dereference",
+              "cwe": [
+                "CWE-476"
+              ]
+            },
+            "title": "OSCORE external credential lookup can return a context with no recipient and crash the server",
+            "validation": {
+              "method": "Static source review and source-backed attack-path tracing",
+              "summary": "The no-match branch never assigns *recipient_ctx; the caller initializes it to NULL and dereferences it after only checking that osc_ctx is non-NULL. No check exists between the lookup and line 1156."
+            }
+          }
+        ],
+        "source": "local_plugin"
+      },
+      "remediation": "Initialize *recipient_ctx = NULL at the start of the callback path and return NULL when no recipient matches, freeing the temporary context. Reject the request when osc_ctx is non-NULL but rcp_ctx is NULL before storing or dereferencing the recipient.",
+      "ruleId": "memory-safety.oscore-recipient-null-deref",
+      "severity": {
+        "changeConditions": "Lower if the application never registers oscore_find_cb or always returns a single-recipient configuration; raise if the crash is shown on a default deployment.",
+        "level": "high",
+        "rationale": "A single crafted OSCORE packet can crash a server that uses the public external credential API with a multi-recipient configuration. The attacker needs no valid OSCORE key, only a KID absent from the returned recipient set."
+      },
+      "summary": "When an application registers an external credential callback with coap_oscore_register_external_handlers() and the callback returns a configuration with multiple recipients, oscore_find_context() assigns *recipient_ctx only when a recipient matches the request KID. If none matches, it frees every recipient, leaves *recipient_ctx NULL, sets tmp_ctx->recipient_chain = NULL, and still returns the context. coap_oscore_decrypt_pdu() then calls coap_oscore_session_set_recipient_ctx(session, NULL), which is a no-op, and dereferences rcp_ctx->initial_state, crashing on a single unauthenticated OSCORE request with an unknown KID.",
+      "taxonomy": {
+        "category": "null-pointer-dereference",
+        "cwe": [
+          "CWE-476"
+        ]
+      },
+      "title": "OSCORE external credential lookup can return a context with no recipient and crash the server",
+      "validation": {
+        "method": "Static source review and source-backed attack-path tracing",
+        "summary": "The no-match branch never assigns *recipient_ctx; the caller initializes it to NULL and dereferences it after only checking that osc_ctx is non-NULL. No check exists between the lookup and line 1156."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "summary": "A malicious OSCORE server supplies an R2 value whose length makes the client's B.2 kid_context (R2 || ID1) align exactly with the advertised space. On the next request, oscore_encode_option_value() writes the CBOR length and payload one byte past option_buffer[255], underflows rem_space, and then copies the key id past the array; the oversized returned length is inserted as the OSCORE option."
+        },
+        "reachability": {
+          "summary": "A client with rfc8613_b_2 enabled communicating with a malicious server; the server controls R2 length and can align the CBOR header plus kid_context to rem_space."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "uint8_t *ptr = &option_buffer[offset+1];\n...\noption_buffer[offset] = (uint8_t)oscore_cbor_put_bytes(&ptr, &rem_space,\n                                                       cose->kid_context.s,\n                                                       cose->kid_context.length);\noffset += option_buffer[offset] + 1;\nrem_space -= 1;",
+          "endLine": 231,
+          "explanation": "rem_space counts from option_buffer[offset], but the write target starts at offset+1, so the usable capacity is one byte smaller than advertised; the later decrement can underflow.",
+          "id": "b2-ptr-space",
+          "label": "Pointer skips a byte but the size does not",
+          "path": "src/oscore/oscore.c",
+          "startLine": 218
+        },
+        {
+          "code": "size_t nb = oscore_cbor_put_unsigned(buffer, buf_size, bytes_len);\nif (*buf_size < bytes_len)\n  return 0;\n(*buf_size) -= bytes_len;\n...\nmemcpy(*buffer, bytes, bytes_len);",
+          "endLine": 118,
+          "explanation": "After the header consumes nb bytes, the function copies bytes_len bytes when the remaining counter equals bytes_len. Because the counter was one too large, the final byte lands past the array.",
+          "id": "b2-cbor-copy",
+          "label": "CBOR byte-string copy trusts the advertised size",
+          "path": "src/oscore/oscore_cbor.c",
+          "startLine": 104
+        },
+        {
+          "code": "if (cose->key_id.s != NULL) {\n  option_buffer[0] |= 0x08;\n  if (rem_space < cose->key_id.length)\n    return -1;\n  if (cose->key_id.length) {\n    memcpy(&(option_buffer[offset]), cose->key_id.s, cose->key_id.length);\n    offset += cose->key_id.length;\n    rem_space -= cose->key_id.length;\n  }\n}",
+          "endLine": 254,
+          "explanation": "After rem_space underflows to SIZE_MAX, the bound check cannot fail and the key-id copy uses the overflowing offset.",
+          "id": "b2-key-write",
+          "label": "Underflowed counter bypasses the key-id bound check",
+          "path": "src/oscore/oscore.c",
+          "startLine": 247
+        },
+        {
+          "code": "uint8_t oscore_option[255];",
+          "endLine": 418,
+          "explanation": "The destination is a fixed 255-byte stack array; option_buffer[255] and the key-id write at offset 256 are out of bounds.",
+          "id": "b2-buffer",
+          "label": "255-byte stack option buffer",
+          "path": "src/coap_oscore.c",
+          "startLine": 418
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The pointer arithmetic and the size passed to oscore_cbor_put_bytes() are explicit: the pointer advances past the length byte without reducing rem_space, and the post-write decrement can underflow."
+      },
+      "findingId": "csf_3c106f9bc73be3b8e1515ab2",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:81546853c4c5077a56b4e35b8b88b3a8a932afef4db2c860b36c5c2227286626"
+      },
+      "identity": {
+        "anchor": "oscore-appendix-b.2-kid_context-encoder-writes-one-byte-past-the-255-byte-stack-buffer"
+      },
+      "locations": [
+        {
+          "endLine": 231,
+          "path": "src/oscore/oscore.c",
+          "role": "sink",
+          "startLine": 218
+        },
+        {
+          "endLine": 118,
+          "path": "src/oscore/oscore_cbor.c",
+          "role": "concrete_implementation",
+          "startLine": 104
+        },
+        {
+          "endLine": 418,
+          "path": "src/coap_oscore.c",
+          "role": "root_control",
+          "startLine": 418
+        },
+        {
+          "endLine": 543,
+          "path": "src/coap_oscore.c",
+          "role": "entrypoint",
+          "startLine": 540
+        }
+      ],
+      "occurrenceId": "occ_bb9000a2a0bd72533c94f581",
+      "provenance": {
+        "previousFindings": [
+          {
+            "attackPath": {
+              "dataflow": {
+                "summary": "A peer supplies a kid_context whose CBOR header plus payload length exactly fills the advertised rem_space. When libcoap encodes the OSCORE option in Appendix B.2 mode, the CBOR writer copies the last byte to index 255 of the stack array."
+              },
+              "reachability": {
+                "summary": "Requires RFC 8613 Appendix B.2 mode (session->b_2_step != NONE) and an OSCORE option carrying an attacker-influenced kid_context. This is a test/feature configuration, not the default."
+              }
+            },
+            "codeEvidence": [
+              {
+                "code": "uint8_t *ptr = &option_buffer[offset+1];\n...\noption_buffer[offset] = (uint8_t)oscore_cbor_put_bytes(&ptr, &rem_space,\n                                                       cose->kid_context.s,\n                                                       cose->kid_context.length);\noffset += option_buffer[offset] + 1;\nrem_space -= 1;",
+                "endLine": 231,
+                "explanation": "rem_space counts from option_buffer[offset], but the write target starts at offset+1, so the usable capacity is one byte smaller than advertised.",
+                "id": "b2-ptr-space",
+                "label": "Pointer skips a byte but the size does not",
+                "path": "src/oscore/oscore.c",
+                "startLine": 218
+              },
+              {
+                "code": "size_t nb = oscore_cbor_put_unsigned(buffer, buf_size, bytes_len);\nif (*buf_size < bytes_len)\n  return 0;\n(*buf_size) -= bytes_len;\n...\nmemcpy(*buffer, bytes, bytes_len);",
+                "endLine": 118,
+                "explanation": "After the header consumes nb bytes, the function copies bytes_len bytes when the remaining counter equals bytes_len. Because the counter was one too large, the final byte lands past the array.",
+                "id": "b2-cbor-copy",
+                "label": "CBOR byte-string copy trusts the advertised size",
+                "path": "src/oscore/oscore_cbor.c",
+                "startLine": 104
+              },
+              {
+                "code": "uint8_t oscore_option[255];",
+                "endLine": 418,
+                "explanation": "The destination is a fixed 255-byte stack array; option_buffer[255] is out of bounds.",
+                "id": "b2-buffer",
+                "label": "255-byte stack option buffer",
+                "path": "src/coap_oscore.c",
+                "startLine": 418
+              }
+            ],
+            "confidence": {
+              "level": "high",
+              "rationale": "The pointer arithmetic and the size passed to oscore_cbor_put_bytes() are explicit: the pointer advances past the length byte without reducing rem_space."
+            },
+            "identity": {
+              "anchor": "oscore-appendix-b.2-kid_context-encoder-writes-one-byte-past-the-255-byte-stack-buffer"
+            },
+            "locations": [
+              {
+                "endLine": 231,
+                "path": "src/oscore/oscore.c",
+                "role": "sink",
+                "startLine": 218
+              },
+              {
+                "endLine": 118,
+                "path": "src/oscore/oscore_cbor.c",
+                "role": "concrete_implementation",
+                "startLine": 104
+              },
+              {
+                "endLine": 418,
+                "path": "src/coap_oscore.c",
+                "role": "root_control",
+                "startLine": 418
+              },
+              {
+                "endLine": 543,
+                "path": "src/coap_oscore.c",
+                "role": "entrypoint",
+                "startLine": 540
+              }
+            ],
+            "preventiveControls": [
+              "Centralize OSCORE option buffer accounting so the pointer offset and remaining size are updated together."
+            ],
+            "provenance": {
+              "source": "local_plugin"
+            },
+            "remediation": "Pass rem_space - 1 to oscore_cbor_put_bytes() and require rem_space > 1. Also validate nb + kid_context.length against the true remaining capacity before copying, and derive the next offset from the bounded return value.",
+            "remediationTests": [
+              "Build the OSCORE option with a kid_context sized so the CBOR header plus payload equals rem_space and run under ASan; assert no stack-buffer-overflow.",
+              "Add unit tests for the maximum kid_context length in Appendix B.2 mode."
+            ],
+            "ruleId": "memory-safety.oscore-b2-cbor-off-by-one",
+            "severity": {
+              "changeConditions": "Raise if B.2 is enabled in a production deployment or if the adjacent byte is a control value. Lower if B.2 is never enabled.",
+              "level": "medium",
+              "rationale": "The overflow is a one-byte stack write with the last kid_context byte, which can corrupt adjacent stack state. Reachability requires the non-default Appendix B.2 mode, so impact is conditional on deployment."
+            },
+            "summary": "oscore_encode_option_value() points the CBOR writer at option_buffer[offset+1] but passes rem_space unchanged as the available size. The bytes actually available at that pointer are rem_space-1. When the CBOR header size plus kid_context length equals rem_space, oscore_cbor_put_bytes() copies the final byte to option_buffer[offset+rem_space], which is option_buffer[255], one past the 255-byte array. The writer is reached when Appendix B.2 is configured and b_2_step is not NONE, with attacker-influenced kid_context bytes.",
+            "taxonomy": {
+              "category": "memory-corruption",
+              "cwe": [
+                "CWE-787"
+              ]
+            },
+            "title": "OSCORE Appendix B.2 kid_context encoder writes one byte past the 255-byte stack buffer",
+            "validation": {
+              "method": "Static source review; arithmetic boundary analysis",
+              "summary": "With offset=1 and rem_space=254 before any PIV, ptr begins at index 2 while 254 bytes are advertised; the 254th written byte reaches index 255."
+            }
+          }
+        ],
+        "source": "local_plugin"
+      },
+      "remediation": "Pass rem_space - 1 to oscore_cbor_put_bytes() and require rem_space > 1; check nb + kid_context.length against the true remaining capacity, guard the rem_space decrement against underflow, and derive the next offset from the bounded return value.",
+      "ruleId": "memory-safety.oscore-b2-cbor-off-by-one",
+      "severity": {
+        "changeConditions": "Raise if B.2 is enabled in a production deployment or if the adjacent stack bytes are control values. Lower if B.2 is never enabled.",
+        "level": "medium",
+        "rationale": "A malicious OSCORE peer can drive a stack out-of-bounds write and read with attacker-influenced kid_context and key-id bytes. Reachability requires the non-default Appendix B.2 mode, so impact is conditional on deployment; it can be raised where B.2 is enabled."
+      },
+      "summary": "oscore_encode_option_value() points the CBOR writer at option_buffer[offset+1] but passes rem_space unchanged. The bytes actually available at that pointer are rem_space - 1. When the CBOR header plus kid_context length equals rem_space, oscore_cbor_put_bytes() writes the final byte to option_buffer[255], one past the 255-byte stack array, and the following rem_space -= 1 underflows to SIZE_MAX. The key-id bound check is then bypassed, memcpy(&option_buffer[offset], key_id, ...) writes past the array, and the returned offset of 256 or more is passed to coap_insert_option(), which reads past the stack array. The encoder runs when Appendix B.2 is configured and b_2_step is not NONE, with attacker-influenced kid_context bytes.",
+      "taxonomy": {
+        "category": "memory-corruption",
+        "cwe": [
+          "CWE-787",
+          "CWE-193"
+        ]
+      },
+      "title": "OSCORE Appendix B.2 kid_context encoder writes past the 255-byte stack buffer and underflows its remaining-space counter",
+      "validation": {
+        "method": "Static source review and arithmetic boundary analysis",
+        "summary": "With offset=1 and rem_space=254 before any PIV, ptr begins at index 2 while 254 bytes are advertised; the final byte reaches index 255, rem_space becomes SIZE_MAX after the decrement, and the following key-id copy at offset 256 is unbounded."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "summary": "A client sends block 0 with SZX=0, NUM=0, M=1 and 16 bytes, then block 1 with SZX=6, NUM=1, M=0 and 1024 bytes. offset becomes 1 << 10 = 1024 and total becomes 2048; blocks_add_entry tracks only NUM contiguity, so the ranges merge. coap_block_build_body_lkd() grows the body to offset + length and copies only the new segment; bytes 16 through 1023 are never initialized. give_app_data() sets body_length = total_len, so an application that returns the body discloses the gap."
+        },
+        "reachability": {
+          "summary": "Requires server-side Block1 reassembly using COAP_BLOCK_SINGLE_BODY, COAP_BLOCK_NOT_RANDOM_BLOCK1, or Q-Block, plus an application resource that exposes the reassembled body. The example server enables this mode with -L 3."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "offset = block.num << (block.szx + 4);",
+          "endLine": 3604,
+          "explanation": "A client can change SZX between blocks, moving the next write offset beyond the bytes already received; no check requires equality with lg_srcv->szx.",
+          "id": "block-offset",
+          "label": "Offset is derived from the current request SZX",
+          "path": "src/coap_block.c",
+          "startLine": 3604
+        },
+        {
+          "code": "if (body_data == NULL && total) {\n  body_data = coap_new_binary(total);\n}\n...\ncoap_binary_t *new = coap_resize_binary(body_data, offset + length);\nif (new) {\n  body_data = new;\n  memcpy(&body_data->s[offset], data, length);\n}",
+          "endLine": 4624,
+          "explanation": "The allocation and resize paths do not zero the new bytes; only the current segment at offset is copied.",
+          "id": "block-build",
+          "label": "Body copy covers only the received segment",
+          "path": "src/coap_block.c",
+          "startLine": 4594
+        },
+        {
+          "code": "if (lg_srcv->body_data) {\n  pdu->body_data = lg_srcv->body_data->s;\n  pdu->body_length = lg_srcv->total_len;\n}\n...\npdu->body_total = lg_srcv->total_len;",
+          "endLine": 4058,
+          "explanation": "The application is told the body is total_len bytes, including the uninitialized gap.",
+          "id": "block-app-handoff",
+          "label": "Application receives the full total length",
+          "path": "src/coap_block.c",
+          "startLine": 4050
+        },
+        {
+          "code": "memset(s, 0, sizeof(coap_str_bin_union_t));\ns->s = ((unsigned char *)s) + sizeof(coap_str_bin_union_t);",
+          "endLine": 46,
+          "explanation": "Only the header union is zeroed; the size-byte payload area is not.",
+          "id": "binary-uninit",
+          "label": "coap_new_binary leaves payload bytes uninitialized",
+          "path": "src/coap_str.c",
+          "startLine": 42
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "coap_new_binary() does not zero the payload area, and the copy is performed only for the current segment. The offset is computed from the current block SZX with no equality check against lg_srcv->szx, so a size change leaves a gap."
+      },
+      "findingId": "csf_32734e421a875ddd2784abce",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:144918374a2e21d1b6507f769fdcf1a26b90fe8e996c40a872d435e54f90eaf0"
+      },
+      "identity": {
+        "anchor": "block1-reassembly-can-hand-uninitialized-heap-bytes-to-the-application"
+      },
+      "locations": [
+        {
+          "endLine": 3604,
+          "path": "src/coap_block.c",
+          "role": "root_control",
+          "startLine": 3604
+        },
+        {
+          "endLine": 4058,
+          "path": "src/coap_block.c",
+          "role": "sink",
+          "startLine": 4050
+        },
+        {
+          "endLine": 4624,
+          "path": "src/coap_block.c",
+          "role": "concrete_implementation",
+          "startLine": 4590
+        },
+        {
+          "endLine": 46,
+          "path": "src/coap_str.c",
+          "role": "root_control",
+          "startLine": 42
+        }
+      ],
+      "occurrenceId": "occ_7b0a5483b7513d24886dc57a",
+      "provenance": {
+        "previousFindings": [
+          {
+            "attackPath": {
+              "dataflow": {
+                "summary": "A client sends a first Block1 segment that establishes offset 0 and a small body, then a later contiguous block number with a larger SZX. The new offset jumps past the first segment, body length grows to total_len, and the gap contains stale heap bytes that are passed to the application and may be echoed."
+              },
+              "reachability": {
+                "summary": "Requires server-side Block1 reassembly (COAP_BLOCK_SINGLE_BODY or Q-Block) and an application resource that exposes the reassembled body. The example server supports this with -L 3."
+              }
+            },
+            "codeEvidence": [
+              {
+                "code": "offset = block.num << (block.szx + 4);",
+                "endLine": 3610,
+                "explanation": "A client can change SZX between blocks, moving the next write offset beyond the bytes already received.",
+                "id": "block-offset",
+                "label": "Offset is derived from the current block size",
+                "path": "src/coap_block.c",
+                "startLine": 3608
+              },
+              {
+                "code": "if (body_data == NULL && total) {\n  body_data = coap_new_binary(total);\n}\n...\ncoap_binary_t *new = coap_resize_binary(body_data, offset + length);\nif (new) {\n  body_data = new;\n  memcpy(&body_data->s[offset], data, length);\n}",
+                "endLine": 4624,
+                "explanation": "The allocation and resize paths do not zero the new bytes; only the current segment at offset is copied.",
+                "id": "block-build",
+                "label": "Body copy only covers the received segment",
+                "path": "src/coap_block.c",
+                "startLine": 4590
+              },
+              {
+                "code": "if (lg_srcv->body_data) {\n  pdu->body_data = lg_srcv->body_data->s;\n  pdu->body_length = lg_srcv->total_len;\n}\n...\npdu->body_total = lg_srcv->total_len;",
+                "endLine": 4058,
+                "explanation": "The application is told the body is total_len bytes, including the uninitialized gap.",
+                "id": "block-app-handoff",
+                "label": "Application receives the full total length",
+                "path": "src/coap_block.c",
+                "startLine": 4050
+              },
+              {
+                "code": "memset(s, 0, sizeof(coap_str_bin_union_t));\ns->s = ((unsigned char *)s) + sizeof(coap_str_bin_union_t);\ns->s[size] = '\\000';\ns->length = size;",
+                "endLine": 46,
+                "explanation": "Only the header union is zeroed; the size-byte payload area is not.",
+                "id": "binary-uninit",
+                "label": "coap_new_binary leaves payload bytes uninitialized",
+                "path": "src/coap_str.c",
+                "startLine": 40
+              }
+            ],
+            "confidence": {
+              "level": "high",
+              "rationale": "coap_new_binary() does not zero the payload area, and the copy is performed only for the current segment. The offset is computed from the current block's SZX, so a size change leaves a gap."
+            },
+            "identity": {
+              "anchor": "block1-reassembly-can-hand-uninitialized-heap-bytes-to-the-application"
+            },
+            "locations": [
+              {
+                "endLine": 3861,
+                "path": "src/coap_block.c",
+                "role": "source",
+                "startLine": 3848
+              },
+              {
+                "endLine": 4058,
+                "path": "src/coap_block.c",
+                "role": "sink",
+                "startLine": 4050
+              },
+              {
+                "endLine": 4624,
+                "path": "src/coap_block.c",
+                "role": "concrete_implementation",
+                "startLine": 4590
+              },
+              {
+                "endLine": 46,
+                "path": "src/coap_str.c",
+                "role": "root_control",
+                "startLine": 40
+              }
+            ],
+            "preventiveControls": [
+              "Maintain an explicit received-range map instead of only block numbers."
+            ],
+            "provenance": {
+              "source": "local_plugin"
+            },
+            "remediation": "Zero-initialize the body allocation, or track received byte ranges and reject any Block1 sequence with a gap or overlap. Compute offsets from the SZX established for the transfer and require each segment to start at the next expected byte.",
+            "remediationTests": [
+              "Send Block1 with num=0,szx=0,len=16,m=1 followed by num=1,szx=3,len=128,m=0 and assert the application body has no uninitialized bytes.",
+              "Run the reassembly test under ASan and MSan and reject any gap."
+            ],
+            "ruleId": "memory-disclosure.block1-uninitialized-reassembly",
+            "severity": {
+              "changeConditions": "Raise if the application exposes a body-echo or body-processing resource that returns data to the peer. Lower if the application never enables SINGLE_BODY or Q-Block reassembly.",
+              "level": "medium",
+              "rationale": "The client can read uninitialized heap memory, which may contain previous request data, pointers, or key material. The server must have library-side single-body or Q-Block reassembly enabled."
+            },
+            "summary": "coap_block_build_body_lkd() allocates a body of total bytes with coap_new_binary() and copies only each received segment at its offset. If a client changes SZX between blocks so the next offset jumps past data already received, the gap is never initialized. give_app_data later sets pdu->body_data to that buffer and pdu->body_length to total_len, so an application that returns the body (for example the example echo resource) discloses heap contents.",
+            "taxonomy": {
+              "category": "information-disclosure",
+              "cwe": [
+                "CWE-457",
+                "CWE-200"
+              ]
+            },
+            "title": "Block1 reassembly can hand uninitialized heap bytes to the application",
+            "validation": {
+              "method": "Static source review; supporting dynamic evidence from an independent comparator",
+              "summary": "The uninitialized allocation, segment-only copy, offset-from-current-SZX, and full-length handoff form a complete path. The independent strix run reported ASanand heap-grooming reproductions of non-zero gap bytes."
+            }
+          }
+        ],
+        "source": "local_plugin"
+      },
+      "remediation": "Zero-initialize the body allocation, or track received byte ranges and reject any Block1 sequence with a gap or overlap. Compute offsets from the SZX established for the transfer and require each segment to start at the next expected byte.",
+      "ruleId": "memory-disclosure.block1-uninitialized-reassembly",
+      "severity": {
+        "changeConditions": "Raise if the application exposes a body-echo or body-processing resource that returns data to the peer. Lower if the application never enables SINGLE_BODY, NOT_RANDOM_BLOCK1, or Q-Block reassembly.",
+        "level": "medium",
+        "rationale": "A remote client can cause uninitialized heap memory to be returned as request body data, potentially exposing previous request data, pointers, or key material. The server must have library-side single-body or Q-Block reassembly enabled."
+      },
+      "summary": "coap_block_build_body_lkd() allocates a body of total bytes with coap_new_binary() and copies only each received segment at its offset. If a client changes SZX between blocks so the next offset jumps past data already received, the gap is never initialized. give_app_data later sets pdu->body_data to that buffer and pdu->body_length to total_len, so an application that returns the body, such as an echo or proxy resource, discloses heap contents.",
+      "taxonomy": {
+        "category": "information-disclosure",
+        "cwe": [
+          "CWE-457",
+          "CWE-200"
+        ]
+      },
+      "title": "Block1 reassembly can hand uninitialized heap bytes to the application",
+      "validation": {
+        "method": "Static source review and source-backed dataflow tracing",
+        "summary": "The uninitialized allocation, segment-only copy, offset from the current SZX, and full-length handoff form a complete path. No dynamic reproduction was performed."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "summary": "A request with a valid recipient KID and a unique unknown kid_context enters the B.2 fallback, duplicates the context, and fails AEAD verification. Each request leaves one attached context behind; repeating with new kid_context values grows memory without bound."
+        },
+        "reachability": {
+          "summary": "Requires rfc8613_b_2 enabled and knowledge of a valid recipient KID, observable in OSCORE traffic or guessable in deployments using short KIDs."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "session->b_2_step = COAP_OSCORE_B_2_STEP_2;\n...\nosc_ctx = oscore_duplicate_ctx(session->context,\n                               osc_ctx,\n                               osc_ctx->sender_context->sender_id,\n                               &cose->key_id,\n                               &cose->kid_context);\n...\nrcp_ctx = osc_ctx->recipient_chain;",
+          "endLine": 1122,
+          "explanation": "The duplicate is created while handling the request, before the AEAD tag is verified.",
+          "id": "b2-duplicate",
+          "label": "Duplicate context created before authentication",
+          "path": "src/coap_oscore.c",
+          "startLine": 1109
+        },
+        {
+          "code": "oscore_enter_context(c_context, osc_ctx);\n\nreturn osc_ctx;",
+          "endLine": 746,
+          "explanation": "oscore_enter_context attaches the new context to c_context->p_osc_ctx, making it reachable for the lifetime of the CoAP context.",
+          "id": "b2-enter",
+          "label": "Duplicate is linked into the global context list",
+          "path": "src/oscore/oscore_context.c",
+          "startLine": 743
+        },
+        {
+          "code": "error:\n  coap_send_ack_lkd(session, pdu);\nerror_no_ack:\n  if (decrypt_request_association) {\n    oscore_delete_association(session, decrypt_request_association);\n    decrypt_request_association = NULL;\n  }\n  if (association && association->is_observe == 0)\n    oscore_delete_association(session, association);\n  coap_delete_pdu_lkd(decrypt_pdu);\n  coap_delete_pdu_lkd(plain_pdu);\n  return NULL;",
+          "endLine": 1867,
+          "explanation": "Only PDUs and associations are released; the duplicated OSCORE context remains linked.",
+          "id": "b2-error-no-free",
+          "label": "Decrypt error path does not free the duplicate",
+          "path": "src/coap_oscore.c",
+          "startLine": 1856
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The duplicate is linked into the context list in oscore_duplicate_ctx(), and the decrypt error path contains no matching context deletion."
+      },
+      "findingId": "csf_023ec23c2cbe953b45fc7827",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:54afcb6ce8c30d79bf7aff039eed19d5473f424bacff9cfd78c955cea862a2fc"
+      },
+      "identity": {
+        "anchor": "appendix-b.2-creates-unbounded-oscore-contexts-before-authentication"
+      },
+      "locations": [
+        {
+          "endLine": 1122,
+          "path": "src/coap_oscore.c",
+          "role": "entrypoint",
+          "startLine": 1081
+        },
+        {
+          "endLine": 746,
+          "path": "src/oscore/oscore_context.c",
+          "role": "concrete_implementation",
+          "startLine": 657
+        },
+        {
+          "endLine": 1867,
+          "path": "src/coap_oscore.c",
+          "role": "root_control",
+          "startLine": 1856
+        }
+      ],
+      "occurrenceId": "occ_fe9f641a8143364b3d02f195",
+      "provenance": {
+        "previousFindings": [
+          {
+            "attackPath": {
+              "dataflow": {
+                "summary": "A request with a valid recipient KID and a unique unknown kid_context enters the B.2 fallback, duplicates the context, and fails AEAD verification. Each request leaves one attached context behind; repeating with new kid_context values grows memory without bound."
+              },
+              "reachability": {
+                "summary": "Requires rfc8613_b_2 enabled and knowledge of a valid recipient KID (observable in OSCORE traffic or guessable in deployments using short/default KIDs)."
+              }
+            },
+            "codeEvidence": [
+              {
+                "code": "session->b_2_step = COAP_OSCORE_B_2_STEP_2;\n...\nosc_ctx = oscore_duplicate_ctx(session->context,\n                               osc_ctx,\n                               osc_ctx->sender_context->sender_id,\n                               &cose->key_id,\n                               &cose->kid_context);",
+                "endLine": 1122,
+                "explanation": "The duplicate is created while handling the request, before the tag is verified.",
+                "id": "b2-duplicate",
+                "label": "Duplicate context created before authentication",
+                "path": "src/coap_oscore.c",
+                "startLine": 1108
+              },
+              {
+                "code": "oscore_log_context(osc_ctx, \"New Common context\");\noscore_enter_context(c_context, osc_ctx);\n\nreturn osc_ctx;",
+                "endLine": 746,
+                "explanation": "oscore_enter_context attaches the new context to c_context->p_osc_ctx, making it reachable for the lifetime of the CoAP context.",
+                "id": "b2-enter",
+                "label": "Duplicate is linked into the global context list",
+                "path": "src/oscore/oscore_context.c",
+                "startLine": 743
+              },
+              {
+                "code": "error:\n  coap_send_ack_lkd(session, pdu);\nerror_no_ack:\n  if (decrypt_request_association) {\n    oscore_delete_association(session, decrypt_request_association);\n    decrypt_request_association = NULL;\n  }\n  if (association && association->is_observe == 0)\n    oscore_delete_association(session, association);\n  coap_delete_pdu_lkd(decrypt_pdu);\n  coap_delete_pdu_lkd(plain_pdu);\n  return NULL;",
+                "endLine": 1867,
+                "explanation": "Only PDUs and associations are released; the duplicated OSCORE context remains linked.",
+                "id": "b2-error-no-free",
+                "label": "Decrypt error path does not free the duplicate",
+                "path": "src/coap_oscore.c",
+                "startLine": 1856
+              }
+            ],
+            "confidence": {
+              "level": "high",
+              "rationale": "The duplicate is linked into the context list in oscore_duplicate_ctx(), and the decrypt error path contains no matching context deletion."
+            },
+            "identity": {
+              "anchor": "appendix-b.2-creates-unbounded-oscore-contexts-before-authentication"
+            },
+            "locations": [
+              {
+                "endLine": 1122,
+                "path": "src/coap_oscore.c",
+                "role": "entrypoint",
+                "startLine": 1081
+              },
+              {
+                "endLine": 746,
+                "path": "src/oscore/oscore_context.c",
+                "role": "concrete_implementation",
+                "startLine": 657
+              },
+              {
+                "endLine": 1867,
+                "path": "src/coap_oscore.c",
+                "role": "root_control",
+                "startLine": 1856
+              }
+            ],
+            "preventiveControls": [
+              "Cap per-context OSCORE contexts and use a reference-counted temporary context during verification."
+            ],
+            "provenance": {
+              "source": "local_plugin"
+            },
+            "remediation": "Do not attach the duplicated context until the AEAD tag verifies, or explicitly free and unlink it on every decryption failure. Add a bound on the number of B.2 contexts and expire idle ones.",
+            "remediationTests": [
+              "Send 1000 requests with unique kid_context values and a known KID; assert the process context count and RSS remain bounded.",
+              "Verify the error path frees the duplicate context under ASan/LSan."
+            ],
+            "ruleId": "resource-exhaustion.oscore-b2-unbounded-contexts",
+            "severity": {
+              "changeConditions": "Raise if B.2 is enabled on a long-running public server and the KID is predictable or observable. Lower if B.2 is disabled or contexts are periodically purged.",
+              "level": "medium",
+              "rationale": "An attacker who knows a valid KID can cause unbounded memory growth and eventual denial of service without possessing the OSCORE key. B.2 is a non-default feature."
+            },
+            "summary": "In Appendix B.2 mode, coap_oscore_decrypt_pdu() duplicates the OSCORE context for a request carrying an unknown kid_context and links it into context->p_osc_ctx before the AEAD tag is verified. The decryption-failure and error paths free only the PDU and associations, never the duplicated context. Repeated requests with unique kid_context values accumulate contexts, each holding a copy of the master secret, salt, and derived keys, until memory is exhausted.",
+            "taxonomy": {
+              "category": "resource-exhaustion",
+              "cwe": [
+                "CWE-770"
+              ]
+            },
+            "title": "Appendix B.2 creates unbounded OSCORE contexts before authentication",
+            "validation": {
+              "method": "Static source review and source-backed attack-path tracing",
+              "summary": "The duplicate is inserted before decryption; the error path has no context cleanup. An independent strix run measured the context chain growing by one per unauthenticated request and reported the same behavior against a patched build."
+            }
+          }
+        ],
+        "source": "local_plugin"
+      },
+      "remediation": "Do not attach the duplicated context until the AEAD tag verifies, or explicitly free and unlink it on every decryption failure. Add a bound on the number of B.2 contexts and expire idle ones.",
+      "ruleId": "resource-exhaustion.oscore-b2-unbounded-contexts",
+      "severity": {
+        "changeConditions": "Raise if B.2 is enabled on a long-running public server and the KID is predictable or observable. Lower if B.2 is disabled or contexts are periodically purged.",
+        "level": "medium",
+        "rationale": "An attacker who knows a valid KID can cause unbounded memory growth and eventual denial of service without possessing the OSCORE key. Appendix B.2 is a non-default feature."
+      },
+      "summary": "In Appendix B.2 mode, coap_oscore_decrypt_pdu() duplicates the OSCORE context for a request carrying an unknown kid_context and links it into context->p_osc_ctx before the AEAD tag is verified. The decryption-failure and error paths free only the PDU and associations, never the duplicated context. Repeated requests with unique kid_context values accumulate contexts, each holding a copy of the master secret, salt, and derived keys, until memory is exhausted.",
+      "taxonomy": {
+        "category": "resource-exhaustion",
+        "cwe": [
+          "CWE-770"
+        ]
+      },
+      "title": "Appendix B.2 creates unbounded OSCORE contexts before authentication",
+      "validation": {
+        "method": "Static source review and source-backed call-path tracing",
+        "summary": "The duplicate is inserted before decryption and the error path has no context cleanup; no dynamic reproduction was performed."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "summary": "An on-path attacker observes an outstanding OSCORE request or association and injects a response with a higher Partial IV but a ciphertext no longer than the AEAD tag. The client advances the replay window, then rejects the genuine response as a replay."
+        },
+        "reachability": {
+          "summary": "Requires an OSCORE client, an on-path attacker able to forge a response with the expected token, and a partial IV in the response."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "if ((rcp_ctx->initial_state == 0 || osc_ctx->rfc8613_b_1_2 == 0) &&\n    !oscore_validate_sender_seq(rcp_ctx, cose)) {\n  ...\n  goto error;\n}\nlast_seq = coap_decode_var_bytes8(cose->partial_iv.s, cose->partial_iv.length);\n...\nif (last_seq > rcp_ctx->last_seq)\n  rcp_ctx->last_seq = last_seq;",
+          "endLine": 1382,
+          "explanation": "oscore_validate_sender_seq() and the explicit update change last_seq before the ciphertext is authenticated.",
+          "id": "oscore-resp-validate",
+          "label": "Response validation advances the window before decrypt",
+          "path": "src/coap_oscore.c",
+          "startLine": 1370
+        },
+        {
+          "code": "if (encrypt_len <= tag_len) {\n  ...\n  if (coap_request) {\n    ...\n    oscore_roll_back_seq(rcp_ctx);\n    ...\n  }\n  coap_handle_event_lkd(... COAP_EVENT_OSCORE_DECRYPTION_FAILURE ...);\n  goto error;\n}",
+          "endLine": 1501,
+          "explanation": "Only the request branch rolls back; the response branch leaves the advanced window in place.",
+          "id": "oscore-resp-short",
+          "label": "Short response ciphertext path omits rollback",
+          "path": "src/coap_oscore.c",
+          "startLine": 1481
+        },
+        {
+          "code": "...\n} else {\n  coap_handle_event_lkd(session->context,\n                        COAP_EVENT_OSCORE_DECRYPTION_FAILURE,\n                        session);\n  oscore_roll_back_seq(rcp_ctx);\n}\ngoto error;",
+          "endLine": 1551,
+          "explanation": "The later failure path shows the intended rollback behavior that the short-ciphertext path omits.",
+          "id": "oscore-resp-rollback",
+          "label": "Generic decrypt failure does roll back",
+          "path": "src/coap_oscore.c",
+          "startLine": 1541
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The sequence window is advanced at line 1371 and the short-ciphertext path at lines 1482-1501 omits the rollback that other failure paths perform."
+      },
+      "findingId": "csf_e80e19758657003d888c192b",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:a533be60cd90b5f956f082e5bd97c87129a0ef7a17e457c6fdb2c25442e54d11"
+      },
+      "identity": {
+        "anchor": "short-oscore-responses-advance-the-replay-window-without-rollback"
+      },
+      "locations": [
+        {
+          "endLine": 1382,
+          "path": "src/coap_oscore.c",
+          "role": "source",
+          "startLine": 1364
+        },
+        {
+          "endLine": 1501,
+          "path": "src/coap_oscore.c",
+          "role": "sink",
+          "startLine": 1481
+        },
+        {
+          "endLine": 1551,
+          "path": "src/coap_oscore.c",
+          "role": "evidence",
+          "startLine": 1541
+        }
+      ],
+      "occurrenceId": "occ_22a53db451514bbb39d9f787",
+      "provenance": {
+        "previousFindings": [
+          {
+            "attackPath": {
+              "dataflow": {
+                "summary": "An on-path attacker observes an outstanding OSCORE request/association and injects a response with a higher Partial IV but a ciphertext no longer than the AEAD tag. The client advances the replay window, then rejects the genuine response as a replay."
+              },
+              "reachability": {
+                "summary": "Requires an OSCORE client, an on-path attacker able to forge a response with the expected token, and a partial IV in the response."
+              }
+            },
+            "codeEvidence": [
+              {
+                "code": "if ((rcp_ctx->initial_state == 0 || osc_ctx->rfc8613_b_1_2 == 0) &&\n    !oscore_validate_sender_seq(rcp_ctx, cose)) {\n  ...\n  goto error;\n}\nlast_seq = coap_decode_var_bytes8(cose->partial_iv.s, cose->partial_iv.length);\n...\nif (last_seq > rcp_ctx->last_seq)\n  rcp_ctx->last_seq = last_seq;",
+                "endLine": 1382,
+                "explanation": "oscore_validate_sender_seq() and the explicit update change last_seq before the ciphertext is authenticated.",
+                "id": "oscore-resp-validate",
+                "label": "Response validation advances the window before decrypt",
+                "path": "src/coap_oscore.c",
+                "startLine": 1370
+              },
+              {
+                "code": "if (encrypt_len <= tag_len) {\n  ...\n  if (coap_request) {\n    ...\n    oscore_roll_back_seq(rcp_ctx);\n    ...\n  }\n  coap_handle_event_lkd(... COAP_EVENT_OSCORE_DECRYPTION_FAILURE ...);\n  goto error;\n}",
+                "endLine": 1501,
+                "explanation": "Only the request branch rolls back; the response branch leaves the advanced window in place.",
+                "id": "oscore-resp-short",
+                "label": "Short response ciphertext path omits rollback",
+                "path": "src/coap_oscore.c",
+                "startLine": 1481
+              },
+              {
+                "code": "...\n} else {\n  coap_handle_event_lkd(session->context,\n                        COAP_EVENT_OSCORE_DECRYPTION_FAILURE,\n                        session);\n  oscore_roll_back_seq(rcp_ctx);\n}\ngoto error;",
+                "endLine": 1551,
+                "explanation": "The later failure path shows the intended rollback behavior that the short-ciphertext path omits.",
+                "id": "oscore-resp-rollback",
+                "label": "Generic decrypt failure does roll back",
+                "path": "src/coap_oscore.c",
+                "startLine": 1541
+              }
+            ],
+            "confidence": {
+              "level": "high",
+              "rationale": "The sequence window is advanced at line 1371 and the short-ciphertext path at 1482-1501 omits the rollback that other failures perform."
+            },
+            "identity": {
+              "anchor": "short-oscore-responses-advance-the-replay-window-without-rollback"
+            },
+            "locations": [
+              {
+                "endLine": 1382,
+                "path": "src/coap_oscore.c",
+                "role": "source",
+                "startLine": 1364
+              },
+              {
+                "endLine": 1501,
+                "path": "src/coap_oscore.c",
+                "role": "sink",
+                "startLine": 1481
+              },
+              {
+                "endLine": 1551,
+                "path": "src/coap_oscore.c",
+                "role": "evidence",
+                "startLine": 1541
+              }
+            ],
+            "preventiveControls": [
+              "Centralize response failure cleanup so every path rolls back the replay state."
+            ],
+            "provenance": {
+              "source": "local_plugin"
+            },
+            "remediation": "Call oscore_roll_back_seq(rcp_ctx) on every response decryption failure, including the encrypt_len <= tag_len case, or defer last_seq updates until after successful AEAD verification.",
+            "remediationTests": [
+              "Inject a response with a high PIV and short ciphertext, then deliver a genuine lower-PIV response; assert the genuine response is accepted.",
+              "Add a unit test that checks rollback_valid is cleared and last_seq is restored on the short-ciphertext path."
+            ],
+            "ruleId": "dos.oscore-response-no-seq-rollback",
+            "severity": {
+              "changeConditions": "Raise if the client uses long-lived OSCORE sessions or if the attack can be repeated cheaply across many associations.",
+              "level": "low",
+              "rationale": "The attacker must be on-path and able to inject a response matching an outstanding OSCORE request/association. Impact is limited to a client session denial of service."
+            },
+            "summary": "For a response carrying a Partial IV, coap_oscore_decrypt_pdu() validates and advances rcp_ctx->last_seq before AEAD verification. If the ciphertext is too short (encrypt_len <= tag_len), the response branch jumps to error without calling oscore_roll_back_seq(), unlike the request branch and the generic decrypt-failure path. An on-path attacker can forge a high-PIV short response that matches the token/association, causing later legitimate responses with lower PIVs to be rejected as replays.",
+            "taxonomy": {
+              "category": "denial-of-service",
+              "cwe": [
+                "CWE-400"
+              ]
+            },
+            "title": "Short OSCORE responses advance the replay window without rollback",
+            "validation": {
+              "method": "Static source review and source-backed attack-path tracing",
+              "summary": "The window advancement precedes decryption, and the short-ciphertext response branch lacks the rollback present in the adjacent failure paths."
+            }
+          }
+        ],
+        "source": "local_plugin"
+      },
+      "remediation": "Call oscore_roll_back_seq(rcp_ctx) on every response decryption failure, including the encrypt_len <= tag_len case, or defer last_seq updates until after successful AEAD verification.",
+      "ruleId": "dos.oscore-response-no-seq-rollback",
+      "severity": {
+        "changeConditions": "Raise if the client uses long-lived OSCORE sessions or if the attack can be repeated cheaply across many associations.",
+        "level": "low",
+        "rationale": "The attacker must be on-path and able to inject a response matching an outstanding OSCORE request or association. Impact is limited to a client session denial of service."
+      },
+      "summary": "For a response carrying a Partial IV, coap_oscore_decrypt_pdu() validates and advances rcp_ctx->last_seq before AEAD verification. If the ciphertext is too short, where encrypt_len <= tag_len, the response branch jumps to error without calling oscore_roll_back_seq(), unlike the request branch and the generic decrypt-failure path. An on-path attacker can forge a high-PIV short response that matches the token and association, causing later legitimate responses with lower PIVs to be rejected as replays.",
+      "taxonomy": {
+        "category": "denial-of-service",
+        "cwe": [
+          "CWE-400"
+        ]
+      },
+      "title": "Short OSCORE responses advance the replay window without rollback",
+      "validation": {
+        "method": "Static source review and source-backed attack-path tracing",
+        "summary": "The window advancement precedes decryption, and the short-ciphertext response branch lacks the rollback present in the adjacent failure paths."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "summary": "pdu_408_build() copies lg_srcv->last_token into a PDU sized to the session MTU, ignores a failed Content-Format option add, and then writes the payload marker unconditionally, so the marker lands one byte past the allocation when the token exactly fills the PDU. On default UDP this cannot be driven from the wire: the Q-Block1 request must also carry Size1 and RTag, which do not fit alongside a PDU-filling token."
+        },
+        "reachability": {
+          "summary": "Latent. The sink is reached only for a Q-Block1 request with missing blocks, and RFC 9177 section 4.3 requires that request to carry Size1 and RTag (src/coap_block.c:3542-3547) in addition to a URI path. With the default 1152-byte UDP MTU, coap_session_max_pdu_size() yields about 1148 bytes, so a token large enough to fill used_size leaves no space for the mandatory options and the request is rejected before pdu_408_build() runs. Reaching the write requires a build or transport that admits both a PDU-filling token and the mandatory Q-Block options within one PDU, or a caller that supplies an oversized last_token. No such configuration or trigger was demonstrated."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "pdu = coap_pdu_init(...);\nif (!pdu)\n  return NULL;\nif (lg_srcv->last_token)\n  coap_add_token(pdu, lg_srcv->last_token->length, lg_srcv->last_token->s);\ncoap_add_option_internal(pdu, COAP_OPTION_CONTENT_TYPE, ...);\npdu->token[pdu->used_size++] = COAP_PAYLOAD_START;",
+          "endLine": 1880,
+          "explanation": "Neither add call's failure is checked; the marker is written regardless of remaining capacity.",
+          "id": "pdu408-marker",
+          "label": "Unconditional payload marker write",
+          "path": "src/coap_block.c",
+          "startLine": 1867
+        },
+        {
+          "code": "if (pdu->max_size && new_size > pdu->max_size) {\n  new_size = pdu->max_size;\n  if (new_size < size)\n    return 0;\n}",
+          "endLine": 412,
+          "explanation": "Once the token brings used_size to max_size, the option add returns 0 and leaves used_size unchanged.",
+          "id": "pdu-check-resize",
+          "label": "Resize refuses to exceed max_size",
+          "path": "src/coap_pdu.c",
+          "startLine": 395
+        },
+        {
+          "code": "if (!coap_pdu_check_resize(pdu, len + bias)) {\n  ...\n  return 0;\n}\n...\npdu->e_token_length = (uint32_t)(len + bias);",
+          "endLine": 446,
+          "explanation": "When len + bias equals max_size, the token succeeds and used_size equals alloc_size.",
+          "id": "pdu-token-fill",
+          "label": "Token add can fill the allocation exactly",
+          "path": "src/coap_pdu.c",
+          "startLine": 439
+        },
+        {
+          "code": "if (block_option == COAP_OPTION_Q_BLOCK1 && (!size_opt || !rtag_opt)) {\n  /* RFC9177 section-4.3 */\n  coap_log_info(\"Q-Block1: Size1 and RTag options required\\n\");\n  response->code = COAP_RESPONSE_CODE(400);\n  goto skip_app_handler;\n}",
+          "endLine": 3547,
+          "explanation": "A Q-Block1 request without Size1 and RTag is rejected before the 4.08 path, so any request that reaches pdu_408_build() must also spend PDU space on those options.",
+          "id": "qblock-required-options",
+          "label": "Mandatory Q-Block1 options gate the sink",
+          "path": "src/coap_block.c",
+          "startLine": 3542
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The unchecked marker write and the exact-fill token add are explicit in source. The claimed wire trigger is contradicted by the RFC 9177 Q-Block1 Size1/RTag requirement at src/coap_block.c:3542-3547, so confidence is high that the defect is latent rather than remotely reachable on default UDP."
+      },
+      "findingId": "csf_288fdb40ff0454c59f470c31",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:76b66fa387c068682cb20a1223a0c1ac4d9a92f131c73a9700bc9c99fd483f4d"
+      },
+      "identity": {
+        "anchor": "pdu_408_build-writes-the-payload-marker-without-checking-capacity"
+      },
+      "locations": [
+        {
+          "endLine": 1880,
+          "path": "src/coap_block.c",
+          "role": "sink",
+          "startLine": 1867
+        },
+        {
+          "endLine": 412,
+          "path": "src/coap_pdu.c",
+          "role": "root_control",
+          "startLine": 395
+        },
+        {
+          "endLine": 446,
+          "path": "src/coap_pdu.c",
+          "role": "concrete_implementation",
+          "startLine": 439
+        }
+      ],
+      "occurrenceId": "occ_21e090c7a6c674e2cbc80bb8",
+      "preventiveControls": [
+        "Always route payload marker insertion through a helper that performs a capacity check."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Check both coap_add_token() and coap_add_option_internal() results. Call coap_pdu_check_resize(pdu, pdu->used_size + 1) before writing the marker; on failure, delete the PDU and return NULL so the caller defers the 4.08.",
+      "remediationTests": [
+        "Under a build or transport that admits a maximum-size token alongside Q-Block1 Size1 and RTag options, send a Q-Block1 request with missing blocks and run under ASan; verify no heap-buffer-overflow.",
+        "Add a unit test for pdu_408_build with a token that exactly fills the PDU."
+      ],
+      "ruleId": "memory-safety.pdu-408-unchecked-marker",
+      "severity": {
+        "changeConditions": "Raise if a build or transport is shown to admit a PDU-filling extended token together with the mandatory Q-Block1 Size1 and RTag options, or if pdu_408_build() gains a caller that can pass an oversized last_token. Keep low while the default UDP path rejects such requests.",
+        "level": "low",
+        "rationale": "The unchecked one-byte heap write is real and could corrupt allocator metadata, but the only identified caller cannot be driven with a PDU-filling token on the default UDP transport because the mandatory Q-Block1 Size1 and RTag options must fit in the same request. No remote trigger was demonstrated, so this is retained as a low-severity latent memory-safety defect."
+      },
+      "summary": "pdu_408_build() ignores the return values of coap_add_token() and coap_add_option_internal() and then unconditionally writes COAP_PAYLOAD_START at pdu->token[pdu->used_size++], so it writes one byte past the heap allocation whenever the token exactly fills the PDU. The defect is real, but the previously claimed remote trigger is not reachable in the default configuration: a Q-Block1 request must also carry Size1 and RTag options plus a URI path to reach this path, and with the default 1152-byte UDP MTU the session PDU is about 1148 bytes, so a token large enough to fill used_size leaves no room for those mandatory options; the request either omits them and is rejected with 4.00, or exceeds the MTU and is rejected during parsing, before pdu_408_build() runs. Reachability is limited to a build or transport that admits a PDU-filling token together with the mandatory Q-Block options, or to future caller misuse; no such trigger was demonstrated.",
+      "taxonomy": {
+        "category": "memory-corruption",
+        "cwe": [
+          "CWE-787"
+        ]
+      },
+      "title": "pdu_408_build writes the payload marker without checking capacity",
+      "validation": {
+        "method": "Static source review, arithmetic analysis, and reachability review",
+        "summary": "The token can consume exactly alloc_size and the marker write is unconditional, confirming the defect. Reachability analysis shows the described Q-Block1 request cannot also carry the mandatory Size1 and RTag options within the default 1148-byte UDP PDU, so no remote trigger was demonstrated and the item is retained as a latent one-byte heap write."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "summary": "A client sends a body-bearing request with Uri-Path-Abbrev. The peer rejects the option, no_path_abbrev is set, and the retransmit path builds a duplicate but attaches the body to the old PDU before freeing it. The wire request has the expanded path and no payload marker/body."
+        },
+        "reachability": {
+          "summary": "Client-side path; requires coap_send with a body-bearing request containing Uri-Path-Abbrev and a peer known to reject the abbreviation."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "new = coap_pdu_duplicate_lkd(pdu, session, ... COAP_BOOL_TRUE);\nif (new) {\n  if (coap_get_data(pdu, &data_len, &data)) {\n    coap_add_data(pdu, data_len, data);\n  }\n  ...\n  coap_delete_pdu_lkd(pdu);\n  pdu = new;\n}",
+          "endLine": 1810,
+          "explanation": "coap_add_data() targets pdu, which is freed immediately afterward; new never receives the body.",
+          "id": "abb-retransmit",
+          "label": "Payload is added to the discarded PDU",
+          "path": "src/coap_net.c",
+          "startLine": 1801
+        },
+        {
+          "code": "if (drop_options == NULL && expand_opt_abb == COAP_BOOL_FALSE) {\n  size_t length = old_pdu->used_size - old_pdu->e_token_length -\n                  (old_pdu->data ?\n                   old_pdu->used_size - (old_pdu->data - old_pdu->token) +1 : 0);\n  coap_pdu_resize(pdu, length + pdu->e_token_length);\n  memcpy(pdu->token + pdu->e_token_length,\n         old_pdu->token + old_pdu->e_token_length, length);\n}",
+          "endLine": 281,
+          "explanation": "The fast path explicitly strips the payload marker and data; the slow option-copy path also never copies payload.",
+          "id": "abb-duplicate",
+          "label": "Duplicate copies options but not data",
+          "path": "src/coap_pdu.c",
+          "role": "concrete_implementation",
+          "startLine": 271
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The code adds data to the old PDU and then assigns pdu = new; the duplicate helper copies only options."
+      },
+      "findingId": "csf_fe20db137dc4af291df950fd",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:6104851a45152a29060c9914f6eab663af9f7f9a0ab4506dcf252d777aee4060"
+      },
+      "identity": {
+        "anchor": "uri-path-abbrev-fallback-retransmit-drops-the-request-body"
+      },
+      "locations": [
+        {
+          "endLine": 1811,
+          "path": "src/coap_net.c",
+          "role": "sink",
+          "startLine": 1793
+        },
+        {
+          "endLine": 281,
+          "path": "src/coap_pdu.c",
+          "role": "concrete_implementation",
+          "startLine": 271
+        }
+      ],
+      "occurrenceId": "occ_32682162b21d4da6d41defd9",
+      "preventiveControls": [
+        "Make coap_pdu_duplicate_lkd() copy data explicitly or document that callers must add it to the returned PDU."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Call coap_add_data(new, data_len, data) and handle failure by deleting new and returning an error. If the duplicate helper is expected to preserve payload, extend it to copy data explicitly.",
+      "remediationTests": [
+        "Send a PUT with Uri-Path-Abbrev and a body to a peer that rejects the option; assert the retransmitted datagram contains the payload marker and body.",
+        "Add a regression test around coap_pdu_duplicate_lkd with a body-bearing PDU."
+      ],
+      "ruleId": "integrity.uripath-abbrev-retransmit-payload-loss",
+      "severity": {
+        "changeConditions": "Raise if the affected requests carry security-relevant commands or if the peer treats the empty body as a valid different request.",
+        "level": "low",
+        "rationale": "The impact is request-body loss for clients using Uri-Path-Abbrev against a peer that rejected it. It is a correctness/integrity issue, not a memory-safety issue."
+      },
+      "summary": "When a server has rejected Uri-Path-Abbrev, coap_send() duplicates the request with the abbreviation expanded into new. The payload is then appended to the original pdu via coap_add_data(pdu, ...), not to new, and the original is deleted. The duplicate contains options but no payload, so the retransmitted request silently loses its body.",
+      "taxonomy": {
+        "category": "data-integrity",
+        "cwe": [
+          "CWE-670"
+        ]
+      },
+      "title": "Uri-Path-Abbrev fallback retransmit drops the request body",
+      "validation": {
+        "method": "Static source review; independent comparator evidence",
+        "summary": "The add target and free order are explicit. An independent strix run captured a wire trace showing the expanded options without the payload and a corrected build restoring the body."
+      }
+    }
+  ],
+  "scanId": "7b3d1e49-deec-4915-bb10-983e5c2b9711",
+  "schemaVersion": "1.0"
+}

@@ -1,0 +1,126 @@
+{
+  "id": "767fba58-20d8-4105-b6f8-bb0d6ccbde8a",
+  "stage": "orchestrator",
+  "success": false,
+  "decision": "needs_revision",
+  "validation_scope": "artifact_contract",
+  "artifact": null,
+  "sha256": null,
+  "files": [],
+  "summary": "对 sol（C 语言 MQTT 3.1.1 broker，v0.18.5，commit 373d848）完成静态安全审计，共 15 条候选：1 Critical、5 High、6 Medium、3 Low。核心问题集中在未认证的 MQTT 报文解析路径：CONNECT 的 client_id 长度无上界导致栈溢出（Critical，可远程触发）；PUBLISH/SUBSCRIBE 的无符号长度下溢导致进程 exit() 与无限循环；报文类型 2/9/11 命中空或越界的函数指针派发表；未 CONNECT 时发送 ACK 造成空 session 解引用；解码长度无限读取、锁顺序反转死锁等。已优先阅读 Jev triage 中 priority>=0.6 的单元（sol.c/config.c/network.c/server.c/handlers.c），Jev 仅用于排序。",
+  "limitations": [
+    "所有结论均为静态审阅（verification.status=unverified），未做动态复现或 ASAN 验证。",
+    "审计容器内没有 gcc/cc/clang/make/cmake 及 OpenSSL 头文件（/usr/include/openssl/ssl.h 缺失），无法构建目标或运行最小复现。",
+    "未访问公网、未检索 CVE；报告中不含任何 CVE 断言。",
+    "src/ev.c（事件循环后端）、src/bst.c、src/iterator.c、src/logging.c、src/uthash.h 以及 trie.c 的 insert/delete 路径未深入审阅；trie_prefix_find 中 try_realloc 局部指针更新存在理论 UAF，但该函数当前无调用点，未列为候选。",
+    "SOL-006（跨连接 fd 复用）与 SOL-009（堆越界读）依赖具体的运行时/内存布局与时序，静态确认了调用路径但未验证实际触发概率。",
+    "未发现仓库内硬编码密钥；conf/sol.conf 引用的 certs/ 目录未提交。"
+  ],
+  "errors": [
+    "提交内容与当前任务身份不一致：project"
+  ],
+  "checked_at": "2026-11-17T05:54:20.720312+00:00",
+  "tool": "submit_audit_report",
+  "next_action": "修正后再次调用 submit_audit_report",
+  "repair": {
+    "errors_to_fix": [
+      "提交内容与当前任务身份不一致：project"
+    ],
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "project_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "metadata": {
+          "type": "object"
+        },
+        "overview": {
+          "type": "object"
+        },
+        "coverage": {
+          "type": "object"
+        },
+        "report_file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "工具返回的本次审计报告草稿路径；修正时复用全部候选，无需重传 findings"
+        },
+        "finding_updates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "changes": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "id",
+              "changes"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "summary",
+        "limitations"
+      ],
+      "additionalProperties": false
+    },
+    "arguments_example": {
+      "findings": [
+        {
+          "id": "<真实候选编号>",
+          "title": "<真实标题>",
+          "severity": "medium",
+          "root_cause": "<实际根因>",
+          "impact": "<实际影响>",
+          "reproduction": "<实际复现步骤或限制>",
+          "remediation": "<修复建议>",
+          "evidence": [
+            "<真实证据>"
+          ],
+          "verification": {
+            "status": "unverified"
+          }
+        }
+      ],
+      "summary": "<真实交付说明>",
+      "limitations": [
+        "<实际限制；没有则使用空数组>"
+      ]
+    },
+    "contract_reference": "scripts/mine/check_report.py",
+    "instruction": "根据字段错误补齐真实内容，再次调用本阶段专用工具；缺少证据时如实说明受阻。",
+    "example_notice": "示例含占位符，仅用于说明字段；不得清空或删除真实候选、伪造证据、降低实际结论。"
+  }
+}

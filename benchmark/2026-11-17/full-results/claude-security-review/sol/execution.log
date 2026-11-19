@@ -1,0 +1,17 @@
+[claudecode.claude_api_client] Claude API client initialized successfully
+[claudecode.findings_filter] Filtering 4 security findings
+[claudecode.findings_filter] Hard exclusions removed 0 findings
+[claudecode.findings_filter] Processing 4 findings individually through Claude API
+[claudecode.claude_api_client] Claude API call attempt 1/4
+[claudecode.claude_api_client] Claude API call successful in 3.5s
+[claudecode.claude_api_client] Successfully parsed Claude API response for single finding
+[claudecode.claude_api_client] Claude API call attempt 1/4
+[claudecode.claude_api_client] Claude API call successful in 3.7s
+[claudecode.claude_api_client] Successfully parsed Claude API response for single finding
+[claudecode.claude_api_client] Claude API call attempt 1/4
+[claudecode.claude_api_client] Claude API call successful in 3.2s
+[claudecode.claude_api_client] Successfully parsed Claude API response for single finding
+[claudecode.claude_api_client] Claude API call attempt 1/4
+[claudecode.claude_api_client] Claude API call successful in 23.8s
+[claudecode.claude_api_client] Successfully parsed Claude API response for single finding
+[claudecode.findings_filter] Filtering completed: 4/4 findings kept (34.3s)

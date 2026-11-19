@@ -1,0 +1,465 @@
+{
+  "documentType": "codex-security.findings",
+  "findings": [
+    {
+      "attackPath": {
+        "dataflow": {
+          "evidenceRefs": [
+            "dtls-fragment-bounds-check",
+            "dtls-fragment-accumulation",
+            "dtls-stack-buffer",
+            "dtls-stack-copy"
+          ],
+          "outcome": "Stack buffer overflow of approximately 0xF000 bytes with attacker-controlled and uninitialized heap data",
+          "sink": "memcpy(local_buffer + 12, context->dtls_data->fragment->buffer, context->dtls_data->fragment->written) at tlse.c:9847",
+          "source": "DTLS record and handshake-fragment header bytes from an untrusted datagram",
+          "summary": "Attacker-controlled 24-bit data_length, fragment_offset and fragment_length fields drive an unchecked accumulation that is later copied into a fixed stack array.",
+          "transformations": [
+            "record length = 16-bit DTLS length + 13-byte header",
+            "data_length = 24-bit handshake length",
+            "fragment_offset and fragment_length = 24-bit fields",
+            "fragment_length + 12 <= length - 13 and fragment_offset + fragment_length <= data_length are enforced",
+            "written += fragment_length is not bounded by data_length",
+            "written != len keeps the fragment pending across records"
+          ]
+        },
+        "reachability": {
+          "attacker": "Remote unauthenticated network sender to a DTLS listener, or a WebRTC peer that can complete a STUN binding (holds the advertised ICE password)",
+          "entrypoint": "tls_consume_stream (tlse.c:12434); tls_peerconnection_iterate (tlse.c:14006-14066)",
+          "evidenceRefs": [
+            "dtls-unauthenticated-gate",
+            "dtls-stack-copy"
+          ],
+          "outcome": "Remote stack memory corruption / crash with potential code execution",
+          "preconditions": [
+            "The application uses TLSe for DTLS (context->dtls is set) and parses attacker-reachable datagrams",
+            "For the WebRTC wrapper, channel->remote_state must be non-zero, normally after a successful STUN binding request",
+            "cipher_spec_set is 0, which is true during the initial DTLS handshake"
+          ],
+          "sink": "tls_parse_payload stack memcpy",
+          "source": "Network datagram bytes",
+          "summary": "Any application that feeds untrusted DTLS records to tls_consume_stream is affected. The bundled WebRTC wrapper also forwards DTLS after a STUN binding has set remote_state."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "                if ((data_length > DTLS_MAX_FRAGMENT_SIZE) || (fragment_offset + fragment_length > data_length)) {\n                    DEBUG_PRINT3(\"INVALID PACKET SIZE: %i, FRAGMENT OFFSET: %i, FRAGMENT LENGTH: %i\\n\", data_length, fragment_offset, fragment_length);\n                    return TLS_BROKEN_PACKET;\n                }",
+          "endLine": 12527,
+          "explanation": "data_length is capped at 0x40000 and each fragment must fit inside data_length, but nothing relates the accumulated written count to data_length during later fragments.",
+          "id": "dtls-fragment-bounds-check",
+          "label": "The only bounds check compares offset+fragment_length to data_length and ignores the running written count",
+          "path": "tlse.c",
+          "startLine": 12524
+        },
+        {
+          "code": "                    fragment_buffer = (char *)TLS_REALLOC(fragment_buffer, data_length * sizeof(char *));\n                    if (!fragment_buffer)\n                        return TLS_NO_MEMORY;\n\n                    memcpy(fragment_buffer + fragment_offset, &buffer[12], fragment_length);\n                    context->dtls_data->fragment->buffer = fragment_buffer;\n                    context->dtls_data->fragment->len = data_length;\n                    context->dtls_data->fragment->written += fragment_length;",
+          "endLine": 12550,
+          "explanation": "The allocation is eight bytes per data_length byte, so repeated copies at offset 0 stay in the heap allocation, while written can reach 0x4FB00 without ever equalling len == 0x40000 and therefore stays pending.",
+          "id": "dtls-fragment-accumulation",
+          "label": "Fragment bytes are copied at an attacker offset and written grows by fragment_length on every record",
+          "path": "tlse.c",
+          "startLine": 12543
+        },
+        {
+          "code": "int tls_parse_payload(struct TLSContext *context, const unsigned char *buf, int buf_len, tls_validation_function certificate_verify) {\n    unsigned char local_buffer[DTLS_MAX_FRAGMENT_SIZE + 12];",
+          "endLine": 9802,
+          "explanation": "DTLS_MAX_FRAGMENT_SIZE is 0x40000, so local_buffer holds 262156 bytes.",
+          "id": "dtls-stack-buffer",
+          "label": "Reassembly target is a fixed 0x4000C-byte stack array",
+          "path": "tlse.c",
+          "startLine": 9801
+        },
+        {
+          "code": "                memcpy(local_buffer + 12, context->dtls_data->fragment->buffer, context->dtls_data->fragment->written);\n\n                buf = local_buffer;\n                buf_len = context->dtls_data->fragment->written + 12;",
+          "endLine": 9850,
+          "explanation": "CHECK_SIZE at line 9832 only ensures written is at least the small final record's handshake length; it does not cap written at the destination size or at data_length.",
+          "id": "dtls-stack-copy",
+          "label": "The accumulated count is copied into the stack buffer without a size check",
+          "path": "tlse.c",
+          "startLine": 9847
+        },
+        {
+          "code": "        if ((context->dtls) && (!context->cipher_spec_set)) {\n            /*  check fragmented! */\n            unsigned char *buffer = &context->message_buffer[index];\n            if ((buffer[0] == TLS_HANDSHAKE) && (length > 13)) {",
+          "endLine": 12508,
+          "explanation": "Initial DTLS handshake records are parsed before any authenticated cipher state exists, and tls_peerconnection_iterate passes network datagrams to tls_consume_stream after the STUN association gate.",
+          "id": "dtls-unauthenticated-gate",
+          "label": "Fragment handling runs before cipher_spec_set and the WebRTC wrapper forwards raw DTLS records",
+          "path": "tlse.c",
+          "startLine": 12505
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The fragment header arithmetic, the unchecked written += fragment_length, the stack array size, and the final memcpy are all visible in source. A concrete six-record sequence was traced arithmetically. No runtime crash was executed because the scan environment has no C compiler."
+      },
+      "findingId": "csf_33f781cd28ee98927fe61556",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:804a6edaaf2b335902b3e42397bc3b9582cd35c4739a7324b6033f627abe01c4"
+      },
+      "identity": {
+        "anchor": "dtls-overlapping-fragment-stack-overflow"
+      },
+      "locations": [
+        {
+          "endLine": 12434,
+          "path": "tlse.c",
+          "role": "entrypoint",
+          "startLine": 12434
+        },
+        {
+          "endLine": 12550,
+          "path": "tlse.c",
+          "role": "root_control",
+          "startLine": 12524
+        },
+        {
+          "endLine": 9850,
+          "path": "tlse.c",
+          "role": "sink",
+          "startLine": 9801
+        },
+        {
+          "endLine": 14066,
+          "path": "tlse.c",
+          "role": "entrypoint/wrapper",
+          "startLine": 14006
+        }
+      ],
+      "occurrenceId": "occ_93a64a559c1a7353434de113",
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Track filled bytes independently of the declared length, reject any fragment for which fragment_offset + fragment_length exceeds data_length or for which written + fragment_length would exceed data_length, size the fragment allocation to data_length (not data_length * sizeof(char *)), and require written + 12 <= sizeof(local_buffer) before the stack copy. Prefer rejecting overlapping fragments entirely.",
+      "remediationTests": [
+        "Send five overlapping 0xFF00-byte fragments with data_length=0x40000 followed by a small data_length==fragment_length record; assert TLS_BROKEN_PACKET before the memcpy and no ASan report.",
+        "Fuzz DTLS fragment_offset/fragment_length/data_length combinations and assert written never exceeds data_length."
+      ],
+      "ruleId": "memory-corruption.dtls-fragment-overlap",
+      "severity": {
+        "changeConditions": "Rejecting fragments whose accumulated written count exceeds data_length, or refusing to expose tls_consume_stream to untrusted datagrams, removes the primitive. A stack-protector build would turn the overflow into a detected abort, leaving a remote DoS.",
+        "level": "high",
+        "rationale": "The DTLS fragment accumulator is reached before any handshake authentication when cipher_spec_set is 0, and the final memcpy has an attacker-influenced length and attacker-influenced content. A stack out-of-bounds write of tens of kilobytes can overwrite saved state and return addresses, giving a repeatable remote crash and a plausible code-execution primitive. Full control-flow hijack was not demonstrated, so the finding is High rather than Critical."
+      },
+      "summary": "tls_consume_stream() accumulates each DTLS handshake fragment's fragment_length into fragment->written without ever checking that written + fragment_length still fits the declared data_length. The backing heap buffer is allocated as data_length * sizeof(char *), so repeated overlapping fragments (fragment_offset = 0) keep the heap copies in bounds while written grows far past data_length. A later DTLS record with data_length == fragment_length takes the non-fragmented path and reaches tls_parse_payload(), which copies fragment->written bytes into a 0x4000C-byte stack buffer. A remote sender can drive written to 0x4FB00 with five 0xFF00-byte fragments (each record fits in a UDP datagram) and overflow the stack by roughly 64 KB with attacker-controlled and uninitialized heap bytes.",
+      "taxonomy": {
+        "category": "memory-corruption",
+        "cwe": [
+          "CWE-121",
+          "CWE-787"
+        ]
+      },
+      "title": "Overlapping DTLS fragments overflow the stack reassembly buffer",
+      "validation": {
+        "method": "Static source review",
+        "status": "validated",
+        "summary": "Traced a concrete sequence: five records with data_length=0x40000, fragment_offset=0, fragment_length=0xFF00 accumulate written=0x4FB00 without equalling len; a sixth 13-byte-payload record with data_length=fragment_length=1 and handshake length 1 enters tls_parse_payload, passes the CHECK_SIZE(1, 0x4FB00) minimum check, and memcpys 0x4FB00 bytes into a 0x4000C-byte stack array, overflowing it by 64,256 bytes."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "evidenceRefs": [
+            "stun-key-buffer",
+            "stun-username-limit",
+            "stun-realm-limit",
+            "stun-key-concatenation",
+            "stun-preauth-entry"
+          ],
+          "outcome": "Stack out-of-bounds write of up to 47 bytes past key, followed by writes based on the wrong pointer advance",
+          "sink": "memcpy(ptr, realm, realm_len) into char key[0x4CE] at tlse.c:13210",
+          "source": "STUN USERNAME and REALM attribute values in a binding request",
+          "summary": "Attacker-controlled STUN attribute lengths are copied into a fixed stack key buffer before the MESSAGE-INTEGRITY HMAC is verified.",
+          "transformations": [
+            "tls_is_stun checks only the magic cookie",
+            "USERNAME attr_len <= 513",
+            "REALM attr_len <= 763",
+            "key = username + ':' + realm + ':' + local_pwd",
+            "MESSAGE-INTEGRITY handling builds the key before memcmp of the HMAC"
+          ]
+        },
+        "reachability": {
+          "attacker": "Remote unauthenticated UDP sender that can reach the peerconnection port",
+          "entrypoint": "tls_peerconnection_iterate -> tls_stun_parse",
+          "evidenceRefs": [
+            "stun-preauth-entry",
+            "stun-key-concatenation"
+          ],
+          "outcome": "Pre-authentication stack memory corruption / crash in the STUN handler",
+          "preconditions": [
+            "The target uses tls_peerconnection_iterate (or calls tls_stun_parse directly)",
+            "The request type is 0x0001 (binding request) and bytes 4-7 match the STUN magic cookie",
+            "USERNAME precedes REALM, and MESSAGE-INTEGRITY (20 bytes) follows both"
+          ],
+          "sink": "key stack buffer",
+          "source": "STUN attribute bytes",
+          "summary": "A single crafted STUN binding request to a TLSe WebRTC/STUN endpoint triggers the overflow without knowing the ICE password."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "    unsigned char hash[20];\n    unsigned long hash_len;\n    unsigned char md5_hash[16];\n    hmac_state hmac;\n    hash_state md5_state;\n    int stun_message_len;\n    unsigned char secret[16];\n    char key[0x4CE];",
+          "endLine": 13085,
+          "explanation": "0x4CE equals 1230, the maximum space available for username:realm:password.",
+          "id": "stun-key-buffer",
+          "label": "The credential key is a fixed 1230-byte stack array",
+          "path": "tlse.c",
+          "startLine": 13078
+        },
+        {
+          "code": "            case 0x0006:\n                /*  USERNAME */\n                if (attr_len > 513)\n                    return TLS_BROKEN_PACKET;\n\n                username = msg;\n                username_len = attr_len;\n                break;",
+          "endLine": 13189,
+          "explanation": "The limit is one byte larger than the 512 bytes that would fit with other fields.",
+          "id": "stun-username-limit",
+          "label": "USERNAME may be 513 bytes",
+          "path": "tlse.c",
+          "startLine": 13182
+        },
+        {
+          "code": "            case 0x0014:\n                /*  REALM */\n                if (attr_len > 763)\n                    return TLS_BROKEN_PACKET;\n                realm = msg;\n                realm_len = attr_len;\n                break;",
+          "endLine": 13258,
+          "explanation": "513 + 1 + 763 = 1277 bytes is already 47 bytes past the 1230-byte key before the password is copied.",
+          "id": "stun-realm-limit",
+          "label": "REALM may be 763 bytes",
+          "path": "tlse.c",
+          "startLine": 13252
+        },
+        {
+          "code": "                if ((realm) && (realm_len > 0)) {\n                    ptr = key;\n                    memcpy(ptr, username, username_len);\n                    ptr += username_len;\n\n                    *ptr = ':';\n                    ptr ++;\n\n                    if ((realm) && (realm_len > 0)) {\n                        memcpy(ptr, realm, realm_len);\n                        ptr += username_len;\n                        *ptr = ':';\n                        ptr ++;\n                    }\n\n                    memcpy(ptr, pwd, pwd_len);\n                    ptr += pwd_len;\n\n                    *ptr = 0;",
+          "endLine": 13219,
+          "explanation": "memcpy(ptr, realm, realm_len) starts at key + username_len + 1 and has no remaining-capacity check. The subsequent ptr += username_len does not repair the overflow.",
+          "id": "stun-key-concatenation",
+          "label": "The realm copy overflows key and the pointer is advanced by the wrong length",
+          "path": "tlse.c",
+          "startLine": 13201
+        },
+        {
+          "code": "    if (tls_is_stun(buf, buf_len)) {\n        unsigned char response_buffer[0x8000];\n        int len;\n        unsigned short type;\n        DEBUG_PRINT0(\"RECEIVED STUN PACKET\\n\");\n\n        len = tls_stun_parse(buf, buf_len, channel->local_pwd, strlen(channel->local_pwd), is_ipv6, addr, port, response_buffer);",
+          "endLine": 14006,
+          "explanation": "tls_is_stun only checks that bytes 4-7 equal 0x2112A442, so an unauthenticated datagram reaches the credential build before the HMAC check at line 13240.",
+          "id": "stun-preauth-entry",
+          "label": "The WebRTC ingest path reaches tls_stun_parse on a magic-cookie match",
+          "path": "tlse.c",
+          "startLine": 14000
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The attribute length caps, the 1230-byte array, the concatenation order, and the 24-byte local_pwd buffer are all explicit in source. The 47-byte maximum overflow was computed from those values. No runtime reproduction was performed."
+      },
+      "findingId": "csf_398b08305d312d64566b1098",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:e67b1488406f2c2f71f0dd51fce60f7fb2fa0f0bf3ef16195b34bd5669805c53"
+      },
+      "identity": {
+        "anchor": "stun-username-realm-stack-overflow"
+      },
+      "locations": [
+        {
+          "endLine": 13070,
+          "path": "tlse.c",
+          "role": "entrypoint",
+          "startLine": 13070
+        },
+        {
+          "endLine": 13085,
+          "path": "tlse.c",
+          "role": "root_control",
+          "startLine": 13085
+        },
+        {
+          "endLine": 13219,
+          "path": "tlse.c",
+          "role": "sink",
+          "startLine": 13201
+        },
+        {
+          "endLine": 14006,
+          "path": "tlse.c",
+          "role": "entrypoint/wrapper",
+          "startLine": 14000
+        }
+      ],
+      "occurrenceId": "occ_e602f5cd84592601c6d9868b",
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Compute the total credential length first and reject unless username_len + 1 + realm_len + 1 + pwd_len + 1 <= sizeof(key). Advance ptr by realm_len after the realm copy, cap both attributes to values that leave room for the password and separators, and avoid placing attacker-sized concatenations in a fixed stack buffer.",
+      "remediationTests": [
+        "Send a binding request with a 513-byte USERNAME, a 763-byte REALM, and a 20-byte MESSAGE-INTEGRITY value; assert the parser rejects the credential build without writing past key.",
+        "Repeat with a valid MESSAGE-INTEGRITY and assert the same bound holds."
+      ],
+      "ruleId": "memory-corruption.stun-credential-overflow",
+      "severity": {
+        "changeConditions": "Enforcing username_len + realm_len + pwd_len + 2 <= sizeof(key) and advancing the pointer by realm_len removes the overflow. A build without TLS_SRTP/WebRTC or with stack protector reduces the impact.",
+        "level": "high",
+        "rationale": "tls_peerconnection_iterate sends every datagram whose first bytes match the STUN magic cookie to tls_stun_parse, and the USERNAME/REALM values are fully attacker-controlled. The resulting stack out-of-bounds write occurs pre-authentication in a WebRTC-facing handler and can corrupt adjacent stack state, producing a repeatable remote crash or a control-flow corruption primitive. The 47-byte window bounds the attacker's direct control, and code execution was not demonstrated, so the finding is High rather than Critical."
+      },
+      "summary": "tls_stun_parse() accepts a USERNAME attribute of up to 513 bytes and a REALM attribute of up to 763 bytes, then concatenates username + ':' + realm + ':' + password into char key[0x4CE] (1230 bytes). Even before the 24-byte local password is appended, 513 + 1 + 763 = 1277 bytes overwrite the end of key by 47 bytes. The code also advances the pointer by username_len instead of realm_len after copying the realm. The overflow happens while processing MESSAGE-INTEGRITY, before the HMAC comparison, so a sender does not need valid credentials.",
+      "taxonomy": {
+        "category": "memory-corruption",
+        "cwe": [
+          "CWE-121",
+          "CWE-787"
+        ]
+      },
+      "title": "STUN USERNAME and REALM attributes overflow the credential key buffer",
+      "validation": {
+        "method": "Static source review",
+        "status": "validated",
+        "summary": "Confirmed that local_pwd is a 25-byte array filled with 24 characters and NUL, that USERNAME and REALM each permit the maximum lengths above, and that the realm memcpy occurs inside the MESSAGE-INTEGRITY branch before the HMAC comparison at line 13240."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "evidenceRefs": [
+            "asn1-bitstring-dispatch",
+            "asn1-sign-key-underflow",
+            "asn1-copy-sink",
+            "asn1-cert-entry"
+          ],
+          "outcome": "Unbounded heap overwrite and one-byte heap underflow before certificate verification",
+          "sink": "memcpy(*member, val, len) in tls_certificate_set_copy at tlse.c:4553",
+          "source": "DER bytes of a certificate in a TLS Certificate handshake message",
+          "summary": "A crafted DER certificate with a zero-length outer BIT STRING drives an integer underflow that becomes an unbounded memcpy.",
+          "transformations": [
+            "Certificate DER is parsed by tls_parse_certificate -> asn1_parse -> _private_asn1_parse",
+            "outer SEQUENCE has tbsCertificate at level 2/idx 1, signatureAlgorithm at idx 2, signatureValue BIT STRING at idx 3",
+            "BIT STRING length 0",
+            "val[0] is the attacker-controlled byte after the TLV, set to 0",
+            "len becomes -1",
+            "malloc(len + 1) is malloc(0); glibc returns non-NULL",
+            "memcpy length -1 converts to SIZE_MAX"
+          ]
+        },
+        "reachability": {
+          "attacker": "Malicious TLS server to a TLSe client, or an unauthenticated TLS client to a server that requests client authentication",
+          "entrypoint": "tls_parse_certificate (tlse.c:8637) via the Certificate handshake message",
+          "evidenceRefs": [
+            "asn1-cert-entry",
+            "asn1-bitstring-dispatch"
+          ],
+          "outcome": "Pre-verification remote crash / heap corruption",
+          "preconditions": [
+            "The library is built without TLS_FULL_X509 (the default CMake and amalgamation builds)",
+            "The handshake reaches a Certificate message (TLS 1.2 connection_status 1, or TLS 1.3 connection_status 2)",
+            "The certificate contains a DER BIT STRING with length zero followed by a zero byte; a following zero-length certificate entry or trailing handshake byte supplies that byte"
+          ],
+          "sink": "tls_certificate_set_copy",
+          "source": "Certificate handshake bytes",
+          "summary": "Any TLS peer that can present a certificate before verification triggers the parser. On the client this is the remote server's certificate; on the server this is a client certificate when client authentication is requested."
+        }
+      },
+      "codeEvidence": [
+        {
+          "code": "                case 0x03:\n                    if (_is_field(fields, pk_id)) {\n                        if (has_key)\n                            *has_key = 1;\n                    }\n                    /*  bitstream */\n                    DEBUG_PRINT1(\"BITSTREAM(%i): \", length);\n                    DEBUG_DUMP_HEX(&buffer[pos], length);\n                    DEBUG_PRINT0(\"\\n\");\n                    if ((level == 2) && (idx == 3) && (fields[0] == 1)) {\n                        tls_certificate_set_sign_key(cert, &buffer[pos], length);",
+          "endLine": 11590,
+          "explanation": "A zero-length BIT STRING reaches this branch with length == 0; level 2, idx 3 and fields[0] == 1 identify the outer certificate signatureValue.",
+          "id": "asn1-bitstring-dispatch",
+          "label": "A level-2 signatureValue BIT STRING is passed to set_sign_key with its declared length",
+          "path": "tlse.c",
+          "startLine": 11580
+        },
+        {
+          "code": "void tls_certificate_set_sign_key(struct TLSCertificate *cert, const unsigned char *val, int len) {\n    if (!val[0]) {\n        val++;\n        len--;\n    }\n    tls_certificate_set_copy(&cert->sign_key, val, len);\n    if (cert->sign_key)\n        cert->sign_len = len;\n}",
+          "endLine": 4605,
+          "explanation": "There is no len > 0 guard before reading val[0], so a zero-length BIT STRING followed by a zero byte produces len == -1.",
+          "id": "asn1-sign-key-underflow",
+          "label": "set_sign_key decrements the length whenever the next byte is zero, including at length zero",
+          "path": "tlse.c",
+          "startLine": 4597
+        },
+        {
+          "code": "void tls_certificate_set_copy(unsigned char **member, const unsigned char *val, int len) {\n    if (!member)\n        return;\n    TLS_FREE(*member);\n    if (len) {\n        *member = (unsigned char *)TLS_MALLOC(len + 1);\n        if (*member) {\n            memcpy(*member, val, len);\n            (*member)[len] = 0;\n        }\n    } else\n        *member = NULL;\n}",
+          "endLine": 4558,
+          "explanation": "len == -1 is truthy, len + 1 == 0, and memcpy converts -1 to SIZE_MAX; (*member)[-1] is also written.",
+          "id": "asn1-copy-sink",
+          "label": "A non-zero negative length reaches malloc(len+1) and memcpy",
+          "path": "tlse.c",
+          "startLine": 4546
+        },
+        {
+          "code": "            cert = asn1_parse(context, &buf[res2], certificate_size2, is_server);",
+          "endLine": 8702,
+          "explanation": "tls_parse_certificate calls asn1_parse on each certificate and only invokes certificate_verify after parsing returns.",
+          "id": "asn1-cert-entry",
+          "label": "Certificate parsing happens before the verification callback",
+          "path": "tlse.c",
+          "startLine": 8702
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The exact level/idx/fields condition, the unchecked val[0] read, the len-- that produces -1, and the memcpy whose length is an int converted to size_t are all explicit in source. glibc malloc(0) returning non-NULL is the documented allocator behavior. No runtime crash was executed."
+      },
+      "findingId": "csf_fbc4abb098475ffba57d2e6e",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:6a28fa6b15e929062ee60d187a851bb8b367f40822a11bc684b20d3f638cd39b"
+      },
+      "identity": {
+        "anchor": "asn1-zero-length-bitstring-negative-length"
+      },
+      "locations": [
+        {
+          "endLine": 8702,
+          "path": "tlse.c",
+          "role": "entrypoint",
+          "startLine": 8637
+        },
+        {
+          "endLine": 11590,
+          "path": "tlse.c",
+          "role": "root_control",
+          "startLine": 11580
+        },
+        {
+          "endLine": 4604,
+          "path": "tlse.c",
+          "role": "concrete_implementation",
+          "startLine": 4597
+        },
+        {
+          "endLine": 4557,
+          "path": "tlse.c",
+          "role": "sink",
+          "startLine": 4546
+        }
+      ],
+      "occurrenceId": "occ_63d37b44d8613f46d20fb247",
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Require length >= 1 before reading val[0] and reject zero-length signature BIT STRINGs. In tls_certificate_set_copy, reject negative lengths explicitly instead of relying on the truthiness of an int. Do not allocate zero bytes for a non-empty logical value.",
+      "remediationTests": [
+        "Feed a certificate whose outer signatureValue is 03 00 followed by 00 and assert TLS_BROKEN_PACKET or TLS_UNSUPPORTED_CERTIFICATE without a memcpy.",
+        "Run the certificate parser under ASan and assert no heap-buffer-overflow for zero-length BIT STRING inputs."
+      ],
+      "ruleId": "memory-corruption.asn1-bitstring-length",
+      "severity": {
+        "changeConditions": "Rejecting zero-length signature BIT STRINGs or requiring len >= 1 after the leading-zero adjustment removes the underflow. A build with TLS_FULL_X509 compiles a different parser and is not affected by this path.",
+        "level": "medium",
+        "rationale": "The parser is reachable by any TLS peer that supplies a certificate: a malicious server to a TLSe client, or a client to a server that requests client authentication. The size_t conversion turns the copy into an effectively unbounded heap write that will fault after overwriting mapped memory, giving a reliable remote crash and a one-byte heap underflow. Code execution was not demonstrated and the overwrite is not attacker-steered beyond its start address, so impact is bounded to availability and limited heap corruption; this is Medium."
+      },
+      "summary": "In the default build (TLS_FULL_X509 is not defined), the ASN.1 certificate parser passes the outer signatureValue BIT STRING to tls_certificate_set_sign_key(). For a zero-length BIT STRING (DER 03 00), length is 0; tls_certificate_set_sign_key reads val[0], the byte after the TLV, and when that byte is zero it decrements len to -1. tls_certificate_set_copy then treats -1 as a non-zero length, calls TLS_MALLOC(len + 1) == malloc(0), and on glibc receives a non-NULL pointer, after which memcpy(*member, val, (size_t)-1) and (*member)[-1] = 0 corrupt memory far beyond the allocation. The certificate is parsed before the application certificate_verify callback, so an untrusted TLS peer reaches this pre-verification.",
+      "taxonomy": {
+        "category": "memory-corruption",
+        "cwe": [
+          "CWE-191",
+          "CWE-787",
+          "CWE-125"
+        ]
+      },
+      "title": "Zero-length certificate BIT STRING underflows into an unbounded memcpy",
+      "validation": {
+        "method": "Static source review",
+        "status": "validated",
+        "summary": "Traced the DER path from tls_parse_certificate through _private_asn1_parse to tls_certificate_set_sign_key and tls_certificate_set_copy, confirming that a 03 00 BIT STRING at level 2/idx 3 with a zero following byte yields len -1, malloc(0), and a SIZE_MAX memcpy before certificate_verify is called."
+      }
+    }
+  ],
+  "scanId": "49339c8b-6c5a-48f0-82ce-21caa9ee8c8c",
+  "schemaVersion": "1.0"
+}

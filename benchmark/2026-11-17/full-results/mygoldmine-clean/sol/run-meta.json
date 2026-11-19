@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "project": "benchmark-sol",
+  "target_url": "https://github.com/codepr/sol.git",
+  "commit": "373d84877d22031b45a7f3599297f691eab09230",
+  "branch": "master",
+  "started_at": "2026-11-17T05:48:15Z",
+  "ended_at": "2026-11-17T05:56:15Z",
+  "duration_seconds": 480,
+  "model": "deepseek/deepseek-v4.1-flash",
+  "agent": "security-orchestrator",
+  "status": "success",
+  "attempts": 1,
+  "exit_code": 0,
+  "timed_out": false,
+  "interrupted": false,
+  "renderer_exit_code": 0,
+  "reports_complete": true,
+  "artifacts": {
+    "raw": "raw.jsonl",
+    "rendered": "claude.rendered.log",
+    "stderr": "claude.stderr.log",
+    "report_md": "audit-report.md",
+    "report_json": "audit-report.json"
+  }
+}

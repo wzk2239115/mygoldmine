@@ -1,0 +1,9 @@
+{
+  "exit_code": -1,
+  "phase": "tool_running",
+  "reason": "running",
+  "ended_at": "2026-11-17T07:57:39.067989+00:00",
+  "pending_tools": 1,
+  "elapsed_seconds": 3560.911632901989,
+  "quiet_seconds": 4.0062743639573455
+}

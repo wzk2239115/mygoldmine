@@ -1,0 +1,40 @@
+/vol1/1000/mygoldmine-benchmark/2026-11-17/tools/RepoAudit/src/llmtool/LLM_utils.py:5: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+/usr/local/lib/python3.13/site-packages/tree_sitter/__init__.py:36: FutureWarning: Language(path, name) is deprecated. Use Language(ptr, name) instead.
+  warn("{} is deprecated. Use {} instead.".format(old, new), FutureWarning)
+Parsing files:   0%|          | 0/42 [00:00<?, ?it/s]Parsing files:   2%|▏         | 1/42 [00:00<00:12,  3.32it/s]Parsing files: 100%|██████████| 42/42 [00:00<00:00, 133.85it/s]
+Analyzing functions:   0%|          | 0/408 [00:00<?, ?it/s]Analyzing functions:   0%|          | 1/408 [00:00<01:36,  4.21it/s]Analyzing functions: 100%|██████████| 408/408 [00:00<00:00, 1663.98it/s]
+Analyzing call graphs:   0%|          | 0/408 [00:00<?, ?it/s]Analyzing call graphs:   0%|          | 1/408 [00:00<00:57,  7.13it/s]Analyzing call graphs: 100%|██████████| 408/408 [00:00<00:00, 2607.98it/s]
+Parsing files:   0%|          | 0/408 [00:00<?, ?it/s]Parsing files: 100%|██████████| 408/408 [00:00<00:00, 8779.56it/s]
+2026-11-17 07:35:02,113 - INFO - Start data-flow bug scanning in parallel...
+2026-11-17 07:35:02,113 - INFO - Max number of workers: 4
+Processing Source Values:   0%|          | 0/2 [00:00<?, ?src/s]2026-11-17 07:35:02,114 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:35:02,115 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+Processing Source Values:  50%|█████     | 1/2 [01:01<01:01, 61.31s/src]2026-11-17 07:36:31,560 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:37:14,994 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:38:33,205 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:38:59,278 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:40:35,710 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:41:50,364 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:42:50,613 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:43:12,901 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:43:37,812 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:44:00,727 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:44:30,645 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:45:49,983 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:47:22,849 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:47:52,077 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:48:39,485 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:48:58,002 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:50:17,111 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:50:56,349 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:52:17,408 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+2026-11-17 07:53:04,226 - INFO - The LLM Tool IntraDataFlowAnalyzer is invoked.
+benchmark-repoaudit-sol-mlk

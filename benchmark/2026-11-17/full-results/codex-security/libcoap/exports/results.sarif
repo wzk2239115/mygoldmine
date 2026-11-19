@@ -1,0 +1,826 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "7b3d1e49-deec-4915-bb10-983e5c2b9711"
+      },
+      "properties": {
+        "codexSecuritySchemaVersion": "1.0",
+        "codexSecurityTargetKind": "git_worktree"
+      },
+      "results": [
+        {
+          "level": "note",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_pdu.c"
+                },
+                "region": {
+                  "endLine": 412,
+                  "startLine": 395
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_block.c"
+                },
+                "region": {
+                  "endLine": 1880,
+                  "startLine": 1867
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_pdu.c"
+                },
+                "region": {
+                  "endLine": 446,
+                  "startLine": 439
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:qblock-required-options"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_block.c"
+                },
+                "region": {
+                  "endLine": 3547,
+                  "startLine": 3542
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "pdu_408_build writes the payload marker without checking capacity\n\npdu_408_build() ignores the return values of coap_add_token() and coap_add_option_internal() and then unconditionally writes COAP_PAYLOAD_START at pdu->token[pdu->used_size++], so it writes one byte past the heap allocation whenever the token exactly fills the PDU. The defect is real, but the previously claimed remote trigger is not reachable in the default configuration: a Q-Block1 request must also carry Size1 and RTag options plus a URI path to reach this path, and with the default 1152-byte UDP MTU the session PDU is about 1148 bytes, so a token large enough to fill used_size leaves no room for those mandatory options; the request either omits them and is rejected with 4.00, or exceeds the MTU and is rejected during parsing, before pdu_408_build() runs. Reachability is limited to a build or transport that admits a PDU-filling token together with the mandatory Q-Block options, or to future caller misuse; no such trigger was demonstrated.\n\nSeverity: low\n\nCategory: Memory corruption\n\nWeaknesses: CWE-787\n\nRemediation:\nCheck both coap_add_token() and coap_add_option_internal() results. Call coap_pdu_check_resize(pdu, pdu->used_size + 1) before writing the marker; on failure, delete the PDU and return NULL so the caller defers the 4.08.\n\nRemediation tests:\n- Under a build or transport that admits a maximum-size token alongside Q-Block1 Size1 and RTag options, send a Q-Block1 request with missing blocks and run under ASan; verify no heap-buffer-overflow.\n- Add a unit test for pdu_408_build with a token that exactly fills the PDU.\n\nPreventive controls:\n- Always route payload marker insertion through a helper that performs a capacity check."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:76b66fa387c068682cb20a1223a0c1ac4d9a92f131c73a9700bc9c99fd483f4d"
+          },
+          "properties": {
+            "category": "memory-corruption",
+            "confidence": "high",
+            "findingId": "csf_288fdb40ff0454c59f470c31",
+            "occurrenceId": "occ_21e090c7a6c674e2cbc80bb8",
+            "severity": "low"
+          },
+          "ruleId": "memory-safety.pdu-408-unchecked-marker",
+          "ruleIndex": 5
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 1382,
+                  "startLine": 1364
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 1501,
+                  "startLine": 1481
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 1551,
+                  "startLine": 1541
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:oscore-resp-validate"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 1382,
+                  "startLine": 1370
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Short OSCORE responses advance the replay window without rollback\n\nFor a response carrying a Partial IV, coap_oscore_decrypt_pdu() validates and advances rcp_ctx->last_seq before AEAD verification. If the ciphertext is too short, where encrypt_len <= tag_len, the response branch jumps to error without calling oscore_roll_back_seq(), unlike the request branch and the generic decrypt-failure path. An on-path attacker can forge a high-PIV short response that matches the token and association, causing later legitimate responses with lower PIVs to be rejected as replays.\n\nSeverity: low\n\nCategory: Denial of service\n\nWeaknesses: CWE-400\n\nRemediation:\nCall oscore_roll_back_seq(rcp_ctx) on every response decryption failure, including the encrypt_len <= tag_len case, or defer last_seq updates until after successful AEAD verification."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:a533be60cd90b5f956f082e5bd97c87129a0ef7a17e457c6fdb2c25442e54d11"
+          },
+          "properties": {
+            "category": "denial-of-service",
+            "confidence": "high",
+            "findingId": "csf_e80e19758657003d888c192b",
+            "occurrenceId": "occ_22a53db451514bbb39d9f787",
+            "severity": "low"
+          },
+          "ruleId": "dos.oscore-response-no-seq-rollback",
+          "ruleIndex": 0
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_net.c"
+                },
+                "region": {
+                  "endLine": 1811,
+                  "startLine": 1793
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_pdu.c"
+                },
+                "region": {
+                  "endLine": 281,
+                  "startLine": 271
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:abb-retransmit"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_net.c"
+                },
+                "region": {
+                  "endLine": 1810,
+                  "startLine": 1801
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Uri-Path-Abbrev fallback retransmit drops the request body\n\nWhen a server has rejected Uri-Path-Abbrev, coap_send() duplicates the request with the abbreviation expanded into new. The payload is then appended to the original pdu via coap_add_data(pdu, ...), not to new, and the original is deleted. The duplicate contains options but no payload, so the retransmitted request silently loses its body.\n\nSeverity: low\n\nCategory: Data integrity\n\nWeaknesses: CWE-670\n\nRemediation:\nCall coap_add_data(new, data_len, data) and handle failure by deleting new and returning an error. If the duplicate helper is expected to preserve payload, extend it to copy data explicitly.\n\nRemediation tests:\n- Send a PUT with Uri-Path-Abbrev and a body to a peer that rejects the option; assert the retransmitted datagram contains the payload marker and body.\n- Add a regression test around coap_pdu_duplicate_lkd with a body-bearing PDU.\n\nPreventive controls:\n- Make coap_pdu_duplicate_lkd() copy data explicitly or document that callers must add it to the returned PDU."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:6104851a45152a29060c9914f6eab663af9f7f9a0ab4506dcf252d777aee4060"
+          },
+          "properties": {
+            "category": "data-integrity",
+            "confidence": "high",
+            "findingId": "csf_fe20db137dc4af291df950fd",
+            "occurrenceId": "occ_32682162b21d4da6d41defd9",
+            "severity": "low"
+          },
+          "ruleId": "integrity.uripath-abbrev-retransmit-payload-loss",
+          "ruleIndex": 1
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/oscore/oscore_context.c"
+                },
+                "region": {
+                  "endLine": 396,
+                  "startLine": 371
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 1069,
+                  "startLine": 1064
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 1157,
+                  "startLine": 1146
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:oscore-call"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 1068,
+                  "startLine": 1064
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "OSCORE external credential lookup can return a context with no recipient and crash the server\n\nWhen an application registers an external credential callback with coap_oscore_register_external_handlers() and the callback returns a configuration with multiple recipients, oscore_find_context() assigns *recipient_ctx only when a recipient matches the request KID. If none matches, it frees every recipient, leaves *recipient_ctx NULL, sets tmp_ctx->recipient_chain = NULL, and still returns the context. coap_oscore_decrypt_pdu() then calls coap_oscore_session_set_recipient_ctx(session, NULL), which is a no-op, and dereferences rcp_ctx->initial_state, crashing on a single unauthenticated OSCORE request with an unknown KID.\n\nSeverity: high\n\nCategory: Null pointer dereference\n\nWeaknesses: CWE-476\n\nRemediation:\nInitialize *recipient_ctx = NULL at the start of the callback path and return NULL when no recipient matches, freeing the temporary context. Reject the request when osc_ctx is non-NULL but rcp_ctx is NULL before storing or dereferencing the recipient."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:d5b9f600e60c65f126fd23d4cb4b608c5aa27bc50a23977653a4b7e78027c071"
+          },
+          "properties": {
+            "category": "null-pointer-dereference",
+            "confidence": "high",
+            "findingId": "csf_e5a6f872843887c3c4589713",
+            "occurrenceId": "occ_5ebe420f55e7fc4ab5dba4c5",
+            "severity": "high"
+          },
+          "ruleId": "memory-safety.oscore-recipient-null-deref",
+          "ruleIndex": 4
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_block.c"
+                },
+                "region": {
+                  "endLine": 3604,
+                  "startLine": 3604
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_block.c"
+                },
+                "region": {
+                  "endLine": 4058,
+                  "startLine": 4050
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_block.c"
+                },
+                "region": {
+                  "endLine": 4624,
+                  "startLine": 4590
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_str.c"
+                },
+                "region": {
+                  "endLine": 46,
+                  "startLine": 42
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:block-build"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_block.c"
+                },
+                "region": {
+                  "endLine": 4624,
+                  "startLine": 4594
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Block1 reassembly can hand uninitialized heap bytes to the application\n\ncoap_block_build_body_lkd() allocates a body of total bytes with coap_new_binary() and copies only each received segment at its offset. If a client changes SZX between blocks so the next offset jumps past data already received, the gap is never initialized. give_app_data later sets pdu->body_data to that buffer and pdu->body_length to total_len, so an application that returns the body, such as an echo or proxy resource, discloses heap contents.\n\nSeverity: medium\n\nCategory: Information disclosure\n\nWeaknesses: CWE-457, CWE-200\n\nRemediation:\nZero-initialize the body allocation, or track received byte ranges and reject any Block1 sequence with a gap or overlap. Compute offsets from the SZX established for the transfer and require each segment to start at the next expected byte."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:144918374a2e21d1b6507f769fdcf1a26b90fe8e996c40a872d435e54f90eaf0"
+          },
+          "properties": {
+            "category": "information-disclosure",
+            "confidence": "high",
+            "findingId": "csf_32734e421a875ddd2784abce",
+            "occurrenceId": "occ_7b0a5483b7513d24886dc57a",
+            "severity": "medium"
+          },
+          "ruleId": "memory-disclosure.block1-uninitialized-reassembly",
+          "ruleIndex": 2
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_ws.c"
+                },
+                "region": {
+                  "endLine": 707,
+                  "startLine": 697
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_ws.c"
+                },
+                "region": {
+                  "endLine": 764,
+                  "startLine": 762
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_ws.c"
+                },
+                "region": {
+                  "endLine": 914,
+                  "startLine": 900
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "WebSocket close path can overflow a 100-byte stack buffer with a partial frame\n\ncoap_ws_close() drains pending input into uint8_t buf[100] by calling coap_ws_read(session, buf, 100). If a large binary frame was only partially consumed, all_hdr_in remains set and data_ofs < data_size; coap_ws_read() skips the header-time size check and calls l_read(&data[data_ofs], data_size - data_ofs), so a peer that supplies the remaining frame bytes during the 1 ms drain windows writes attacker-controlled data past buf.\n\nSeverity: high\n\nCategory: Memory corruption\n\nWeaknesses: CWE-121, CWE-787\n\nRemediation:\nClamp the continuation read to min(data_size - data_ofs, datalen) and reject the frame if it cannot fit; in coap_ws_close(), size the drain buffer for the maximum accepted frame or do not call coap_ws_read with a smaller buffer."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:8716a6cef3b8408ba7fdd4f420d5d9e8fca8fe2e1dc1085603a09fa27e971f7f"
+          },
+          "properties": {
+            "category": "memory-corruption",
+            "confidence": "high",
+            "findingId": "csf_ab0c516faf7fa934803d85e3",
+            "occurrenceId": "occ_b3156905fd5b245ba63119e7",
+            "severity": "high"
+          },
+          "ruleId": "memory-safety.websocket-close-stack-overflow",
+          "ruleIndex": 6
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 418,
+                  "startLine": 418
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/oscore/oscore.c"
+                },
+                "region": {
+                  "endLine": 231,
+                  "startLine": 218
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/oscore/oscore_cbor.c"
+                },
+                "region": {
+                  "endLine": 118,
+                  "startLine": 104
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 543,
+                  "startLine": 540
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:b2-key-write"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/oscore/oscore.c"
+                },
+                "region": {
+                  "endLine": 254,
+                  "startLine": 247
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "OSCORE Appendix B.2 kid_context encoder writes past the 255-byte stack buffer and underflows its remaining-space counter\n\noscore_encode_option_value() points the CBOR writer at option_buffer[offset+1] but passes rem_space unchanged. The bytes actually available at that pointer are rem_space - 1. When the CBOR header plus kid_context length equals rem_space, oscore_cbor_put_bytes() writes the final byte to option_buffer[255], one past the 255-byte stack array, and the following rem_space -= 1 underflows to SIZE_MAX. The key-id bound check is then bypassed, memcpy(&option_buffer[offset], key_id, ...) writes past the array, and the returned offset of 256 or more is passed to coap_insert_option(), which reads past the stack array. The encoder runs when Appendix B.2 is configured and b_2_step is not NONE, with attacker-influenced kid_context bytes.\n\nSeverity: medium\n\nCategory: Memory corruption\n\nWeaknesses: CWE-787, CWE-193\n\nRemediation:\nPass rem_space - 1 to oscore_cbor_put_bytes() and require rem_space > 1; check nb + kid_context.length against the true remaining capacity, guard the rem_space decrement against underflow, and derive the next offset from the bounded return value."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:81546853c4c5077a56b4e35b8b88b3a8a932afef4db2c860b36c5c2227286626"
+          },
+          "properties": {
+            "category": "memory-corruption",
+            "confidence": "high",
+            "findingId": "csf_3c106f9bc73be3b8e1515ab2",
+            "occurrenceId": "occ_bb9000a2a0bd72533c94f581",
+            "severity": "medium"
+          },
+          "ruleId": "memory-safety.oscore-b2-cbor-off-by-one",
+          "ruleIndex": 3
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 1867,
+                  "startLine": 1856
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 1122,
+                  "startLine": 1081
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/oscore/oscore_context.c"
+                },
+                "region": {
+                  "endLine": 746,
+                  "startLine": 657
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:b2-duplicate"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/coap_oscore.c"
+                },
+                "region": {
+                  "endLine": 1122,
+                  "startLine": 1109
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:b2-enter"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/oscore/oscore_context.c"
+                },
+                "region": {
+                  "endLine": 746,
+                  "startLine": 743
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Appendix B.2 creates unbounded OSCORE contexts before authentication\n\nIn Appendix B.2 mode, coap_oscore_decrypt_pdu() duplicates the OSCORE context for a request carrying an unknown kid_context and links it into context->p_osc_ctx before the AEAD tag is verified. The decryption-failure and error paths free only the PDU and associations, never the duplicated context. Repeated requests with unique kid_context values accumulate contexts, each holding a copy of the master secret, salt, and derived keys, until memory is exhausted.\n\nSeverity: medium\n\nCategory: Resource exhaustion\n\nWeaknesses: CWE-770\n\nRemediation:\nDo not attach the duplicated context until the AEAD tag verifies, or explicitly free and unlink it on every decryption failure. Add a bound on the number of B.2 contexts and expire idle ones."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:54afcb6ce8c30d79bf7aff039eed19d5473f424bacff9cfd78c955cea862a2fc"
+          },
+          "properties": {
+            "category": "resource-exhaustion",
+            "confidence": "high",
+            "findingId": "csf_023ec23c2cbe953b45fc7827",
+            "occurrenceId": "occ_fe9f641a8143364b3d02f195",
+            "severity": "medium"
+          },
+          "ruleId": "resource-exhaustion.oscore-b2-unbounded-contexts",
+          "ruleIndex": 7
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Codex Security",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Dos: Oscore response no seq rollback. Categories: Denial of service. Weaknesses: CWE-400."
+              },
+              "help": {
+                "markdown": "Dos: Oscore response no seq rollback. Categories: Denial of service. Weaknesses: CWE-400.\n\n## Remediation\n\nCall oscore_roll_back_seq(rcp_ctx) on every response decryption failure, including the encrypt_len <= tag_len case, or defer last_seq updates until after successful AEAD verification.",
+                "text": "Dos: Oscore response no seq rollback. Categories: Denial of service. Weaknesses: CWE-400.\n\nRemediation:\n\nCall oscore_roll_back_seq(rcp_ctx) on every response decryption failure, including the encrypt_len <= tag_len case, or defer last_seq updates until after successful AEAD verification."
+              },
+              "id": "dos.oscore-response-no-seq-rollback",
+              "name": "Dos: Oscore response no seq rollback",
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "denial-of-service",
+                  "external/cwe/cwe-400",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Dos: Oscore response no seq rollback"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Integrity: Uripath abbrev retransmit payload loss. Categories: Data integrity. Weaknesses: CWE-670."
+              },
+              "help": {
+                "markdown": "Integrity: Uripath abbrev retransmit payload loss. Categories: Data integrity. Weaknesses: CWE-670.\n\n## Remediation\n\nCall coap_add_data(new, data_len, data) and handle failure by deleting new and returning an error. If the duplicate helper is expected to preserve payload, extend it to copy data explicitly.",
+                "text": "Integrity: Uripath abbrev retransmit payload loss. Categories: Data integrity. Weaknesses: CWE-670.\n\nRemediation:\n\nCall coap_add_data(new, data_len, data) and handle failure by deleting new and returning an error. If the duplicate helper is expected to preserve payload, extend it to copy data explicitly."
+              },
+              "id": "integrity.uripath-abbrev-retransmit-payload-loss",
+              "name": "Integrity: Uripath abbrev retransmit payload loss",
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "data-integrity",
+                  "external/cwe/cwe-670",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Integrity: Uripath abbrev retransmit payload loss"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory disclosure: Block1 uninitialized reassembly. Categories: Information disclosure. Weaknesses: CWE-200, CWE-457."
+              },
+              "help": {
+                "markdown": "Memory disclosure: Block1 uninitialized reassembly. Categories: Information disclosure. Weaknesses: CWE-200, CWE-457.\n\n## Remediation\n\nZero-initialize the body allocation, or track received byte ranges and reject any Block1 sequence with a gap or overlap. Compute offsets from the SZX established for the transfer and require each segment to start at the next expected byte.",
+                "text": "Memory disclosure: Block1 uninitialized reassembly. Categories: Information disclosure. Weaknesses: CWE-200, CWE-457.\n\nRemediation:\n\nZero-initialize the body allocation, or track received byte ranges and reject any Block1 sequence with a gap or overlap. Compute offsets from the SZX established for the transfer and require each segment to start at the next expected byte."
+              },
+              "id": "memory-disclosure.block1-uninitialized-reassembly",
+              "name": "Memory disclosure: Block1 uninitialized reassembly",
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "external/cwe/cwe-200",
+                  "external/cwe/cwe-457",
+                  "information-disclosure",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory disclosure: Block1 uninitialized reassembly"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Oscore b2 cbor off by one. Categories: Memory corruption. Weaknesses: CWE-193, CWE-787."
+              },
+              "help": {
+                "markdown": "Memory safety: Oscore b2 cbor off by one. Categories: Memory corruption. Weaknesses: CWE-193, CWE-787.\n\n## Remediation\n\nPass rem_space - 1 to oscore_cbor_put_bytes() and require rem_space > 1; check nb + kid_context.length against the true remaining capacity, guard the rem_space decrement against underflow, and derive the next offset from the bounded return value.",
+                "text": "Memory safety: Oscore b2 cbor off by one. Categories: Memory corruption. Weaknesses: CWE-193, CWE-787.\n\nRemediation:\n\nPass rem_space - 1 to oscore_cbor_put_bytes() and require rem_space > 1; check nb + kid_context.length against the true remaining capacity, guard the rem_space decrement against underflow, and derive the next offset from the bounded return value."
+              },
+              "id": "memory-safety.oscore-b2-cbor-off-by-one",
+              "name": "Memory safety: Oscore b2 cbor off by one",
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "external/cwe/cwe-193",
+                  "external/cwe/cwe-787",
+                  "memory-corruption",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Oscore b2 cbor off by one"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Oscore recipient null deref. Categories: Null pointer dereference. Weaknesses: CWE-476."
+              },
+              "help": {
+                "markdown": "Memory safety: Oscore recipient null deref. Categories: Null pointer dereference. Weaknesses: CWE-476.\n\n## Remediation\n\nInitialize *recipient_ctx = NULL at the start of the callback path and return NULL when no recipient matches, freeing the temporary context. Reject the request when osc_ctx is non-NULL but rcp_ctx is NULL before storing or dereferencing the recipient.",
+                "text": "Memory safety: Oscore recipient null deref. Categories: Null pointer dereference. Weaknesses: CWE-476.\n\nRemediation:\n\nInitialize *recipient_ctx = NULL at the start of the callback path and return NULL when no recipient matches, freeing the temporary context. Reject the request when osc_ctx is non-NULL but rcp_ctx is NULL before storing or dereferencing the recipient."
+              },
+              "id": "memory-safety.oscore-recipient-null-deref",
+              "name": "Memory safety: Oscore recipient null deref",
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "external/cwe/cwe-476",
+                  "null-pointer-dereference",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Oscore recipient null deref"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Pdu 408 unchecked marker. Categories: Memory corruption. Weaknesses: CWE-787."
+              },
+              "help": {
+                "markdown": "Memory safety: Pdu 408 unchecked marker. Categories: Memory corruption. Weaknesses: CWE-787.\n\n## Remediation\n\nCheck both coap_add_token() and coap_add_option_internal() results. Call coap_pdu_check_resize(pdu, pdu->used_size + 1) before writing the marker; on failure, delete the PDU and return NULL so the caller defers the 4.08.",
+                "text": "Memory safety: Pdu 408 unchecked marker. Categories: Memory corruption. Weaknesses: CWE-787.\n\nRemediation:\n\nCheck both coap_add_token() and coap_add_option_internal() results. Call coap_pdu_check_resize(pdu, pdu->used_size + 1) before writing the marker; on failure, delete the PDU and return NULL so the caller defers the 4.08."
+              },
+              "id": "memory-safety.pdu-408-unchecked-marker",
+              "name": "Memory safety: Pdu 408 unchecked marker",
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "external/cwe/cwe-787",
+                  "memory-corruption",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Pdu 408 unchecked marker"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Websocket close stack overflow. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787."
+              },
+              "help": {
+                "markdown": "Memory safety: Websocket close stack overflow. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787.\n\n## Remediation\n\nClamp the continuation read to min(data_size - data_ofs, datalen) and reject the frame if it cannot fit; in coap_ws_close(), size the drain buffer for the maximum accepted frame or do not call coap_ws_read with a smaller buffer.",
+                "text": "Memory safety: Websocket close stack overflow. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787.\n\nRemediation:\n\nClamp the continuation read to min(data_size - data_ofs, datalen) and reject the frame if it cannot fit; in coap_ws_close(), size the drain buffer for the maximum accepted frame or do not call coap_ws_read with a smaller buffer."
+              },
+              "id": "memory-safety.websocket-close-stack-overflow",
+              "name": "Memory safety: Websocket close stack overflow",
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "external/cwe/cwe-121",
+                  "external/cwe/cwe-787",
+                  "memory-corruption",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Websocket close stack overflow"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Resource exhaustion: Oscore b2 unbounded contexts. Categories: Resource exhaustion. Weaknesses: CWE-770."
+              },
+              "help": {
+                "markdown": "Resource exhaustion: Oscore b2 unbounded contexts. Categories: Resource exhaustion. Weaknesses: CWE-770.\n\n## Remediation\n\nDo not attach the duplicated context until the AEAD tag verifies, or explicitly free and unlink it on every decryption failure. Add a bound on the number of B.2 contexts and expire idle ones.",
+                "text": "Resource exhaustion: Oscore b2 unbounded contexts. Categories: Resource exhaustion. Weaknesses: CWE-770.\n\nRemediation:\n\nDo not attach the duplicated context until the AEAD tag verifies, or explicitly free and unlink it on every decryption failure. Add a bound on the number of B.2 contexts and expire idle ones."
+              },
+              "id": "resource-exhaustion.oscore-b2-unbounded-contexts",
+              "name": "Resource exhaustion: Oscore b2 unbounded contexts",
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "external/cwe/cwe-770",
+                  "resource-exhaustion",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Resource exhaustion: Oscore b2 unbounded contexts"
+              }
+            }
+          ],
+          "version": "0.1.95"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

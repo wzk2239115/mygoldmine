@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "project": "benchmark-libcoap",
+  "target_url": "https://github.com/obgm/libcoap.git",
+  "commit": "a4de0faea54d3d548924c8b9f6e67b72a36cbac3",
+  "branch": "develop",
+  "started_at": "2026-11-17T05:57:30Z",
+  "ended_at": "2026-11-17T06:57:32Z",
+  "duration_seconds": 3602,
+  "model": "deepseek/deepseek-v4.1-flash",
+  "agent": "security-orchestrator",
+  "status": "failed",
+  "attempts": 1,
+  "exit_code": 143,
+  "timed_out": false,
+  "interrupted": true,
+  "renderer_exit_code": 0,
+  "reports_complete": false,
+  "artifacts": {
+    "raw": "raw.jsonl",
+    "rendered": "claude.rendered.log",
+    "stderr": "claude.stderr.log",
+    "report_md": "audit-report.md",
+    "report_json": "audit-report.json"
+  }
+}

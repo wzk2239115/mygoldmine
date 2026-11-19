@@ -1,0 +1,115 @@
+{
+  "documentType": "codex-security.scan-manifest",
+  "scan": {
+    "artifacts": [
+      {
+        "mediaType": "application/json",
+        "path": "findings.json",
+        "sha256": "bea4ac435fc95b237083ad54ee1cb80ed1768713214799c204cc1224a3dee885"
+      }
+    ],
+    "completedAt": "2026-11-17T13:12:47.879006Z",
+    "findingsRef": "findings.json",
+    "id": "49339c8b-6c5a-48f0-82ce-21caa9ee8c8c",
+    "mode": "repository",
+    "preservedCheckpointHeads": {},
+    "preservedSources": {
+      "checkpoint-heads/792ab754505608566be75a48297b310aa7559ae9c60d4bfe77ee421690ccbf20.json": "792ab754505608566be75a48297b310aa7559ae9c60d4bfe77ee421690ccbf20",
+      "checkpoints/26645f868fc49c97bf7125e798a00b620f4c0d474d5b5c43229469e8f9190d9f.json": "26645f868fc49c97bf7125e798a00b620f4c0d474d5b5c43229469e8f9190d9f",
+      "source-order/e98befd32da27c623825e37abbbf484ad0c0a10d0512e9548cf9b538edb695ad.json": "e98befd32da27c623825e37abbbf484ad0c0a10d0512e9548cf9b538edb695ad"
+    },
+    "producer": {
+      "name": "codex-security-plugin",
+      "version": "0.1.95"
+    },
+    "review": {
+      "excludedPaths": []
+    },
+    "scope": {
+      "artifactsReviewed": [
+        "CMakeLists.txt",
+        "LICENSE",
+        "README.md",
+        "examples/CMakeLists.txt",
+        "examples/tlsclienthello.c",
+        "examples/tlshelloworld.c",
+        "examples/tlslayer.png",
+        "examples/tlssimple.c",
+        "examples/tlssimpleserver.c",
+        "libtomcrypt.c",
+        "root.pem",
+        "tls_root_ca.h",
+        "tlse.c",
+        "tlse.h",
+        "tlslayer_ssltest.png",
+        "x509.c"
+      ],
+      "context": "Standard repository scan of the TLSe TLS/DTLS library, focused on pre-authentication memory-safety in network parsers.",
+      "excludePaths": [],
+      "includePaths": [
+        "."
+      ],
+      "limitations": [
+        "Findings are source-confirmed but were not reproduced under ASan or a debugger.",
+        "The bundled libtomcrypt.c was reviewed for call-site safety rather than exhaustively audited.",
+        "x509.c is only compiled when TLS_FULL_X509 is defined and was reviewed for context, not as the default parser."
+      ],
+      "runtimeStatus": "Not executed; no C compiler or sanitizer toolchain was available in the scan environment.",
+      "summary": "Repository-wide review of all 16 files: tlse.c, tlse.h, libtomcrypt.c, x509.c, examples, build files, documentation, and test data.",
+      "validationMode": "Static source review"
+    },
+    "sealedAt": "2026-11-17T13:12:47.879006Z",
+    "startedAt": "2026-11-17T12:41:26.618964Z",
+    "status": "completed",
+    "target": {
+      "displayName": "tlse",
+      "kind": "git_worktree",
+      "revision": "25be48a4f0176b7242d8c5955fc325e92b487838",
+      "snapshotDigest": "codex-security-snapshot/v1:sha256:242ce2c1abcccb1053600439d0f378cb8e3e7d3cc9548d4372d9d4bb8f8df073",
+      "targetId": "target_sha256_262c3bd2eecacfe3aa17f94aa955c7af79583c3e1ace7cea825e015292cebbb8"
+    },
+    "threatModel": {
+      "assets": [
+        "Process memory of the TLS/DTLS server or client",
+        "TLS/DTLS session keys and peer credentials",
+        "Availability of the service terminating TLS, DTLS, or WebRTC",
+        "Certificate-derived trust decisions"
+      ],
+      "assumptions": [
+        "The embedding application exposes TLSe parsing to network input",
+        "The default build does not define TLS_FULL_X509, so the bundled ASN.1 parser is compiled",
+        "Validation is source-level; no runtime exploit was executed"
+      ],
+      "attackerCapabilities": [
+        "Send arbitrary TLS, DTLS, and STUN datagrams to a listening endpoint",
+        "Control record lengths, handshake fragment headers, STUN attribute lengths, and certificate DER contents",
+        "Act as the peer or as a malicious server/client before certificate verification"
+      ],
+      "securityObjectives": [
+        "Confine every network-derived length and offset to its allocated buffer",
+        "Reject malformed records, fragments, attributes, and certificates without memory corruption",
+        "Never perform length arithmetic or copies before validating attacker-controlled counts"
+      ],
+      "summary": "TLSe is a single-file C TLS/DTLS 1.0-1.3 implementation with WebRTC, STUN, and SRTP helpers. Its attack surface is untrusted network bytes consumed by tls_consume_stream, tls_peerconnection_iterate, and the certificate ASN.1 parser. The primary boundary is the pre-authentication record/handshake parser: attacker-controlled lengths and offsets reach memory copies before peer authentication or certificate verification.",
+      "trustBoundaries": [
+        "Untrusted network datagram and record bytes -> tls_consume_stream",
+        "Untrusted STUN datagrams -> tls_peerconnection_iterate and tls_stun_parse",
+        "Untrusted certificate DER -> tls_parse_certificate and the ASN.1 parser",
+        "Pre-authentication handshake state -> authenticated session state"
+      ]
+    },
+    "warnings": [
+      "Skipped malformed coverage surface 1: coverage.surfaces[0].id: expected a non-empty string.",
+      "Skipped malformed coverage surface 2: coverage.surfaces[1].id: expected a non-empty string.",
+      "Skipped malformed coverage surface 3: coverage.surfaces[2].id: expected a non-empty string.",
+      "Skipped malformed coverage surface 4: coverage.surfaces[3].id: expected a non-empty string.",
+      "Skipped malformed coverage surface 5: coverage.surfaces[4].id: expected a non-empty string.",
+      "Skipped malformed coverage surface 6: coverage.surfaces[5].id: expected a non-empty string.",
+      "Skipped malformed coverage surface 7: coverage.surfaces[6].id: expected a non-empty string.",
+      "Skipped malformed coverage surface 8: coverage.surfaces[7].id: expected a non-empty string.",
+      "Skipped malformed coverage surface 9: coverage.surfaces[8].id: expected a non-empty string.",
+      "Skipped malformed coverage surface 10: coverage.surfaces[9].id: expected a non-empty string."
+    ]
+  },
+  "schemaVersion": "1.0"
+}

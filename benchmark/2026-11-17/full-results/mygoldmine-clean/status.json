@@ -1,0 +1,35 @@
+[
+  {
+    "tool": "mygoldmine",
+    "target": "sol",
+    "start_utc": "2026-11-17T05:48:12.338896+00:00",
+    "status": "process_finished",
+    "limit_seconds": 3600,
+    "launcher_exit": 0,
+    "report_exists": true,
+    "elapsed_seconds": 554.11,
+    "end_utc": "2026-11-17T05:57:26.454029+00:00"
+  },
+  {
+    "tool": "mygoldmine",
+    "target": "libcoap",
+    "start_utc": "2026-11-17T05:57:26.455619+00:00",
+    "status": "timeout",
+    "limit_seconds": 3600,
+    "launcher_exit": 0,
+    "report_exists": false,
+    "elapsed_seconds": 3607.62,
+    "end_utc": "2026-11-17T06:57:34.073685+00:00"
+  },
+  {
+    "tool": "mygoldmine",
+    "target": "tlse",
+    "start_utc": "2026-11-17T06:57:34.073951+00:00",
+    "status": "timeout",
+    "limit_seconds": 3600,
+    "launcher_exit": 0,
+    "report_exists": true,
+    "elapsed_seconds": 3608.56,
+    "end_utc": "2026-11-17T07:57:42.637004+00:00"
+  }
+]

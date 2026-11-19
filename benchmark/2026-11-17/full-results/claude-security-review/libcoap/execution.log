@@ -1,0 +1,8 @@
+[claudecode.claude_api_client] Claude API client initialized successfully
+[claudecode.findings_filter] Filtering 1 security findings
+[claudecode.findings_filter] Hard exclusions removed 0 findings
+[claudecode.findings_filter] Processing 1 findings individually through Claude API
+[claudecode.claude_api_client] Claude API call attempt 1/4
+[claudecode.claude_api_client] Claude API call successful in 18.2s
+[claudecode.claude_api_client] Successfully parsed Claude API response for single finding
+[claudecode.findings_filter] Filtering completed: 1/1 findings kept (18.2s)

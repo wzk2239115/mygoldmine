@@ -1,0 +1,11 @@
+[mine_docker] 启动容器: project=benchmark-sol image=mygoldmine:dev timeout=3600s model=deepseek/deepseek-v4.1-flash
+[entrypoint] 复制目标源码到可写工作副本: /target -> /workspace/repo
+[entrypoint] 已链接 .claude -> /opt/mygoldmine/.claude
+[entrypoint] 提示词已写入 /tmp/mygoldmine-prompt.txt
+[entrypoint] 委托 mine_one.sh 执行审计（timeout=3600s, model=deepseek/deepseek-v4.1-flash, agent=security-orchestrator）
+[mine_one] 已链接 /workspace/repo/.claude -> /opt/mygoldmine/.claude
+[mine_one] Jev 初筛：配置=infra 最大文件数=1500 并发请求数=8 超时=600 -> /vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/triage/jev-infra.json
+[mine_one] Jev 初筛完成: /vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/triage/jev-infra.json
+[mine_one] LIVE_RENDER=1，跳过容器内最终渲染（由宿主 run.sh 实时渲染并收尾）
+[mine_one] 完成: status=success exit_code=0 timed_out=0 attempts=1 run_dir=/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol
+[mine_docker] 容器退出 rc=0 run_dir=/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol

@@ -1,0 +1,765 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-17 11:22:48 UTC",
+  "run_id": "source_0ea7",
+  "run_name": "source_0ea7",
+  "scope": {
+    "targets": [
+      {
+        "type": "local_code",
+        "details": {
+          "target_path": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/tlse/source",
+          "workspace_subdir": "source"
+        },
+        "original": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/tlse/source"
+      }
+    ],
+    "scan_mode": "standard",
+    "scope_mode": "full",
+    "diff_scope": {
+      "active": false,
+      "mode": "full"
+    },
+    "instruction": "Audit only this local source snapshot and any service you build inside its sandbox. Do not contact upstream services or the LAN. Report validated findings with evidence."
+  },
+  "summary": {
+    "surfaces_reviewed": 45,
+    "outcomes": {
+      "reported": 12,
+      "no_issue_found": 14,
+      "ruled_out": 10,
+      "not_applicable": 3,
+      "needs_follow_up": 6
+    },
+    "findings_filed": 12,
+    "gaps": 12
+  },
+  "machine_observed": {
+    "agents": [
+      {
+        "agent_id": "b6680f59",
+        "agent_name": "Dynamic Harness &amp; Fuzzing",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "python"
+        ],
+        "task": "You are the dynamic-testing specialist for the TLSe TLS library at /workspace/source (single-file C TLS/DTLS: tlse.c, x509.c, libtomcrypt.c). First call get_threat_model with target \"/workspace/source\" and read it. Check list_notes for a build recipe / source map from the static baseline agent.\n\nGoal: build real, executing harnesses for the parser attack surfaces and drive them with sanitizers until you have reproducible crashes. Static auditors are working in parallel; your job is the ground truth they cannot get from reading.\n\nSetup: copy /workspace/source to /workspace/audit/fuzz (never modify the original). Toolchain is gcc 16 (ASAN/UBSAN work); check whether clang/libFuzzer or afl-fuzz/afl-clang-fast exist (`command -v clang afl-fuzz honggfuzz`) and use libFuzzer/AFL if present — otherwise write an ASAN-instrumented stdin harness plus a Python driver that runs one input per process (`ASAN_OPTIONS=abort_on_error=1:detect_leaks=0`) and parallelize across cores with multiprocessing. Keep it fast: ~4 cores, bounded per-run timeout, and log every unique crash signature.\n\nTargets to fuzz, in priority order:\n1. Record layer + handshake: a C harness that makes a server context (`tls_init(); ctx=tls_create_context(1, TLS_V12)`) and feeds the input bytes to `tls_consume_stream(ctx, buf, len, 0)` (and a variant that calls it in 1-byte chunks to exercise fragmented reassembly). Then the same for a CLIENT context (`tls_create_context(0, TLS_V13)`) so ServerHello/Certificate/SKE parsing paths are exercised too.\n2. Certificate path: `tls_certificate_parse(der,len)` plus `tls_certificate_chain_is_valid`. IMPORTANT: reset global state between inputs where the API needs it (tls_destroy_context, tls_clear_certificates) and reuse one process per input if globals are not safely resettable.\n3. `tls_pem_decode`, `tls_stun_parse`/`tls_is_stun`, and `tls_import_context` (feed arbitrary blobs; it is the documented deserialization path).\n\nSeed corpus matters more than brute force: build the example server and client from examples/ (generate a self-signed cert with openssl locally), run the server on 127.0.0.1, and put a small Python TCP proxy in the middle to capture the real ClientHello / ServerHello / Certificate / ClientKeyExchange / Finished flights. Save those as seeds. Then mutate with structure-aware strategies: flip 1-2 bytes, splice lengths, extend/truncate 16-bit and 24-bit length fields, duplicate/insert extension blocks, set lengths to 0xFFFF/0xFFFFFF/0, and generate fully random handshake messages. Run each campaign for a bounded time (a few minutes per target) and iterate.\n\nFor every crash: minimize the input (a Python delta-debugger that removes bytes while the crash reproduces is fine), confirm it reproduces on a fresh process, capture the full ASAN/UBSAN report, identify the exact source line from the stack trace, and note whether it is a read, write, or integer overflow and how large the overflow is. Then check reachability: is it a single packet to an unpatched server (critical), or does it need a specific state/cipher?\n\nEverything local (localhost/filesystem only); do not contact upstream services or the LAN.\n\nReporting: file create_vulnerability_report ONLY for proven crashes, with the minimized input bytes (hex) as poc_script_code, the ASAN report as evidence, code_locations with verbatim fix_before/fix_after and fix_verification (rebuild with the patch and show the input no longer crashes). If the same root cause is already reported by another agent you will get duplicate_of — accept it and move on, or use update_vulnerability_report if your evidence adds the executable PoC. Record coverage per target. Finish with agent_finish and list unresolved/fuzzing-not-finished items in open_items.",
+        "is_root": false
+      },
+      {
+        "agent_id": "b74ed812",
+        "agent_name": "Open-Item Closer (downgrade, renegotiation, pre-auth exhaustion)",
+        "status": "running",
+        "skills": [
+          "source_aware_sast",
+          "business_logic"
+        ],
+        "task": "You are closing out three unresolved candidates on the TLSe library at /workspace/source (tlse.c). First call get_threat_model with target \"/workspace/source\". Then call list_coverage and read these existing entries you must resolve — update each EXISTING entry with update_coverage (do not create new ones): fb57d6 (TLS 1.2 renegotiation / RFC 5746), bffe58 (TLS 1.3 downgrade sentinel not checked), 81d244 (pre-auth per-connection buffer growth).\n\nWork in a copy at /workspace/audit/closer; never modify /workspace/source. Build with `-fsanitize=address,undefined -g -DTLS_AMALGAMATION`. Everything local (localhost/filesystem); no upstream services, no LAN.\n\n1. entry bffe58 — TLS 1.3 downgrade: the server emits the RFC 8446 DOWNGRD sentinel in server_random but the client never compares it. Determine concretely whether a TLSe client that offers TLS 1.3 will accept a TLS 1.2 ServerHello from a MITM when TLS_LEGACY_SUPPORT is on (it is defined by default in tlse.h). Build the test: unmodified client context (tls_create_context(0, TLS_V13)), feed it a TLS 1.2 ServerHello+Certificate+ServerKeyExchange flight generated by this library's own TLS 1.2 server (so it is well-formed), and observe whether the handshake proceeds. Important nuance: if the attacker cannot complete TLS 1.2 without the server's private key, the downgrade is only exploitable against a future/weak 1.2 configuration — say so. Outcome: reported only if you can show an attacker who cannot complete the 1.3 handshake nonetheless gets a 1.2 session accepted (with the concrete evidence); otherwise ruled_out with the specific control that stops it, or needs_follow_up with the exact blocker. Also state the correct verdict for a client that offered only TLS 1.2 (that is normal protocol negotiation, not a finding).\n\n2. entry 81d244 — pre-auth memory exhaustion: measure `context->message_buffer` growth (tlse.c:12460) and the 24-bit handshake message accumulator (tlse.c:10363). Send a peer that dribbles many partial records/handshake messages without ever completing a handshake, and measure RSS/heap growth per connection with a bounded test (e.g. up to 64 MB or 2000 records, whichever first). If a single unauthenticated connection can force unbounded growth (e.g. tens of MB with no cookie, no certificate, no completed handshake), that is a remote memory-exhaustion DoS worth reporting at medium with the measured numbers and the exact accumulation line; if growth is bounded by a check you can name, rule it out with that control.\n\n3. entry fb57d6 — RFC 5746: confirm whether TLS_ACCEPT_SECURE_RENEGOTIATION is defined in the shipped tlse.h and whether, with it undefined (the shipped default), renegotiation is refused outright. If the default build never processes a renegotiation, the missing 0xff01 validation is not reachable in any supported configuration — record that precisely (ruled_out or not_applicable with the control named, plus the note that enabling the flag requires adding the check first).\n\nFor anything you report: create_vulnerability_report with code_locations (verbatim fix_before/fix_after at exact lines) and fix_verification, and rebuild with the patch applied. Finish with agent_finish, and state the final outcome you set for each of the three coverage entries.",
+        "is_root": false
+      },
+      {
+        "agent_id": "18008b2f",
+        "agent_name": "Record Layer &amp; Handshake Parser Auditor",
+        "status": "running",
+        "skills": [
+          "source_aware_sast",
+          "rce"
+        ],
+        "task": "You are auditing the TLSe TLS library at /workspace/source (tlse.c, 15k lines, single-file C TLS 1.0-1.3 + DTLS implementation). First call get_threat_model with target \"/workspace/source\" and read it. Also check list_notes for a \"TLSe source map\" note from the static baseline agent (it may arrive shortly; if absent, build your own map with rg).\n\nYour assigned surface: the RECORD LAYER and PRE-AUTHENTICATION HANDSHAKE PARSING in tlse.c. This is the code a remote unauthenticated peer reaches first. Everything it receives is attacker-controlled: record type/version/length, handshake header lengths, extension blocks, certificate_list entries, DH/ECDH parameter blobs, Finished/verify payloads, DTLS headers and cookies.\n\nCover at minimum:\n- tls_consume_stream / tls_parse_payload / tls_parse_message: record reassembly across fragments, buffer growth, the 16KB record limit, coalesced handshake messages, DTLS sequence/cookie handling, and what happens with zero-length or maximum-length records and handshake messages split across records.\n- tls_parse_hello and every extension parser it calls (SNI, ALPN, supported_versions, key_share, signature_algorithms, session ticket, supported_groups, renegotiation_info, heartbeat, etc.): length arithmetic, nested length prefixes, extension count loops, and whether each length field is validated against the remaining buffer before use.\n- tls_parse_certificate: certificate_list length vs count loop, per-certificate 24-bit lengths, allocation of the chain array, and the handoff into x509 parsing.\n- tls_parse_server_key_exchange / tls_parse_client_key_exchange / tls_parse_finished / tls_parse_verify: signature length parsing, DH parameter parsing, ECDH point parsing, and the Finished MAC/session-hash comparison (constant-time? length-checked?).\n- tls_build_* and tls_packet_* helpers: any place where an attacker-influenced length is used to compute an allocation or memcpy, and any signed/unsigned or 16-bit truncation of a length.\n- Cipher selection from the attacker's cipher list (tls_choose_cipher): any out-of-bounds read over the supplied list, missing even-length check, or index issue.\n\nMethod: read the code adversarially, trace every length from the wire to its sink. Then PROVE your top candidates dynamically: copy the source to /workspace/audit/record and build harnesses with `-fsanitize=address,undefined -g`. A harness that creates a TLSContext as SERVER (tls_create_context(1, TLS_V12)) and feeds crafted bytes to tls_consume_stream is the fastest path — write it in C, drive it from a Python generator that emits crafted records/handshake messages, and capture ASAN reports. Localhost only; do not contact upstream services or the LAN. Do not modify /workspace/source.\n\nFile a vulnerability report ONLY for issues you have proven (ASAN crash with a minimized input, or a complete reachable source->sink trace naming the broken control). Include code_locations with verbatim fix_before/fix_after at exact line numbers and fix_verification (security closure, bypass review, preserved behavior, compile/test evidence). Use create_vulnerability_report. Record coverage for each sub-surface you assess, including clean ones, and amend_threat_model if the model is wrong. Finish with agent_finish and list unresolved candidates in open_items.",
+        "is_root": false
+      },
+      {
+        "agent_id": "2f423960",
+        "agent_name": "Root Agent",
+        "status": "waiting",
+        "skills": [],
+        "task": "\n\nLocal Codebases: - /vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/tlse/source (available at: /workspace/source; this is the user's real directory, mounted live and writable — .git/.agents/.codex are read-only)\n\nSpecial instructions: Audit only this local source snapshot and any service you build inside its sandbox. Do not contact upstream services or the LAN. Report validated findings with evidence.",
+        "is_root": true
+      },
+      {
+        "agent_id": "c32ef206",
+        "agent_name": "Static Baseline &amp; Source Map",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "tooling/opengrep"
+        ],
+        "task": "You are auditing the TLSe TLS library at /workspace/source (single-file C TLS/DTLS stack: tlse.c 15k lines, x509.c 12k lines, vendored libtomcrypt.c, tls_root_ca.h). First call get_threat_model with target \"/workspace/source\" and read it.\n\nYour job is the STATIC COVERAGE BASELINE plus a precise source map that the other auditors will build on. Work only from this source and locally built artifacts. Do NOT contact any upstream network service or the LAN; localhost-only if you need a socket.\n\nSteps:\n1. Create /workspace/.source-aware and run the baseline bundle from the skill: opengrep (bundled /opt/opengrep-rules, --taint-intrafile), then build /workspace/.source-aware/sg-targets.txt from opengrep paths.scanned (fallback unique results[].path) and run the scoped `sg run` AST pass, then gitleaks, trufflehog, trivy fs (vuln,misconfig). Keep outputs bounded; delete any multi-hundred-MB raw files after extracting.\n2. Triage opengrep/sg results specifically for: attacker-controlled length fields feeding memcpy/malloc/realloc, missing bounds checks around packet buffer appends (tls_packet_append / buffer realloc), integer/width truncation (int vs unsigned, 24-bit length handling), and unsafe string ops on network data. Note: libtomcrypt.c and tls_root_ca.h are huge vendored/data files — exclude them from manual review and say so.\n3. Produce a SHARED NOTE (create_note, category=wiki) titled \"TLSe source map\" containing: (a) a table of the handshake/record parsing entry points with exact file:line of definition, (b) the buffer-management helpers (packet append, realloc, context buffer) with file:line, (c) the X.509 parse/validate entry points with file:line, (d) a short list of the top 10 static candidates from opengrep ranked by impact, each with file:line and one-line why. This note is the map other agents will use, so make the line numbers exact (verify with grep).\n4. Also produce a second SHARED NOTE with a working LOCAL BUILD RECIPE for this exact snapshot: commands that compile tlse.c + libtomcrypt.c with -DTLS_AMALGAMATION -fsanitize=address,undefined -g, and that build one example client/server. Verify the recipe actually compiles before publishing it. The other agents need this.\n5. Pursue the top 2-3 static candidates yourself to a conclusion: trace source->sink, and where a dynamic check is needed coordinate by leaving the candidate in your note. File a vulnerability report ONLY for a validated issue (working PoC or complete reachable source->sink trace with the broken control named). File it with code_locations containing verbatim fix_before/fix_after at exact line numbers plus fix_verification, and apply+rebuild the fix in your own copy (/workspace/audit/sast) to confirm it compiles.\n\nRules: never modify /workspace/source (copy it to /workspace/audit/sast for builds/experiments). Record coverage with record_coverage for each surface you assess (outcome reported/no_issue_found/ruled_out/needs_follow_up — name the specific control when ruling something out). If your work disproves something in the threat model, amend_threat_model. Finish with agent_finish, listing anything unresolved in open_items.",
+        "is_root": false
+      },
+      {
+        "agent_id": "940429ab",
+        "agent_name": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "semantic_confusion"
+        ],
+        "task": "You are auditing the TLSe TLS library at /workspace/source (tlse.c single-file C TLS 1.0-1.3 / DTLS 1.0-1.2). First call get_threat_model with target \"/workspace/source\" and read it. Check list_notes for the source map from the static baseline agent.\n\nYour assigned surface is protocol/state logic, NOT the record-length parser (another agent owns tls_consume_stream length arithmetic) and NOT x509.c DER parsing (another agent owns that). Focus:\n\n1. TLS 1.3 path: key schedule (HKDF-Expand-Label usage, handshake traffic secrets, nonce construction per record, key update), record protection (AEAD additional data, content-type padding, inner plaintext trailing-zero stripping), downgrade protection (server_random sentinel / supported_versions handling), 0-RTT absence, and PSK-less full handshake correctness. Look for: nonce reuse, using the wrong secret/epoch for a record, accepting a record before the expected epoch, failing to check the inner content type, accepting a ServerHello that selects a version/cipher/group the client did not offer, or transcript-hash mismatch not being fatal.\n2. Legacy TLS 1.0-1.2 state machine: renegotiation handling (secure renegotiation, whether a renegotiation resets the transcript/keys correctly), ChangeCipherSpec ordering and acceptance (e.g. accepting application data before CCS/Finished, accepting a second CCS, CCS injected mid-handshake), session resumption/ticket handling, and the alert/close-notify handling.\n3. Blocking API layer: tls_accept/tls_read/tls_write/tls_pending/tls_consume_stream interactions — error handling that returns a length as negative, a partial read that is treated as a full record, WANT_READ/WANT_WRITE confusion, and any place a return code is unchecked so a failed operation is treated as success.\n4. DTLS specifics: epoch/sequence-number handling, replay window absence, cookie exchange correctness (dtls_reset_cookie_secret, whether a cookie is validated before allocating state or doing crypto), and whether a spoofed datagram can cause amplification or unbounded per-source state.\n5. STUN/SRTP/WebRTC glue: tls_stun_parse (attacker-controlled before authentication: attribute length parsing, the MESSAGE-INTEGRITY HMAC check and its ordering, username/password handling), tls_stun_build, tls_srtp_key (key export length and boundaries), tls_peerconnection_* fingerprint comparison (is the remote DTLS certificate fingerprint actually verified?).\n\nMethod: adversarial code review first, then targeted local PoCs where the logic bug is demonstrable without a full exploit chain. Copy the source to /workspace/audit/proto (never modify /workspace/source), build with `-fsanitize=address,undefined -g`, and write small C harnesses that drive the specific function. For protocol-logic findings (e.g. a STUN MESSAGE-INTEGRITY bypass, a fingerprint that is never checked, a CCS accepted at the wrong time) a decisive harness showing accept/reject behavior on crafted input is the required proof. Localhost only; no upstream services or LAN.\n\nFile create_vulnerability_report only for proven issues, with code_locations (verbatim fix_before/fix_after at exact lines) + fix_verification, and rebuild with your patch applied. Record coverage per sub-surface, naming the specific control when you rule something out. Amend the threat model if needed. Finish with agent_finish + open_items.",
+        "is_root": false
+      },
+      {
+        "agent_id": "9cad5cff",
+        "agent_name": "X.509 &amp; ASN.1 Validation Auditor",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "information_disclosure"
+        ],
+        "task": "You are auditing the TLSe TLS library at /workspace/source. First call get_threat_model with target \"/workspace/source\" and read it. Check list_notes for the \"TLSe source map\" note (may appear shortly).\n\nYour assigned surface: x509.c (12k lines: DER/ASN.1 parsing, X.509 certificate model, chain validation, signature verification) plus its consumers in tlse.c (tls_certificate_parse, tls_certificate_chain_is_valid, tls_certificate_chain_is_valid_root, tls_certificate_valid_subject(_name), tls_certificate_is_valid, tls_default_verify, tls_load_root_certificates, tls_pem_decode, tls_certificate_verify_signature, tls_verify_signed_data).\n\nTwo distinct risk families, both in scope:\n(A) MEMORY SAFETY of the DER parser driven by an attacker-supplied certificate in the TLS handshake: nested TLV length handling, indefinite-length encoding, negative/huge INTEGER lengths, BIT STRING/octet string lengths, SEQUENCE/OCTET nesting depth, the ASN.1 string/name parsers (OID, printable string, UTF8, time), extension parsing (SAN, basicConstraints, keyUsage, nameConstraints, SKI/AKI), and every place a DER length is trusted for a memcpy/malloc/index. Attacker controls the bytes and the nesting; the parser must not read or write out of bounds. Check the distinguished-name/CN extraction and any fixed-size destination buffers (a classic strcpy/memcpy overflow on a 64-byte CN buffer).\n(B) VALIDATION LOGIC, which decides whether a MITM is accepted: chain building order assumptions, whether tls_certificate_chain_is_valid actually verifies every signature up the chain, whether the root is checked against loaded anchors (or blindly trusted), whether basicConstraints CA:TRUE / pathLen is enforced, whether keyUsage is enforced for signing, whether validity dates are parsed and checked correctly (notBefore/notAfter, UTC vs GeneralizedTime, and whether a parse failure is treated as valid), whether hostname/SAN matching handles wildcards and embedded NULs safely, and whether an invalid OID/signature algorithm defaults to \"accept\".\nAlso check tls_verify_signed_data: does it verify the signature over the correct bytes with the correct algorithm, and can an attacker choose a weaker algorithm / cause it to return success without verifying?\n\nMethod: build the source in /workspace/audit/x509 (copy it; never modify /workspace/source) with `-fsanitize=address,undefined -g`. Write a small C harness that calls tls_certificate_parse(der, len) on crafted DER and tls_certificate_chain_is_valid on crafted chains; drive it from Python that mutates a real certificate (there is a root.pem in the repo, and you can generate certs locally with openssl — no external network). For (B), construct actual certificate chains locally with openssl and show the validator's verdict changing in a way that should not happen (e.g. a non-CA cert used to sign a leaf, a chain with an untrusted root accepted, an expired cert accepted, a wrong hostname accepted). Localhost/filesystem only; no upstream network or LAN.\n\nFile vulnerability reports ONLY for proven issues, with code_locations (verbatim fix_before/fix_after at exact lines) and fix_verification, then rebuild with your applied patch to prove it compiles. Record coverage per sub-surface (including clean ones, naming the control for ruled_out). Amend the threat model if it is wrong. Finish with agent_finish + open_items.",
+        "is_root": false
+      },
+      {
+        "agent_id": "d714f40f",
+        "agent_name": "mTLS Enforcement &amp; DTLS Replay Auditor",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "broken_function_level_authorization"
+        ],
+        "task": "Follow-up audit on the TLSe library at /workspace/source (tlse.c). First call get_threat_model with target \"/workspace/source\". Read list_notes and list_coverage to see what is already done: another agent proved that a TLS 1.3 CLIENT accepts Finished without CertificateVerify (filed), and left three concrete open items that are now yours. Do not re-report those.\n\nThree tasks, highest value first:\n\n1. SERVER-SIDE CLIENT AUTHENTICATION BYPASS (highest priority). The previous agent observed that a TLS 1.3 server which called `tls_request_client_certificate()` completes the handshake when the client sends an EMPTY Certificate list and no CertificateVerify, and that no application callback fires. Determine precisely what the server-side API reports: `tls_client_verified(context)` and any related accessor, and whether an application that gates access on \"handshake completed + client certificate verified\" is bypassed by a client that presents no certificate. Build the PoC: unmodified server (tls_create_context(1, TLS_V13), tls_request_client_certificate), an attacker client that completes the handshake without any client certificate, then show the server's tls_client_verified()/tls_established() values and whether the server hands application data to the attacker. If the server-side accessor reports \"verified\" for a client that never authenticated, that is a reportable authentication bypass (mTLS defeated) — file it with the exact line where the empty/absent certificate path is accepted and where the verified flag is set. If it correctly reports unverified, record that as ruled_out with the named control and move on.\n\n2. DTLS REPLAY. There is no anti-replay window in the code (no highest-seen sequence comparison, no bitmap). Get a working DTLS 1.2 exchange first — a previous agent's in-process client aborted with decode_error after the server's ServerKeyExchange, so either fix the test harness setup (it may be a certificate/curve mismatch, not a library bug) or drive both sides with the library's own DTLS client/server over a loopback UDP socket or an in-process pipe. Once application data is flowing, replay the SAME encrypted application-data record (same epoch/sequence) and observe whether tls_read() delivers the plaintext a second time. If it does, report it as a DTLS replay weakness with the harness as PoC. If the handshake itself cannot be completed in this environment, record the gap honestly as needs_follow_up with what blocked it.\n\n3. TLS 1.2 CLIENT INTEROP ANOMALY. Investigate why the library's own TLS 1.2 client aborted with decode_error after receiving the library's own server's ServerKeyExchange. Determine whether the client is rejecting a legitimate message (functional/robustness bug) or whether the server is emitting a malformed SKE; if in the course of this you find that the client does NOT verify the SKE signature over client_random||server_random||params with the certificate key, that is a TLS 1.2 authentication bypass — report it only if you can demonstrate acceptance of a signature made with a different key or a corrupted signature while the handshake completes. Coordinate: the Record Layer agent also owns tls_parse_server_key_exchange; if it has already filed something there you will get duplicate_of, which is fine.\n\nMethod: copy /workspace/source to /workspace/audit/mtls (never modify the original), build with `-fsanitize=address,undefined -g -DTLS_AMALGAMATION`, write C harnesses and drive them from Python. Localhost/filesystem only — no upstream services, no LAN. File reports via create_vulnerability_report with code_locations (verbatim fix_before/fix_after at exact lines) and fix_verification, and rebuild with your patch applied to prove it compiles and the PoC now fails. Record coverage for each of the three tasks. Finish with agent_finish + open_items.",
+        "is_root": false
+      }
+    ],
+    "skills_exercised": [
+      "broken_function_level_authorization",
+      "business_logic",
+      "information_disclosure",
+      "opengrep",
+      "python",
+      "rce",
+      "semantic_confusion",
+      "source_aware_sast"
+    ],
+    "findings_filed": 12,
+    "source": "runtime"
+  },
+  "completeness": {
+    "complete": false,
+    "scan_status": "interrupted",
+    "exit_reason": null,
+    "caveats": [
+      "The scan ended with status 'interrupted' rather than completing, so coverage reflects only the work finished before it stopped.",
+      "3 agent(s) did not finish cleanly (Open-Item Closer (downgrade, renegotiation, pre-auth exhaustion), Record Layer &amp; Handshake Parser Auditor, Root Agent); any surface they held is under-covered."
+    ]
+  },
+  "entries": [
+    {
+      "surface": "tls_stun_parse / tls_peerconnection_iterate (STUN datagram, WebRTC DTLS)",
+      "risk_area": "Memory corruption (stack buffer overflow) from pre-auth network input",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Built a peer-connection harness calling tls_peerconnection_iterate(); a 1332-byte binding request with max-length USERNAME/REALM reproduces an ASAN stack-buffer-overflow WRITE of 763 bytes past char key[0x4CE] at tlse.c:13210 (vuln-0002). Overflow computed and confirmed at 47 bytes.",
+      "recorded_by": "Dynamic Harness &amp; Fuzzing",
+      "recorded_at": "2026-11-17 10:52:15 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_certificate_parse / asn1_parse (X.509 DER) and tls_parse_certificate via handshake",
+      "risk_area": "Memory corruption in the ASN.1/DER parser",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "ASAN + uninstrumented reproduction of memcpy(size=-1) from a zero-length BIT STRING; minimal 11-byte DER and a 105-byte ServerHello+Certificate flight both crash at tlse.c:4553 via 4602 (vuln-0001).",
+      "recorded_by": "Dynamic Harness &amp; Fuzzing",
+      "recorded_at": "2026-11-17 10:52:15 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_stun_parse() STUN credential key construction",
+      "risk_area": "pre-authentication memory corruption (WebRTC/STUN)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Confirmed independently: AddressSanitizer stack-buffer-overflow, WRITE of size 763 at tlse.c:13210 over `char key[0x4CE]` (line 13085) with USERNAME 513 / REALM 763, and \"stack smashing detected\" + SIGABRT on a -O2 -fstack-protector-strong build; a realm_len 720 control returns TLS_INTEGRITY_FAILED, proving the write precedes the MESSAGE-INTEGRITY check. Reported as vuln-0002 by another agent; my additional hardened-build abort evidence was not merged to avoid duplicate scoring.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:12 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "DTLS HelloVerifyRequest cookie (_private_dtls_build_cookie / tls_parse_hello)",
+      "risk_area": "source-address spoofing, amplification, state exhaustion",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Cookie is HMAC-SHA256(process secret, client_random) with no address input (tlse.c:7798). Harness: a cookie obtained for random R is accepted by five fresh server contexts (5/5), each replying with a 2257-byte server flight to a 99-byte ClientHello (~22x). Filed as vuln-0004.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:12 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "TLS 1.3 inner plaintext content-type stripping",
+      "risk_area": "record type confusion / premature application data",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "After AEAD verification, trailing zero bytes are stripped from the inner plaintext and the last non-zero byte is taken as the content type (tlse.c:10815-10830), the standard RFC 8446 rule. Application data is only delivered when connection_status == 0xFF; handshake and alert paths are gated by handshakebufferlength. Outer type is only trusted for unencrypted records.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:12 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "TLS 1.3 client handshake: Finished accepted without CertificateVerify",
+      "risk_area": "server authentication / MITM (missing proof of possession)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "End-to-end PoC: an attacker server built with only the public certificate (tls_load_certificates returns 1, no private key) that omits CertificateVerify completes the handshake with an unmodified TLS 1.3 client whose callback performs leaf validity, chain-to-trusted-root and SNI subject checks; tls_established()==1 and the client's request is read in cleartext. Control with an unmodified server that sends CertificateVerify also completes. Fix verified: patched client rejects the attacker (error -6) and still accepts the control. Filed as vuln-0003.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:12 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "TLS 1.3 record protection: AEAD additional data, nonce construction, epoch/sequence handling",
+      "risk_area": "nonce reuse / wrong-key-per-record",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Encrypt (tlse.c:5188-5300) and decrypt (tlse.c:10540-10610) reviewed and are symmetric: AAD is the 5-byte TLSInnerPlaintext header with the ciphertext length (plaintext length + type byte + 16 tag, matching on both sides), inner type appended before AAD construction, nonce = static_iv XOR 8-byte big-endian sequence at offset 4. Sequence is incremented once per record in tls_packet_update and reset to 0 at both TLS 1.3 key changes (tlse.c:10107, tls_parse_finished). No path encrypts two records with the same (key, nonce).",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:12 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "TLS 1.0-1.2 ChangeCipherSpec acceptance",
+      "risk_area": "ChangeCipherSpec ordering / premature application data",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Control named and checked: the ChangeCipherSpec handler only accepts CCS when connection_status == 2 and the non-DTLS path otherwise emits unexpected_message (tlse.c:10880-10900); for TLS 1.3 an early guard requires length 1, value 1 and connection_status != 0xFF before the record is dropped (tlse.c:10480). A repeated CCS at status 2 only resets remote_sequence_number, which desynchronises the record MAC stream (denial of service, not a bypass).",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:21 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "TLS 1.2 renegotiation handling",
+      "risk_area": "secure renegotiation enforcement (RFC 5746)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "The library stores its own Finished verify_data (tlse.c:9357-9368) and sends a renegotiation_info extension (0xff01) when renegotiating (tlse.c:7276-7284), but the extension parser has no case for 0xff01 and no code compares a received renegotiation_info against the stored verify_data. With TLS_ACCEPT_SECURE_RENEGOTIATION enabled, a HelloRequest triggers _private_tls_reset_context and a new ClientHello (tlse.c:9900-9912) without enforcing RFC 5746. Not demonstrated dynamically; the option is not enabled by default.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:21 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "TLS 1.3 downgrade protection (server_random DOWNGRD sentinel)",
+      "risk_area": "protocol downgrade protection",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Server emits the RFC 8446 sentinel (DOWNGRD\\x01 / DOWNGRD\\x00) at tlse.c:7098-7102, but no client code ever compares the received server_random against it: the only sentinel the client checks is the HelloRetryRequest magic value (tlse.c:8218). A client built with TLS_LEGACY_SUPPORT therefore accepts a TLS 1.2 ServerHello after offering 1.3 without noticing the downgrade (tlse.c:8203-8214). Not dynamically demonstrated; impact depends on the legacy build option and on which TLS 1.2 cipher is then selected.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:21 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "DTLS epoch/sequence handling and replay window",
+      "risk_area": "DTLS record replay protection (RFC 6347 4.1.2.6)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Resolved the open item: DTLS 1.2 client+server driven in one process over an in-memory datagram queue completed the handshake (ECDHE-RSA-AES128GCM-SHA256) and application data flowed. A byte-identical captured app-data record (epoch 1, seq 1) was re-delivered after the peer reached seq 12 and tls_consume_stream consumed all 53 bytes while tls_read returned the same plaintext twice more — 12 commands sent, 14 executed. Confirmed at code level: no highest-seen comparison or bitmap anywhere; remote_sequence_number is overwritten from the record header at tlse.c:10789 and the AEAD nonce/AAD come from the record's own epoch/seq (10554-10557). Fix (512-record window, advance only after AEAD verification) rebuilt and verified: replays dropped, out-of-order records still delivered. Filed as vuln-0012.",
+      "recorded_by": "mTLS Enforcement &amp; DTLS Replay Auditor",
+      "recorded_at": "2026-11-17 10:55:21 UTC",
+      "updated_at": "2026-11-17 11:13:47 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_read / tls_write / tls_pending / tls_consume_stream API layer",
+      "risk_area": "error handling, partial reads, return-code checks",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Reviewed the blocking layer: tls_read returns 0 or the copied byte count and never a negative length, tls_write returns len or a negative error from _private_tls_write_packet, and tls_consume_stream returns a negative err_flag for any parse failure while clearing the message buffer. WANT_READ/WANT_WRITE concepts do not exist (the layer is non-blocking by buffer). Minor robustness note: tls_pending dereferences context without a NULL check.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:21 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_peerconnection_remote_credentials",
+      "risk_area": "NULL dereference / API ordering",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed crash: tls_peerconnection_remote_credentials dereferences channel->context->dtls_data (tlse.c:13790) without checking channel->context, and tls_peerconnection_context() does not create a context. Calling the credential setter before tls_peerconnection_connect() produces a NULL-pointer read and SEGV under ASan. Not filed as a vulnerability: the trigger is application call ordering, not remote input, and the library documents no ordering requirement. Recommended hardening: return TLS_GENERIC_ERROR when channel->context is NULL.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:30 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_srtp_key export",
+      "risk_area": "key material export length/boundaries",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control: tls_srtp_key derives exactly (16+14)*2 = 60 bytes into a 60-byte local array and returns that size; the only internal caller _private_dtls_ensure_keys uses an identically sized 60-byte buffer and splits it at 0/16/32/46 (tlse.c:13947-13980), so key and salt boundaries match. Export requires master_key to be set and returns TLS_GENERIC_ERROR otherwise.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:30 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_peerconnection_* DTLS certificate fingerprint check",
+      "risk_area": "remote certificate fingerprint verification",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control: the fingerprint comparison at tlse.c:8743 does strcmp(buffer_data, context->dtls_data->remote_fingerprint) for every parsed certificate when a remote fingerprint was set, and returns TLS_UNSUPPORTED_CERTIFICATE on mismatch, which is fatal to the handshake. The computed value is \"AA:BB:...\" uppercase SHA-256 of the DER. Reviewed the formatting loop: the typo `buf_len -= 2` (instead of buf_len_) cannot overflow the 100-byte buffer because the loop writes at most 95 characters. Residual note: the check is skipped entirely when the application never calls tls_peerconnection_remote_credentials, which is the documented WebRTC model (fingerprint is the only authentication) but leaves authentication to the caller.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:31 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "ServerHello version/cipher/group acceptance",
+      "risk_area": "parameter selection outside the client offer",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Reviewed the client cipher and version gates: a ServerHello version is rejected when it exceeds the offer (VERSION_SUPPORTED plus the downgrade block), supported_versions is only honoured when the client offered TLS 1.3 (tlse.c:8500-8512), the selected cipher is validated with tls_cipher_supported after extensions are parsed (tlse.c:8576) and unknown/unsupported ciphers return TLS_NO_COMMON_CIPHER, and the key_share group is parsed by _private_tls_parse_key_share which rejects unknown groups with TLS_NO_COMMON_CIPHER. A server may select a group the client did not offer (e.g. P-384 after offering P-256), which is a protocol-violation interop issue rather than a security weakness.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:31 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Session resumption and NewSessionTicket handling",
+      "risk_area": "session resumption / ticket handling",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "TLS 1.3 NewSessionTicket handling (case 0x04, tlse.c:9960-9978) validates the ticket and extensions lengths against the payload with CHECK_SIZE and rejects a zero-length ticket. TLS 1.2 session resumption is limited to recording the session_id returned in ServerHello (tlse.c:8232-8243); the state machine still expects the full handshake, so no abbreviated/resumed path is reachable that would skip key establishment. TLS 1.3 session tickets are not used to build a PSK (no pre_shared_key is ever sent), so there is no resumption path at all in 1.3.",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:52 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Alert and close_notify processing",
+      "risk_area": "alert and close-notify handling / truncation detection",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Alert handling (tlse.c:10892-10908) sets critical_error for a fatal alert and peerclosed for close_notify, and tls_consume_stream stops processing once peerclosed. Observed weakness, low impact: close_notify only sets peerclosed, not critical_error, so tls_write still succeeds on a half-closed connection, and a transport close without close_notify is indistinguishable from a clean close at the library boundary (the application must check peerclosed to detect truncation).",
+      "recorded_by": "TLS 1.3, State Machine &amp; STUN/SRTP Auditor",
+      "recorded_at": "2026-11-17 10:55:52 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_consume_stream DTLS fragmented handshake reassembly (tlse.c:12513-12555 / tlse.c:9831-9856)",
+      "risk_area": "Stack buffer overflow via attacker-controlled length field",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Ten DTLS handshake fragments (declared length 32771, fragment length 26215) inflate `fragment->written` to 262150; a 25-byte trigger record with 24-bit length 0 reaches the reassembly memcpy at tlse.c:9847 and writes 6 bytes past the 262156-byte `local_buffer`. ASAN: stack-buffer-overflow WRITE of size 262150; unsanitized build: SIGSEGV with written=327605. Report vuln-0006 filed with a two-part fix, applied and re-verified locally.",
+      "recorded_by": "Static Baseline &amp; Source Map",
+      "recorded_at": "2026-11-17 10:59:19 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_parse_payload stack scratch buffer (tlse.c:9802)",
+      "risk_area": "Stack exhaustion / resource consumption",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "`unsigned char local_buffer[DTLS_MAX_FRAGMENT_SIZE + 12]` at tlse.c:9802 is a 262,156-byte stack frame in tls_parse_payload, allocated on every handshake message including non-DTLS and unfragmented ones. Not attacker-controlled by itself, so no overflow is reachable from it, but it will fault on threads with a small/default stack. Deployment-dependent, so unproven here.",
+      "recorded_by": "Static Baseline &amp; Source Map",
+      "recorded_at": "2026-11-17 10:59:19 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_parse_hello extension parsers (SNI, ALPN, session id, retry cookie)",
+      "risk_area": "Attacker-controlled length feeding memcpy",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "SNI (tlse.c:8378) copies into `TLS_MALLOC(sni_host_len + 1)` with source bounded by `CHECK_SIZE(sni_host_len, extension_len - 5)` at tlse.c:8374; session id (tlse.c:8237) guarded by `session_len <= TLS_MAX_SESSION_ID` at tlse.c:8236; retrycookie (tlse.c:8360) copies into `TLS_MALLOC(extension_len - 2)` sized at tlse.c:8356; ALPN (tlse.c:8445, tlse.c:9792) copies into `TLS_MALLOC(size + 1)` and tlse.c:9790 forces `extensionsize == protocolsize + 3`. Every destination is allocated from the same length that is copied, on the attacker-reachable path.",
+      "recorded_by": "Static Baseline &amp; Source Map",
+      "recorded_at": "2026-11-17 10:59:26 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_parse_message decrypt length arithmetic (tlse.c:10480-10760)",
+      "risk_area": "Integer/width underflow in record length arithmetic",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "The AEAD and ChaCha20-Poly1305 branches compute `pt_length = length - 8 - TLS_GCM_TAG_LEN` / `length - POLY1305_TAGLEN` from an unsigned-short record length; both branches reject the underflow with an explicit `if (pt_length < 0)` before calling gcm_process / chacha_encrypt_bytes (tlse.c:10565 and tlse.c:10634). The 8-byte explicit-nonce read at tlse.c:10562 is guarded by `length < 8` at tlse.c:10487. The CBC branch (tlse.c:10700+) keys `padding_index` off a signed int and gates on `padding_index > 0`, so a padding value larger than the record falls through rather than indexing backwards.",
+      "recorded_by": "Static Baseline &amp; Source Map",
+      "recorded_at": "2026-11-17 10:59:26 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_packet_append growth arithmetic (tlse.c:5305-5330)",
+      "risk_area": "Integer overflow in buffer growth",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "tlse.c:5309-5325 computes `new_len = packet->len + len` as unsigned int with no overflow check; if it wrapped, `new_len <= packet->size` would skip the realloc and the following `memcpy(packet->buf + packet->len, buf, len)` would write `len` bytes into the old buffer. Grepped all 26 call sites: every one passes either a compile-time constant, a crypto output length (<= 512), or a context field sized by a length that was itself already bounded (session_size, retrycookielength, verify_len, sni_len). No caller was found that can pass an attacker-influenced length near 2^32, so the wrap is not demonstrably reachable, but it is also not defended by any call-site invariant.",
+      "recorded_by": "Static Baseline &amp; Source Map",
+      "recorded_at": "2026-11-17 10:59:32 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_import_context length-prefixed deserialization (tlse.c:12757-13000)",
+      "risk_area": "Deserialization length validation bypass",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Candidate was \"the `TLS_IMPORT_CHECK_SIZE` subtraction wraps and lets an oversized length through\". Disproved by reading the full expansion at tlse.c:788: `if (((size) > (buf_size - buf_pos)) || ((buf_pos) > (buf_size)))`. In the wrap case `buf_pos > buf_size`, `buf_size - buf_pos` becomes a value near 2^32, so the first comparison is false for any `unsigned int` size, and the second disjunct `buf_pos > buf_size` then fires and returns NULL after tls_destroy_context. When `buf_pos <= buf_size` there is no wrap and `size > buf_size - buf_pos` is the correct bound. Every element read in tls_import_context (tlse.c:12928 onwards) additionally allocates its destination with TLS_MALLOC of the very length it later copies, so the copies are self-consistent. This specific candidate is closed; the rest of tls_import_context (field-by-field semantic validation) was not exhaustively reviewed.",
+      "recorded_by": "Static Baseline &amp; Source Map",
+      "recorded_at": "2026-11-17 10:59:32 UTC",
+      "updated_at": "2026-11-17 11:01:31 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Pre-auth per-connection buffer growth (message_buffer, handshakebuffer, cached_handshake)",
+      "risk_area": "Unauthenticated memory exhaustion",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Two unbounded per-connection accumulators were identified but not measured: `context->message_buffer_len += buf_len` then TLS_REALLOC at tlse.c:12460-12467 (record reassembly, no ceiling across records), `_private_tls_consume_handshake` accepting a 24-bit `messagesize` up to 16 MiB at tlse.c:10363-10389, and `cached_handshake` growing by TLS_REALLOC(..., new_len) at tlse.c:5510. All are pre-auth on a server. No memory ceiling or connection count limit is enforced in the library itself, so real impact depends on how an embedding server limits connections; not measured dynamically.",
+      "recorded_by": "Static Baseline &amp; Source Map",
+      "recorded_at": "2026-11-17 10:59:39 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "x509.c DER/ASN.1 certificate parser (parse_x509_cert_relaxed, x509.c:11863)",
+      "risk_area": "DER parser memory safety / unbounded recursion",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Tested rather than read: built the flag configuration (-DTLS_FULL_X509, which is what includes x509.c) and fuzzed tls_certificate_parse with 40k mutated real certificates (RSA + EC seeds) under ASan/UBSan. No memory-safety fault, no crash. The parser's controls hold: get_length (x509.c:5630) rejects indefinite length 0x80, rejects non-minimal long forms, bounds every length against the remaining buffer, and every parse_* function re-checks adv_len/parsed before use. Two non-memory conclusions recorded instead: (1) TLS_FULL_X509 is not referenced by any build file and with the flag the TLSCertificate mapping leaves not_before/not_after/SAN/pk unset, so chain validation always fails closed (default_verify=42 for a valid chain) — x509.c is not the production parser; (2) that mapping leaks one buffer per parse (asn1_parse allocates cert->bytes at tlse.c:11359 and tls_certificate_parse overwrites the pointer at tlse.c:11797; measured 869 bytes leaked per certificate) — a low-impact unbounded-growth defect confined to that non-default configuration.",
+      "recorded_by": "X.509 &amp; ASN.1 Validation Auditor",
+      "recorded_at": "2026-11-17 10:59:39 UTC",
+      "updated_at": "2026-11-17 11:04:40 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Repository secrets scan (tlse.c, x509.c, tlse.h, examples)",
+      "risk_area": "Hardcoded secrets",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "gitleaks detect over the tree: \"no leaks found\" (2.2 MB scanned). trufflehog filesystem --no-verification: no output. opengrep generic/secrets produced 5 aws-access-token matches at tlse.c:1723/1731/1739/1747/1755, all of which are the FFDHE 2048/3072/4096/6144/8192 prime hex constants (ffdhe2048..ffdhe8192) matching on substring, not credentials. No PEM private key, API key or token in tlse.c, x509.c or tlse.h.",
+      "recorded_by": "Static Baseline &amp; Source Map",
+      "recorded_at": "2026-11-17 10:59:45 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "libtomcrypt.c and tls_root_ca.h (vendored/data files)",
+      "risk_area": "Manual source review scope",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "Excluded from manual review by task instruction and by nature: libtomcrypt.c is a 35,615-line vendored libtomcrypt amalgamation (third-party crypto: RSA, ECC, AES-GCM/CBC, ChaCha20-Poly1305, hashes, bignum) and tls_root_ca.h is a 3,730-line generated PEM/DER trust-anchor blob. Neither contains TLSe logic; they were kept in the secrets scanner scope only. trivy fs found no dependency manifests in the tree (no lockfile or package manager), so there is no SCA surface either. Reviewing the vendored crypto would be a separate engagement on libtomcrypt, not on TLSe.",
+      "recorded_by": "Static Baseline &amp; Source Map",
+      "recorded_at": "2026-11-17 10:59:45 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "trivy fs scan of /workspace/source",
+      "risk_area": "Dependency / supply-chain CVEs and IaC misconfiguration",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "trivy fs --scanners misconfig over the tree: 0 targets with results, 0 misconfigurations. The vulnerability scanner could not run because the snapshot has no dependency manifest at all (pure C sources, no lockfile, no package manager) and trivy refuses --skip-db-update on a first run while the engagement forbids upstream DB downloads; there is therefore no SCA surface to report. libtomcrypt.c is vendored source, not a versioned package.",
+      "recorded_by": "Static Baseline &amp; Source Map",
+      "recorded_at": "2026-11-17 11:01:11 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "DTLS record path (tls_consume_stream DTLS branch, tls_parse_payload fragment reassembly)",
+      "risk_area": "Fragment reassembly bookkeeping, stack/heap memory corruption from UDP datagrams",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "DTLS 1.2 and 1.3 server targets driven with whole-datagram and per-datagram delivery. Confirmed a pre-auth 327KB stack write past local_buffer (deduplicated to vuln-0006, independently reproduced with a plain-build SIGSEGV) and a distinct 11-byte fragment-header over-read at tlse.c:12516 (vuln-0009).",
+      "recorded_by": "Dynamic Harness &amp; Fuzzing",
+      "recorded_at": "2026-11-17 11:03:13 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_consume_stream / tls_parse_message / tls_parse_payload (TLS)",
+      "risk_area": "Record reassembly, length arithmetic, AEAD/CBC decrypt paths, memory corruption",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Fork-based ASAN fuzzing of tls_consume_stream on server and client contexts for TLS 1.0/1.2/1.3 plus 1-byte-chunk reassembly, seeded with real in-process and OpenSSL handshake flights. Two defects confirmed and filed: zero-length CBC record reads pt[-1] (vuln-0005) and the malformed-certificate memcpy(-1) reached through the handshake (vuln-0001).",
+      "recorded_by": "Dynamic Harness &amp; Fuzzing",
+      "recorded_at": "2026-11-17 11:03:13 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_pem_decode (PEM decoding)",
+      "risk_area": "Parser memory safety on PEM input",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Fuzzed tls_pem_decode (indices 0-3) with the bundled root.pem and generated RSA/ECDSA PEM files as seeds. No crash in the campaign. Separately, other PEM-adjacent parsing was reached through the certificate path, where the only failures were the already-reported DER defect in vuln-0001.",
+      "recorded_by": "Dynamic Harness &amp; Fuzzing",
+      "recorded_at": "2026-11-17 11:03:20 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_import_context / tls_export_context",
+      "risk_area": "Deserialization of length-prefixed context blobs",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Seeded with 12 real serialized contexts produced by tls_export_context (all verified to import successfully, so the fuzzer starts past the header checks) and fuzzed tls_import_context plus an export/import round-trip for ~20k executions. No crash found; the internal TLS_IMPORT_CHECK_SIZE bounds and the buf_len-5 length equality held for every mutation.",
+      "recorded_by": "Dynamic Harness &amp; Fuzzing",
+      "recorded_at": "2026-11-17 11:03:20 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_certificate_chain_is_valid / tls_certificate_verify_signature",
+      "risk_area": "Certificate chain validation and signature verification correctness",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Re-opened: fuzzing alone did not exercise the validation semantics. With locally generated chains, tls_certificate_chain_is_valid_root() accepts a CA:FALSE, keyUsage=digitalSignature certificate as the issuer of a forged leaf (chain_is_valid_root=0, default_verify=no_error), while openssl verify rejects the identical chain with \"invalid CA certificate\" and \"key usage does not include certificate signing\" — filed as vuln-0007. basicConstraints, pathLenConstraint and keyUsage are never parsed (struct TLSCertificate has no field for them). Also found in the same consumers: a stale pk_len/sign_len makes tls_certificate_to_string() dereference NULL (vuln-0010) and the rendering arithmetic overflows the caller's buffer (vuln-0008). Untrusted-root rejection and signature verification themselves are sound (foreign root -> 42; tls_verify_signed_data rejects tampered data, wrong key, unknown OID, SHA1 under policy).",
+      "recorded_by": "X.509 &amp; ASN.1 Validation Auditor",
+      "recorded_at": "2026-11-17 11:03:26 UTC",
+      "updated_at": "2026-11-17 11:04:34 UTC",
+      "previous_outcomes": [
+        "no_issue_found"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_verify_signed_data (tlse.c:11815)",
+      "risk_area": "Signature verification correctness / algorithm downgrade",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Positive and negative controls against real openssl-generated chains and signatures: tls_verify_signed_data accepts a correct RSA/SHA-256 signature (1) and rejects a signature over different data, a signature checked against the wrong certificate, an unknown OID (1.2.3.4), ecdsa-with-SHA256 with an RSA signer, an empty OID, an empty signature, and a valid SHA1 signature (policy=1 rejects MD5/SHA1 at tlse.c:11081). The algorithm comes only from the caller-supplied OID via tls_certificate_set_algorithm(), an unrecognised OID leaves algorithm 0 and _private_tls_hash_len() returns 0, which fails closed at tlse.c:11094. Signature is computed over the caller's data with that algorithm and verified with the signer's public key, so no path returns success without a verification.",
+      "recorded_by": "X.509 &amp; ASN.1 Validation Auditor",
+      "recorded_at": "2026-11-17 11:04:47 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_certificate_valid_subject / tls_certificate_valid_subject_name / tls_default_verify subject check (tlse.c:4342-4510, 13534)",
+      "risk_area": "Hostname/SAN matching (wildcards, embedded NUL, missing SAN)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named controls: (1) tls_default_verify refuses to check a subject when the leaf has no SAN (tlse.c:13544-13546), so a CN-only certificate cannot satisfy hostname matching; (2) _private_tls_certificate_add_subject_name rejects any SAN value containing a NUL or a byte above 127, so the NUL-terminated comparison cannot be truncated and non-ASCII SANs are dropped; (3) tls_certificate_valid_subject_name only honours a wildcard at position 0 followed by \".\" and compares the remainder against the first dot in the requested name with strcasecmp to end-of-string. Tested: example.com -> 255, www.example.com -> 255, EXAMPLE.COM -> 255, a.b.example.com -> 42, evil.com -> 42, example.com. (trailing dot) -> 42, certificate without SAN at all -> 42. IPv4/IPv6 SAN entries (0x87) are matched byte-wise against the parsed literal. No bypass found.",
+      "recorded_by": "X.509 &amp; ASN.1 Validation Auditor",
+      "recorded_at": "2026-11-17 11:04:47 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_certificate_chain_is_valid_root (tlse.c:11250-11306)",
+      "risk_area": "Trust anchor binding, chain building, weak keys, expiry",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Trust anchor checking works: with a root CA generated locally, the legitimate chain [leaf, int] returns chain_is_valid_root=0 and default_verify=no_error; loading only an unrelated root CA for the same chain returns 42 (bad_certificate) at tls_certificate_chain_is_valid_root. A self-signed attacker certificate cannot be chained to a loaded anchor because _private_tls_certificate_verify_signature() must succeed against the anchor's public key (rsa_verify_hash_ex / ecc_verify_hash result is returned directly, 0 on any error). Certificates with a weak key are rejected by _private_tls_certificate_public_key_is_safe() (<2048-bit RSA, <224-bit EC). Expired leaf and expired intermediate were both rejected (the BFS only enqueues an issuer whose signature verified, and each dequeued certificate is date-checked before the anchor match).",
+      "recorded_by": "X.509 &amp; ASN.1 Validation Auditor",
+      "recorded_at": "2026-11-17 11:04:54 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_certificate_is_valid / tls_certificate_set_copy_date (tlse.c:4505-4542, 4560-4579)",
+      "risk_area": "Validity period parsing and enforcement (UTCTime/GeneralizedTime, parse failure handling)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Validity comparison itself is sound but the stored string is wrong: tls_certificate_set_copy_date() allocates len+3, writes \"20\"/\"19\" then the UTCTime, and then writes the NUL at index len instead of len+2 (tlse.c:4575), so a UTCTime of 261117103627Z is stored as \"2026111710362\" — the last two characters are lost. Because the year/month/day/hour/minute digits are intact and strcasecmp stops at the truncation, both comparisons in tls_certificate_is_valid() stay monotonic: an expired certificate still compares as expired and a future notBefore still compares as future (granularity error is at most one digit of seconds, ~10s, and errs toward rejection). GeneralisedTime (tag 0x18) is not parsed at all, which makes not_after NULL and tls_certificate_is_valid() return certificate_unknown, i.e. fail closed. Checked that a parse failure can never be read as valid: every non-8-digit or absent date leaves the pointer NULL and tls_certificate_is_valid() rejects NULL dates at tlse.c:4515-4517.",
+      "recorded_by": "X.509 &amp; ASN.1 Validation Auditor",
+      "recorded_at": "2026-11-17 11:04:54 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_certificate_to_string (tlse.c:4607-4755)",
+      "risk_area": "Out-of-bounds write / NULL dereference while rendering an attacker-supplied certificate",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Two defects confirmed and filed: (a) vuln-0008 — the res += snprintf(buffer+res, len-res, ...) idiom makes len-res negative once the rendered text exceeds the buffer and snprintf then writes past the caller's allocation (ASan heap-buffer-overflow WRITE in a 4095-byte buffer with a certificate carrying a 3001-byte signature BIT STRING); (b) vuln-0010 — a stale pk_len/sign_len next to a NULL pk/sign_key (root cause in tls_certificate_set_key/tls_certificate_set_sign_key) makes the hex loops dereference NULL. Both are driven purely by certificate content, and the bundled example renders a peer certificate into char out_buffer[0xFFF], so the function is reachable with remote input in shipped usage.",
+      "recorded_by": "X.509 &amp; ASN.1 Validation Auditor",
+      "recorded_at": "2026-11-17 11:05:01 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "_private_asn1_parse / asn1_get_len (tlse.c:10891-10930, 11421-11762)",
+      "risk_area": "Length handling, nesting depth, indefinite/huge lengths in the default DER parser",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Reviewed _private_asn1_parse length handling directly: asn1_get_len (tlse.c:10891) bounds the long-form octet count against the remaining buffer, caps lengths at 0x00FFFFFF and returns octets=0 for indefinite length 0x80; the caller then checks octets<=4 and octets<=size-pos before advancing, and CHECK_SIZE(length, size-pos) before any use; pos += length cannot exceed size. The recursion is capped at TLS_ASN1_MAXLEVEL=0xFF with fields[] sized for exactly that. 200k mutation iterations of a real RSA certificate and 40k of an EC certificate produced no memory-safety fault other than the zero-length BIT STRING defect already filed as vuln-0001. Nested/indefinite/huge/negative-length INTEGER and BIT STRING forms, truncated buffers and duplicated chunks were all exercised.",
+      "recorded_by": "X.509 &amp; ASN.1 Validation Auditor",
+      "recorded_at": "2026-11-17 11:05:01 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_certificate_chain_is_valid (tlse.c:11212-11238)",
+      "risk_area": "Chain trust decision (does the public chain API imply trust?)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "tls_certificate_chain_is_valid() deliberately does not consult trust anchors: it checks dates and verifies signatures along the supplied chain only, so a single self-signed certificate returns 0 (measured) and so does a two-certificate chain whose second member has no fingerprint (the `break` at tlse.c:11230). The default verification path is unaffected because tls_default_verify() calls tls_certificate_chain_is_valid_root(), which rejects the same self-signed certificate with 42. Recorded as an API-semantics trap worth documenting rather than a vulnerability: an application that relies on this function alone (as examples/tlslssimple.c does before also calling the rooted variant) would accept any self-signed certificate, but no library code path uses it as a trust decision.",
+      "recorded_by": "X.509 &amp; ASN.1 Validation Auditor",
+      "recorded_at": "2026-11-17 11:06:29 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_load_root_certificates / _private_tls_pem_decode (tlse.c:13487-13528, 4257)",
+      "risk_area": "Trust anchor loading from PEM",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "Not attacker-controlled in the threat model: trust anchors come from operator-supplied PEM (root.pem bundled, or SSL_CTX_root_ca()). Review found the parse path requires version==2 (warning and skip otherwise), strips a private key if one appears in the PEM, and appends to context->root_certificates without a count limit (memory growth is bounded by the file the operator supplies). No input from the network reaches this function; recorded as out of the remote-attacker scope rather than tested for exploitation.",
+      "recorded_by": "X.509 &amp; ASN.1 Validation Auditor",
+      "recorded_at": "2026-11-17 11:06:29 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Server-side client-certificate handling: tls_request_client_certificate / tls_client_verified (tls_parse_payload case 0x0B, TLS 1.2 + 1.3)",
+      "risk_area": "Mutual-TLS authentication bypass (missing client-certificate enforcement)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Fork+socketpair harness over this source: a client with no certificate completes the handshake (established=1, client_verified=0, certs=0, callback never invoked) and receives protected data; a client with a freshly minted self-signed cert and no verification callback gets client_verified=1 and passes a gate that checks the accessor, on both TLS 1.3 and TLS 1.2. Fix (fatal handshake_failure when a requested cert is absent or no callback exists) rebuilt and verified to block both while the CA-signed client still succeeds. Filed as vuln-0011.",
+      "recorded_by": "mTLS Enforcement &amp; DTLS Replay Auditor",
+      "recorded_at": "2026-11-17 11:08:53 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Server handshake with absent or unloadable certificate and private key (tls_load_private_key, tls_build_certificate, tls_build_server_key_exchange)",
+      "risk_area": "Silent credential-load failure leading to a malformed ServerKeyExchange / wrong cipher selection",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Root-caused the earlier decode_error: openssl's default PKCS#8 EC key (\"BEGIN PRIVATE KEY\") is not parsed by tls_load_private_key (returns 0), and tls_is_ecdsa() then reports 0 for an ECDSA certificate, so the server sends an empty Certificate message plus an SKE with no signature; every conformant client aborts (decode_error). With the same key converted to SEC1 (\"BEGIN EC PRIVATE KEY\") the ECDHE-ECDSA handshake completes normally, so this is not a client interop bug. Security impact: none demonstrated - a server without a usable key cannot authenticate itself, so peers always fail the handshake and no bypass or credential exposure results. Robustness defects worth fixing separately: tls_load_private_key fails silently for PKCS#8 EC keys, the server does not abort when no certificate/private key is loaded, and an unsupported EC point format returns 0 (success) from tls_parse_server_key_exchange instead of an error.",
+      "recorded_by": "mTLS Enforcement &amp; DTLS Replay Auditor",
+      "recorded_at": "2026-11-17 11:16:13 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_parse_server_key_exchange (TLS 1.2 client path, tlse.c:8932-9203)",
+      "risk_area": "TLS 1.2 server authentication bypass (unverified ServerKeyExchange signature)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control: tls_parse_server_key_exchange builds client_random||server_random||params (tlse.c:9079-9084) and verifies the signature against the server certificate key, returning TLS_BROKEN_PACKET when it fails (tlse.c:9087-9099). Negative controls run in-process: flipping the last signature byte of a real SKE aborts the handshake for both ECDHE-RSA (consume -> -2, client established=-1) and ECDHE-ECDSA (-2), while the untampered flights complete and carry data; flipping a curve-id byte inside the SKE params is equally rejected. Handshake transcript binding also means any re-derived SKE breaks Finished. The tk observed decode_error after SKE was therefore the client correctly rejecting a malformed message, not a missing check.",
+      "recorded_by": "mTLS Enforcement &amp; DTLS Replay Auditor",
+      "recorded_at": "2026-11-17 11:16:13 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "needs_follow_up",
+      "surface": "TLS 1.2 renegotiation handling",
+      "risk_area": "secure renegotiation enforcement (RFC 5746)",
+      "detail": "The library stores its own Finished verify_data (tlse.c:9357-9368) and sends a renegotiation_info extension (0xff01) when renegotiating (tlse.c:7276-7284), but the extension parser has no case for 0xff01 and no code compares a received renegotiation_info against the stored verify_data. With TLS_ACCEPT_SECURE_RENEGOTIATION enabled, a HelloRequest triggers _private_tls_reset_context and a new ClientHello (tlse.c:9900-9912) without enforcing RFC 5746. Not demonstrated dynamically; the option is not enabled by default."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "TLS 1.3 downgrade protection (server_random DOWNGRD sentinel)",
+      "risk_area": "protocol downgrade protection",
+      "detail": "Server emits the RFC 8446 sentinel (DOWNGRD\\x01 / DOWNGRD\\x00) at tlse.c:7098-7102, but no client code ever compares the received server_random against it: the only sentinel the client checks is the HelloRetryRequest magic value (tlse.c:8218). A client built with TLS_LEGACY_SUPPORT therefore accepts a TLS 1.2 ServerHello after offering 1.3 without noticing the downgrade (tlse.c:8203-8214). Not dynamically demonstrated; impact depends on the legacy build option and on which TLS 1.2 cipher is then selected."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "tls_peerconnection_remote_credentials",
+      "risk_area": "NULL dereference / API ordering",
+      "detail": "Confirmed crash: tls_peerconnection_remote_credentials dereferences channel->context->dtls_data (tlse.c:13790) without checking channel->context, and tls_peerconnection_context() does not create a context. Calling the credential setter before tls_peerconnection_connect() produces a NULL-pointer read and SEGV under ASan. Not filed as a vulnerability: the trigger is application call ordering, not remote input, and the library documents no ordering requirement. Recommended hardening: return TLS_GENERIC_ERROR when channel->context is NULL."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "tls_parse_payload stack scratch buffer (tlse.c:9802)",
+      "risk_area": "Stack exhaustion / resource consumption",
+      "detail": "`unsigned char local_buffer[DTLS_MAX_FRAGMENT_SIZE + 12]` at tlse.c:9802 is a 262,156-byte stack frame in tls_parse_payload, allocated on every handshake message including non-DTLS and unfragmented ones. Not attacker-controlled by itself, so no overflow is reachable from it, but it will fault on threads with a small/default stack. Deployment-dependent, so unproven here."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "tls_packet_append growth arithmetic (tlse.c:5305-5330)",
+      "risk_area": "Integer overflow in buffer growth",
+      "detail": "tlse.c:5309-5325 computes `new_len = packet->len + len` as unsigned int with no overflow check; if it wrapped, `new_len <= packet->size` would skip the realloc and the following `memcpy(packet->buf + packet->len, buf, len)` would write `len` bytes into the old buffer. Grepped all 26 call sites: every one passes either a compile-time constant, a crypto output length (<= 512), or a context field sized by a length that was itself already bounded (session_size, retrycookielength, verify_len, sni_len). No caller was found that can pass an attacker-influenced length near 2^32, so the wrap is not demonstrably reachable, but it is also not defended by any call-site invariant."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Pre-auth per-connection buffer growth (message_buffer, handshakebuffer, cached_handshake)",
+      "risk_area": "Unauthenticated memory exhaustion",
+      "detail": "Two unbounded per-connection accumulators were identified but not measured: `context->message_buffer_len += buf_len` then TLS_REALLOC at tlse.c:12460-12467 (record reassembly, no ceiling across records), `_private_tls_consume_handshake` accepting a 24-bit `messagesize` up to 16 MiB at tlse.c:10363-10389, and `cached_handshake` growing by TLS_REALLOC(..., new_len) at tlse.c:5510. All are pre-auth on a server. No memory ceiling or connection count limit is enforced in the library itself, so real impact depends on how an embedding server limits connections; not measured dynamically."
+    },
+    {
+      "kind": "unrecorded_risk_class",
+      "risk_area": "broken function level authorization",
+      "detail": "Agent(s) mTLS Enforcement &amp; DTLS Replay Auditor were assigned the 'broken_function_level_authorization' skill, but no coverage entry records this class being assessed. Treat it as unexamined, not as clean."
+    },
+    {
+      "kind": "unrecorded_risk_class",
+      "risk_area": "business logic",
+      "detail": "Agent(s) Open-Item Closer (downgrade, renegotiation, pre-auth exhaustion) were assigned the 'business_logic' skill, but no coverage entry records this class being assessed. Treat it as unexamined, not as clean."
+    },
+    {
+      "kind": "unrecorded_risk_class",
+      "risk_area": "information disclosure",
+      "detail": "Agent(s) X.509 &amp; ASN.1 Validation Auditor were assigned the 'information_disclosure' skill, but no coverage entry records this class being assessed. Treat it as unexamined, not as clean."
+    },
+    {
+      "kind": "unrecorded_risk_class",
+      "risk_area": "semantic confusion",
+      "detail": "Agent(s) TLS 1.3, State Machine &amp; STUN/SRTP Auditor were assigned the 'semantic_confusion' skill, but no coverage entry records this class being assessed. Treat it as unexamined, not as clean."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "Open-Item Closer (downgrade, renegotiation, pre-auth exhaustion)",
+      "detail": "Open-Item Closer (downgrade, renegotiation, pre-auth exhaustion) ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "Record Layer &amp; Handshake Parser Auditor",
+      "detail": "Record Layer &amp; Handshake Parser Auditor ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    }
+  ]
+}

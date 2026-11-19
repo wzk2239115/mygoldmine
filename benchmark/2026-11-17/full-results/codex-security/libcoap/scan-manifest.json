@@ -1,0 +1,112 @@
+{
+  "documentType": "codex-security.scan-manifest",
+  "scan": {
+    "artifacts": [
+      {
+        "mediaType": "application/json",
+        "path": "findings.json",
+        "sha256": "2aa68d487271f202c490cbcce93c3caa7f3b2d8e2f32129e8c0d88876550edf2"
+      }
+    ],
+    "completedAt": "2026-11-17T12:41:17.612663Z",
+    "findingsRef": "findings.json",
+    "id": "7b3d1e49-deec-4915-bb10-983e5c2b9711",
+    "mode": "repository",
+    "preservedCheckpointHeads": {
+      ".": "checkpoint-heads/ae35a63553e2878c5d27e65fa97e449024a41627da456a1c07be737ff74ef6d3.json"
+    },
+    "preservedSources": {
+      "checkpoint-heads/ae35a63553e2878c5d27e65fa97e449024a41627da456a1c07be737ff74ef6d3.json": "ae35a63553e2878c5d27e65fa97e449024a41627da456a1c07be737ff74ef6d3",
+      "checkpoints/09453d9ab29f9b0b6cdc90c45bb01fbf74723ef2106f1154dcf0f9d104dab2fd.json": "9e06bfbc1880fd1e5ee2aab3ededf954ac19b6755d9d346d134793f18fd2230b",
+      "checkpoints/7d1b6a8d8896ce584fd6dcbf3ca99da530525d9262544462d8a362532ab2f29a.json": "1a261ece14b32d231f964639deb9264678f45d2c8fc05688bf6c5a456e7c2ff5",
+      "checkpoints/b4a03d8825bd151b35918f3b8eeee6e21ff9b10682f69fa3a4fec0e3c0896431.json": "b4a03d8825bd151b35918f3b8eeee6e21ff9b10682f69fa3a4fec0e3c0896431",
+      "checkpoints/de29fd322189e086d062ceedeb6347e435c02c9b1761b34046895e1f0d2f6089.json": "de29fd322189e086d062ceedeb6347e435c02c9b1761b34046895e1f0d2f6089",
+      "source-order/ce58de0c3ad61298b5019cc576ed31568ad6776291b17ccf8f35dbaea93a2bec.json": "ce58de0c3ad61298b5019cc576ed31568ad6776291b17ccf8f35dbaea93a2bec"
+    },
+    "producer": {
+      "name": "codex-security-plugin",
+      "version": "0.1.95"
+    },
+    "review": {
+      "excludedPaths": []
+    },
+    "scope": {
+      "artifactsReviewed": [
+        "src/coap_ws.c",
+        "src/coap_oscore.c",
+        "src/oscore/oscore_context.c",
+        "src/oscore/oscore.c",
+        "src/oscore/oscore_cbor.c",
+        "src/coap_block.c",
+        "src/coap_pdu.c",
+        "src/coap_net.c",
+        "src/coap_str.c",
+        "src/coap_io.c",
+        "src/coap_session.c",
+        "include/coap3/coap_oscore.h",
+        "include/coap3/coap_block.h",
+        "include/coap3/coap_ws_internal.h"
+      ],
+      "context": "Repository-wide review at the supplied snapshot. The checkout is grafted, so history-based diffing was unavailable and the current source was treated as authoritative. Network-reachable parsers and protocol state machines were prioritized.",
+      "excludePaths": [],
+      "includePaths": [
+        "."
+      ],
+      "limitations": [
+        "No compiler, sanitizer, or dynamic target execution was available; findings are established by source review and attack-path tracing.",
+        "Several findings require non-default application configuration: an external OSCORE credential callback that returns multiple recipients, RFC 8613 Appendix B.2 mode, or server-side Block1 single-body/Q-Block reassembly.",
+        "The pdu_408_build payload-marker write and the Uri-Path-Abbrev retransmit body loss were reviewed but are not reported as findings: the former is not reachable together with the mandatory Q-Block options on the default UDP PDU size, and the latter is a correctness defect without a demonstrated security boundary."
+      ],
+      "runtimeStatus": "not_executed",
+      "summary": "Repository-wide static review of libcoap 4.3.5 (revision a4de0fae) covering CoAP PDU and option parsing, WebSocket framing and close, block-wise Block1/Q-Block reassembly, OSCORE decryption and external credential lookup, Appendix B.1.2/B.2 state, and URI/proxy handling. Six source-backed findings identify the attacker path and the deployment conditions required for impact.",
+      "validationMode": "Static source review, boundary and arithmetic analysis, and source-backed attack-path tracing; no execution of the target."
+    },
+    "sealedAt": "2026-11-17T12:41:17.612663Z",
+    "startedAt": "2026-11-17T11:44:27.734215Z",
+    "status": "completed",
+    "target": {
+      "displayName": "libcoap",
+      "kind": "git_worktree",
+      "revision": "a4de0faea54d3d548924c8b9f6e67b72a36cbac3",
+      "snapshotDigest": "codex-security-snapshot/v1:sha256:868747fbdfeec18f41a2ef392ede1963b4708eed591631e4cc97641062afea81",
+      "targetId": "target_sha256_10d44786099544bad5e59dc28ec6d0ce22ef0b2de457760f5a3f7ca967c2165d"
+    },
+    "threatModel": {
+      "assets": [
+        "Integrity and confidentiality of CoAP resources, request and response bodies, and OSCORE or DTLS/TLS-protected content",
+        "Process memory and control flow of applications embedding libcoap",
+        "Availability of CoAP servers, clients, proxies, and resource-directory services",
+        "Credentials and key material used by DTLS/TLS, OSCORE, PSK, PKI, and configuration paths",
+        "CoAP endpoint identity, token and request correlation, block-wise reassembly, observe state, and proxy routing decisions"
+      ],
+      "assumptions": [
+        "Network-facing library code is reachable wherever an application exposes a CoAP listener; endpoint configuration and credentials are application policy.",
+        "The current snapshot is the authorized release source; previous commits are not available for comparison because the checkout is grafted.",
+        "A denial-of-service finding requires a source-backed repeatable trigger with meaningful service impact, not merely an error path."
+      ],
+      "attackerCapabilities": [
+        "Send arbitrary CoAP datagrams or streams, including malformed headers, options, token lengths, block options, observe operations, and bodies",
+        "Control message size, option repetition and order, extended option widths and deltas, URI paths, content-format values, and block-wise state",
+        "Potentially hold a valid DTLS/TLS/PSK/OSCORE identity and send authenticated but otherwise adversarial messages",
+        "Supply malicious responses to clients, or interact with proxies and resource-directory endpoints where enabled",
+        "Cannot assume operator-level configuration changes, local filesystem access, or access to private keys unless source evidence establishes them"
+      ],
+      "securityObjectives": [
+        "Reject malformed or oversized wire input without out-of-bounds access, integer overflow, uncontrolled allocation, or persistent resource exhaustion",
+        "Preserve message parsing and protocol state isolation across peers and concurrent requests",
+        "Enforce authenticated-message integrity and the intended scope of OSCORE, DTLS, and TLS protections",
+        "Prevent untrusted URIs, proxy targets, persistence input, or cache keys from escaping expected resource boundaries",
+        "Avoid disclosing usable credentials or private keys through source-distributed files"
+      ],
+      "summary": "libcoap is a C implementation of CoAP used as a library and through example clients and servers. It parses UDP, TCP, TLS/DTLS, and WebSocket traffic; decodes options and bodies; implements block-wise transfer, observe, caching, proxying, persistence, and OSCORE. Network peers control packets and metadata, while applications choose resources, authentication, and deployment exposure. The critical invariant is that untrusted wire data must be length-checked and bounded before it reaches indexes, arithmetic, copies, allocations, formatting, or protocol state transitions.",
+      "trustBoundaries": [
+        "Unauthenticated or authenticated network peers to UDP/TCP/WS listeners and client response processing",
+        "DTLS/TLS/OSCORE authenticated content versus plaintext parsing and error-reporting paths",
+        "CoAP wire message and option encoding to internal parsed PDU structures and application callbacks",
+        "Client, server, and proxy application layer to filesystem persistence, resource-directory records, and configured credentials",
+        "Test and fuzz harnesses from production library paths; fixtures demonstrate parser behavior but are not themselves deployed services"
+      ]
+    }
+  },
+  "schemaVersion": "1.0"
+}

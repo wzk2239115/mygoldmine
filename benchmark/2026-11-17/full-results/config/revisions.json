@@ -1,0 +1,37 @@
+[
+  {
+    "name": "targets/sol",
+    "repository": "codepr/sol",
+    "commit": "373d84877d22031b45a7f3599297f691eab09230"
+  },
+  {
+    "name": "targets/pure-ftpd",
+    "repository": "jedisct1/pure-ftpd",
+    "commit": "b64c56dc81bc4a7fa5d09d76afa59012ca5509a6"
+  },
+  {
+    "name": "targets/libcoap",
+    "repository": "obgm/libcoap",
+    "commit": "a4de0faea54d3d548924c8b9f6e67b72a36cbac3"
+  },
+  {
+    "name": "targets/tlse",
+    "repository": "eduardsui/tlse",
+    "commit": "25be48a4f0176b7242d8c5955fc325e92b487838"
+  },
+  {
+    "name": "tools/strix",
+    "repository": "usestrix/strix",
+    "commit": "1152d53579d5b3af37ada8c798f197ab093b99c6"
+  },
+  {
+    "name": "tools/claude-code-security-review",
+    "repository": "anthropics/claude-code-security-review",
+    "commit": "0c6a49f1fa56a1d472575da86a94dbc1edb78eda"
+  },
+  {
+    "name": "tools/RepoAudit",
+    "repository": "PurCL/RepoAudit",
+    "commit": "160f5bcd378a02a2417e32e999f93ef5fa0f5e64"
+  }
+]

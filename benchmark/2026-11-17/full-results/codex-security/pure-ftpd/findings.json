@@ -1,0 +1,532 @@
+{
+  "documentType": "codex-security.findings",
+  "findings": [
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "Four bytes of stale stack are rendered in the client-visible reply",
+          "sink": "getnameinfo() and addreply(500, MSG_NO_FXP, hbuf, peerbuf)",
+          "source": "EPRT command argument",
+          "summary": "The client-controlled EPRT address is parsed into a partially initialized sockaddr_storage. The FXP mismatch branch formats that structure and returns the formatted host in the 500 reply."
+        },
+        "reachability": {
+          "attacker": "Authenticated FTP client, including an anonymous client when anonymous access is enabled",
+          "entrypoint": "EPRT |2|<IPv6 address>|<port>|",
+          "outcome": "The client receives a 500 response containing the formatted address and uninitialized scope suffix",
+          "preconditions": [
+            "The server is built with IPv6 support (v6ready is true)",
+            "The client is logged in",
+            "The supplied IPv6 address differs from the control-connection peer so the mismatch branch runs"
+          ],
+          "sink": "src/ftpd.c:2335-2347",
+          "source": "src/ftp_parser.c:465 dispatches eprt to doeprt()"
+        },
+        "steps": [
+          "Authenticate to the FTP service.",
+          "Send EPRT |2|2001:db8::1|1025| (or another address different from the peer).",
+          "Observe the 500 I won't open a connection reply.",
+          "Repeat the request, optionally after shaping the command buffer, and compare the synthetic %N scope suffixes."
+        ]
+      },
+      "codeEvidence": [
+        {
+          "code": "static void do_ipv6_port(char *p, char delim)\n{\n    char *deb;\n    struct sockaddr_storage a;",
+          "endLine": 842,
+          "explanation": "The local sockaddr_storage is not zeroed before the IPv6 address is parsed.",
+          "id": "eprt-storage",
+          "label": "Uninitialized IPv6 address storage",
+          "language": "c",
+          "path": "src/ftpd.c",
+          "role": "source",
+          "startLine": 838
+        },
+        {
+          "code": "static int generic_aton(const char *src, struct sockaddr_storage *a)\n{\n    if (inet_pton(AF_INET6, src, &STORAGE_SIN_ADDR6(*a)) > 0) {\n        STORAGE_FAMILY(*a) = AF_INET6;\n        return 0;\n    }\n    if (inet_pton(AF_INET, src, &STORAGE_SIN_ADDR(*a)) > 0) {\n        STORAGE_FAMILY(*a) = AF_INET;\n        return 0;\n    }\n    memset(a, 0, sizeof *a);\n\n    return -1;\n}",
+          "endLine": 588,
+          "explanation": "Successful parsing sets only the address family and address bytes; sin6_flowinfo and sin6_scope_id remain untouched.",
+          "id": "generic-aton-partial-init",
+          "label": "Partial sockaddr initialization",
+          "language": "c",
+          "path": "src/ftpd.c",
+          "role": "transformation",
+          "startLine": 575
+        },
+        {
+          "code": "    if (generic_aton(deb, &a) != 0) {\n        goto nope;\n    }\n    doport2(a, (unsigned int) port);",
+          "endLine": 865,
+          "explanation": "The uninitialized structure is copied into the data-connection decision path.",
+          "id": "eprt-call",
+          "label": "EPRT parser calls the partial initializer",
+          "language": "c",
+          "path": "src/ftpd.c",
+          "role": "transformation",
+          "startLine": 862
+        },
+        {
+          "code": "        if (getnameinfo((struct sockaddr *) &a, STORAGE_LEN(a),\n                        hbuf, sizeof hbuf, NULL,\n                        (size_t) 0U, NI_NUMERICHOST) != 0 ||\n            getnameinfo((struct sockaddr *) &peer, STORAGE_LEN(peer),\n                        peerbuf, sizeof peerbuf, NULL,\n                        (size_t) 0U, NI_NUMERICHOST) != 0) {\n            goto hu;\n        }\n        if (allowfxp == 0 || (allowfxp == 1 && guest != 0)) {\n            hu:\n            (void) close(datafd);\n            datafd = -1;\n            addreply(500, MSG_NO_FXP, hbuf, peerbuf);",
+          "endLine": 2347,
+          "explanation": "When the supplied address differs from the peer, getnameinfo formats it and the 500 reply sends the result to the client.",
+          "id": "getnameinfo-reply",
+          "label": "Scope ID reaches the numeric-host response",
+          "language": "c",
+          "path": "src/ftpd.c",
+          "role": "sink",
+          "startLine": 2335
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The uninitialized declaration, the partial initializer, and the getnameinfo reply path are all visible in the source. Local glibc behavior check shows a nonzero sin6_scope_id appears as a %N suffix."
+      },
+      "findingId": "csf_2c5d2d0b63eeb94ba1ce7fe7",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:5eb9940d5a083ca57ef21a251031a644a7227055fc5c9aecfeec85dfb926d570"
+      },
+      "identity": {
+        "anchor": "eprt-ipv6-uninitialized-scope-id"
+      },
+      "locations": [
+        {
+          "endLine": 866,
+          "path": "src/ftpd.c",
+          "role": "source",
+          "startLine": 838
+        },
+        {
+          "endLine": 588,
+          "path": "src/ftpd.c",
+          "role": "transformation",
+          "startLine": 575
+        },
+        {
+          "endLine": 2352,
+          "path": "src/ftpd.c",
+          "role": "sink",
+          "startLine": 2305
+        }
+      ],
+      "occurrenceId": "occ_ddfe7b46af20d808ae12927d",
+      "preventiveControls": [
+        "Use a single address-construction helper that always zeroes sockaddr_storage before filling it.",
+        "Add a source-level regression test or compiler sanitizer run for EPRT IPv6 mismatch handling."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Zero the sockaddr_storage before generic_aton() in do_ipv6_port(), as the IPv4 EPRT and PORT paths already do: memset(&a, 0, sizeof a). More generally, initialize every stack sockaddr structure at declaration and keep address construction in one helper that initializes the complete structure.",
+      "remediationTests": [
+        "Build with a nonzero sin6_scope_id left in a poisoned stack and verify EPRT mismatch replies contain no %N suffix.",
+        "Send EPRT |2|2001:db8::1|1025| after stack-shaping commands and confirm the reply is identical to the plain numeric address."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "eprt-storage",
+          "generic-aton-partial-init",
+          "getnameinfo-reply"
+        ],
+        "summary": "The IPv6 EPRT path serializes a sockaddr_storage without initializing fields that getnameinfo reads. The successful generic_aton() branch never clears the structure, unlike the IPv4 paths that call memset first."
+      },
+      "ruleId": "memory-safety.ipv6-eprt-uninitialized-scope-id",
+      "severity": {
+        "changeConditions": "Raise to Medium or High if the leaked words are shown to contain ASLR-relevant pointers, credentials, or other sensitive data, or if repeated disclosure enables a practical memory-corruption bypass. Lower if the platform does not format scope IDs or the storage is initialized by the compiler.",
+        "level": "low",
+        "rationale": "The attacker must authenticate and can read only four bytes of uninitialized stack per EPRT. That crosses a memory-confidentiality boundary, but no direct access to credentials or host data is established."
+      },
+      "summary": "An authenticated FTP client can send an IPv6 EPRT for an address different from its control connection. do_ipv6_port() passes an uninitialized sockaddr_storage to generic_aton(), which initializes only the family and address bytes. doport2() then formats the structure with getnameinfo() in the FXP-denial reply; glibc appends the uninitialized sin6_scope_id as a %N suffix, leaking four bytes of stale stack per request.",
+      "taxonomy": {
+        "category": "uninitialized-memory-disclosure",
+        "cwe": [
+          "CWE-457",
+          "CWE-200"
+        ]
+      },
+      "title": "IPv6 EPRT error reply discloses uninitialized stack memory",
+      "validation": {
+        "counterEvidence": [
+          "The reply only exposes the suffix on libc implementations that render a nonzero IPv6 scope ID.",
+          "The value is not guaranteed to contain a pointer or credential; its security value depends on the stale stack contents.",
+          "No compiled server was available to run the full EPRT exchange."
+        ],
+        "evidence": [
+          "python3 socket.getnameinfo(('2001:db8::1', 0, 0, 3724148534), socket.NI_NUMERICHOST) returns ('2001:db8::1%3724148534', '0')",
+          "src/ftpd.c:842 declares struct sockaddr_storage a without memset",
+          "src/ftpd.c:577-579 sets only the IPv6 address and family on success",
+          "src/ftpd.c:2335-2347 passes the structure to getnameinfo and formats the 500 reply"
+        ],
+        "limitations": [
+          "No runtime server build was available",
+          "The exact leaked word varies with process history and compiler layout"
+        ],
+        "method": "Static source review plus a local glibc getnameinfo behavior check",
+        "status": "validated",
+        "summary": "Source review confirms the uninitialized field reaches getnameinfo. A local Python socket.getnameinfo call with a nonzero scope ID returned the host name with a %N suffix, matching the disclosed bytes' rendering."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "The virtual user authenticates from the denied IPv6 address",
+          "sink": "pw_puredb_parseline() and access_ip_check()",
+          "source": "Administrator-configured pure-pw -R '::1/128' or -I '::1/128'",
+          "summary": "An IPv6 deny rule is serialized with unescaped colons into a colon-delimited record. The PureDB parser maps the fragments to empty fields, and access_ip_check() permits the connection."
+        },
+        "reachability": {
+          "attacker": "Remote FTP client that has valid credentials for the affected virtual user",
+          "entrypoint": "USER/PASS login from the denied IPv6 address",
+          "outcome": "Login succeeds despite the configured IPv6 deny rule",
+          "preconditions": [
+            "The daemon uses the PureDB authentication backend",
+            "A virtual user was created with a literal IPv6 -R or -I deny rule",
+            "The attacker knows that user's password"
+          ],
+          "sink": "src/log_puredb.c:412-437",
+          "source": "PureDB record created by pure-pw and loaded with -l puredb:<db>"
+        },
+        "steps": [
+          "Create a PureDB virtual user with pure-pw useradd user ... -R '::1/128'.",
+          "Build the database with pure-pw mkdb and start pure-ftpd with -l puredb:<db>.",
+          "Connect from ::1 with the valid account and password.",
+          "Observe login success even though the deny rule was intended to reject ::1."
+        ]
+      },
+      "codeEvidence": [
+        {
+          "code": "#ifndef PW_LINE_SEP\n# define PW_LINE_SEP \":\"\n#endif",
+          "endLine": 38,
+          "explanation": "The record format uses a colon as its field separator.",
+          "id": "line-separator",
+          "label": "PureDB record delimiter",
+          "language": "c",
+          "path": "src/pure-pw.h",
+          "role": "control",
+          "startLine": 36
+        },
+        {
+          "code": "    if (pwinfo->allow_local_ip != NULL) {\n        fprintf(fp2, \"%s\", pwinfo->allow_local_ip);   /* allowed local ip */\n    }\n    if (fprintf(fp2, PW_LINE_SEP) < 0) {\n        return -1;\n    }\n    if (pwinfo->deny_local_ip != NULL) {\n        fprintf(fp2, \"%s\", pwinfo->deny_local_ip);    /* denied local ip */\n    }\n    if (fprintf(fp2, PW_LINE_SEP) < 0) {\n        return -1;\n    }\n    if (pwinfo->allow_client_ip != NULL) {\n        fprintf(fp2, \"%s\", pwinfo->allow_client_ip);  /* allowed client ip */\n    }\n    if (fprintf(fp2, PW_LINE_SEP) < 0) {\n        return -1;\n    }\n    if (pwinfo->deny_client_ip != NULL) {\n        fprintf(fp2, \"%s\", pwinfo->deny_client_ip);   /* denied client IP */\n    }",
+          "endLine": 731,
+          "explanation": "IPv6 literals are not escaped or rejected, and the record separator is emitted immediately after each rule.",
+          "id": "deny-rule-write",
+          "label": "Deny rule written verbatim",
+          "language": "c",
+          "path": "src/pure-pw.c",
+          "role": "source",
+          "startLine": 710
+        },
+        {
+          "code": "char *pure_strtok2(char **cursor, const char delim)\n{\n    char *str;\n    char *end;\n\n    if (cursor == NULL || (str = *cursor) == NULL) {\n        return NULL;\n    }\n    end = str;\n    while (*end != 0 && *end != delim) {\n        end++;\n    }\n    if (*end == delim) {\n        *end = 0;\n        *cursor = end + 1;\n    } else {\n        *cursor = NULL;\n    }\n\n    return str;\n}",
+          "endLine": 79,
+          "explanation": "Every colon in an IPv6 literal terminates a field; there is no quoting or escaping.",
+          "id": "single-char-tokenizer",
+          "label": "Single-character tokenization",
+          "language": "c",
+          "path": "src/utils.c",
+          "role": "transformation",
+          "startLine": 59
+        },
+        {
+          "code": "    if ((line = pure_strtok2(&cursor, *PW_LINE_SEP)) == NULL) {   /* allowed local ip */\n        return 0;\n    }\n    allow_local_ip = line;\n    if ((line = pure_strtok2(&cursor, *PW_LINE_SEP)) == NULL) {   /* denied local ip */\n        return 0;\n    }\n    deny_local_ip = line;\n    if ((line = pure_strtok2(&cursor, *PW_LINE_SEP)) == NULL) {   /* allowed remote ip */\n        return 0;\n    }\n    allow_remote_ip = line;\n    if ((line = pure_strtok2(&cursor, *PW_LINE_SEP)) == NULL) {   /* denied remote ip */\n        return 0;\n    }\n    deny_remote_ip = line;\n    if (access_ip_check(sa, allow_local_ip, deny_local_ip) != 0 ||\n        access_ip_check(peer, allow_remote_ip, deny_remote_ip) != 0) {\n        return -1;\n    }\n    if ((line = pure_strtok2(&cursor, *PW_LINE_SEP)) == NULL) {   /* time restrictions */\n        return 0;\n    }\n    time_restrictions = line;\n    if (time_restrictions_check(time_restrictions) != 0) {\n        return -1;\n    }",
+          "endLine": 437,
+          "explanation": "The parser assigns deny fields positionally and stops after the time field; a shifted IPv6 fragment is ignored.",
+          "id": "positional-parse",
+          "label": "Positional IP-rule parse",
+          "language": "c",
+          "path": "src/log_puredb.c",
+          "role": "sink",
+          "startLine": 412
+        },
+        {
+          "code": "    if (*allow == 0) {\n        if (*deny == 0) {\n            return 0;\n        }\n        if (access_ip_match(sa, deny) != 0) {\n            return -1;\n        }\n        return 0;\n    }\n    if (*deny == 0) {\n        if (access_ip_match(sa, allow) == 1) {\n            return 0;\n        }\n        return -1;\n    }",
+          "endLine": 237,
+          "explanation": "When both parsed fields are empty, access_ip_check() immediately allows the address.",
+          "id": "empty-deny-allows",
+          "label": "Empty rules permit access",
+          "language": "c",
+          "path": "src/log_puredb.c",
+          "role": "control",
+          "startLine": 225
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The record separator, the verbatim deny-rule write, the single-character tokenizer, the positional parser, and the empty-field allow behavior are all directly visible. The emitted field layout was reproduced with the exact separator sequence."
+      },
+      "findingId": "csf_3293fd73a622706a2d623cbb",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:9d34a039be5d3793e6bd747807b6654aac1b27e8be4fc38e8549bdba88d08b18"
+      },
+      "identity": {
+        "anchor": "puredb-ipv6-deny-rule-bypass"
+      },
+      "locations": [
+        {
+          "endLine": 38,
+          "path": "src/pure-pw.h",
+          "role": "control",
+          "startLine": 36
+        },
+        {
+          "endLine": 731,
+          "path": "src/pure-pw.c",
+          "role": "source",
+          "startLine": 710
+        },
+        {
+          "endLine": 79,
+          "path": "src/utils.c",
+          "role": "transformation",
+          "startLine": 59
+        },
+        {
+          "endLine": 437,
+          "path": "src/log_puredb.c",
+          "role": "sink",
+          "startLine": 412
+        },
+        {
+          "endLine": 249,
+          "path": "src/log_puredb.c",
+          "role": "control",
+          "startLine": 219
+        }
+      ],
+      "occurrenceId": "occ_2b739259e9dad1bd7ae473e5",
+      "preventiveControls": [
+        "Use one serializer/parser pair for PureDB records and reject any field value containing the separator.",
+        "Prefer an unambiguous encoding for network-policy fields and validate CIDR syntax before persistence."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Do not store unescaped IP-rule text in a single-character-delimited record. Reject colons in IPv4/IPv6 rule fields, encode each field (for example base64 or a length prefix), or split the record with a parser that understands bracketed IPv6 literals. Make the parser fail closed when extra fields or malformed CIDR widths appear, and validate IPv6 CIDRs before writing the PureDB record.",
+      "remediationTests": [
+        "Add a regression test that creates a user with -R '::1/128', rebuilds the database, and verifies a login from ::1 is denied.",
+        "Add equivalent tests for -I '::1/128', -r '::1/128', and -i '::1/128'.",
+        "Assert that records containing an unexpected extra field are rejected rather than silently treated as unrestricted."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "line-separator",
+          "deny-rule-write",
+          "single-char-tokenizer",
+          "positional-parse",
+          "empty-deny-allows"
+        ],
+        "summary": "The PureDB wire format uses an unescaped colon separator while IPv6 literals themselves contain colons. deny_local_ip and deny_client_ip are written verbatim, so their colons create empty positional fields; access_ip_check() sees no rule and permits the login."
+      },
+      "ruleId": "authorization.puredb-ipv6-deny-rule-bypass",
+      "severity": {
+        "changeConditions": "Raise to Medium or High if the affected virtual account is administrative, can access sensitive data, or the IPv6 deny rule is the only compensating control. Lower if an independent firewall or upstream ACL enforces the same restriction.",
+        "level": "low",
+        "rationale": "The configuration boundary is real: an administrator's IPv6 deny rule is bypassed. The attacker still needs valid credentials, and the reviewed evidence does not show a privileged account or a sole control protecting highly sensitive data."
+      },
+      "summary": "pure-pw writes deny-client and deny-local IP rules verbatim into a colon-delimited PureDB record. An IPv6 literal contains colons, so the parser splits the rule into extra fields before access_ip_check(). For -R '::1/128' and -I '::1/128', the deny fields become empty and login is permitted; the intended deny policy is never enforced.",
+      "taxonomy": {
+        "category": "authorization-policy-bypass",
+        "cwe": [
+          "CWE-863"
+        ]
+      },
+      "title": "PureDB IPv6 deny rules are silently discarded by colon-delimited record parsing",
+      "validation": {
+        "counterEvidence": [
+          "The user must already know a valid virtual-user password.",
+          "IPv4 rules and hostname rules do not contain the separator and work normally.",
+          "The -r/-i allow variants are not bypasses; their shifted value reaches the time field and can fail closed.",
+          "No compiler was available to run the full pure-pw/pure-ftpd reproduction."
+        ],
+        "evidence": [
+          "Exact separator layout for -R '::1/128' produces ':::::::::::::1/128:' after the quota fields.",
+          "src/log_puredb.c:412-431 reads allow_local, deny_local, allow_remote, deny_remote positionally.",
+          "src/log_puredb.c:225-232 returns 0, allowing access, when both allow and deny are empty."
+        ],
+        "limitations": [
+          "Deployment must use the PureDB backend and an IPv6 literal deny rule",
+          "No runtime server build was available"
+        ],
+        "method": "Static source review and field-layout reproduction",
+        "status": "validated",
+        "summary": "For -R '::1/128', the emitted record places '::1/128' after four empty IP fields. Tokenization yields empty allow/deny fields and a trailing '1/128' fragment after the parser's time field; access_ip_check() therefore allows the address. The -I path is equivalent for the local-IP deny field."
+      }
+    },
+    {
+      "attackPath": {
+        "dataflow": {
+          "outcome": "Dot-directory entries and dot-file metadata are disclosed despite -X",
+          "sink": "donlst(), domlsd(), domdtm(), and dosize()",
+          "source": "NLST/MLSD/MLST/MDTM/SIZE command argument",
+          "summary": "A client-supplied path such as .ssh is passed to chdir()/readdir() or stat() without the dot_read_ok check. The resulting names and metadata are sent to the client."
+        },
+        "reachability": {
+          "attacker": "Authenticated FTP user",
+          "entrypoint": "NLST .ssh, MLSD .ssh, MLST .ssh/known_hosts, SIZE .ssh/known_hosts, or MDTM .ssh/known_hosts",
+          "outcome": "The client receives names or metadata that -X was intended to hide",
+          "preconditions": [
+            "The server is started with -X (dot_read_ok = 0)",
+            "The user is authenticated",
+            "A dot-file or dot-directory exists in the permitted namespace"
+          ],
+          "sink": "src/ls.c:981-1110 and src/ftpd.c:4469-4512",
+          "source": "src/ftp_parser.c:626-658 and 788-791"
+        },
+        "steps": [
+          "Authenticate to an instance running with -X.",
+          "Send NLST .ssh or MLSD .ssh and read the data connection.",
+          "Send MLST .ssh/known_hosts, SIZE .ssh/known_hosts, or MDTM .ssh/known_hosts to obtain metadata.",
+          "Compare with RETR or CWD .ssh, which is rejected by checknamesanity()."
+        ]
+      },
+      "codeEvidence": [
+        {
+          "code": "static int checknamesanity(const char *name, int dot_ok)\n{\n    const char *namepnt;\n\n    if (name == NULL || *name == 0) {\n        return -1;\n    }\n    /* optimize . and .. */\n    if (name[0] == '.' && (name[1] == 0 || (name[1] == '.' && name[2] == 0))) {\n        return 0;\n    }\n    namepnt = name;\n    while (*namepnt != 0) {\n        if (ISCTRLCODE(*namepnt) || *namepnt == '\\\\') {\n            return -1;\n        }\n        if (dot_ok == 0) {\n            if (*namepnt == '/') {\n                namepnt++;\n            } else if (namepnt != name) {\n                namepnt++;\n                continue;\n            }\n            if (namepnt[0] == 0) {\n                return 0;\n            }\n            if (namepnt[0] == '.') {\n                if (namepnt[1] == 0) {\n                    return 0;\n                }\n                if (namepnt[1] == '.') {\n                    if (namepnt[2] == 0) {\n                        return 0;\n                    }\n                    if (namepnt[2] != '/') {\n                        return -1;\n                    }\n                } else if (namepnt[1] != '/') {\n                    return -1;\n                }\n            }\n            if (namepnt != name) {\n                continue;\n            }\n        }\n        namepnt++;\n    }\n    return 0;\n}",
+          "endLine": 814,
+          "explanation": "This is the control that rejects dot-file path components when dot_read_ok is zero.",
+          "id": "dot-policy-control",
+          "label": "Existing dot-read control",
+          "language": "c",
+          "path": "src/ftpd.c",
+          "role": "control",
+          "startLine": 761
+        },
+        {
+          "code": "void donlst(const char *base)\n{\n    char           line[PATH_MAX + 3U];\n    DIR           *dir;\n    void          *tls_fd = NULL;\n    struct dirent *de;\n    size_t         name_len;\n    unsigned int   matches = 0;\n    int            c;\n    int            base_has_trailing_slash = 0;\n\n    if (*base != 0 && chdir(base) != 0) {\n        if (*base++ == '-') {\n            while (*base != 0 && !isspace((unsigned char) *base++));\n            while (*base != 0 && isspace((unsigned char) *base++));\n            if (*base != 0 && chdir(base) != 0) {\n                addreply_noformat(550, MSG_STAT_FAILURE2);\n                return;\n            }\n        } else {\n            addreply_noformat(550, MSG_STAT_FAILURE2);\n            return;\n        }\n    }\n    if ((dir = opendir(\".\")) == NULL) {\n        addreply_noformat(550, MSG_STAT_FAILURE2);\n        goto bye;\n    }\n    while ((de = readdir(dir)) != NULL) {\n        if (checkprintable(de->d_name) != 0) {\n            continue;\n        }\n        name_len = strlen(de->d_name);\n        if (name_len > sizeof line - 3U) {\n            continue;\n        }\n        memcpy(line, de->d_name, name_len);\n        line[name_len] = '\\r';\n        line[name_len + 1] = '\\n';\n        line[name_len + 2] = 0;\n        wrstr(c, tls_fd, line);\n        matches++;\n        if (matches >= max_ls_files) {\n            break;\n        }\n    }",
+          "endLine": 1046,
+          "explanation": "donlst() changes into the requested directory and sends every printable entry, including dot entries.",
+          "id": "nlst-sink",
+          "label": "NLST lists without the policy check",
+          "language": "c",
+          "path": "src/ls.c",
+          "role": "sink",
+          "startLine": 981
+        },
+        {
+          "code": "void domlsd(const char *base)\n{\n    char           line[PATH_MAX + 1];\n    DIR           *dir = NULL;\n    void          *tls_fd = NULL;\n    struct dirent *de;\n    unsigned int   matches = 0;\n    int            c;\n\n    if (*base != 0 && chdir(base) != 0) {\n        if (*base++ == '-') {\n            while (*base != 0 && !isspace((unsigned char) *base++));\n            while (*base != 0 && isspace((unsigned char) *base++));\n            if (*base != 0 && chdir(base) != 0) {\n                addreply_noformat(550, MSG_STAT_FAILURE2);\n                return;\n            }\n        } else {\n            addreply_noformat(550, MSG_STAT_FAILURE2);\n            return;\n        }\n    }\n    if ((dir = opendir(\".\")) == NULL) {\n        addreply_noformat(550, MSG_STAT_FAILURE2);\n        goto bye;\n    }\n    while ((de = readdir(dir)) != NULL) {\n        if (checkprintable(de->d_name) != 0 ||\n            modernformat(de->d_name, line, sizeof line, \"\") < 0) {\n            continue;\n        }\n        wrstr(c, tls_fd, line);\n        wrstr(c, tls_fd, \"\\r\\n\");\n        matches++;\n        if (matches >= max_ls_files) {\n            break;\n        }\n    }",
+          "endLine": 1110,
+          "explanation": "domlsd() has no checknamesanity() call and formats every entry as a machine-readable listing record.",
+          "id": "mlsd-sink",
+          "label": "MLSD lists without the policy check",
+          "language": "c",
+          "path": "src/ls.c",
+          "role": "sink",
+          "startLine": 1062
+        },
+        {
+          "code": "void domdtm(const char *name)\n{\n    struct stat st;\n    struct tm *t;\n\n    if (!name || !*name) {\n        addreply_noformat(501, MSG_MISSING_ARG);\n    } else if (stat(name, &st)) {\n        addreply_noformat(550, MSG_STAT_FAILURE2);\n    } else if (!S_ISREG(st.st_mode)) {\n        addreply_noformat(550, MSG_NOT_REGULAR_FILE);\n    } else {\n        t = gmtime((time_t *) &(st.st_mtime));\n        if (!t) {\n            addreply_noformat(451, MSG_GMTIME_FAILURE);\n        } else {\n            addreply(213, \"%04d%02d%02d%02d%02d%02d\",\n                     t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,\n                     t->tm_hour, t->tm_min, t->tm_sec);\n        }\n    }\n}\n\nvoid dosize(const char *name)\n{\n    struct stat st;\n\n    if (!name || !*name) {\n        addreply_noformat(501, MSG_MISSING_ARG);\n    } else if (stat(name, &st)) {\n        addreply_noformat(550, MSG_STAT_FAILURE2);\n    } else if (!S_ISREG(st.st_mode)) {\n        addreply_noformat(550, MSG_NOT_REGULAR_FILE);\n    } else {\n        addreply(213, \"%llu\", (unsigned long long) st.st_size);\n    }\n}",
+          "endLine": 4512,
+          "explanation": "Both commands call stat() directly on the client-supplied name without a dot-file policy check.",
+          "id": "stat-sink",
+          "label": "MDTM and SIZE stat without the policy check",
+          "language": "c",
+          "path": "src/ftpd.c",
+          "role": "sink",
+          "startLine": 4469
+        }
+      ],
+      "confidence": {
+        "level": "high",
+        "rationale": "The relevant command dispatch and listing/stat routines are visible, and none of the identified paths calls checknamesanity() with dot_read_ok. RETR and CWD show the expected control for comparison."
+      },
+      "findingId": "csf_1c8b9e21028e8538645a5b70",
+      "fingerprints": {
+        "algorithm": "codex-security/v1",
+        "primary": "codex-security/v1:sha256:f26e9163e70b45df68865f22cd00045d3ddf538108446e6902472d3a9d666aa7"
+      },
+      "identity": {
+        "anchor": "dotfile-read-policy-bypass"
+      },
+      "locations": [
+        {
+          "endLine": 658,
+          "path": "src/ftp_parser.c",
+          "role": "entrypoint",
+          "startLine": 626
+        },
+        {
+          "endLine": 1046,
+          "path": "src/ls.c",
+          "role": "sink",
+          "startLine": 981
+        },
+        {
+          "endLine": 1110,
+          "path": "src/ls.c",
+          "role": "sink",
+          "startLine": 1062
+        },
+        {
+          "endLine": 4512,
+          "path": "src/ftpd.c",
+          "role": "sink",
+          "startLine": 4469
+        },
+        {
+          "endLine": 836,
+          "path": "src/ftpd.c",
+          "role": "control",
+          "startLine": 761
+        }
+      ],
+      "occurrenceId": "occ_2501d9bff23ef65b6a863ff5",
+      "preventiveControls": [
+        "Centralize command-path validation so new filesystem commands cannot omit the dot-read policy.",
+        "Add protocol-level tests for every filesystem command against a dot-file fixture."
+      ],
+      "provenance": {
+        "source": "local_plugin"
+      },
+      "remediation": "Apply the same checknamesanity(path, dot_read_ok) gate to NLST, MLSD, MLST, MDTM, and SIZE, or move the dot-file check into a shared path-resolution helper used by every filesystem command. Keep RETR and CWD behavior unchanged.",
+      "remediationTests": [
+        "With -X enabled, assert NLST, MLSD, MLST, MDTM, and SIZE reject .ssh and .ssh/known_hosts with the same policy error as CWD/RETR.",
+        "With -X disabled, assert the same commands continue to work.",
+        "Add a regression test that verifies a dot-directory cannot be traversed through a listing command."
+      ],
+      "rootCause": {
+        "evidenceRefs": [
+          "dot-policy-control",
+          "nlst-sink",
+          "mlsd-sink",
+          "stat-sink"
+        ],
+        "summary": "The dot-file read policy is enforced in some command handlers (CWD and RETR) but not in the listing and stat handlers. The check is endpoint-specific rather than applied at the protocol dispatch or shared path-resolution layer."
+      },
+      "ruleId": "access-control.dotfile-policy-bypass",
+      "severity": {
+        "changeConditions": "Raise if the disclosed names or metadata are high-value (for example, they reveal an otherwise hidden credential or key identifier) or if another flaw turns the metadata into content access. Lower if the deployment does not rely on -X for sensitive dot-files.",
+        "level": "low",
+        "rationale": "The bypass exposes names and metadata, not file contents, and the user must already be authenticated. It is a concrete but bounded violation of the -X policy."
+      },
+      "summary": "When the server is started with -X (dot_read_ok = 0), RETR and CWD call checknamesanity(), but NLST, MLSD, MLST, MDTM, and SIZE do not. An authenticated user can therefore list dot-directories, enumerate their entries, and stat dot-files even though the administrator prohibited reading them.",
+      "taxonomy": {
+        "category": "authorization-policy-bypass",
+        "cwe": [
+          "CWE-863",
+          "CWE-200"
+        ]
+      },
+      "title": "NLST/MLSD/MLST/MDTM/SIZE bypass the -X dot-file read policy",
+      "validation": {
+        "counterEvidence": [
+          "The FTP chroot and normal filesystem permissions still constrain which entries are visible.",
+          "RETR rejects dot-file content because it calls checknamesanity() at src/ftpd.c:3293.",
+          "LIST without -a skips dot entries in listdir(), so the clearest bypass is NLST/MLSD and the stat commands."
+        ],
+        "evidence": [
+          "src/ftp_parser.c:626-658 routes NLST and MLSD to donlst()/domlsd()",
+          "src/ls.c:992 and 1071 call chdir(base) without checknamesanity()",
+          "src/ftpd.c:4476 and 4503 call stat(name) without checknamesanity()",
+          "src/ftpd.c:3293 shows RETR does call checknamesanity(name, dot_read_ok)"
+        ],
+        "limitations": [
+          "Requires the administrator to enable -X",
+          "No runtime server build was available to exercise the commands"
+        ],
+        "method": "Static source review",
+        "status": "validated",
+        "summary": "With -X, dot_read_ok is zero. CWD and RETR call checknamesanity(..., dot_read_ok), while NLST/MLSD call chdir()/readdir() directly and MLST/MDTM/SIZE call stat() directly. The bypass is therefore reachable by any authenticated user."
+      }
+    }
+  ],
+  "scanId": "4149d915-b8f5-452a-bb55-55a7a18223b6",
+  "schemaVersion": "1.0"
+}

@@ -1,0 +1,26 @@
+Traceback (most recent call last):
+  File "/vol1/1000/mygoldmine-restore/app/mygoldmine/scripts/workflow/build_state.py", line 351, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/vol1/1000/mygoldmine-restore/app/mygoldmine/scripts/workflow/build_state.py", line 273, in main
+    projections = build_stage_results(latest, ROOT, RUNS)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/vol1/1000/mygoldmine-restore/app/mygoldmine/scripts/workflow/stage_results.py", line 139, in build_stage_results
+    "artifact": summary_file.relative_to(root).as_posix()}
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/pathlib.py", line 731, in relative_to
+    raise ValueError("{!r} is not in the subpath of {!r}"
+ValueError: '/vol1/1000/mygoldmine-restore/mygoldmine/runs/verl/20261105T153717Z.meta/node-retries/verify/3925eea6-4326-465d-9ddd-ba891469db34/output/verify/agent/summary.json' is not in the subpath of '/vol1/1000/mygoldmine-restore/app/mygoldmine' OR one path is relative and the other is absolute.
+Traceback (most recent call last):
+  File "/vol1/1000/mygoldmine-restore/app/mygoldmine/scripts/workflow/build_state.py", line 351, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/vol1/1000/mygoldmine-restore/app/mygoldmine/scripts/workflow/build_state.py", line 273, in main
+    projections = build_stage_results(latest, ROOT, RUNS)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/vol1/1000/mygoldmine-restore/app/mygoldmine/scripts/workflow/stage_results.py", line 139, in build_stage_results
+    "artifact": summary_file.relative_to(root).as_posix()}
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.11/pathlib.py", line 731, in relative_to
+    raise ValueError("{!r} is not in the subpath of {!r}"
+ValueError: '/vol1/1000/mygoldmine-restore/mygoldmine/runs/verl/20261105T153717Z.meta/node-retries/verify/3925eea6-4326-465d-9ddd-ba891469db34/output/verify/agent/summary.json' is not in the subpath of '/vol1/1000/mygoldmine-restore/app/mygoldmine' OR one path is relative and the other is absolute.

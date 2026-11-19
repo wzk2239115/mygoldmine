@@ -1,0 +1,19 @@
+{
+    "0": {
+        "bug_type": "NPD",
+        "buggy_value": "((*resp = NULL, /vol1/1000/mygoldmine-benchmark/2026-11-17/targets/pure-ftpd/src/log_pam.c, 80, -1), ValueLabel.SRC)",
+        "relevant_functions": [
+            [
+                "/vol1/1000/mygoldmine-benchmark/2026-11-17/targets/pure-ftpd/src/log_pam.c"
+            ],
+            [
+                "PAM_conv"
+            ],
+            [
+                "static int PAM_conv(int num_msg,\n                    const struct pam_message **msg,\n                    struct pam_response **resp, void *appdata_ptr)\n{\n    int count = 0;\n    struct pam_response *reply = NULL;\n\n    (void) appdata_ptr;\n    *resp = NULL;\n    if (num_msg <= 0 ||\n        (reply = calloc((size_t) num_msg, sizeof *reply)) == NULL) {\n        PAM_error = 1;\n        return PAM_CONV_ERR;\n    }\n    for (count = 0; count < num_msg; count++) {\n        switch (msg[count]->msg_style) {\n        case PAM_PROMPT_ECHO_ON:\n            if ((reply[count].resp = strdup(PAM_username)) == NULL) {\n#ifdef PAM_BUF_ERR\n                reply[count].resp_retcode = PAM_BUF_ERR;\n#endif\n                goto error;\n            }\n            reply[count].resp_retcode = PAM_SUCCESS;\n            /* PAM frees resp */\n            break;\n        case PAM_PROMPT_ECHO_OFF:\n            if ((reply[count].resp = strdup(PAM_password)) == NULL) {\n#ifdef PAM_BUF_ERR\n                reply[count].resp_retcode = PAM_BUF_ERR;\n#endif\n                goto error;\n            }\n            reply[count].resp_retcode = PAM_SUCCESS;\n            /* PAM frees resp */\n            break;\n        case PAM_ERROR_MSG:\n        case PAM_TEXT_INFO:\n            /* ignore it... */\n            break;\n        default:\n            /* Must be an error of some sort... */\n            goto error;\n        }\n    }\n    *resp = reply;\n\n    return PAM_SUCCESS;\n\n    error:\n    while (count > 0) {\n        free(reply[--count].resp);\n    }\n    free(reply);\n    PAM_error = 1;\n    return PAM_CONV_ERR;\n}"
+            ]
+        ],
+        "explanation": "Explanation: At line 9, the function writes to `*resp`, which dereferences the parameter `resp`. There is no preceding null check, branch, return, or assignment that would guarantee `resp` is non-NULL before this dereference. Since `resp` is an input pointer and can be NULL when the function is called, the null value can propagate directly to the dereference at `*resp = NULL;`, causing an NPD. No guard or conflicting condition prevents this path.  \nAnswer: Yes",
+        "is_human_confirmed_true": "False"
+    }
+}

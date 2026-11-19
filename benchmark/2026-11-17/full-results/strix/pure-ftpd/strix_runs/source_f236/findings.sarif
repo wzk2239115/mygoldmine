@@ -1,0 +1,3035 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Strix",
+          "informationUri": "https://strix.ai",
+          "rules": [
+            {
+              "id": "CWE-863",
+              "name": "PureDB IPv6 allow/deny IP rules are silently discarded, bypassing per-user deny lists",
+              "shortDescription": {
+                "text": "PureDB IPv6 allow/deny IP rules are silently discarded, bypassing per-user deny lists"
+              },
+              "fullDescription": {
+                "text": "PureDB records are colon-separated and pure-pw writes per-user allow/deny IP patterns verbatim, while the daemon reads the fields positionally. An IPv6 address literal contains colons, so configuring one writes extra fields: the deny pattern is silently dropped and a client from the denied address still authenticates. The allow-list variant shifts a fragment into the time-restriction field, which denies every login and also drops the allow restriction."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "help": {
+                "text": "PureDB records are colon-separated and pure-pw writes per-user allow/deny IP patterns verbatim, while the daemon reads the fields positionally. An IPv6 address literal contains colons, so configuring one writes extra fields: the deny pattern is silently dropped and a client from the denied address still authenticates. The allow-list variant shifts a fragment into the time-restriction field, which denies every login and also drops the allow restriction.\n\nA per-user network restriction configured through the documented administrative interface is silently not enforced. Any client holding valid credentials for the account can authenticate from the address the administrator intended to deny - and, because the rule disappears rather than degrading, from any other address as well. For allow lists the account becomes unusable, denying the legitimate user while the address restriction is also lost. The 1.0.54 changelog states that IP access rules now support IPv6 patterns; that does not hold for IPv6 address literals.\n\nValidate the four IP-pattern fields when the record is written so a value containing the record separator is rejected with a clear error instead of corrupting the record, and make the daemon treat a record with more fields than the format defines as invalid so any corrupted or hand-edited entry fails authentication rather than dropping its restrictions. Longer term, add an escape encoding for the field separator to the PureDB record format (writer and reader together, with a version marker) so IPv6 literals can be stored and evaluated, and document hostname rules as the supported way to express IPv6 restrictions in the meantime. Operators that already configured IPv6 literals should re-check affected accounts with pure-pw show and migrate to hostname rules.",
+                "markdown": "PureDB records are colon-separated and pure-pw writes per-user allow/deny IP patterns verbatim, while the daemon reads the fields positionally. An IPv6 address literal contains colons, so configuring one writes extra fields: the deny pattern is silently dropped and a client from the denied address still authenticates. The allow-list variant shifts a fragment into the time-restriction field, which denies every login and also drops the allow restriction.\n\nA per-user network restriction configured through the documented administrative interface is silently not enforced. Any client holding valid credentials for the account can authenticate from the address the administrator intended to deny - and, because the rule disappears rather than degrading, from any other address as well. For allow lists the account becomes unusable, denying the legitimate user while the address restriction is also lost. The 1.0.54 changelog states that IP access rules now support IPv6 patterns; that does not hold for IPv6 address literals.\n\nValidate the four IP-pattern fields when the record is written so a value containing the record separator is rejected with a clear error instead of corrupting the record, and make the daemon treat a record with more fields than the format defines as invalid so any corrupted or hand-edited entry fails authentication rather than dropping its restrictions. Longer term, add an escape encoding for the field separator to the PureDB record format (writer and reader together, with a version marker) so IPv6 literals can be stored and evaluated, and document hostname rules as the supported way to express IPv6 restrictions in the meantime. Operators that already configured IPv6 literals should re-check affected accounts with pure-pw show and migrate to hostname rules."
+              },
+              "properties": {
+                "security-severity": "3.1",
+                "tags": [
+                  "security",
+                  "CWE-863",
+                  "stride:E"
+                ]
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/863.html"
+            },
+            {
+              "id": "CWE-457",
+              "name": "Uninitialized stack memory disclosed in EPRT IPv6 error reply",
+              "shortDescription": {
+                "text": "Uninitialized stack memory disclosed in EPRT IPv6 error reply"
+              },
+              "fullDescription": {
+                "text": "The IPv6 branch of the EPRT parser builds a struct sockaddr_storage on the stack and fills only the address family and the 16 address bytes, leaving sin6_scope_id uninitialized. When the supplied address differs from the control connection's peer, the structure is passed to getnameinfo(NI_NUMERICHOST), which appends `%<sin6_scope_id>` to the formatted address and returns uninitialized stack memory to the client in the 500 reply. An authenticated client can read four bytes of process stack per request, and the value changes with the commands executed earlier in the session."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "help": {
+                "text": "The IPv6 branch of the EPRT parser builds a struct sockaddr_storage on the stack and fills only the address family and the 16 address bytes, leaving sin6_scope_id uninitialized. When the supplied address differs from the control connection's peer, the structure is passed to getnameinfo(NI_NUMERICHOST), which appends `%<sin6_scope_id>` to the formatted address and returns uninitialized stack memory to the client in the 500 reply. An authenticated client can read four bytes of process stack per request, and the value changes with the commands executed earlier in the session.\n\nAn authenticated client can read four bytes of uninitialized process stack per request through the EPRT error reply, and can influence which stale values are disclosed by the commands it issues first. This is a memory-disclosure primitive that can expose residual process data (including address/layout fragments useful for defeating ASLR in a follow-on exploit); in the tested build the disclosed word contained no directly sensitive value.\n\nZero the sockaddr_storage before populating it, as the IPv4 EPRT and PORT paths already do, so no uninitialized fields can reach getnameinfo. More generally, initialize every stack sockaddr structure at declaration and consider passing an explicit length from a single construction helper so partially filled address structures cannot be formatted or compared.",
+                "markdown": "The IPv6 branch of the EPRT parser builds a struct sockaddr_storage on the stack and fills only the address family and the 16 address bytes, leaving sin6_scope_id uninitialized. When the supplied address differs from the control connection's peer, the structure is passed to getnameinfo(NI_NUMERICHOST), which appends `%<sin6_scope_id>` to the formatted address and returns uninitialized stack memory to the client in the 500 reply. An authenticated client can read four bytes of process stack per request, and the value changes with the commands executed earlier in the session.\n\nAn authenticated client can read four bytes of uninitialized process stack per request through the EPRT error reply, and can influence which stale values are disclosed by the commands it issues first. This is a memory-disclosure primitive that can expose residual process data (including address/layout fragments useful for defeating ASLR in a follow-on exploit); in the tested build the disclosed word contained no directly sensitive value.\n\nZero the sockaddr_storage before populating it, as the IPv4 EPRT and PORT paths already do, so no uninitialized fields can reach getnameinfo. More generally, initialize every stack sockaddr structure at declaration and consider passing an explicit length from a single construction helper so partially filled address structures cannot be formatted or compared."
+              },
+              "properties": {
+                "security-severity": "4.3",
+                "tags": [
+                  "security",
+                  "CWE-457",
+                  "stride:T",
+                  "stride:I"
+                ]
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/457.html"
+            },
+            {
+              "id": "strix-coverage/quota-accounting-bypass-fail-open-error-handling",
+              "name": "quota accounting bypass / fail-open error handling",
+              "shortDescription": {
+                "text": "Coverage: quota accounting bypass / fail-open error handling"
+              },
+              "fullDescription": {
+                "text": "Coverage of quota accounting bypass / fail-open error handling across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of quota accounting bypass / fail-open error handling across the assessed attack surface.",
+                "markdown": "Coverage of quota accounting bypass / fail-open error handling across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/out-of-bounds-read-wrapped-length-arithmetic",
+              "name": "out-of-bounds read / wrapped length arithmetic",
+              "shortDescription": {
+                "text": "Coverage: out-of-bounds read / wrapped length arithmetic"
+              },
+              "fullDescription": {
+                "text": "Coverage of out-of-bounds read / wrapped length arithmetic across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of out-of-bounds read / wrapped length arithmetic across the assessed attack surface.",
+                "markdown": "Coverage of out-of-bounds read / wrapped length arithmetic across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/per-user-ip-allow-deny-bypass-cidr-parsing-address-family-confusion",
+              "name": "per-user IP allow/deny bypass (CIDR parsing, address family confusion)",
+              "shortDescription": {
+                "text": "Coverage: per-user IP allow/deny bypass (CIDR parsing, address family confusion)"
+              },
+              "fullDescription": {
+                "text": "Coverage of per-user IP allow/deny bypass (CIDR parsing, address family confusion) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of per-user IP allow/deny bypass (CIDR parsing, address family confusion) across the assessed attack surface.",
+                "markdown": "Coverage of per-user IP allow/deny bypass (CIDR parsing, address family confusion) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/stack-exhaustion-unbounded-allocation-from-wire-length",
+              "name": "stack exhaustion / unbounded allocation from wire length",
+              "shortDescription": {
+                "text": "Coverage: stack exhaustion / unbounded allocation from wire length"
+              },
+              "fullDescription": {
+                "text": "Coverage of stack exhaustion / unbounded allocation from wire length across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of stack exhaustion / unbounded allocation from wire length across the assessed attack surface.",
+                "markdown": "Coverage of stack exhaustion / unbounded allocation from wire length across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/buffer-overflow-oob-read-in-ftp-command-reader",
+              "name": "buffer overflow / OOB read in FTP command reader",
+              "shortDescription": {
+                "text": "Coverage: buffer overflow / OOB read in FTP command reader"
+              },
+              "fullDescription": {
+                "text": "Coverage of buffer overflow / OOB read in FTP command reader across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of buffer overflow / OOB read in FTP command reader across the assessed attack surface.",
+                "markdown": "Coverage of buffer overflow / OOB read in FTP command reader across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/privilege-escalation-via-puredb-record-fields",
+              "name": "privilege escalation via PureDB record fields",
+              "shortDescription": {
+                "text": "Coverage: privilege escalation via PureDB record fields"
+              },
+              "fullDescription": {
+                "text": "Coverage of privilege escalation via PureDB record fields across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of privilege escalation via PureDB record fields across the assessed attack surface.",
+                "markdown": "Coverage of privilege escalation via PureDB record fields across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/jail-escape-path-overflow-from-ftp-path-arguments",
+              "name": "jail escape / path overflow from FTP path arguments",
+              "shortDescription": {
+                "text": "Coverage: jail escape / path overflow from FTP path arguments"
+              },
+              "fullDescription": {
+                "text": "Coverage of jail escape / path overflow from FTP path arguments across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of jail escape / path overflow from FTP path arguments across the assessed attack surface.",
+                "markdown": "Coverage of jail escape / path overflow from FTP path arguments across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/buffer-overflow-via-long-file-names-in-listing-output",
+              "name": "buffer overflow via long file names in listing output",
+              "shortDescription": {
+                "text": "Coverage: buffer overflow via long file names in listing output"
+              },
+              "fullDescription": {
+                "text": "Coverage of buffer overflow via long file names in listing output across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of buffer overflow via long file names in listing output across the assessed attack surface.",
+                "markdown": "Coverage of buffer overflow via long file names in listing output across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/jail-escape-via-virtual-chroot-path-rewriting",
+              "name": "jail escape via virtual-chroot path rewriting",
+              "shortDescription": {
+                "text": "Coverage: jail escape via virtual-chroot path rewriting"
+              },
+              "fullDescription": {
+                "text": "Coverage of jail escape via virtual-chroot path rewriting across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of jail escape via virtual-chroot path rewriting across the assessed attack surface.",
+                "markdown": "Coverage of jail escape via virtual-chroot path rewriting across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/ftp-bounce-data-connection-target-manipulation",
+              "name": "FTP bounce / data-connection target manipulation",
+              "shortDescription": {
+                "text": "Coverage: FTP bounce / data-connection target manipulation"
+              },
+              "fullDescription": {
+                "text": "Coverage of FTP bounce / data-connection target manipulation across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of FTP bounce / data-connection target manipulation across the assessed attack surface.",
+                "markdown": "Coverage of FTP bounce / data-connection target manipulation across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/authentication-bypass-sqli-in-auth-back-ends",
+              "name": "authentication bypass / SQLi in auth back ends",
+              "shortDescription": {
+                "text": "Coverage: authentication bypass / SQLi in auth back ends"
+              },
+              "fullDescription": {
+                "text": "Coverage of authentication bypass / SQLi in auth back ends across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of authentication bypass / SQLi in auth back ends across the assessed attack surface.",
+                "markdown": "Coverage of authentication bypass / SQLi in auth back ends across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/memory-corruption-in-simplified-resolver-shim",
+              "name": "memory corruption in simplified resolver shim",
+              "shortDescription": {
+                "text": "Coverage: memory corruption in simplified resolver shim"
+              },
+              "fullDescription": {
+                "text": "Coverage of memory corruption in simplified resolver shim across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of memory corruption in simplified resolver shim across the assessed attack surface.",
+                "markdown": "Coverage of memory corruption in simplified resolver shim across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/hardcoded-credentials-secret-exposure",
+              "name": "hardcoded credentials / secret exposure",
+              "shortDescription": {
+                "text": "Coverage: hardcoded credentials / secret exposure"
+              },
+              "fullDescription": {
+                "text": "Coverage of hardcoded credentials / secret exposure across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of hardcoded credentials / secret exposure across the assessed attack surface.",
+                "markdown": "Coverage of hardcoded credentials / secret exposure across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/known-cve-dependency-supply-chain-scan",
+              "name": "known-CVE dependency / supply-chain scan",
+              "shortDescription": {
+                "text": "Coverage: known-CVE dependency / supply-chain scan"
+              },
+              "fullDescription": {
+                "text": "Coverage of known-CVE dependency / supply-chain scan across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of known-CVE dependency / supply-chain scan across the assessed attack surface.",
+                "markdown": "Coverage of known-CVE dependency / supply-chain scan across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/jail-escape-via-alias-expansion-prefix-substitution-case-folding-alias-to-host-path",
+              "name": "jail escape via alias expansion (prefix substitution, case folding, alias to host path)",
+              "shortDescription": {
+                "text": "Coverage: jail escape via alias expansion (prefix substitution, case folding, alias to host path)"
+              },
+              "fullDescription": {
+                "text": "Coverage of jail escape via alias expansion (prefix substitution, case folding, alias to host path) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of jail escape via alias expansion (prefix substitution, case folding, alias to host path) across the assessed attack surface.",
+                "markdown": "Coverage of jail escape via alias expansion (prefix substitution, case folding, alias to host path) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/memory-corruption-dos-via-glob-expansion-of-ftp-path-arguments",
+              "name": "memory corruption / DoS via glob expansion of FTP path arguments",
+              "shortDescription": {
+                "text": "Coverage: memory corruption / DoS via glob expansion of FTP path arguments"
+              },
+              "fullDescription": {
+                "text": "Coverage of memory corruption / DoS via glob expansion of FTP path arguments across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of memory corruption / DoS via glob expansion of FTP path arguments across the assessed attack surface.",
+                "markdown": "Coverage of memory corruption / DoS via glob expansion of FTP path arguments across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/canonicalisation-bypass-oob-read-in-built-in-realpath",
+              "name": "canonicalisation bypass / OOB read in built-in realpath",
+              "shortDescription": {
+                "text": "Coverage: canonicalisation bypass / OOB read in built-in realpath"
+              },
+              "fullDescription": {
+                "text": "Coverage of canonicalisation bypass / OOB read in built-in realpath across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of canonicalisation bypass / OOB read in built-in realpath across the assessed attack surface.",
+                "markdown": "Coverage of canonicalisation bypass / OOB read in built-in realpath across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/jail-escape-for-anonymous-sessions-anon-dir-setup-path",
+              "name": "jail escape for anonymous sessions (ANON_DIR setup path)",
+              "shortDescription": {
+                "text": "Coverage: jail escape for anonymous sessions (ANON_DIR setup path)"
+              },
+              "fullDescription": {
+                "text": "Coverage of jail escape for anonymous sessions (ANON_DIR setup path) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of jail escape for anonymous sessions (ANON_DIR setup path) across the assessed attack surface.",
+                "markdown": "Coverage of jail escape for anonymous sessions (ANON_DIR setup path) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/accounting-correctness-buffer-sizing-symlink-handling",
+              "name": "Accounting correctness / buffer sizing / symlink handling",
+              "shortDescription": {
+                "text": "Coverage: Accounting correctness / buffer sizing / symlink handling"
+              },
+              "fullDescription": {
+                "text": "Coverage of Accounting correctness / buffer sizing / symlink handling across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Accounting correctness / buffer sizing / symlink handling across the assessed attack surface.",
+                "markdown": "Coverage of Accounting correctness / buffer sizing / symlink handling across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/quota-bypass-malformed-quota-file-reset-to-zero-integer-overflow",
+              "name": "Quota bypass / malformed quota file reset to zero / integer overflow",
+              "shortDescription": {
+                "text": "Coverage: Quota bypass / malformed quota file reset to zero / integer overflow"
+              },
+              "fullDescription": {
+                "text": "Coverage of Quota bypass / malformed quota file reset to zero / integer overflow across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Quota bypass / malformed quota file reset to zero / integer overflow across the assessed attack surface.",
+                "markdown": "Coverage of Quota bypass / malformed quota file reset to zero / integer overflow across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/upload-download-size-accounting-max-filesize-negative-overflow-sizes",
+              "name": "Upload/download size accounting, max_filesize, negative/overflow sizes",
+              "shortDescription": {
+                "text": "Coverage: Upload/download size accounting, max_filesize, negative/overflow sizes"
+              },
+              "fullDescription": {
+                "text": "Coverage of Upload/download size accounting, max_filesize, negative/overflow sizes across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Upload/download size accounting, max_filesize, negative/overflow sizes across the assessed attack surface.",
+                "markdown": "Coverage of Upload/download size accounting, max_filesize, negative/overflow sizes across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/per-user-limit-bypass-via-forged-parsed-scoreboard",
+              "name": "Per-user limit bypass via forged/parsed scoreboard",
+              "shortDescription": {
+                "text": "Coverage: Per-user limit bypass via forged/parsed scoreboard"
+              },
+              "fullDescription": {
+                "text": "Coverage of Per-user limit bypass via forged/parsed scoreboard across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Per-user limit bypass via forged/parsed scoreboard across the assessed attack surface.",
+                "markdown": "Coverage of Per-user limit bypass via forged/parsed scoreboard across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/forged-scoreboard-entry-causing-privileged-action-format-string-buffer-issues",
+              "name": "Forged scoreboard entry causing privileged action / format-string / buffer issues",
+              "shortDescription": {
+                "text": "Coverage: Forged scoreboard entry causing privileged action / format-string / buffer issues"
+              },
+              "fullDescription": {
+                "text": "Coverage of Forged scoreboard entry causing privileged action / format-string / buffer issues across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Forged scoreboard entry causing privileged action / format-string / buffer issues across the assessed attack surface.",
+                "markdown": "Coverage of Forged scoreboard entry causing privileged action / format-string / buffer issues across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/ldap-injection-ambiguous-multi-entry-result-anonymous-bind-regression",
+              "name": "LDAP injection, ambiguous multi-entry result, anonymous-bind regression",
+              "shortDescription": {
+                "text": "Coverage: LDAP injection, ambiguous multi-entry result, anonymous-bind regression"
+              },
+              "fullDescription": {
+                "text": "Coverage of LDAP injection, ambiguous multi-entry result, anonymous-bind regression across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of LDAP injection, ambiguous multi-entry result, anonymous-bind regression across the assessed attack surface.",
+                "markdown": "Coverage of LDAP injection, ambiguous multi-entry result, anonymous-bind regression across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/username-buffer-handling-null-termination-conversation-overflow",
+              "name": "Username buffer handling / null termination / conversation overflow",
+              "shortDescription": {
+                "text": "Coverage: Username buffer handling / null termination / conversation overflow"
+              },
+              "fullDescription": {
+                "text": "Coverage of Username buffer handling / null termination / conversation overflow across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Username buffer handling / null termination / conversation overflow across the assessed attack surface.",
+                "markdown": "Coverage of Username buffer handling / null termination / conversation overflow across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/buffer-overflow-unbounded-value-length-in-config-parsing",
+              "name": "Buffer overflow / unbounded value length in config parsing",
+              "shortDescription": {
+                "text": "Coverage: Buffer overflow / unbounded value length in config parsing"
+              },
+              "fullDescription": {
+                "text": "Coverage of Buffer overflow / unbounded value length in config parsing across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Buffer overflow / unbounded value length in config parsing across the assessed attack surface.",
+                "markdown": "Coverage of Buffer overflow / unbounded value length in config parsing across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/privilege-escalation-uid-0-selection-via-virtual-user-record",
+              "name": "Privilege escalation / uid 0 selection via virtual-user record",
+              "shortDescription": {
+                "text": "Coverage: Privilege escalation / uid 0 selection via virtual-user record"
+              },
+              "fullDescription": {
+                "text": "Coverage of Privilege escalation / uid 0 selection via virtual-user record across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Privilege escalation / uid 0 selection via virtual-user record across the assessed attack surface.",
+                "markdown": "Coverage of Privilege escalation / uid 0 selection via virtual-user record across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/authentication-bypass-wrong-empty-prefix-password-accepted",
+              "name": "Authentication bypass (wrong/empty/prefix password accepted)",
+              "shortDescription": {
+                "text": "Coverage: Authentication bypass (wrong/empty/prefix password accepted)"
+              },
+              "fullDescription": {
+                "text": "Coverage of Authentication bypass (wrong/empty/prefix password accepted) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Authentication bypass (wrong/empty/prefix password accepted) across the assessed attack surface.",
+                "markdown": "Coverage of Authentication bypass (wrong/empty/prefix password accepted) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/malformed-short-record-accepted-as-a-valid-login-oob-in-field-parsing",
+              "name": "Malformed/short record accepted as a valid login; OOB in field parsing",
+              "shortDescription": {
+                "text": "Coverage: Malformed/short record accepted as a valid login; OOB in field parsing"
+              },
+              "fullDescription": {
+                "text": "Coverage of Malformed/short record accepted as a valid login; OOB in field parsing across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Malformed/short record accepted as a valid login; OOB in field parsing across the assessed attack surface.",
+                "markdown": "Coverage of Malformed/short record accepted as a valid login; OOB in field parsing across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/out-of-bounds-read-write-on-corrupted-or-hostile-puredb-file",
+              "name": "Out-of-bounds read/write on corrupted or hostile PureDB file",
+              "shortDescription": {
+                "text": "Coverage: Out-of-bounds read/write on corrupted or hostile PureDB file"
+              },
+              "fullDescription": {
+                "text": "Coverage of Out-of-bounds read/write on corrupted or hostile PureDB file across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Out-of-bounds read/write on corrupted or hostile PureDB file across the assessed attack surface.",
+                "markdown": "Coverage of Out-of-bounds read/write on corrupted or hostile PureDB file across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/ip-allow-deny-acl-bypass-malformed-cidr-failing-open",
+              "name": "IP allow/deny ACL bypass, malformed CIDR failing open",
+              "shortDescription": {
+                "text": "Coverage: IP allow/deny ACL bypass, malformed CIDR failing open"
+              },
+              "fullDescription": {
+                "text": "Coverage of IP allow/deny ACL bypass, malformed CIDR failing open across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of IP allow/deny ACL bypass, malformed CIDR failing open across the assessed attack surface.",
+                "markdown": "Coverage of IP allow/deny ACL bypass, malformed CIDR failing open across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/ipv6-cidr-rules-silently-dropped-acl-bypass",
+              "name": "IPv6 CIDR rules silently dropped -> ACL bypass",
+              "shortDescription": {
+                "text": "Coverage: IPv6 CIDR rules silently dropped -> ACL bypass"
+              },
+              "fullDescription": {
+                "text": "Coverage of IPv6 CIDR rules silently dropped -> ACL bypass across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of IPv6 CIDR rules silently dropped -> ACL bypass across the assessed attack surface.",
+                "markdown": "Coverage of IPv6 CIDR rules silently dropped -> ACL bypass across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/writing-uid-0-separator-injected-records-via-the-admin-tool-offset-overflow-in-the-db-writer",
+              "name": "Writing uid 0 / separator-injected records via the admin tool; offset overflow in the DB writer",
+              "shortDescription": {
+                "text": "Coverage: Writing uid 0 / separator-injected records via the admin tool; offset overflow in the DB writer"
+              },
+              "fullDescription": {
+                "text": "Coverage of Writing uid 0 / separator-injected records via the admin tool; offset overflow in the DB writer across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Writing uid 0 / separator-injected records via the admin tool; offset overflow in the DB writer across the assessed attack surface.",
+                "markdown": "Coverage of Writing uid 0 / separator-injected records via the admin tool; offset overflow in the DB writer across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/record-injection-via-newline-in-etc-passwd-fields-root-entry-conversion",
+              "name": "Record injection via ':'/newline in /etc/passwd fields; root entry conversion",
+              "shortDescription": {
+                "text": "Coverage: Record injection via ':'/newline in /etc/passwd fields; root entry conversion"
+              },
+              "fullDescription": {
+                "text": "Coverage of Record injection via ':'/newline in /etc/passwd fields; root entry conversion across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Record injection via ':'/newline in /etc/passwd fields; root entry conversion across the assessed attack surface.",
+                "markdown": "Coverage of Record injection via ':'/newline in /etc/passwd fields; root entry conversion across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/system-user-password-bypass-locked-shadow-empty-hash-disallowed-shell",
+              "name": "System-user password bypass (locked/shadow/empty hash, disallowed shell)",
+              "shortDescription": {
+                "text": "Coverage: System-user password bypass (locked/shadow/empty hash, disallowed shell)"
+              },
+              "fullDescription": {
+                "text": "Coverage of System-user password bypass (locked/shadow/empty hash, disallowed shell) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of System-user password bypass (locked/shadow/empty hash, disallowed shell) across the assessed attack surface.",
+                "markdown": "Coverage of System-user password bypass (locked/shadow/empty hash, disallowed shell) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/pam-authentication-bypass-auth-ok-mishandling",
+              "name": "PAM authentication bypass / auth_ok mishandling",
+              "shortDescription": {
+                "text": "Coverage: PAM authentication bypass / auth_ok mishandling"
+              },
+              "fullDescription": {
+                "text": "Coverage of PAM authentication bypass / auth_ok mishandling across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of PAM authentication bypass / auth_ok mishandling across the assessed attack surface.",
+                "markdown": "Coverage of PAM authentication bypass / auth_ok mishandling across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/login-state-machine-bypass-acct-pre-auth-commands-repeated-user-pass-failed-privilege-drop",
+              "name": "Login-state machine bypass (ACCT, pre-auth commands, repeated USER/PASS, failed privilege drop)",
+              "shortDescription": {
+                "text": "Coverage: Login-state machine bypass (ACCT, pre-auth commands, repeated USER/PASS, failed privilege drop)"
+              },
+              "fullDescription": {
+                "text": "Coverage of Login-state machine bypass (ACCT, pre-auth commands, repeated USER/PASS, failed privilege drop) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Login-state machine bypass (ACCT, pre-auth commands, repeated USER/PASS, failed privilege drop) across the assessed attack surface.",
+                "markdown": "Coverage of Login-state machine bypass (ACCT, pre-auth commands, repeated USER/PASS, failed privilege drop) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/privilege-escalation-record-authenticating-as-uid-gid-0",
+              "name": "Privilege escalation — record authenticating as uid/gid 0",
+              "shortDescription": {
+                "text": "Coverage: Privilege escalation — record authenticating as uid/gid 0"
+              },
+              "fullDescription": {
+                "text": "Coverage of Privilege escalation — record authenticating as uid/gid 0 across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Privilege escalation — record authenticating as uid/gid 0 across the assessed attack surface.",
+                "markdown": "Coverage of Privilege escalation — record authenticating as uid/gid 0 across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/credential-db-record-injection-via-unescaped-field-separators-newlines-no-privilege-boundary",
+              "name": "Credential-DB record injection via unescaped field separators / newlines (no privilege boundary)",
+              "shortDescription": {
+                "text": "Coverage: Credential-DB record injection via unescaped field separators / newlines (no privilege boundary)"
+              },
+              "fullDescription": {
+                "text": "Coverage of Credential-DB record injection via unescaped field separators / newlines (no privilege boundary) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Credential-DB record injection via unescaped field separators / newlines (no privilege boundary) across the assessed attack surface.",
+                "markdown": "Coverage of Credential-DB record injection via unescaped field separators / newlines (no privilege boundary) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/integer-overflow-in-record-length-offset-handling-producing-a-db-the-reader-over-reads",
+              "name": "Integer overflow in record length/offset handling producing a DB the reader over-reads",
+              "shortDescription": {
+                "text": "Coverage: Integer overflow in record length/offset handling producing a DB the reader over-reads"
+              },
+              "fullDescription": {
+                "text": "Coverage of Integer overflow in record length/offset handling producing a DB the reader over-reads across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Integer overflow in record length/offset handling producing a DB the reader over-reads across the assessed attack surface.",
+                "markdown": "Coverage of Integer overflow in record length/offset handling producing a DB the reader over-reads across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/format-string-buffer-overflow-via-long-usernames-or-filenames",
+              "name": "Format-string / buffer overflow via long usernames or filenames",
+              "shortDescription": {
+                "text": "Coverage: Format-string / buffer overflow via long usernames or filenames"
+              },
+              "fullDescription": {
+                "text": "Coverage of Format-string / buffer overflow via long usernames or filenames across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Format-string / buffer overflow via long usernames or filenames across the assessed attack surface.",
+                "markdown": "Coverage of Format-string / buffer overflow via long usernames or filenames across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/log-injection-forging-of-clf-records-from-ftp-usernames",
+              "name": "Log injection / forging of CLF records from FTP usernames",
+              "shortDescription": {
+                "text": "Coverage: Log injection / forging of CLF records from FTP usernames"
+              },
+              "fullDescription": {
+                "text": "Coverage of Log injection / forging of CLF records from FTP usernames across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Log injection / forging of CLF records from FTP usernames across the assessed attack surface.",
+                "markdown": "Coverage of Log injection / forging of CLF records from FTP usernames across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/oob-read-write-when-parsing-an-attacker-supplied-stats-log",
+              "name": "OOB read/write when parsing an attacker-supplied stats log",
+              "shortDescription": {
+                "text": "Coverage: OOB read/write when parsing an attacker-supplied stats log"
+              },
+              "fullDescription": {
+                "text": "Coverage of OOB read/write when parsing an attacker-supplied stats log across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of OOB read/write when parsing an attacker-supplied stats log across the assessed attack surface.",
+                "markdown": "Coverage of OOB read/write when parsing an attacker-supplied stats log across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/privileged-parsing-of-attacker-planted-scoreboard-files-oob-read-format-string-toctou",
+              "name": "Privileged parsing of attacker-planted scoreboard files (OOB read, format string, TOCTOU)",
+              "shortDescription": {
+                "text": "Coverage: Privileged parsing of attacker-planted scoreboard files (OOB read, format string, TOCTOU)"
+              },
+              "fullDescription": {
+                "text": "Coverage of Privileged parsing of attacker-planted scoreboard files (OOB read, format string, TOCTOU) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Privileged parsing of attacker-planted scoreboard files (OOB read, format string, TOCTOU) across the assessed attack surface.",
+                "markdown": "Coverage of Privileged parsing of attacker-planted scoreboard files (OOB read, format string, TOCTOU) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/buffer-overflow-auth-bypass-on-short-or-oversized-auth-daemon-reply-with-extauth",
+              "name": "Buffer overflow / auth bypass on short or oversized auth-daemon reply (WITH_EXTAUTH)",
+              "shortDescription": {
+                "text": "Coverage: Buffer overflow / auth bypass on short or oversized auth-daemon reply (WITH_EXTAUTH)"
+              },
+              "fullDescription": {
+                "text": "Coverage of Buffer overflow / auth bypass on short or oversized auth-daemon reply (WITH_EXTAUTH) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Buffer overflow / auth bypass on short or oversized auth-daemon reply (WITH_EXTAUTH) across the assessed attack surface.",
+                "markdown": "Coverage of Buffer overflow / auth bypass on short or oversized auth-daemon reply (WITH_EXTAUTH) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/oob-read-connection-count-bypass-in-the-proc-net-tcp-parser",
+              "name": "OOB read / connection-count bypass in the /proc/net/tcp parser",
+              "shortDescription": {
+                "text": "Coverage: OOB read / connection-count bypass in the /proc/net/tcp parser"
+              },
+              "fullDescription": {
+                "text": "Coverage of OOB read / connection-count bypass in the /proc/net/tcp parser across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of OOB read / connection-count bypass in the /proc/net/tcp parser across the assessed attack surface.",
+                "markdown": "Coverage of OOB read / connection-count bypass in the /proc/net/tcp parser across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/stored-xss-output-injection-in-the-cgi-status-page-via-attacker-controlled-session-fields",
+              "name": "Stored XSS / output-injection in the CGI status page via attacker-controlled session fields",
+              "shortDescription": {
+                "text": "Coverage: Stored XSS / output-injection in the CGI status page via attacker-controlled session fields"
+              },
+              "fullDescription": {
+                "text": "Coverage of Stored XSS / output-injection in the CGI status page via attacker-controlled session fields across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Stored XSS / output-injection in the CGI status page via attacker-controlled session fields across the assessed attack surface.",
+                "markdown": "Coverage of Stored XSS / output-injection in the CGI status page via attacker-controlled session fields across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/ftp-bounce-privileged-port-connection-via-active-mode",
+              "name": "FTP bounce / privileged-port connection via active mode",
+              "shortDescription": {
+                "text": "Coverage: FTP bounce / privileged-port connection via active mode"
+              },
+              "fullDescription": {
+                "text": "Coverage of FTP bounce / privileged-port connection via active mode across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of FTP bounce / privileged-port connection via active mode across the assessed attack surface.",
+                "markdown": "Coverage of FTP bounce / privileged-port connection via active mode across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/memory-safety-stack-heap-overflow-off-by-one-oob-read-on-command-lines-and-arguments",
+              "name": "Memory safety: stack/heap overflow, off-by-one, OOB read on command lines and arguments",
+              "shortDescription": {
+                "text": "Coverage: Memory safety: stack/heap overflow, off-by-one, OOB read on command lines and arguments"
+              },
+              "fullDescription": {
+                "text": "Coverage of Memory safety: stack/heap overflow, off-by-one, OOB read on command lines and arguments across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Memory safety: stack/heap overflow, off-by-one, OOB read on command lines and arguments across the assessed attack surface.",
+                "markdown": "Coverage of Memory safety: stack/heap overflow, off-by-one, OOB read on command lines and arguments across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/half-updated-data-address-port-state-after-a-failed-port-eprt-parse",
+              "name": "Half-updated data-address/port state after a failed PORT/EPRT parse",
+              "shortDescription": {
+                "text": "Coverage: Half-updated data-address/port state after a failed PORT/EPRT parse"
+              },
+              "fullDescription": {
+                "text": "Coverage of Half-updated data-address/port state after a failed PORT/EPRT parse across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Half-updated data-address/port state after a failed PORT/EPRT parse across the assessed attack surface.",
+                "markdown": "Coverage of Half-updated data-address/port state after a failed PORT/EPRT parse across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/memory-safety-in-fact-listing-formatting-long-names-symlink-targets-long-path-arguments",
+              "name": "Memory safety in fact/listing formatting (long names, symlink targets, long path arguments)",
+              "shortDescription": {
+                "text": "Coverage: Memory safety in fact/listing formatting (long names, symlink targets, long path arguments)"
+              },
+              "fullDescription": {
+                "text": "Coverage of Memory safety in fact/listing formatting (long names, symlink targets, long path arguments) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Memory safety in fact/listing formatting (long names, symlink targets, long path arguments) across the assessed attack surface.",
+                "markdown": "Coverage of Memory safety in fact/listing formatting (long names, symlink targets, long path arguments) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/numeric-date-parsing-unchecked-atoi-strtoul-out-of-range-values-length-used-for-allocation",
+              "name": "Numeric/date parsing: unchecked atoi/strtoul, out-of-range values, length used for allocation",
+              "shortDescription": {
+                "text": "Coverage: Numeric/date parsing: unchecked atoi/strtoul, out-of-range values, length used for allocation"
+              },
+              "fullDescription": {
+                "text": "Coverage of Numeric/date parsing: unchecked atoi/strtoul, out-of-range values, length used for allocation across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Numeric/date parsing: unchecked atoi/strtoul, out-of-range values, length used for allocation across the assessed attack surface.",
+                "markdown": "Coverage of Numeric/date parsing: unchecked atoi/strtoul, out-of-range values, length used for allocation across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/sub-parser-argument-handling-buffer-overflows-unchecked-conversions-malformed-token-splitting",
+              "name": "Sub-parser argument handling: buffer overflows, unchecked conversions, malformed token splitting",
+              "shortDescription": {
+                "text": "Coverage: Sub-parser argument handling: buffer overflows, unchecked conversions, malformed token splitting"
+              },
+              "fullDescription": {
+                "text": "Coverage of Sub-parser argument handling: buffer overflows, unchecked conversions, malformed token splitting across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Sub-parser argument handling: buffer overflows, unchecked conversions, malformed token splitting across the assessed attack surface.",
+                "markdown": "Coverage of Sub-parser argument handling: buffer overflows, unchecked conversions, malformed token splitting across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/ip-access-control-matching-logic-rule-priority-allow-deny-semantics-unknown-host-address-representation",
+              "name": "IP access-control matching logic: rule priority, allow/deny semantics, unknown host, address representation",
+              "shortDescription": {
+                "text": "Coverage: IP access-control matching logic: rule priority, allow/deny semantics, unknown host, address representation"
+              },
+              "fullDescription": {
+                "text": "Coverage of IP access-control matching logic: rule priority, allow/deny semantics, unknown host, address representation across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of IP access-control matching logic: rule priority, allow/deny semantics, unknown host, address representation across the assessed attack surface.",
+                "markdown": "Coverage of IP access-control matching logic: rule priority, allow/deny semantics, unknown host, address representation across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/fail-open-on-malformed-cidr-widths-mask-underflow-ub-shift",
+              "name": "Fail-open on malformed CIDR widths (mask underflow/UB shift)",
+              "shortDescription": {
+                "text": "Coverage: Fail-open on malformed CIDR widths (mask underflow/UB shift)"
+              },
+              "fullDescription": {
+                "text": "Coverage of Fail-open on malformed CIDR widths (mask underflow/UB shift) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Fail-open on malformed CIDR widths (mask underflow/UB shift) across the assessed attack surface.",
+                "markdown": "Coverage of Fail-open on malformed CIDR widths (mask underflow/UB shift) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            },
+            {
+              "id": "strix-coverage/deny-rule-bypass-by-address-representation-ipv4-mapped-ipv6-zone-id-leading-zeros",
+              "name": "Deny-rule bypass by address representation (IPv4-mapped IPv6, zone-id, leading zeros)",
+              "shortDescription": {
+                "text": "Coverage: Deny-rule bypass by address representation (IPv4-mapped IPv6, zone-id, leading zeros)"
+              },
+              "fullDescription": {
+                "text": "Coverage of Deny-rule bypass by address representation (IPv4-mapped IPv6, zone-id, leading zeros) across the assessed attack surface."
+              },
+              "defaultConfiguration": {
+                "level": "none"
+              },
+              "help": {
+                "text": "Coverage of Deny-rule bypass by address representation (IPv4-mapped IPv6, zone-id, leading zeros) across the assessed attack surface.",
+                "markdown": "Coverage of Deny-rule bypass by address representation (IPv4-mapped IPv6, zone-id, leading zeros) across the assessed attack surface."
+              },
+              "properties": {
+                "tags": [
+                  "coverage"
+                ]
+              }
+            }
+          ],
+          "version": "1.7.1"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CWE-863",
+          "ruleIndex": 0,
+          "level": "note",
+          "message": {
+            "text": "PureDB IPv6 allow/deny IP rules are silently discarded, bypassing per-user deny lists\n\nPureDB records are colon-separated and pure-pw writes per-user allow/deny IP patterns verbatim, while the daemon reads the fields positionally. An IPv6 address literal contains colons, so configuring one writes extra fields: the deny pattern is silently dropped and a client from the denied address still authenticates. The allow-list variant shifts a fragment into the time-restriction field, which denies every login and also drops the allow restriction."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/log_puredb.c"
+                },
+                "region": {
+                  "startLine": 436,
+                  "endLine": 441
+                }
+              },
+              "message": {
+                "text": "Daemon: reject records that still have fields after the last defined column (fail closed)"
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/pure-pw.c"
+                },
+                "region": {
+                  "startLine": 633,
+                  "endLine": 635
+                }
+              },
+              "message": {
+                "text": "pure-pw: refuse to write an IP rule containing the field separator"
+              }
+            },
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/pure-pw.c (record writer) -> src/log_puredb.c (record reader and rule evaluation)",
+                  "kind": "endpoint"
+                }
+              ]
+            }
+          ],
+          "fixes": [
+            {
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "src/log_puredb.c"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 436,
+                        "endLine": 441
+                      },
+                      "insertedContent": {
+                        "text": "if (time_restrictions_check(time_restrictions) != 0) {\n        return -1;\n    }\n    if (pure_strtok2(&cursor, *PW_LINE_SEP) != NULL) {\n        return -1;              /* malformed record: unexpected trailing fields */\n    }\n\n    return 0;\n}"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "artifactLocation": {
+                    "uri": "src/pure-pw.c"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 633,
+                        "endLine": 635
+                      },
+                      "insertedContent": {
+                        "text": "if (fp2 == NULL) {\n        return -1;\n    }\n    if ((pwinfo->allow_local_ip != NULL &&\n         strchr(pwinfo->allow_local_ip, *PW_LINE_SEP) != NULL) ||\n        (pwinfo->deny_local_ip != NULL &&\n         strchr(pwinfo->deny_local_ip, *PW_LINE_SEP) != NULL) ||\n        (pwinfo->allow_client_ip != NULL &&\n         strchr(pwinfo->allow_client_ip, *PW_LINE_SEP) != NULL) ||\n        (pwinfo->deny_client_ip != NULL &&\n         strchr(pwinfo->deny_client_ip, *PW_LINE_SEP) != NULL)) {\n        fputs(\"IP access rules cannot contain the ':' field separator;\\n\"\n              \"use a hostname rule for IPv6 clients instead of an address \"\n              \"literal.\\n\", stderr);\n        return -1;\n    }"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "description": {
+                "text": "Validate the four IP-pattern fields when the record is written so a value containing the record separator is rejected with a clear error instead of corrupting the record, and make the daemon treat a record with more fields than the format defines as invalid so any corrupted or hand-edited entry fails authentication rather than dropping its restrictions. Longer term, add an escape encoding for the field separator to the PureDB record format (writer and reader together, with a version marker) so IPv6 literals can be stored and evaluated, and document hostname rules as the supported way to express IPv6 restrictions in the meantime. Operators that already configured IPv6 literals should re-check affected accounts with pure-pw show and migrate to hostname rules.",
+                "markdown": "Validate the four IP-pattern fields when the record is written so a value containing the record separator is rejected with a clear error instead of corrupting the record, and make the daemon treat a record with more fields than the format defines as invalid so any corrupted or hand-edited entry fails authentication rather than dropping its restrictions. Longer term, add an escape encoding for the field separator to the PureDB record format (writer and reader together, with a version marker) so IPv6 literals can be stored and evaluated, and document hostname rules as the supported way to express IPv6 restrictions in the meantime. Operators that already configured IPv6 literals should re-check affected accounts with pure-pw show and migrate to hostname rules."
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "7b86abebed3036e9dbd6dbe4b085e701c7a293bf6a379bd7b595b3b7a8e80445"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "strix_vuln_class_hash": "63f358032d11b954535dc4d0303ced5076e13792072a9e3f7fd0119705598a95",
+            "strix": {
+              "id": "vuln-0001",
+              "severity": "low",
+              "cvss": 3.1,
+              "timestamp": "2026-11-17 10:20:01 UTC",
+              "target": "/workspace/source",
+              "endpoint": "src/pure-pw.c (record writer) -> src/log_puredb.c (record reader and rule evaluation)",
+              "cwe": "CWE-863",
+              "impact": "A per-user network restriction configured through the documented administrative interface is silently not enforced. Any client holding valid credentials for the account can authenticate from the address the administrator intended to deny - and, because the rule disappears rather than degrading, from any other address as well. For allow lists the account becomes unusable, denying the legitimate user while the address restriction is also lost. The 1.0.54 changelog states that IP access rules now support IPv6 patterns; that does not hold for IPv6 address literals.",
+              "technical_analysis": "A PureDB (virtual-user) record is one line of fields separated by PW_LINE_SEP (`:`). The daemon reads it positionally in pw_puredb_parseline(): position 13 is the allowed local IP, 14 denied local IP, 15 allowed client IP, 16 denied client IP and 17 the time restrictions. pure_strtok2() in src/utils.c performs a plain single-character split with no quoting or escaping, and the writer add_new_pw_line() in src/pure-pw.c prints each pattern with `%s` without validation:\\n\\n```c title=src/pure-pw.c startLineNumber=711 endLineNumber=731\\n    if (pwinfo->allow_local_ip != NULL) {\\n        fprintf(fp2, \"%s\", pwinfo->allow_local_ip);   /* allowed local ip */\\n    }\\n    ...\\n    if (pwinfo->deny_client_ip != NULL) {\\n        fprintf(fp2, \"%s\", pwinfo->deny_client_ip);   /* denied client ip */\\n    }\\n```\\n\\nWith `-R '::1/128'` the two colons of the literal add two separators, so the deny column at position 16 is empty and `1/128` is pushed to position 18, which the parser never reads. access_ip_check() therefore sees an empty deny list and returns success for every address; pure-pw show also reports an empty deny list, so the misconfiguration is invisible to the operator. With `-r '::1/128'` (allow list) the fragment lands in the time-restriction column, time_restrictions_check() cannot parse it and returns -1, so every login is denied while the allow restriction is also gone.\\n\\nThe IPv6 CIDR matcher in access_ip_match() (ipv6_cidr_match() plus inet_pton(AF_INET6, ...)) is correct but cannot be reached with an IPv6 literal through the product's only rule-writing interface, because such a literal can never occupy a single colon-separated field. IPv6 hostname rules contain no colon and do work.",
+              "remediation_steps": "Validate the four IP-pattern fields when the record is written so a value containing the record separator is rejected with a clear error instead of corrupting the record, and make the daemon treat a record with more fields than the format defines as invalid so any corrupted or hand-edited entry fails authentication rather than dropping its restrictions. Longer term, add an escape encoding for the field separator to the PureDB record format (writer and reader together, with a version marker) so IPv6 literals can be stored and evaluated, and document hostname rules as the supported way to express IPv6 restrictions in the meantime. Operators that already configured IPv6 literals should re-check affected accounts with pure-pw show and migrate to hostname rules.",
+              "counterevidence": "The IPv6 matcher itself is correct and reachable through hostname rules (verified: -R localhost blocks both 127.0.0.1 and ::1), so this is not a general failure of IPv6 support. IPv4 rules are enforced correctly in the same test (control: -R 127.0.0.1/32 denies 127.0.0.1), and a well-formed record with no rules authenticates normally, so the defect is specific to address literals surviving the positional record format. Exploitation requires a non-default configuration step (an IPv6 literal rule rather than a hostname or IPv4 rule) plus valid credentials for the restricted account, which is why attack complexity is rated High. No path was found by which an unauthenticated client benefits.",
+              "confidence": "high",
+              "severity_change_conditions": "If the accounts protected by such IPv6 rules are administrative or the rule is the only control restricting them, the demonstrated loss of confidentiality becomes High (base 5.9); if no deployment configures IPv6 address literals, the practical impact is limited to a silent configuration error.",
+              "fix_verification": "Applied both changes to a copy of the tree and rebuilt: `make -j4` and `make check` both exit 0 with no new compiler warnings; the fix_before blocks were dumped with line numbers to confirm they match the file character-for-character.\\n\\nSecurity closure: re-ran the proof of concept against the patched daemon with the same corrupted database that previously allowed the login. The IPv6-denied user from `::1` now answers `530 Login authentication failed` (was `230 OK`); the allow-list user still answers `530`; the IPv4 deny control still answers `530`.\\n\\nBypass review: the daemon-side check is a single \"no fields remain after the last column\" test inside the one parse function used by every PureDB login, so it catches corruption introduced through any field (client IP, local IP, home, gecos) and any number of extra separators, not only the literal used in the proof of concept. Records that end before the IP columns still take the pre-existing early-return path, and well-formed 18-field records still authenticate (verified with a permissive user). Patched `pure-pw` rejects any of the four patterns containing `:` and writes nothing, while IPv4 and hostname patterns are written unchanged.\\n\\nPreserved behaviour: permissive logins from `127.0.0.1` and `::1` still succeed, IPv4 deny rules are still enforced, and a rejected write leaves the password file untouched.\\n\\nGaps: no exhaustive corpus of historical record shapes was executed (legacy short records were reasoned from the code plus the permissive-record test), and the complete escape-encoding fix was described but not implemented. Verification ran on a copy of the source tree; the same steps apply to the live tree.",
+              "poc": {
+                "description": "1. Build the tree and use the in-tree `src/pure-pw` and `src/pure-ftpd`.\\n2. Create a virtual user whose client-IP deny list contains an IPv6 literal: `pure-pw useradd <login> -f <passwd> -u <uid> -g <gid> -d <home> -R '::1/128'`.\\n3. Create a control user with an IPv4 deny rule: `-R '127.0.0.1/32'`.\\n4. Inspect the generated password lines: the IPv6 record has extra fields (`...:::::1/128:`) and an empty deny column; the IPv4 record is well formed.\\n5. Build the database with `pure-pw mkdb <puredb> -f <passwd>` and start `pure-ftpd -S <port> -E -j -A -l puredb:<puredb>`.\\n6. Log in as the IPv6-denied user from the IPv6 loopback address: the server answers `230 OK`, so the deny rule is not enforced.\\n7. Log in as the IPv4-denied control user from the IPv4 loopback address: the server answers `530 Login authentication failed`, proving the deny mechanism itself works and only the IPv6 rule was dropped.\\n8. Log in as the user configured with `-r '::1/128'` (allow list): the server answers `530` because the shifted fragment became an unparsable time restriction.",
+                "script_available": true
+              }
+            }
+          }
+        },
+        {
+          "ruleId": "CWE-457",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "Uninitialized stack memory disclosed in EPRT IPv6 error reply\n\nThe IPv6 branch of the EPRT parser builds a struct sockaddr_storage on the stack and fills only the address family and the 16 address bytes, leaving sin6_scope_id uninitialized. When the supplied address differs from the control connection's peer, the structure is passed to getnameinfo(NI_NUMERICHOST), which appends `%<sin6_scope_id>` to the formatted address and returns uninitialized stack memory to the client in the 500 reply. An authenticated client can read four bytes of process stack per request, and the value changes with the commands executed earlier in the session."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftpd.c"
+                },
+                "region": {
+                  "startLine": 862,
+                  "endLine": 864
+                }
+              },
+              "message": {
+                "text": "Zero the stack address structure before populating it (the IPv4 EPRT path already does this)"
+              }
+            },
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "EPRT",
+                  "kind": "endpoint"
+                }
+              ]
+            }
+          ],
+          "fixes": [
+            {
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "src/ftpd.c"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "startLine": 862,
+                        "endLine": 864
+                      },
+                      "insertedContent": {
+                        "text": "memset(&a, 0, sizeof a);\n    if (generic_aton(deb, &a) != 0) {\n        goto nope;\n    }"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "description": {
+                "text": "Zero the sockaddr_storage before populating it, as the IPv4 EPRT and PORT paths already do, so no uninitialized fields can reach getnameinfo. More generally, initialize every stack sockaddr structure at declaration and consider passing an explicit length from a single construction helper so partially filled address structures cannot be formatted or compared.",
+                "markdown": "Zero the sockaddr_storage before populating it, as the IPv4 EPRT and PORT paths already do, so no uninitialized fields can reach getnameinfo. More generally, initialize every stack sockaddr structure at declaration and consider passing an explicit length from a single construction helper so partially filled address structures cannot be formatted or compared."
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "primaryLocationLineHash": "ea13bc3b88b1f9af4c88a884d926247834312d06b21ebb799c9ad80c7dc34563"
+          },
+          "properties": {
+            "security-severity": "4.3",
+            "strix_vuln_class_hash": "09067bd376b61b4fe8b061d361fec5a244dac286b8d3496b4f76c7946097dc60",
+            "strix": {
+              "id": "vuln-0002",
+              "severity": "medium",
+              "cvss": 4.3,
+              "timestamp": "2026-11-17 10:20:42 UTC",
+              "target": "/workspace/source",
+              "endpoint": "EPRT",
+              "cwe": "CWE-457",
+              "impact": "An authenticated client can read four bytes of uninitialized process stack per request through the EPRT error reply, and can influence which stale values are disclosed by the commands it issues first. This is a memory-disclosure primitive that can expose residual process data (including address/layout fragments useful for defeating ASLR in a follow-on exploit); in the tested build the disclosed word contained no directly sensitive value.",
+              "technical_analysis": "The IPv6 branch of the EPRT parser declares the address structure without initializing it:\\n\\n```c title=src/ftpd.c startLineNumber=838 endLineNumber=866\\nstatic void do_ipv6_port(char *p, char delim)\\n{\\n    char *deb;\\n    struct sockaddr_storage a;        /* uninitialized */\\n    ...\\n    if (generic_aton(deb, &a) != 0) {\\n        goto nope;\\n    }\\n    doport2(a, (unsigned int) port);\\n}\\n```\\n\\n`generic_aton()` only sets the family (`ss_family`) and the 16 address bytes (`sin6_addr`); `sin6_flowinfo` and `sin6_scope_id` are left with whatever the stack contains. `doport2()` then compares the address with the control connection peer and, when they differ and FXP is not allowed, formats both addresses with `getnameinfo(..., NI_NUMERICHOST)`. glibc's IPv6 formatter appends `%<sin6_scope_id>` whenever the scope id is non-zero, so the uninitialized word is rendered as a decimal suffix in the `500` reply to the client.\\n\\nThe IPv4 EPRT branch (`memset(&a, 0, sizeof a);` before filling) and `doport()` already do this correctly, which confirms the omission is specific to the IPv6 helper.",
+              "remediation_steps": "Zero the sockaddr_storage before populating it, as the IPv4 EPRT and PORT paths already do, so no uninitialized fields can reach getnameinfo. More generally, initialize every stack sockaddr structure at declaration and consider passing an explicit length from a single construction helper so partially filled address structures cannot be formatted or compared.",
+              "counterevidence": "The leak only occurs on the IPv6 EPRT error path when the supplied address differs from the control-connection peer (the normal FXP-rejection reply); when the address matches the peer no address is formatted and nothing leaks. In this build the disclosed word was constant for a given command sequence and contained no recognizable secret, so the demonstrated impact is limited to four bytes of process memory per request rather than a direct credential or pointer disclosure. The IPv4 EPRT and PORT paths zero the structure and are unaffected. Confirmed by running the same requests against a patched build, which returns a plain address.",
+              "confidence": "high",
+              "severity_change_conditions": "Evidence that the disclosed words contain ASLR-relevant pointers or other sensitive process data in a production build would raise this finding; if the build always zeroes the field in practice (for example due to a zeroed stack), it would drop to informational.",
+              "fix_verification": "Applied the one-line change to a copy of the tree and rebuilt (`make -j4`, `make check`; both exit 0, no new warnings). The fix_before block was dumped with line numbers to confirm it matches the file character-for-character.\\n\\nSecurity closure: the same requests that previously returned `2001:db8::1%3724148534`, `::1%3724148534` and `fe80::1%3724148534` now return `2001:db8::1`, `::1` and `fe80::1`, including after the stack-shaping sequence (`TYPE` with a 4000-byte argument) that previously changed the disclosed word. The uninitialized read is gone because the whole structure is zeroed before it is populated.\\n\\nBypass review: both callers of `generic_aton()` were inspected. The IPv4 EPRT branch and `doport()` already `memset` the structure, and the remaining caller (the operator-only `-t` trusted-IP option at startup) only feeds `addrcmp()`, which compares address bytes and never formats the structure; it is not reachable by a client. Within `do_ipv6_port` the structure is used only for `doport3()` protocol selection, `addrcmp()` and `getnameinfo()`, all of which now see a fully defined structure.\\n\\nPreserved behaviour: `EPRT |1|...` and `EPRT |2|...` still succeed for matching addresses, the FXP rejection reply still names both addresses, `PORT` and `PASV` are unchanged, and numeric formatting of normal addresses is identical.\\n\\nGaps: the check is behavioural (no MemorySanitizer run, since an MSan-instrumented build was not produced); verification ran on a copy of the source tree, and the same one-line change applies to the live tree.",
+              "poc": {
+                "description": "1. Build the tree and start `pure-ftpd` locally with a virtual user (for example `pure-ftpd -S <port> -E -j -A -l puredb:<db>`).\\n2. Connect and authenticate (`USER`/`PASS`).\\n3. Send `EPRT |2|2001:db8::1|1025|` - an IPv6 address that differs from the peer address.\\n4. Observe the `500 I won't open a connection to 2001:db8::1%3724148534 (only to 127.0.0.1)` reply: the `%3724148534` suffix is the uninitialized `sin6_scope_id` (0xddf9ff36).\\n5. Repeat on a fresh connection without any prior command: the same word is returned. Send a long command first (for example `TYPE` followed by a 4000-byte argument) and repeat the EPRT: the disclosed word changes (0x82e29900), proving it is stale stack content that the client can shape.\\n6. Submit a very long EPRT and repeat the same correction, and the value can be sampled across a session; the fix removes the suffix entirely, returning the plain address.",
+                "script_available": true
+              }
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/quota-accounting-bypass-fail-open-error-handling",
+          "ruleIndex": 2,
+          "kind": "open",
+          "level": "none",
+          "message": {
+            "text": "quota accounting bypass / fail-open error handling — Requires further review: src/quotas.c + quota_update() callers in src/ftpd.c\n\nquota_update() zeroes *quota at quotas.c:97 before parsing, and returns -1 on a record without a space (quotas.c:116-121); both callers treat that error as \"no quota problem\" (ftpd.c:3702-3704 returns 0, ftpd.c:4303-4311 skips the whole check). Fail-open is certain at code level; the gap is that no remote way to corrupt /.ftpquota was found (checknamesanity blocks any name containing .ftpquota while quotas are active, ftpd.c:775-786)."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/quotas.c + quota_update() callers in src/ftpd.c"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "needs_follow_up",
+              "risk_area": "quota accounting bypass / fail-open error handling",
+              "surface": "src/quotas.c + quota_update() callers in src/ftpd.c",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/out-of-bounds-read-wrapped-length-arithmetic",
+          "ruleIndex": 3,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "out-of-bounds read / wrapped length arithmetic — Ruled out: puredb/src/puredb_read.c puredb_find() record parsing\n\nThe suspicious check at puredb_read.c:277 (data_size > db->size - data) can only wrap if data > db->size, but the preceding read_be_long(db, data, &data_size) rejects offset > size-4 in both the mapped path (:53) and the lseek/read path (:60-66), and puredb_read() re-validates offset/len at :306-309 before any copy."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "puredb/src/puredb_read.c puredb_find() record parsing"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "out-of-bounds read / wrapped length arithmetic",
+              "surface": "puredb/src/puredb_read.c puredb_find() record parsing",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/per-user-ip-allow-deny-bypass-cidr-parsing-address-family-confusion",
+          "ruleIndex": 4,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "per-user IP allow/deny bypass (CIDR parsing, address family confusion) — Ruled out: src/log_puredb.c access_ip_match()/access_ip_check()\n\naccess_ip_match() returns -1 for malformed IPv4/IPv6 CIDR (log_puredb.c:102-106, 146-161) and access_ip_check() denies on any non-1 result (:229-244), so malformed rules fail closed; fourinsix() is applied to ctrlconn and peer before authentication (ftpd.c:4953,4969) so v4-mapped IPv6 peers cannot dodge IPv4 deny rules."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_puredb.c access_ip_match()/access_ip_check()"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "per-user IP allow/deny bypass (CIDR parsing, address family confusion)",
+              "surface": "src/log_puredb.c access_ip_match()/access_ip_check()",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/stack-exhaustion-unbounded-allocation-from-wire-length",
+          "ruleIndex": 5,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "stack exhaustion / unbounded allocation from wire length — No issue identified: puredb/src/puredb_read.c read_memcmp() ALLOCA\n\nread_memcmp() ALLOCA(len) at puredb_read.c:89 uses len = strlen(USER argument) only on non-mmap builds; bounded by cmdsize = PATH_MAX+16 (globals.h:34) and freed on every path. No overflow, only bounded stack use per lookup."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "puredb/src/puredb_read.c read_memcmp() ALLOCA"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "stack exhaustion / unbounded allocation from wire length",
+              "surface": "puredb/src/puredb_read.c read_memcmp() ALLOCA",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/buffer-overflow-oob-read-in-ftp-command-reader",
+          "ruleIndex": 6,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "buffer overflow / OOB read in FTP command reader — Ruled out: src/ftp_parser.c sfgets()/parser()\n\ncmd[] is PATH_MAX+32 while cmdsize is PATH_MAX+16 (globals.h:34-35), so the isalnum(cmd[n]) read before the n<cmdsize test at ftp_parser.c:274 is in bounds; sfgets() caps growth at cmdsize and dies on a too-long line, and cmd[scanned-1] cannot underflow because seen_r is only set after scanned++."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/ftp_parser.c sfgets()/parser()"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "buffer overflow / OOB read in FTP command reader",
+              "surface": "src/ftp_parser.c sfgets()/parser()",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/privilege-escalation-via-puredb-record-fields",
+          "ruleIndex": 7,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "privilege escalation via PureDB record fields — Ruled out: src/log_puredb.c pw_puredb_parseline() uid/gid handling\n\npw_puredb_parseline() parses uid/gid with strtoul plus full-consumption check (log_puredb.c:299-310) and rejects uid/gid 0 unless ACCEPT_ROOT_VIRTUAL_USERS is defined (:311-315); truncated values such as 4294967296 land on uid 0 and are rejected by that gate."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_puredb.c pw_puredb_parseline() uid/gid handling"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "privilege escalation via PureDB record fields",
+              "surface": "src/log_puredb.c pw_puredb_parseline() uid/gid handling",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/jail-escape-path-overflow-from-ftp-path-arguments",
+          "ruleIndex": 8,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "jail escape / path overflow from FTP path arguments — Ruled out: src/ftpd.c path handling (checknamesanity, docwd, get_atomic_file, STOR/DELE paths)\n\nDynamically re-verified on two live builds of this tree (real-chroot build and --with-virtualchroot + --with-diraliases build), PureDB user, ftplib/socket driver. No path argument reached outside the jail root: RETR/CWD/LIST/NLST/STAT/MLSD/SIZE/MDTM/MKD/RMD/DELE/RNFR+RNTO/SITE CHMOD/SITE UTIME with `../../..`, absolute `/etc/passwd`, 1000x `../`, `.//..//..`, `a/..//..//..`, trailing separators, `..%2f` and backslash variants all returned 550/553 or resolved inside the jail; 4096-byte names fail with ENAMETOOLONG and never truncate into a different existing path. Named controls: kernel chroot() in the default build; fakexlate() prefix test `strncmp(curdirtmp, chroot_base, chroot_len) != 0 || curdirtmp[chroot_len] != '/'` plus the EPERM `..` checks in virtual-chroot builds; checknamesanity() for control chars/backslash. dot_ok==1 for chrooted users is therefore compensated by those two controls on every attacker-reachable path, and the `..` components it allows are normalized by the kernel (retested with `inside/../file1.txt` which succeeds only inside the jail)."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/ftpd.c path handling (checknamesanity, docwd, get_atomic_file, STOR/DELE paths)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "jail escape / path overflow from FTP path arguments",
+              "surface": "src/ftpd.c path handling (checknamesanity, docwd, get_atomic_file, STOR/DELE paths)",
+              "recorded_by": "Jail And Path Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/buffer-overflow-via-long-file-names-in-listing-output",
+          "ruleIndex": 9,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "buffer overflow via long file names in listing output — Ruled out: src/ls.c wrstr()/donlst()/domlsd()/listfile()\n\nwrstr() chunking in ls.c:35-106 keeps l <= sizeof outbuf on all three paths (exact fit handled by the <= test and the l > sizeof outbuf flush loop); NLST checks name_len > sizeof line - 3 (ls.c:1028) and MLSD goes through modernformat(..., sizeof line, ...) which is SNCHECK-guarded (ftpd.c:1076-1160)."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/ls.c wrstr()/donlst()/domlsd()/listfile()"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "buffer overflow via long file names in listing output",
+              "surface": "src/ls.c wrstr()/donlst()/domlsd()/listfile()",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/jail-escape-via-virtual-chroot-path-rewriting",
+          "ruleIndex": 10,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "jail escape via virtual-chroot path rewriting — Ruled out: src/fakechroot.c fakexlate()/fakesymlink()\n\nResolved by building --with-virtualchroot and exercising it live. fakexlate() cannot be walked out of: `..` at the root is clamped (`../..` repeatedly keeps cwd at `/`), `a/../x` is rejected with EPERM, absolute arguments are re-based on chroot_base, and a sibling directory whose path shares the jail prefix (`.../ftproot_sibling` vs jail `.../ftproot`) was not reachable by any command. fakegetcwd()'s prefix-only strncmp cannot see a foreign directory because curdir is only ever assigned from fakexlate() output, which always begins with chroot_base + '/'. The flagged fakesymlink() is unreachable: no FTP command creates symlinks (only link() in tryautorename(), src/ftpd.c:3591/3610). The one escape observed — a pre-existing symlink in the home directory pointing outside the jail (`abs_link -> /etc/passwd`, `up_link -> .../outside`) is read through RETR in virtual-chroot mode — is the documented purpose of the option (README:253-260 \"symbolic links are always followed... This feature isn't enabled by default\"); the same requests fail in the default chroot build. Not a defect."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/fakechroot.c fakexlate()/fakesymlink()"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "jail escape via virtual-chroot path rewriting",
+              "surface": "src/fakechroot.c fakexlate()/fakesymlink()",
+              "recorded_by": "Jail And Path Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/ftp-bounce-data-connection-target-manipulation",
+          "ruleIndex": 11,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "FTP bounce / data-connection target manipulation — Ruled out: src/ftpd.c PORT/EPRT/PASV/EPSV handling\n\ndoport()/doeprt() range-check all octets and ports (ftpd.c:2198-2204, 975-995), doport2() refuses ports < 1024 and enforces the anti-FXP check via addrcmp() before connecting (ftpd.c:2315-2352), and dopasv() binds the control-connection address."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/ftpd.c PORT/EPRT/PASV/EPSV handling"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "FTP bounce / data-connection target manipulation",
+              "surface": "src/ftpd.c PORT/EPRT/PASV/EPSV handling",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/authentication-bypass-sqli-in-auth-back-ends",
+          "ruleIndex": 12,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "authentication bypass / SQLi in auth back ends — No issue identified: auth back ends: log_unix.c, log_pam.c, log_ldap.c, log_mysql.c, log_pgsql.c\n\nlog_unix.c password check uses crypt()+pure_strcmp (constant-time compare, correct), log_pam.c validates num_msg before calloc, log_ldap.c rejects multi-entry results (log_ldap.c:272-278) and its opengrep double-free is a free(NULL) false positive, and log_mysql.c/log_pgsql.c escape every substituted value via pw_mysql_escape_string/pw_pgsql_escape_string after pw_mysql_validate_name. No auth shortcut found."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "auth back ends: log_unix.c, log_pam.c, log_ldap.c, log_mysql.c, log_pgsql.c"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "authentication bypass / SQLi in auth back ends",
+              "surface": "auth back ends: log_unix.c, log_pam.c, log_ldap.c, log_mysql.c, log_pgsql.c",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/memory-corruption-in-simplified-resolver-shim",
+          "ruleIndex": 13,
+          "kind": "notApplicable",
+          "level": "none",
+          "message": {
+            "text": "memory corruption in simplified resolver shim — Not applicable: src/ipstack.c (OLD_IP_STACK shim)\n\nEntire file is inside #ifdef OLD_IP_STACK (inactive on Linux/glibc) and every memcpy is preceded by a length check against the destination size (ipstack.c:50-65, 135-138)."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/ipstack.c (OLD_IP_STACK shim)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "not_applicable",
+              "risk_area": "memory corruption in simplified resolver shim",
+              "surface": "src/ipstack.c (OLD_IP_STACK shim)",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/hardcoded-credentials-secret-exposure",
+          "ruleIndex": 14,
+          "kind": "notApplicable",
+          "level": "none",
+          "message": {
+            "text": "hardcoded credentials / secret exposure — Not applicable: repository secrets (gitleaks, trufflehog)\n\ngitleaks and trufflehog both flag README.TLS:72-99, a sample certificate/key pair printed as documentation in the TLS setup instructions (the same section tells the operator to generate their own key with openssl req). No live credential is committed."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "repository secrets (gitleaks, trufflehog)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "not_applicable",
+              "risk_area": "hardcoded credentials / secret exposure",
+              "surface": "repository secrets (gitleaks, trufflehog)",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/known-cve-dependency-supply-chain-scan",
+          "ruleIndex": 15,
+          "kind": "open",
+          "level": "none",
+          "message": {
+            "text": "known-CVE dependency / supply-chain scan — Requires further review: repository dependency and misconfiguration scan (trivy fs, cppcheck)\n\ntrivy cannot complete: vuln scanning needs the trivy-db OCI artifact and misconfig needs the checks bundle, both of which stall through the egress proxy (mirror.gcr.io returns 502, ghcr.io transfer froze at 1.31/133.70 MiB). The snapshot also ships no lockfile/manifest, so SCA coverage remains unverified rather than clean. cppcheck could not be installed (no write access to /var/lib/dpkg)."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "repository dependency and misconfiguration scan (trivy fs, cppcheck)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "needs_follow_up",
+              "risk_area": "known-CVE dependency / supply-chain scan",
+              "surface": "repository dependency and misconfiguration scan (trivy fs, cppcheck)",
+              "recorded_by": "Static Baseline Triage",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/jail-escape-via-alias-expansion-prefix-substitution-case-folding-alias-to-host-path",
+          "ruleIndex": 16,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "jail escape via alias expansion (prefix substitution, case folding, alias to host path) — No issue identified: src/diraliases.c + docwd() alias fallback (CWD, SITE ALIAS)\n\nAlias data comes only from ALIASES_FILE (CONFDIR, root-owned, parsed once at startup by init_aliases()); no client input reaches the alias table. lookup_alias() is an exact strcmp — no prefix/case-insensitive matching, so \"alias/src\" or \"ALIAS\" do not select an alias. Live test with `aliasin=/inside/` and `aliasout=<host>/outside/`: `CWD aliasin` resolved to /inside inside the jail, `CWD aliasout` failed (the absolute host path is re-based by chroot()/fakexlate()), and `CWD` never returned an out-of-jail path. The alias chdir target skips checknamesanity(), but it is still subject to the kernel chroot / fakexlate rewrite on every path, and the value is operator-controlled configuration."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/diraliases.c + docwd() alias fallback (CWD, SITE ALIAS)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "jail escape via alias expansion (prefix substitution, case folding, alias to host path)",
+              "surface": "src/diraliases.c + docwd() alias fallback (CWD, SITE ALIAS)",
+              "recorded_by": "Jail And Path Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/memory-corruption-dos-via-glob-expansion-of-ftp-path-arguments",
+          "ruleIndex": 17,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "memory corruption / DoS via glob expansion of FTP path arguments — No issue identified: src/bsd-glob.c sglob()/glob0()/globexp2() with client-supplied patterns (LIST, STAT, NLST)\n\nFuzzed live with 18 pathological patterns per command (thousands of `*`, unbalanced { } [ ], `[a-` ranges, 4000-char patterns, 500-char backslash runs) plus 1000-component `../` paths: every request returned a normal 226/550 reply, no crash, no session or daemon death, no memory errors observed. Structurally: glob_() rejects patterns >= PATH_MAX (bsd-glob.c:194) and GLOB_LIMIT caps stars at 3 via check_stars() (:158-161); callers pass max_ls_files/max_ls_depth. Matched names are only stat()ed and listed, so globbing cannot widen filesystem reach: path arguments still go through the chroot/fakexlate translation for the chdir()/stat() that follow."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/bsd-glob.c sglob()/glob0()/globexp2() with client-supplied patterns (LIST, STAT, NLST)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "memory corruption / DoS via glob expansion of FTP path arguments",
+              "surface": "src/bsd-glob.c sglob()/glob0()/globexp2() with client-supplied patterns (LIST, STAT, NLST)",
+              "recorded_by": "Jail And Path Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/canonicalisation-bypass-oob-read-in-built-in-realpath",
+          "ruleIndex": 18,
+          "kind": "notApplicable",
+          "level": "none",
+          "message": {
+            "text": "canonicalisation bypass / OOB read in built-in realpath — Not applicable: src/bsd-realpath.c bsd_realpath()\n\nbsd-realpath.c is only compiled when !HAVE_REALPATH || USE_BUILTIN_REALPATH; on glibc -DHAVE_REALPATH=1 makes the platform realpath() the compiled-in one (verified by building both ways). Its only caller in the daemon is displayrate() (src/ftpd.c:2803) for the upload-script/altlog path after a transfer completes — it never gates a filesystem operation, so a failure there only aborts the log entry. Latent nit noted for completeness: the dead `else if (slen == 0)` branch inside `if (slen < 0 || slen >= sizeof symlink)` leaves slen==0 reaching `symlink[slen - 1]` (bsd-realpath.c:269), a one-byte stack read; Linux cannot create a symlink with an empty target (symlink(\"\") fails ENOENT) and readlink() on a valid link returns >= 1, so it is unreachable."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/bsd-realpath.c bsd_realpath()"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "not_applicable",
+              "risk_area": "canonicalisation bypass / OOB read in built-in realpath",
+              "surface": "src/bsd-realpath.c bsd_realpath()",
+              "recorded_by": "Jail And Path Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/jail-escape-for-anonymous-sessions-anon-dir-setup-path",
+          "ruleIndex": 19,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "jail escape for anonymous sessions (ANON_DIR setup path) — No issue identified: douser() anonymous jail setup + anonymous path commands\n\nLive anonymous session against a --with-virtualchroot build (ANON_DIR jail, dot_read_anon=0): `RETR ../afile.txt`, `../../afile.txt`, `/afile.txt`, `/etc/passwd` and `../../../ftproot_sibling/sib.txt` all resolved inside the jail or returned 550; `CWD ..`, `../..`, `/` clamp to `/`; `STOR ../up.txt` created the file at the jail root (verified on disk as <jail>/up.txt) and not outside; MKD/DELE/CHMOD are refused by the anonymous policy in dodele/domkd/dochmod before any filesystem call. The anonymous chroot setup path (douser(): chdir(pw_dir) || chroot(pw_dir) || chdir(\"/\")) therefore leaves the same controls in place as the virtual-user path."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "douser() anonymous jail setup + anonymous path commands"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "jail escape for anonymous sessions (ANON_DIR setup path)",
+              "surface": "douser() anonymous jail setup + anonymous path commands",
+              "recorded_by": "Jail And Path Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/accounting-correctness-buffer-sizing-symlink-handling",
+          "ruleIndex": 20,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Accounting correctness / buffer sizing / symlink handling — No issue identified: src/pure-quotacheck.c traversal and quota file writer\n\nBuilt and ran: crafted tree (regular files, subdir, symlink, garbage pre-existing .ftpquota) produced `5 10306`, matching 6+5000+300 bytes plus symlink target and subdir, with .ftpquota skipped. Path buffer is sized slen+strlen(name) and snprintf with a boundary-checked SNCHECK; inode/device dedup prevents loops; uid/gid must be >0."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/pure-quotacheck.c traversal and quota file writer"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Accounting correctness / buffer sizing / symlink handling",
+              "surface": "src/pure-quotacheck.c traversal and quota file writer",
+              "recorded_by": "Quota And Aux Module Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/quota-bypass-malformed-quota-file-reset-to-zero-integer-overflow",
+          "ruleIndex": 21,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Quota bypass / malformed quota file reset to zero / integer overflow — Ruled out: src/quotas.c quota_update (.ftpquota parsing, files/size accounting, locking)\n\nA quota'd user cannot touch /.ftpquota: checknamesanity() rejects any name containing QUOTA_FILE (src/ftpd.c:786-791) on every mutating command; verified 553 for STOR/APPE/DELE/MKD/RMD/RNFR/CHMOD/UTIME/MFMT including /, ./, suffix and upper-case variants. File is 0600 owned by session uid. Accounting verified live against the built daemon (exact limit accepted, +1 byte rejected and rolled back, aborted RST upload accounted, delete/rename/mkdir/rmdir consistent). Fail-open on a malformed file is real but needs a local writer who can already write the user's files directly, so no privilege boundary is crossed; wrapping of stored values near 2^64 is unreachable from the daemon path."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/quotas.c quota_update (.ftpquota parsing, files/size accounting, locking)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Quota bypass / malformed quota file reset to zero / integer overflow",
+              "surface": "src/quotas.c quota_update (.ftpquota parsing, files/size accounting, locking)",
+              "recorded_by": "Quota And Aux Module Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/upload-download-size-accounting-max-filesize-negative-overflow-sizes",
+          "ruleIndex": 22,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Upload/download size accounting, max_filesize, negative/overflow sizes — No issue identified: ftpd.c quota/size accounting (dostor, dodele, dornto, domkd, dormd, ul_quota_update, max_filesize)\n\nLive daemon tests: 1 MiB quota - 1048576-byte STOR accepted (`1 1048576`), 1048577 bytes rejected with 552 and file unlinked/quota rolled back; RST-aborted upload of 400000 bytes still accounted (`2 707200`); overwrite 900KB->100KB, APPE +50KB and REST/truncate accounting all tracked disk state; RNTO over an existing file decremented the replaced file (2 files/819200 -> 1 file/512000, matching ls); MKD/RMD +/-1 file consistent; no trim beyond ~one chunk beyond max_filesize = user_quota_size - quota.size."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "ftpd.c quota/size accounting (dostor, dodele, dornto, domkd, dormd, ul_quota_update, max_filesize)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Upload/download size accounting, max_filesize, negative/overflow sizes",
+              "surface": "ftpd.c quota/size accounting (dostor, dodele, dornto, domkd, dormd, ul_quota_update, max_filesize)",
+              "recorded_by": "Quota And Aux Module Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/per-user-limit-bypass-via-forged-parsed-scoreboard",
+          "ruleIndex": 23,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Per-user limit bypass via forged/parsed scoreboard — No issue identified: src/ftpwho-read.c ftpwho_read_count / scoreboard_cleanup\n\nVerified with `-y 2:2`: two concurrent vuser sessions accepted, third rejected with `421 I can't accept more than 2 connections as the same user`; scoreboard files appear as root-owned 0600 `client-<pid>` inside the root-owned 0700 /run/pure-ftpd, which is what ftpwho_read_count consumes (offsetof(account), 128 bytes, strcasecmp)."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/ftpwho-read.c ftpwho_read_count / scoreboard_cleanup"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Per-user limit bypass via forged/parsed scoreboard",
+              "surface": "src/ftpwho-read.c ftpwho_read_count / scoreboard_cleanup",
+              "recorded_by": "Quota And Aux Module Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/forged-scoreboard-entry-causing-privileged-action-format-string-buffer-issues",
+          "ruleIndex": 24,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Forged scoreboard entry causing privileged action / format-string / buffer issues — Ruled out: src/ftpwho-update.c + src/pure-ftpwho.c scoreboard write/read (root helper)\n\nScoreboard dir is created/hardened to root-owned 0700 (ftpwho-update.c:108-130); entries are opened O_NOFOLLOW and required to be regular, uid 0, mode 0600 and exactly sizeof(FTPWhoEntry) (pure-ftpwho.c:841-854) before parsing, so a non-root local user or FTP client cannot inject an entry; pure-ftpwho refuses to run unless euid is 0 (737-742) and unlinks only names starting with `client-` that fail kill(pid,0). Attacker-controlled filename/account strings go through xml_escaped/shell_escaped, and control characters (incl. ESC) are rejected at upload time by ISCTRLCODE in checknamesanity, so no terminal/HTML injection via filenames."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/ftpwho-update.c + src/pure-ftpwho.c scoreboard write/read (root helper)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Forged scoreboard entry causing privileged action / format-string / buffer issues",
+              "surface": "src/ftpwho-update.c + src/pure-ftpwho.c scoreboard write/read (root helper)",
+              "recorded_by": "Quota And Aux Module Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/ldap-injection-ambiguous-multi-entry-result-anonymous-bind-regression",
+          "ruleIndex": 25,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "LDAP injection, ambiguous multi-entry result, anonymous-bind regression — Ruled out: src/log_ldap.c filter/DN construction and credential check\n\nStatic trace (LDAP back end is not buildable here: no ldap.h dev headers, requires --with-ldap). The username reaches LDAP only after pw_ldap_validate_name (src/log_ldap.c:319-336) which allows only a-zA-Z0-9 space - @ _ ' . and rejects `*`, `(`, `)`, `\\` and control characters, so filter injection is impossible; the filter itself is a config template where '%' is refused and only `\\L` becomes `%s`, and snprintf is size-checked (log_ldap.c:250-264). The ChangeLog 1.0.54 multi-entry claim is present and correct: ldap_count_entries != 1 rejects ambiguous results with a warning (log_ldap.c:271-284). Anonymous bind is intact for a NULL binddn (pwd set NULL, ldap_bind_s(NULL,NULL)) at log_ldap.c:163-165 and 225."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_ldap.c filter/DN construction and credential check"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "LDAP injection, ambiguous multi-entry result, anonymous-bind regression",
+              "surface": "src/log_ldap.c filter/DN construction and credential check",
+              "recorded_by": "Quota And Aux Module Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/username-buffer-handling-null-termination-conversation-overflow",
+          "ruleIndex": 26,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Username buffer handling / null termination / conversation overflow — Ruled out: src/log_pam.c pw_pam_check / PAM_conv\n\nStatic trace only (USE_PAM back end not buildable: no security/pam_appl.h, requires --with-pam). No fixed-size copies of user data: PAM_username/PAM_password are used via strdup in PAM_conv (src/log_pam.c:89,99); the username comes from account[MAX_USER_LENGTH+1] bounded by strncpy in doUSER; the conversation error path frees only calloc'd slots (free(NULL) safe) and leaves *resp NULL; PAM_RHOST buffer is 1025 with explicit NUL; pam_end is reached on every path."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_pam.c pw_pam_check / PAM_conv"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Username buffer handling / null termination / conversation overflow",
+              "surface": "src/log_pam.c pw_pam_check / PAM_conv",
+              "recorded_by": "Quota And Aux Module Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/buffer-overflow-unbounded-value-length-in-config-parsing",
+          "ruleIndex": 27,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Buffer overflow / unbounded value length in config parsing — No issue identified: src/simpleconf.c config parser\n\nCompiled simpleconf.c with ASan+UBSan and drove sc_build_command_line_from_file with the real simpleconf_ftpd.h entry table over 15 crafted configs: 100 KB value, 65530-char line, exactly-64 KB line, unterminated/empty quotes, `CertFileAndKey (a) (b) (c) (d)`, embedded NUL, missing trailing newline, blank/whitespace-only lines, 70000-char Include path. Result: no ASan/UBSan report, only clean syntax/property-not-found messages; arg template is capped at SC_MAX_ARG_LENGTH (E2BIG) and matches[] is bounds-checked (matches_len >= 10) before every add_to_matches."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/simpleconf.c config parser"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Buffer overflow / unbounded value length in config parsing",
+              "surface": "src/simpleconf.c config parser",
+              "recorded_by": "Quota And Aux Module Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/privilege-escalation-uid-0-selection-via-virtual-user-record",
+          "ruleIndex": 28,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Privilege escalation / uid 0 selection via virtual-user record — Ruled out: src/log_puredb.c pw_puredb_parseline uid/gid validation (PureDB record -> process identity)\n\nControl: after `result->uid = (uid_t) strtoul(line,&endptr,10)` the check `line==endptr || *endptr!=0` rejects non-numeric/partial fields and `if (result->uid <= (uid_t)0 || result->gid <= (gid_t)0) return -1` (log_puredb.c:321-336, #ifndef ACCEPT_ROOT_VIRTUAL_USERS) runs on the post-truncation value, so every string that truncates to 0 is rejected. Verified dynamically both in-process (harness linking the real log_puredb.c + puredb_read.c) and over FTP against a locally built daemon: uid '0','00','0000',' 0','0 ','+0','-0','0x0','4294967296' and gid '0',' 0','4294967296' all -> auth_ok=-1 / 530; control record uid 1000 logs in and the file it uploads is owned 1000:1000, proving the identity that is actually applied. ACCEPT_ROOT_VIRTUAL_USERS is never defined by configure.ac, so the default build always enforces this."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_puredb.c pw_puredb_parseline uid/gid validation (PureDB record -> process identity)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Privilege escalation / uid 0 selection via virtual-user record",
+              "surface": "src/log_puredb.c pw_puredb_parseline uid/gid validation (PureDB record -> process identity)",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/authentication-bypass-wrong-empty-prefix-password-accepted",
+          "ruleIndex": 29,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Authentication bypass (wrong/empty/prefix password accepted) — Ruled out: src/log_puredb.c password verification (crypt/pure_strcmp, empty password field)\n\nControl: crypt(pwd,stored) compared with pure_strcmp (constant-time, len+1 bytes so a prefix can never match) and `*line == 0` on the stored-password field rejects empty hashes before any comparison (log_puredb.c:292-317). Verified dynamically: correct password -> auth_ok=1; wrong, empty, 'testpas', 'testpassword', hash-as-password -> auth_ok=-1; record with empty password field -> auth_ok=-1 for both empty and non-empty PASS. Also confirmed over FTP (230 vs 530) with the same records."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_puredb.c password verification (crypt/pure_strcmp, empty password field)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Authentication bypass (wrong/empty/prefix password accepted)",
+              "surface": "src/log_puredb.c password verification (crypt/pure_strcmp, empty password field)",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/malformed-short-record-accepted-as-a-valid-login-oob-in-field-parsing",
+          "ruleIndex": 30,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Malformed/short record accepted as a valid login; OOB in field parsing — No issue identified: src/log_puredb.c record field tokenisation (pw_puredb_parseline field walk, pure_strtok2)\n\nEvery malformed-record shape I generated ends in an explicit failure: missing/short field stream, empty uid/gid/home, relative home -> auth_ok=-1; 1500 pseudo-random records (charset incl ':', '/', digits, high bytes, 3KB home) parsed under ASan/UBSan -> no memory error and no auth_ok=1. The parser only returns 0 (success) after the password comparison and all mandatory fields, and every later field failure path is `return -1`/`return 0`-after-password, so no path yields a logged-in session from a corrupt record."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_puredb.c record field tokenisation (pw_puredb_parseline field walk, pure_strtok2)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Malformed/short record accepted as a valid login; OOB in field parsing",
+              "surface": "src/log_puredb.c record field tokenisation (pw_puredb_parseline field walk, pure_strtok2)",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/out-of-bounds-read-write-on-corrupted-or-hostile-puredb-file",
+          "ruleIndex": 31,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Out-of-bounds read/write on corrupted or hostile PureDB file — No issue identified: puredb/src/puredb_read.c puredb_open/puredb_find/puredb_read on malformed databases\n\nFuzzed the real puredb_read.c under ASan/UBSan: 8000 iterations of 1-8 random byte mutations plus truncation on a 337 KB database, calling puredb_find_s for several keys and puredb_read on hits -> no out-of-bounds access. Bounds checks are effective at each dereference: read_be_long (offset > db->size-4), read_memcmp (len > db->size-offset), the key_size/data_size window checks in puredb_find, and the `offset/len` clamp in puredb_read. Only defect found is a signed left-shift UB at puredb_read.c:69 (`mapoffset[0] << 24` on int) which UBSan reports but which has no memory-safety consequence. Note the DB is root-owned data, so this class is not remotely reachable."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "puredb/src/puredb_read.c puredb_open/puredb_find/puredb_read on malformed databases"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Out-of-bounds read/write on corrupted or hostile PureDB file",
+              "surface": "puredb/src/puredb_read.c puredb_open/puredb_find/puredb_read on malformed databases",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/ip-allow-deny-acl-bypass-malformed-cidr-failing-open",
+          "ruleIndex": 32,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "IP allow/deny ACL bypass, malformed CIDR failing open — Ruled out: src/log_puredb.c access_ip_match/access_ip_check (per-user client and local IP rules)\n\nTested over FTP from two distinct peer addresses (127.0.0.1 and the container's 172.17.0.2) with records built by mkdb_raw so each field is unambiguous: exact /32 allow, foreign /8 allow, deny-only, allow+deny, /31 pair, 0.0.0.0/1 mask arithmetic, comma lists, hostname rule (A record), and invalid widths (/33, /0, /-1) all behaved as documented, with invalid widths and unparsable allow patterns denying. Positive and negative controls differed (allow=127.0.0.1 -> 230 from 127.0.0.1, 530 from 172.17.0.2; allow=172.17.0.2 -> the inverse). access_ip_check is fail-closed: with a non-empty allow list a non-match returns -1, and a malformed CIDR returns -1 from access_ip_match which is also treated as deny."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_puredb.c access_ip_match/access_ip_check (per-user client and local IP rules)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "IP allow/deny ACL bypass, malformed CIDR failing open",
+              "surface": "src/log_puredb.c access_ip_match/access_ip_check (per-user client and local IP rules)",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/ipv6-cidr-rules-silently-dropped-acl-bypass",
+          "ruleIndex": 33,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "IPv6 CIDR rules silently dropped -> ACL bypass — Ruled out: src/log_puredb.c IPv6 CIDR matching (access_ip_match inet_pton/ipv6_cidr_match branch) and IPv6 rules as stored by pure-pw\n\nSecurity outcome is fail-closed in every variant I could construct: '::1/128', '::/0', '2001:db8::/32', '::ffff:1.2.3.4' written into any of the four IP fields all shift the record because ':' is PW_LINE_SEP; the truncated first token always lands in a position that either fails access_ip_match (no CIDR, no inet_pton, no resolution -> deny) or leaves garbage in the time field, which time_restrictions_check rejects (sscanf \"%u-%u\" != 2 -> return -1). Verified end-to-end: pure-pw useradd -r '::1/128' produced an empty \"Allowed client IPs\" field plus a stray \"1/128\" time field, and the account was denied from both 127.0.0.1 and ::1. The hostname path (which is the only way an IPv6 comparison actually runs) works correctly: allow=localhost matches a ::1 client (230) and denies 172.17.0.2 (530), while IPv4-only rules deny a v6 peer. Defect recorded as an observation for the parent: IPv6 CIDR patterns cannot be represented in the record format at all (pure-pw does not escape ':' in -r/-R/-i/-I), so the ChangeLog's \"IP access rules now support IPv6 patterns\" is unusable and self-locks the account rather than weakening it."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_puredb.c IPv6 CIDR matching (access_ip_match inet_pton/ipv6_cidr_match branch) and IPv6 rules as stored by pure-pw"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "IPv6 CIDR rules silently dropped -> ACL bypass",
+              "surface": "src/log_puredb.c IPv6 CIDR matching (access_ip_match inet_pton/ipv6_cidr_match branch) and IPv6 rules as stored by pure-pw",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/writing-uid-0-separator-injected-records-via-the-admin-tool-offset-overflow-in-the-db-writer",
+          "ruleIndex": 34,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Writing uid 0 / separator-injected records via the admin tool; offset overflow in the DB writer — No issue identified: src/pure-pw.c useradd/usermod/passwd/mkdb field validation + puredb/src/puredb_write.c\n\nVerified end-to-end with the built pure-pw + daemon: useradd/mkdb/puredb-read chain authenticates a bcrypt record (auth_ok=1) and rejects a wrong password. do_useradd rejects uid/gid <= 0 before writing (pure-pw.c:848-853) and parse_pw_line rejects them when reading back (405-411); filter_pw_line_sep scrubs ':' from login/gecos/home so a login cannot inject extra fields. puredbw_add's size/offset checks (puredb_write.c:93-125) keep the merged file under 4 GiB so the u32 offsets cannot overflow. Observed defects (no privilege gain, recorded for the parent): out-of-range numeric fields are silently truncated on read (uid '4294967297' -> uid 1 was accepted and an uploaded file was owned by uid 1; '4294976296' -> uid 9000; values > 2^64 -> (uid_t)-1 -> setuid fails and the session is killed without a reply), and ':' in -r/-R/-i/-I is not escaped (see the IPv6 coverage entry)."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/pure-pw.c useradd/usermod/passwd/mkdb field validation + puredb/src/puredb_write.c"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Writing uid 0 / separator-injected records via the admin tool; offset overflow in the DB writer",
+              "surface": "src/pure-pw.c useradd/usermod/passwd/mkdb field validation + puredb/src/puredb_write.c",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/record-injection-via-newline-in-etc-passwd-fields-root-entry-conversion",
+          "ruleIndex": 35,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Record injection via ':'/newline in /etc/passwd fields; root entry conversion — Ruled out: src/pure-pwconvert.c field sanitisation\n\nControl: has_forbidden_pwconvert_char() rejects ':' CR LF in pw_name, pw_gecos, pw_dir and in the resolved password field before the printf, and uid/gid <= 0 are skipped (pure-pwconvert.c:9-12, 37-75). Verified dynamically by LD_PRELOAD-ing a getpwent/getspnam shim that returned hostile entries (name 'bob:0:0', gecos containing \"\\nroot:x:0:0:root:/root:/bin/sh\", dir '/tmp/x:y', uid 0, gid 0): the tool emitted only the single clean record, so no extra record or field can be injected into the generated passwd file."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/pure-pwconvert.c field sanitisation"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Record injection via ':'/newline in /etc/passwd fields; root entry conversion",
+              "surface": "src/pure-pwconvert.c field sanitisation",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/system-user-password-bypass-locked-shadow-empty-hash-disallowed-shell",
+          "ruleIndex": 36,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "System-user password bypass (locked/shadow/empty hash, disallowed shell) — Ruled out: src/log_unix.c pw_unix_check (system user backend)\n\nBuilt the daemon with the unix backend and tested with two throwaway local accounts: correct system password -> 230, wrong -> 530, empty -> 530, password prefix ('Pw-test-12') -> 530, user with /sbin/nologin shell -> 530, nonexistent user -> 530. Control at src/log_unix.c:78-85: the stored hash (from getspnam when /etc/passwd holds 'x'/'##name', otherwise pw_passwd) is compared with crypt()+pure_strcmp and PASSWD_UNKNOWN falls through with auth_ok=0 while a shell/lookup failure exits with auth_ok=-1 so the backend chain cannot continue to a lenient backend."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_unix.c pw_unix_check (system user backend)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "System-user password bypass (locked/shadow/empty hash, disallowed shell)",
+              "surface": "src/log_unix.c pw_unix_check (system user backend)",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/pam-authentication-bypass-auth-ok-mishandling",
+          "ruleIndex": 37,
+          "kind": "open",
+          "level": "none",
+          "message": {
+            "text": "PAM authentication bypass / auth_ok mishandling — Requires further review: src/log_pam.c pw_pam_check (PAM backend, USE_PAM build)\n\nStatic review only: libpam headers and pam modules are not installed in the sandbox, so the USE_PAM build could not be produced. Read of log_pam.c:144-221 shows the success path requires pam_authenticate()==PAM_SUCCESS and pam_acct_mgmt()==PAM_SUCCESS, each guarded by PAM_BAIL which jumps to the cleanup label leaving auth_ok at 0/-1, and auth_ok is only raised to 1 after getpwnam(), strdup(dir), initgroups() and pam_setcred() have all succeeded. No dynamic evidence obtained; PAM is also a non-default compile option."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_pam.c pw_pam_check (PAM backend, USE_PAM build)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "needs_follow_up",
+              "risk_area": "PAM authentication bypass / auth_ok mishandling",
+              "surface": "src/log_pam.c pw_pam_check (PAM backend, USE_PAM build)",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/login-state-machine-bypass-acct-pre-auth-commands-repeated-user-pass-failed-privilege-drop",
+          "ruleIndex": 38,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Login-state machine bypass (ACCT, pre-auth commands, repeated USER/PASS, failed privilege drop) — Ruled out: src/ftpd.c douser/dopass/pw_check auth state machine and src/ftp_parser.c pre-auth command gate\n\nftpd.c auth flow reviewed and exercised: ACCT is answered 202 by the parser and never reaches an authentication routine (ftp_parser.c:336-340); the pre-auth command set (noop/user/acct/pass/quit/syst/auth/pbsz/prot/type/mode/feat/opts/stru/help) contains no filesystem or state-changing handler, and everything else is behind `else if (loggedin == 0) -> 530` (ftp_parser.c:453-456). dopass rejects a second PASS, an empty account, passwords >= MAX_PASSWORD_LEN, and requires auth_ok == 1 from pw_check before any of the jail/identity work; setgid/setgid and setuid/seteuid failures call _EXIT so a session can never continue with an unverified identity (ftpd.c:1801-1805, 1920-1932). Verified over FTP: USER/PASS with correct credentials reaches 230 and is chrooted to the record home (-A test: CWD/SIZE outside the jail all 550), wrong credentials give 530, and re-issued USER/PASS after login give 331/230 without changing identity."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/ftpd.c douser/dopass/pw_check auth state machine and src/ftp_parser.c pre-auth command gate"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Login-state machine bypass (ACCT, pre-auth commands, repeated USER/PASS, failed privilege drop)",
+              "surface": "src/ftpd.c douser/dopass/pw_check auth state machine and src/ftp_parser.c pre-auth command gate",
+              "recorded_by": "PureDB And Auth Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/privilege-escalation-record-authenticating-as-uid-gid-0",
+          "ruleIndex": 39,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Privilege escalation — record authenticating as uid/gid 0 — Ruled out: src/pure-pw.c: uid/gid integer fields written into the PureDB record (useradd/usermod/show/passwd)\n\nNamed controls on every path: (1) do_useradd rejects uid/gid <= 0 unless ACCEPT_ROOT_VIRTUAL_USERS (pure-pw.c:844-848, not defined in the 1.0.54 build); (2) parse_pw_line rejects uid/gid <= 0 for existing text records (pure-pw.c:405-409); (3) usermod only overrides a fetched uid/gid when > 0 (pure-pw.c:936-941) so `-u 0`/`-u root` is a no-op; (4) the daemon-side reader re-validates with strtoul+endptr and <=0 rejection (log_puredb.c:318-336) regardless of what mkdb wrote. Verified by running the built pure-pw against a crafted passwd file: uid \"0\" lines are rejected by show/list, `-u root` is ignored by usermod. Residual (not a boundary): pure-pw's own parse uses strtoul without endptr, so \"-1\" becomes 4294967295 and is written to the DB; the daemon also accepts it (endptr consumed fully) but setuid(4294967295) fails and ftpd.c:1433/1923 exit the session, so it never yields a usable or root identity."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/pure-pw.c: uid/gid integer fields written into the PureDB record (useradd/usermod/show/passwd)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Privilege escalation — record authenticating as uid/gid 0",
+              "surface": "src/pure-pw.c: uid/gid integer fields written into the PureDB record (useradd/usermod/show/passwd)",
+              "recorded_by": "CLI Tools And Scoreboard Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/credential-db-record-injection-via-unescaped-field-separators-newlines-no-privilege-boundary",
+          "ruleIndex": 40,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Credential-DB record injection via unescaped field separators / newlines (no privilege boundary) — No issue identified: src/pure-pw.c: record serialization (login/gecos/home/ip fields) and long-line handling\n\nTested the built pure-pw (ASan+UBSan) with records containing 4090-char gecos, a >LINE_MAX line (split by fgets at pure-pw.c:520/578/1237 and re-parsed as two records), 20-colon tails and 8000-byte lines: no memory error in list/show/usermod/mkdb, every read is fgets-bounded into LINE_MAX=4096 buffers. Separator handling: filter_pw_line_sep (pure-pw.c:164-173, called for login/gecos/home at 1355/1364/1410) only maps ':' to '_'; it does NOT neutralise CR/LF. Demonstrated: `pure-pw useradd bob -c $'Bob\\nevil:...:1:1:evil:/home/evil/./:'` produced a second line in pureftpd.passwd that mkdb turned into an extra account (the ':' chars inside it became '_'). Also unfiltered: the -i/-I/-r/-R IP fields, and a newline in login or -d. This is a real record-injection/DB-corruption defect but there is no privilege boundary: every input comes from argv or from the root-owned 0600 passwd file (umask 0177 at pure-pw.c:1477, temp file O_EXCL|O_NOFOLLOW at 553-555), so only the local admin can reach it. Recommend the same guard pure-pwconvert uses (reject/escape \\r and \\n) for consistency."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/pure-pw.c: record serialization (login/gecos/home/ip fields) and long-line handling"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Credential-DB record injection via unescaped field separators / newlines (no privilege boundary)",
+              "surface": "src/pure-pw.c: record serialization (login/gecos/home/ip fields) and long-line handling",
+              "recorded_by": "CLI Tools And Scoreboard Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/integer-overflow-in-record-length-offset-handling-producing-a-db-the-reader-over-reads",
+          "ruleIndex": 41,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Integer overflow in record length/offset handling producing a DB the reader over-reads — Ruled out: puredb/src/puredb_write.c (+ puredb_read.c consumer)\n\nNamed controls: puredbw_add validates key_len/content_len against the u32 boundary and projects data_offset_counter + offset_first_data + the worst-case 256*4 writekeys bump before storing anything (puredb_write.c:93-125), returning -1 rather than writing a wrapped offset; writekeys computes offset_first_data to its final value in the offset-table pass before any data offset is stored (203-238); the reader bounds every access (read_be_long puredb_read.c:53, read_memcmp puredb_read.c:83, table/pointer/key/content checks at 175-196, 245-268, 273-303). Verified dynamically: pure-pw mkdb on a file with a 4094-char gecos produced a 6339-byte DB, and an ASan/UBSan reader opened it and read the 2042-byte and 58-byte records with no OOB or UB. Header/length values above 4 GiB are unreachable from pure-pw anyway because each record comes from a LINE_MAX=4096 fgets buffer."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "puredb/src/puredb_write.c (+ puredb_read.c consumer)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Integer overflow in record length/offset handling producing a DB the reader over-reads",
+              "surface": "puredb/src/puredb_write.c (+ puredb_read.c consumer)",
+              "recorded_by": "CLI Tools And Scoreboard Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/format-string-buffer-overflow-via-long-usernames-or-filenames",
+          "ruleIndex": 42,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Format-string / buffer overflow via long usernames or filenames — No issue identified: src/altlog.c: CLF / stats / W3C / xferlog line construction\n\nNo format string use: every altlog_* builder passes a fixed format and user data as %s arguments (altlog.c:75, 219, 297, 351). Every buffer comes from ALLOCA with a size computed from the exact field lengths (strlen(host_)+strlen(account_)+strlen(quoted_filename)+fixed widths, incl. the 20-digit %llu width) and the write is wrapped in SNCHECK, which is `(CALL) >= (int)SIZE` for CONF_SNPRINTF_TYPE 8 (mysnprintf.h:27) — a failing call is dropped instead of written. urlencode (altlog.c:102-152) is length-checked at every emit. Verified with an ASan/UBSan harness driving altlog_writexfer for all four formats with a 4001-byte filename, a 127-byte account, a 2001-byte filename of regex-special '%' and an unsanitised host string: no overflow, no UB, all lines emitted whole."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/altlog.c: CLF / stats / W3C / xferlog line construction"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Format-string / buffer overflow via long usernames or filenames",
+              "surface": "src/altlog.c: CLF / stats / W3C / xferlog line construction",
+              "recorded_by": "CLI Tools And Scoreboard Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/log-injection-forging-of-clf-records-from-ftp-usernames",
+          "ruleIndex": 43,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Log injection / forging of CLF records from FTP usernames — No issue identified: src/altlog.c: attacker-controlled username in log lines\n\nLog-format confusion is demonstrable but contained to one field of one line: a username is copied verbatim into `account` (ftpd.c:1293, strncpy 127 chars) and printed unescaped in the CLF/W3C/xferlog/stats user field, so `USER bob\" [1/Jan/2020:00:00:00 +0000] \"GET /spoof` produces a line with fabricated inner structure (harness output: `1.2.3.4 - bob\" [1/Jan/2020:00:00:00 +0000] \"GET /spoof [17/Nov/2026:10:16:24 -0000] \"GET /x\" 200 12345`). It cannot become a new log record: sfgets() maps every control character (incl. CR and LF) to '_' before parsing (ftp_parser.c:148-156, ISCTRLCODE in ftpd.h:768), so no \\n or \\r can reach the log. `host` is additionally sanitised to [A-Za-z0-9.:-_] by dns_sanitize() (ftpd.c:4903) and filenames are urlencoded in CLF/W3C and space/ctrl-mapped in xferlog, so neither is injectable. Net: log-field forgery by an authenticated user, no log-record injection and no other sink — observation only, not filed as a finding."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/altlog.c: attacker-controlled username in log lines"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Log injection / forging of CLF records from FTP usernames",
+              "surface": "src/altlog.c: attacker-controlled username in log lines",
+              "recorded_by": "CLI Tools And Scoreboard Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/oob-read-write-when-parsing-an-attacker-supplied-stats-log",
+          "ruleIndex": 44,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "OOB read/write when parsing an attacker-supplied stats log — Ruled out: src/pure-statsdecode.c\n\nThe only attacker-influenced surface is the file it is pointed at, and the parser is bounded: 42-byte timestamp buffer written only while `instamp < sizeof-1` (pure-statsdecode.c:54) so the terminator write at line 59 is always in range, and output is limited to non-control characters. Verified with an ASan build on a 5000-digit line, a line of 41+digits then text, embedded NUL bytes and a truncated stamp: no OOB. Running it as a root post-processing tool on a log an FTP user cannot write (altlog files are opened O_NOFOLLOW by root, ftpd.c:5069-5076) gives no privilege path."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/pure-statsdecode.c"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "OOB read/write when parsing an attacker-supplied stats log",
+              "surface": "src/pure-statsdecode.c",
+              "recorded_by": "CLI Tools And Scoreboard Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/privileged-parsing-of-attacker-planted-scoreboard-files-oob-read-format-string-toctou",
+          "ruleIndex": 45,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Privileged parsing of attacker-planted scoreboard files (OOB read, format string, TOCTOU) — Ruled out: src/pure-ftpwho.c + src/ftpwho-update.c + src/ftpwho-read.c\n\nNamed controls on the root-parsing path: the scoreboard directory must be root-owned and is forced to 0700 (ftpwho-update.c:108-130), entries are opened O_NOFOLLOW with 0600 and must be regular, root-owned and exactly sizeof(FTPWhoEntry) (pure-ftpwho.c:826-841), account/filename are always NUL-terminated by the daemon on all four write sites (ftpd.c:1461-1465, 1938-1942, 3372-3380, 4335-4343), and ftpwho_read_count NUL-terminates its 128-byte read (ftpwho-read.c:73). Tested first-hand as root against /var/run/pure-ftpd: a symlink to /etc/shadow, a 100-byte file, and a file owned by uid 1000 were all skipped; a 1456-byte crafted entry with no NUL in account/filename printed garbage out of the zero-filled mapping but did not crash (mmap page padding bounds the over-read). Placement requires root-owned 0600 files in a root-only dir, so no FTP user (uid-ranged) can plant one. Minor hardening notes, not findings: `(st.st_mode & 0600) != 0600` accepts 0644 scoreboards, and pure-ftpwho does not itself validate SCOREBOARD_PATH (it chdir()s blindly) — harmless only because the daemon created it root-owned 0700."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/pure-ftpwho.c + src/ftpwho-update.c + src/ftpwho-read.c"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Privileged parsing of attacker-planted scoreboard files (OOB read, format string, TOCTOU)",
+              "surface": "src/pure-ftpwho.c + src/ftpwho-update.c + src/ftpwho-read.c",
+              "recorded_by": "CLI Tools And Scoreboard Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/buffer-overflow-auth-bypass-on-short-or-oversized-auth-daemon-reply-with-extauth",
+          "ruleIndex": 46,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Buffer overflow / auth bypass on short or oversized auth-daemon reply (WITH_EXTAUTH) — Ruled out: src/log_extauth.c + src/pure-authd.c request/response framing\n\nNon-default build option: only compiled with --with-extauth. Request side: one 4096-byte stack buffer, snprintf wrapped in SNCHECK, so an account+password that would overflow makes the whole request be dropped and the login fails closed (log_extauth.c:213-231); account is capped at 127 bytes by ftpd.c and can contain no newline, so no field injection into the authd request. Reply side: a single safe_read capped at sizeof-1 with line[readnb]=0 (237-240), keyword matching bounded by strlen(keyword) (248-254), and the result is forced to failure unless the daemon sent the end marker AND uid>0 AND gid>0 AND an absolute dir (258-263) — a short, truncated or oversized reply therefore denies rather than authenticates. pure-authd mirrors the pattern (4095-byte buffer, ended marker required, child _exit(EXIT_FAILURE) otherwise, pure-authd.c:288-340) and its socket is created 0600 with the path length checked against sun_path (354-392). No unchecked copies: the only memcpy uses are the sun_path copies, sized strlen+1 into a malloc(strlen+1+sizeof) block. Nothing here is reachable by an FTP client beyond the two credential strings."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/log_extauth.c + src/pure-authd.c request/response framing"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Buffer overflow / auth bypass on short or oversized auth-daemon reply (WITH_EXTAUTH)",
+              "surface": "src/log_extauth.c + src/pure-authd.c request/response framing",
+              "recorded_by": "CLI Tools And Scoreboard Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/oob-read-connection-count-bypass-in-the-proc-net-tcp-parser",
+          "ruleIndex": 47,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "OOB read / connection-count bypass in the /proc/net/tcp parser — Ruled out: src/daemons.c\n\nInput is kernel-generated /proc/net/tcp[6] (/proc is root-owned and not writable by FTP users), and the parser cannot write out of bounds: reads are capped at 2048-e with buf[2048] permanently 0 (daemons.c:25-33, 126-134). The only defect is a one-byte over-read: if a 2048-byte chunk ends without a ':' the cursor can become e+1 and strtoul(buf+b) reads buf[2049] (daemons.c:52-54 and 148-151). That needs a line of >=2048 bytes with no field separator — the kernel's fixed-format rows are far shorter — so it is not reachable with attacker-influenced data and produces a miscount at worst, not memory corruption. Not filed."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/daemons.c"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "OOB read / connection-count bypass in the /proc/net/tcp parser",
+              "surface": "src/daemons.c",
+              "recorded_by": "CLI Tools And Scoreboard Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/stored-xss-output-injection-in-the-cgi-status-page-via-attacker-controlled-session-fields",
+          "ruleIndex": 48,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Stored XSS / output-injection in the CGI status page via attacker-controlled session fields — Ruled out: src/pure-ftpwho.c HTML/XML/plist/shell output\n\npure-ftpwho is commonly deployed as a CGI (-c / GATEWAY_INTERFACE) that renders the account, filename and peer host of live sessions — all attacker-influenced. Every one of those fields is passed through html_escaped()/xml_escaped() (pure-ftpwho.c:214-271, 344-403, 460-510), which entity-encodes &, <, > and \" with bounds-checked output (left < sizeof \"&quot;\"-1 etc.), and the numeric fields use %lu. No unescaped user data reaches the HTML/XML/plist/shell writers; the shell writer additionally escapes | and \\ and maps control characters (pure-ftpwho.c:592-620). No XSS/format-string path from a session's filename or login into the status page."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/pure-ftpwho.c HTML/XML/plist/shell output"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Stored XSS / output-injection in the CGI status page via attacker-controlled session fields",
+              "surface": "src/pure-ftpwho.c HTML/XML/plist/shell output",
+              "recorded_by": "CLI Tools And Scoreboard Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/ftp-bounce-privileged-port-connection-via-active-mode",
+          "ruleIndex": 49,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "FTP bounce / privileged-port connection via active mode — Ruled out: PORT and EPRT client port-range enforcement (IPv4 PORT, IPv4/IPv6 EPRT, PASV/EPSV)\n\nNamed control: doport2() (src/ftpd.c) rejects any port below 1024 with 501 MSG_BAD_PORT, and that function is the single entry point for both PORT and EPRT (IPv4 branch and do_ipv6_port both end in doport2()). The parsers additionally reject port 0 and >65535 (doeprt: `port > 65535U || port <= 0U` after atoi; do_ipv6_port: strtoul with endptr==delimiter and `port <= 0 || port > 65535`). Verified live: PORT 127,0,0,1,0,21 and EPRT |1|...|1| return 501 \"won't connect to ports < 1024\"; ports 0, 65536, 99999, -1 and huge decimal strings return 501 syntax error; 1024/65535 are accepted. PASV/EPSV expose only server-chosen ports from firstport..lastport."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "PORT and EPRT client port-range enforcement (IPv4 PORT, IPv4/IPv6 EPRT, PASV/EPSV)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "FTP bounce / privileged-port connection via active mode",
+              "surface": "PORT and EPRT client port-range enforcement (IPv4 PORT, IPv4/IPv6 EPRT, PASV/EPSV)",
+              "recorded_by": "Protocol And IP Rule Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/memory-safety-stack-heap-overflow-off-by-one-oob-read-on-command-lines-and-arguments",
+          "ruleIndex": 50,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Memory safety: stack/heap overflow, off-by-one, OOB read on command lines and arguments — Ruled out: src/ftp_parser.c command tokeniser and line reader (sfgets/parser/revealextraspc/sfgets pipelining)\n\nEvery read/write is bounded by the command buffer and length control declared in src/globals.h (cmdsize = PATH_MAX + 16, cmd[PATH_MAX + 32]); sfgets refuses to scan past cmdsize and calls die(421, MSG_LINE_TOO_LONG) when no newline is found, and it always leaves a NUL inside the buffer, so the parser's `while (isalnum(cmd[n]) && n < cmdsize)` loop and the `n >= cmdsize` guard cannot run off the buffer. Verified dynamically under an AddressSanitizer build (-fsanitize=address) with boundary lines of 4110/4111/4112/4113/4200/9000 bytes, pipelined commands, bare LF/CRLF and 850+ randomised malformed command iterations: no ASAN reports, and 4110 bytes is accepted while 4111+ returns 421 Line too long."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "src/ftp_parser.c command tokeniser and line reader (sfgets/parser/revealextraspc/sfgets pipelining)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Memory safety: stack/heap overflow, off-by-one, OOB read on command lines and arguments",
+              "surface": "src/ftp_parser.c command tokeniser and line reader (sfgets/parser/revealextraspc/sfgets pipelining)",
+              "recorded_by": "Protocol And IP Rule Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/half-updated-data-address-port-state-after-a-failed-port-eprt-parse",
+          "ruleIndex": 51,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Half-updated data-address/port state after a failed PORT/EPRT parse — Ruled out: PORT/EPRT parse-failure state reset in src/ftpd.c (doport, doeprt, do_ipv6_port, doport2)\n\nBoth failure paths reset the data channel state: doport() closes datafd and sets it to -1 on a parse error, doeprt()/do_ipv6_port() jump to the shared `nope:` label which closes datafd and sets -1 before replying 501, and doport2() closes datafd before returning on the p<1024, doport3 failure and FXP-rejection branches. peerdataport is only updated after doport3() succeeds, and the peer address is only replaced when allowfxp permits FXP. Verified dynamically: a successful PORT followed by a malformed PORT/EPRT leaves no data socket (subsequent LIST returns 425 rather than connecting to the old target), and a malformed EPRT after PASV does not disturb passive semantics."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "PORT/EPRT parse-failure state reset in src/ftpd.c (doport, doeprt, do_ipv6_port, doport2)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Half-updated data-address/port state after a failed PORT/EPRT parse",
+              "surface": "PORT/EPRT parse-failure state reset in src/ftpd.c (doport, doeprt, do_ipv6_port, doport2)",
+              "recorded_by": "Protocol And IP Rule Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/memory-safety-in-fact-listing-formatting-long-names-symlink-targets-long-path-arguments",
+          "ruleIndex": 52,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Memory safety in fact/listing formatting (long names, symlink targets, long path arguments) — No issue identified: MLSD/MLST/LIST/NLST output path (src/ls.c domlsd/donlst/listfile/dolist, src/ftpd.c modernformat/domlst)\n\nEvery formatted line goes through snprintf into a PATH_MAX-sized buffer and the return value is checked with SNCHECK, which triggers a clean _EXIT instead of an overflow; readlink() into link_target is bounded by sizeof-1 and NUL-terminated, and domlsd skips entries whose name cannot be formatted. Verified under the ASAN build against a directory containing a 255-byte filename, 100/1000/4000/4090-byte symlink targets, high-bit UTF-8 names and control-character names, via MLSD, MLST, LIST -la, LIST -R, NLST and MLST with a 4000-byte path: no ASAN reports. (Observation only, not a security issue: the non-guest branch of modernformat omits the symlink-target %s that the guest branch prints, so symlink targets are not shown to virtual users.)"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "MLSD/MLST/LIST/NLST output path (src/ls.c domlsd/donlst/listfile/dolist, src/ftpd.c modernformat/domlst)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Memory safety in fact/listing formatting (long names, symlink targets, long path arguments)",
+              "surface": "MLSD/MLST/LIST/NLST output path (src/ls.c domlsd/donlst/listfile/dolist, src/ftpd.c modernformat/domlst)",
+              "recorded_by": "Protocol And IP Rule Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/numeric-date-parsing-unchecked-atoi-strtoul-out-of-range-values-length-used-for-allocation",
+          "ruleIndex": 53,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Numeric/date parsing: unchecked atoi/strtoul, out-of-range values, length used for allocation — No issue identified: SIZE/MDTM/MFMT/SITE UTIME date parsing and REST/ALLO numeric parsing (src/ftpd.c, src/ftp_parser.c)\n\ndoutime parses with bounded sscanf widths (%4d%2d%2d%2d%2d%2d) into a zeroed struct tm and rejects tm_mon<0, tm_year<=0 and ts==(time_t)-1; dorest/doallo use strtoull with endptr plus a negative off_t check, and no parse result is ever used as an allocation size. Verified live with empty, short, overflowing (18446744073709551616), negative, out-of-range (month 99, year 99999999999999999999) and garbage arguments: all rejected with 501/554 and no crash under ASAN."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "SIZE/MDTM/MFMT/SITE UTIME date parsing and REST/ALLO numeric parsing (src/ftpd.c, src/ftp_parser.c)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Numeric/date parsing: unchecked atoi/strtoul, out-of-range values, length used for allocation",
+              "surface": "SIZE/MDTM/MFMT/SITE UTIME date parsing and REST/ALLO numeric parsing (src/ftpd.c, src/ftp_parser.c)",
+              "recorded_by": "Protocol And IP Rule Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/sub-parser-argument-handling-buffer-overflows-unchecked-conversions-malformed-token-splitting",
+          "ruleIndex": 54,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Sub-parser argument handling: buffer overflows, unchecked conversions, malformed token splitting — No issue identified: SITE sub-parsers (CHMOD/IDLE/UTIME/HELP/ALIAS) and OPTS/TYPE/MODE/STRU handlers (src/ftp_parser.c)\n\nSITE CHMOD parses the mode with strtoul(base 8) and rejects values above 07777 (including -1 and 21-digit strings, which saturate), SITE IDLE uses strtoul with endptr garbage detection and caps at MAX_SITE_IDLE (2520), SITE UTIME requires the RFC 3659 five-token form and splits it with bounded strrchr pointer walks that always terminate on the argument string itself, SITE HELP/ALIAS only compare strings, and OPTS/MLST truncates its reply from a constant. Verified live with malformed, negative, overflowing and truncated arguments for each: correct 501/550 replies, no crash under ASAN."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "SITE sub-parsers (CHMOD/IDLE/UTIME/HELP/ALIAS) and OPTS/TYPE/MODE/STRU handlers (src/ftp_parser.c)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "no_issue_found",
+              "risk_area": "Sub-parser argument handling: buffer overflows, unchecked conversions, malformed token splitting",
+              "surface": "SITE sub-parsers (CHMOD/IDLE/UTIME/HELP/ALIAS) and OPTS/TYPE/MODE/STRU handlers (src/ftp_parser.c)",
+              "recorded_by": "Protocol And IP Rule Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/ip-access-control-matching-logic-rule-priority-allow-deny-semantics-unknown-host-address-representation",
+          "ruleIndex": 55,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "IP access-control matching logic: rule priority, allow/deny semantics, unknown host, address representation — Ruled out: PureDB IPv4 allow/deny rule evaluation (src/log_puredb.c access_ip_check/access_ip_match)\n\nVerified the access_ip_check() decision table for every combination: allow-only (empty allow => unrestricted; match => permitted; malformed CIDR => -1 => denied), deny-only (match or malformed => -1 => denied; no match => permitted), and both (permitted only when allow matches and deny does not). Unknown hostnames resolve to no match (ws_puredb logs and continues) which denies allow-only rules and permits deny-only rules. Dynamic 25-case matrix from 127.0.0.1, ::1 and ::ffff:127.0.0.1 covered /32, /8, hostname, comma lists, malformed /33, /0, leading-zero octets and both-lists cases; all behaved as specified, including IPv4 deny applied to the IPv4-mapped client."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "PureDB IPv4 allow/deny rule evaluation (src/log_puredb.c access_ip_check/access_ip_match)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "IP access-control matching logic: rule priority, allow/deny semantics, unknown host, address representation",
+              "surface": "PureDB IPv4 allow/deny rule evaluation (src/log_puredb.c access_ip_check/access_ip_match)",
+              "recorded_by": "Protocol And IP Rule Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/fail-open-on-malformed-cidr-widths-mask-underflow-ub-shift",
+          "ruleIndex": 56,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Fail-open on malformed CIDR widths (mask underflow/UB shift) — Ruled out: Malformed CIDR width handling in access_ip_match (IPv4 mask maths, IPv6 prefix parsing)\n\nNamed control: access_ip_match() rejects IPv4 widths with netbits==0 or >32 and IPv6 prefixes that are 0, >128 or non-numeric by returning -1 after logging the offending pattern, and every caller in access_ip_check() maps -1 to \"denied\" (allow-only returns -1, deny-only treats non-zero as denied, both-lists requires allow==1 and deny==0). Verified live: allow rule 127.0.0.1/33 and 127.0.0.0/0 both deny the client, deny rule 127.0.0.1/33 denies, and a /129 IPv6 prefix is rejected for IPv6 clients. No wrap-around or `>> 32` shift is reachable because the width is range-checked before the mask computation."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "Malformed CIDR width handling in access_ip_match (IPv4 mask maths, IPv6 prefix parsing)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Fail-open on malformed CIDR widths (mask underflow/UB shift)",
+              "surface": "Malformed CIDR width handling in access_ip_match (IPv4 mask maths, IPv6 prefix parsing)",
+              "recorded_by": "Protocol And IP Rule Auditor",
+              "source": "agent_reported"
+            }
+          }
+        },
+        {
+          "ruleId": "strix-coverage/deny-rule-bypass-by-address-representation-ipv4-mapped-ipv6-zone-id-leading-zeros",
+          "ruleIndex": 57,
+          "kind": "pass",
+          "level": "none",
+          "message": {
+            "text": "Deny-rule bypass by address representation (IPv4-mapped IPv6, zone-id, leading zeros) — Ruled out: Client address normalisation before rule evaluation (fourinsix/checkvalidaddr in src/ftpd.c doit)\n\nNamed control: fourinsix() in src/ftpd.c converts AF_INET6 source addresses that are IPv4-mapped into AF_INET, and doit() applies it to both ctrlconn and peer before any authentication (and again to accepted data connections). Verified live: a client connecting to ::ffff:127.0.0.1 is matched by an IPv4 deny rule (127.0.0.1/32 denies it) rather than escaping it, and an IPv4 rule does not match a genuine ::1 client, which is the documented per-family behaviour an operator must cover explicitly."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "fullyQualifiedName": "Client address normalisation before rule evaluation (fourinsix/checkvalidaddr in src/ftpd.c doit)"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "strix": {
+              "coverage_outcome": "ruled_out",
+              "risk_area": "Deny-rule bypass by address representation (IPv4-mapped IPv6, zone-id, leading zeros)",
+              "surface": "Client address normalisation before rule evaluation (fourinsix/checkvalidaddr in src/ftpd.c doit)",
+              "recorded_by": "Protocol And IP Rule Auditor",
+              "source": "agent_reported"
+            }
+          }
+        }
+      ],
+      "invocations": [
+        {
+          "executionSuccessful": false,
+          "toolExecutionNotifications": [
+            {
+              "level": "warning",
+              "message": {
+                "text": "The scan ended with status 'interrupted' rather than completing, so coverage reflects only the work finished before it stopped."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "4 agent(s) did not finish cleanly (Listing Glob And Upload Hook Auditor, Protocol And IP Rule Auditor, Root Agent, TLS And Cert Path Auditor); any surface they held is under-covered."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+[run] 第 0 阶段跳过（--skip-env）
+[run] 监督进程启动：项目=benchmark-sol 产物目录=/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine/sol
+[run] raw.jsonl 尚未出现，跳过实时渲染
+[run] 图文报告跳过（已禁用或没有有效报告）
+[run] 第 4 阶段跳过（已禁用、没有有效报告或没有环境）
+[run] 第 5 阶段跳过（已禁用、没有有效报告或没有环境）
+/vol1/1000/mygoldmine-benchmark/2026-11-17/tools/mygoldmine/run.sh: line 704: /vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine/sol/rsi/stage-learning-evaluation.json: No such file or directory
+[run] 监督进程结束：退出码=5 产物目录=/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine/sol

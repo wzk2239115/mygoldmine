@@ -1,0 +1,236 @@
+[
+  {
+    "tool": "claude-security-review",
+    "target": "sol",
+    "subtask": "",
+    "status": "finished",
+    "started_utc": "2026-11-17T05:55:21.986679+00:00",
+    "limit_seconds": 3600,
+    "exit_code": 0,
+    "elapsed_seconds": 1157.92,
+    "ended_utc": "2026-11-17T06:14:39.908759+00:00"
+  },
+  {
+    "tool": "claude-security-review",
+    "target": "pure-ftpd",
+    "subtask": "",
+    "status": "finished",
+    "started_utc": "2026-11-17T06:14:39.910514+00:00",
+    "limit_seconds": 3600,
+    "exit_code": 0,
+    "elapsed_seconds": 1751.95,
+    "ended_utc": "2026-11-17T06:43:51.863573+00:00"
+  },
+  {
+    "tool": "claude-security-review",
+    "target": "libcoap",
+    "subtask": "",
+    "status": "finished",
+    "started_utc": "2026-11-17T06:43:51.864596+00:00",
+    "limit_seconds": 3600,
+    "exit_code": 0,
+    "ended_utc": "2026-11-17T07:24:06.179111+00:00",
+    "elapsed_seconds": 2414.31
+  },
+  {
+    "tool": "claude-security-review",
+    "target": "tlse",
+    "subtask": "",
+    "status": "finished",
+    "started_utc": "2026-11-17T06:58:54.034465+00:00",
+    "limit_seconds": 3600,
+    "exit_code": 0,
+    "elapsed_seconds": 860.88,
+    "ended_utc": "2026-11-17T07:13:14.911484+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "sol",
+    "subtask": "-npd",
+    "status": "timeout",
+    "started_utc": "2026-11-17T07:13:14.964346+00:00",
+    "limit_seconds": 1200,
+    "elapsed_seconds": 1210.82,
+    "ended_utc": "2026-11-17T07:33:25.783755+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "pure-ftpd",
+    "subtask": "-npd",
+    "status": "timeout",
+    "started_utc": "2026-11-17T07:24:06.181369+00:00",
+    "limit_seconds": 1200,
+    "elapsed_seconds": 1211.3,
+    "ended_utc": "2026-11-17T07:44:17.483484+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "sol",
+    "subtask": "-mlk",
+    "status": "timeout",
+    "started_utc": "2026-11-17T07:33:25.785343+00:00",
+    "limit_seconds": 1200,
+    "elapsed_seconds": 1211.01,
+    "ended_utc": "2026-11-17T07:53:36.791297+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "pure-ftpd",
+    "subtask": "-mlk",
+    "status": "timeout",
+    "started_utc": "2026-11-17T07:44:17.506659+00:00",
+    "limit_seconds": 1200,
+    "elapsed_seconds": 1210.86,
+    "ended_utc": "2026-11-17T08:04:28.362703+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "sol",
+    "subtask": "-uaf",
+    "status": "finished",
+    "started_utc": "2026-11-17T07:53:36.802987+00:00",
+    "limit_seconds": 1200,
+    "exit_code": 0,
+    "elapsed_seconds": 195.93,
+    "ended_utc": "2026-11-17T07:56:52.736836+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "libcoap",
+    "subtask": "-npd",
+    "status": "timeout",
+    "started_utc": "2026-11-17T07:56:52.774999+00:00",
+    "limit_seconds": 1200,
+    "elapsed_seconds": 1210.85,
+    "ended_utc": "2026-11-17T08:17:03.629151+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "pure-ftpd",
+    "subtask": "-uaf",
+    "status": "timeout",
+    "started_utc": "2026-11-17T08:04:28.364625+00:00",
+    "limit_seconds": 1200,
+    "elapsed_seconds": 1210.66,
+    "ended_utc": "2026-11-17T08:24:39.022608+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "libcoap",
+    "subtask": "-mlk",
+    "status": "timeout",
+    "started_utc": "2026-11-17T08:17:03.631068+00:00",
+    "limit_seconds": 1200,
+    "elapsed_seconds": 1210.91,
+    "ended_utc": "2026-11-17T08:37:14.545737+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "tlse",
+    "subtask": "-npd",
+    "status": "timeout",
+    "started_utc": "2026-11-17T08:24:39.049074+00:00",
+    "limit_seconds": 1200,
+    "elapsed_seconds": 1210.98,
+    "ended_utc": "2026-11-17T08:44:50.027690+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "libcoap",
+    "subtask": "-uaf",
+    "status": "finished",
+    "started_utc": "2026-11-17T08:37:14.562310+00:00",
+    "limit_seconds": 1200,
+    "exit_code": 0,
+    "elapsed_seconds": 301.05,
+    "ended_utc": "2026-11-17T08:42:15.615967+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "tlse",
+    "subtask": "-mlk",
+    "status": "finished",
+    "started_utc": "2026-11-17T08:44:50.029462+00:00",
+    "limit_seconds": 1200,
+    "exit_code": 0,
+    "elapsed_seconds": 209.45,
+    "ended_utc": "2026-11-17T08:48:19.484256+00:00"
+  },
+  {
+    "tool": "repoaudit",
+    "target": "tlse",
+    "subtask": "-uaf",
+    "status": "finished",
+    "started_utc": "2026-11-17T08:48:19.486225+00:00",
+    "limit_seconds": 1200,
+    "exit_code": 0,
+    "elapsed_seconds": 122.92,
+    "ended_utc": "2026-11-17T08:50:22.410669+00:00"
+  },
+  {
+    "tool": "codex-security",
+    "status": "finished",
+    "superseded_status": "not_run_missing_official_access",
+    "supersedes_reason": "Replaced after four actual adapted-provider runs completed; use results/codex-security/status.json and logs/codex-security-<target>.log as authoritative.",
+    "targets": [
+      "sol",
+      "pure-ftpd",
+      "libcoap",
+      "tlse"
+    ],
+    "target_statuses": {
+      "sol": "finished",
+      "pure-ftpd": "finished",
+      "libcoap": "finished",
+      "tlse": "finished"
+    },
+    "findings": {
+      "sol": 8,
+      "pure-ftpd": 3,
+      "libcoap": 8,
+      "tlse": 3
+    },
+    "source": "results/codex-security/status.json",
+    "updated_at_utc": "2026-11-17T15:58:00Z"
+  },
+  {
+    "tool": "strix",
+    "target": "sol",
+    "subtask": "",
+    "status": "timeout",
+    "started_utc": "2026-11-17T09:22:31.983048+00:00",
+    "limit_seconds": 3600,
+    "elapsed_seconds": 3613.6,
+    "ended_utc": "2026-11-17T10:22:45.586952+00:00"
+  },
+  {
+    "tool": "strix",
+    "target": "pure-ftpd",
+    "subtask": "",
+    "status": "timeout",
+    "started_utc": "2026-11-17T09:22:32.309005+00:00",
+    "limit_seconds": 3600,
+    "elapsed_seconds": 3613.27,
+    "ended_utc": "2026-11-17T10:22:45.583327+00:00"
+  },
+  {
+    "tool": "strix",
+    "target": "tlse",
+    "subtask": "",
+    "status": "timeout",
+    "started_utc": "2026-11-17T10:22:48.310918+00:00",
+    "limit_seconds": 3600,
+    "elapsed_seconds": 3613.77,
+    "ended_utc": "2026-11-17T11:23:02.076110+00:00"
+  },
+  {
+    "tool": "strix",
+    "target": "libcoap",
+    "subtask": "",
+    "status": "timeout",
+    "started_utc": "2026-11-17T10:22:51.878024+00:00",
+    "limit_seconds": 3600,
+    "elapsed_seconds": 3611.86,
+    "ended_utc": "2026-11-17T11:23:03.737413+00:00"
+  }
+]

@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "results": {
+    "filtered_findings": [],
+    "excluded_findings": [],
+    "analysis_summary": {
+      "total_findings": 0,
+      "kept_findings": 0,
+      "excluded_findings": 0,
+      "exclusion_breakdown": {}
+    }
+  },
+  "stats": {
+    "total_findings": 0,
+    "hard_excluded": 0,
+    "claude_excluded": 0,
+    "kept_findings": 0,
+    "exclusion_breakdown": {},
+    "confidence_scores": [],
+    "runtime_seconds": 0.0
+  },
+  "model": "deepseek/deepseek-v4.1-flash",
+  "filtering_enabled": true
+}

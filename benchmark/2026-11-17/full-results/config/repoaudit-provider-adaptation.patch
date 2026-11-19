@@ -1,0 +1,15 @@
+diff --git a/src/llmtool/LLM_utils.py b/src/llmtool/LLM_utils.py
+old mode 100644
+new mode 100755
+index 843c2db..c718039
+--- a/src/llmtool/LLM_utils.py
++++ b/src/llmtool/LLM_utils.py
+@@ -198,7 +198,7 @@ class LLM:
+         ]
+ 
+         def call_api():
+-            client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
++            client = OpenAI(api_key=api_key, base_url=os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com"))
+             response = client.chat.completions.create(
+                 model=self.online_model_name,
+                 messages=model_input,

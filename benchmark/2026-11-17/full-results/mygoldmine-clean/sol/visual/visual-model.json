@@ -1,0 +1,972 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-17T05:56:17.664769+00:00",
+  "project": "benchmark-sol",
+  "project_name": "benchmark-sol",
+  "audit_id": "",
+  "direction": "",
+  "run_dir": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol",
+  "run_id": "sol",
+  "source": "/vol1/1000/mygoldmine-benchmark/2026-11-17/tools/mygoldmine/targets/benchmark-sol",
+  "url": "",
+  "commit": "",
+  "cover": "",
+  "trees": {
+    "project": {
+      "id": "project:benchmark-sol",
+      "label": "benchmark-sol",
+      "kind": "root",
+      "status": "root",
+      "children": [
+        {
+          "id": "dir:findings",
+          "label": "findings",
+          "kind": "domain",
+          "status": "scope",
+          "children": [
+            {
+              "id": "dir:src/mqtt.c",
+              "label": "mqtt.c",
+              "kind": "module",
+              "status": "scope",
+              "children": [
+                {
+                  "id": "finding:SOL-001",
+                  "label": "CONNECT 报文的 client_id 长度未校验，导致栈缓冲区溢出",
+                  "kind": "finding",
+                  "status": "critical",
+                  "children": [],
+                  "finding_id": "SOL-001",
+                  "severity": "critical",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/mqtt.c"
+                },
+                {
+                  "id": "finding:SOL-002",
+                  "label": "PUBLISH 剩余长度整数下溢导致分配巨量内存并 exit() 终止进程",
+                  "kind": "finding",
+                  "status": "high",
+                  "children": [],
+                  "finding_id": "SOL-002",
+                  "severity": "high",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/mqtt.c"
+                },
+                {
+                  "id": "finding:SOL-003",
+                  "label": "SUBSCRIBE/UNSUBSCRIBE 长度下溢导致无限循环、越界读与内存耗尽",
+                  "kind": "finding",
+                  "status": "high",
+                  "children": [],
+                  "finding_id": "SOL-003",
+                  "severity": "high",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/mqtt.c"
+                },
+                {
+                  "id": "finding:SOL-004",
+                  "label": "报文类型 2/9 命中空函数指针，类型 11 越界读取派发表",
+                  "kind": "finding",
+                  "status": "high",
+                  "children": [],
+                  "finding_id": "SOL-004",
+                  "severity": "high",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/mqtt.c"
+                },
+                {
+                  "id": "finding:SOL-009",
+                  "label": "mqtt_decode_length 无界读取续传位，可越过读缓冲末尾",
+                  "kind": "finding",
+                  "status": "high",
+                  "children": [],
+                  "finding_id": "SOL-009",
+                  "severity": "high",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/mqtt.c"
+                }
+              ],
+              "path": "src/mqtt.c"
+            },
+            {
+              "id": "dir:src/handlers.c",
+              "label": "handlers.c",
+              "kind": "module",
+              "status": "scope",
+              "children": [
+                {
+                  "id": "finding:SOL-005",
+                  "label": "未 CONNECT 时发送 PUBACK/PUBREC/PUBCOMP 导致空 session 解引用",
+                  "kind": "finding",
+                  "status": "high",
+                  "children": [],
+                  "finding_id": "SOL-005",
+                  "severity": "high",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/handlers.c"
+                },
+                {
+                  "id": "finding:SOL-006",
+                  "label": "QoS0 发布给已离线的持久会话客户端时使用已关闭的 fd",
+                  "kind": "finding",
+                  "status": "medium",
+                  "children": [],
+                  "finding_id": "SOL-006",
+                  "severity": "medium",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/handlers.c"
+                },
+                {
+                  "id": "finding:SOL-007",
+                  "label": "match_subscription 对 index() 返回值未判空导致空指针解引用",
+                  "kind": "finding",
+                  "status": "medium",
+                  "children": [],
+                  "finding_id": "SOL-007",
+                  "severity": "medium",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/handlers.c"
+                },
+                {
+                  "id": "finding:SOL-008",
+                  "label": "SUBSCRIBE topic 长度为 0 时出现负下标栈越界读写",
+                  "kind": "finding",
+                  "status": "medium",
+                  "children": [],
+                  "finding_id": "SOL-008",
+                  "severity": "medium",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/handlers.c"
+                },
+                {
+                  "id": "finding:SOL-010",
+                  "label": "内存上限未强制、写缓冲无容量检查、保留消息泄漏",
+                  "kind": "finding",
+                  "status": "medium",
+                  "children": [],
+                  "finding_id": "SOL-010",
+                  "severity": "medium",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/handlers.c"
+                },
+                {
+                  "id": "finding:SOL-013",
+                  "label": "PUBLISH topic 长度为 0 时读取 topic[-1]",
+                  "kind": "finding",
+                  "status": "low",
+                  "children": [],
+                  "finding_id": "SOL-013",
+                  "severity": "low",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/handlers.c"
+                },
+                {
+                  "id": "finding:SOL-015",
+                  "label": "全局互斥锁与客户端互斥锁加锁顺序相反，可造成死锁",
+                  "kind": "finding",
+                  "status": "medium",
+                  "children": [],
+                  "finding_id": "SOL-015",
+                  "severity": "medium",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/handlers.c"
+                }
+              ],
+              "path": "src/handlers.c"
+            },
+            {
+              "id": "dir:src/network.c",
+              "label": "network.c",
+              "kind": "module",
+              "status": "scope",
+              "children": [
+                {
+                  "id": "finding:SOL-011",
+                  "label": "TLS 服务端不校验客户端证书且默认允许匿名访问",
+                  "kind": "finding",
+                  "status": "medium",
+                  "children": [],
+                  "finding_id": "SOL-011",
+                  "severity": "medium",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/network.c"
+                }
+              ],
+              "path": "src/network.c"
+            },
+            {
+              "id": "dir:src/config.c",
+              "label": "config.c",
+              "kind": "module",
+              "status": "scope",
+              "children": [
+                {
+                  "id": "finding:SOL-012",
+                  "label": "口令文件解析对畸形行越界读写",
+                  "kind": "finding",
+                  "status": "low",
+                  "children": [],
+                  "finding_id": "SOL-012",
+                  "severity": "low",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/config.c"
+                }
+              ],
+              "path": "src/config.c"
+            },
+            {
+              "id": "dir:src/util.c",
+              "label": "util.c",
+              "kind": "module",
+              "status": "scope",
+              "children": [
+                {
+                  "id": "finding:SOL-014",
+                  "label": "check_passwd 未处理 crypt() 返回 NULL",
+                  "kind": "finding",
+                  "status": "low",
+                  "children": [],
+                  "finding_id": "SOL-014",
+                  "severity": "low",
+                  "cve_tier": null,
+                  "note": "",
+                  "path": "src/util.c"
+                }
+              ],
+              "path": "src/util.c"
+            }
+          ],
+          "files": 0,
+          "path": "findings"
+        }
+      ],
+      "project": "benchmark-sol"
+    },
+    "coverage": {
+      "id": "coverage:benchmark-sol",
+      "label": "Audit coverage",
+      "kind": "root",
+      "status": "root",
+      "children": [
+        {
+          "id": "stage:workspace_scan",
+          "label": "workspace scan",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:project_profile",
+          "label": "project profile",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:route_auth",
+          "label": "route auth",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:access_control",
+          "label": "access control",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:ssrf_analysis",
+          "label": "ssrf analysis",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:general_code_security",
+          "label": "general code security",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [
+            {
+              "id": "coverage-finding:SOL-001",
+              "label": "CONNECT 报文的 client_id 长度未校验，导致栈缓冲区溢出",
+              "kind": "finding",
+              "status": "critical",
+              "children": [],
+              "finding_id": "SOL-001",
+              "severity": "critical",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-002",
+              "label": "PUBLISH 剩余长度整数下溢导致分配巨量内存并 exit() 终止进程",
+              "kind": "finding",
+              "status": "high",
+              "children": [],
+              "finding_id": "SOL-002",
+              "severity": "high",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-003",
+              "label": "SUBSCRIBE/UNSUBSCRIBE 长度下溢导致无限循环、越界读与内存耗尽",
+              "kind": "finding",
+              "status": "high",
+              "children": [],
+              "finding_id": "SOL-003",
+              "severity": "high",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-004",
+              "label": "报文类型 2/9 命中空函数指针，类型 11 越界读取派发表",
+              "kind": "finding",
+              "status": "high",
+              "children": [],
+              "finding_id": "SOL-004",
+              "severity": "high",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-005",
+              "label": "未 CONNECT 时发送 PUBACK/PUBREC/PUBCOMP 导致空 session 解引用",
+              "kind": "finding",
+              "status": "high",
+              "children": [],
+              "finding_id": "SOL-005",
+              "severity": "high",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-006",
+              "label": "QoS0 发布给已离线的持久会话客户端时使用已关闭的 fd",
+              "kind": "finding",
+              "status": "medium",
+              "children": [],
+              "finding_id": "SOL-006",
+              "severity": "medium",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-007",
+              "label": "match_subscription 对 index() 返回值未判空导致空指针解引用",
+              "kind": "finding",
+              "status": "medium",
+              "children": [],
+              "finding_id": "SOL-007",
+              "severity": "medium",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-008",
+              "label": "SUBSCRIBE topic 长度为 0 时出现负下标栈越界读写",
+              "kind": "finding",
+              "status": "medium",
+              "children": [],
+              "finding_id": "SOL-008",
+              "severity": "medium",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-009",
+              "label": "mqtt_decode_length 无界读取续传位，可越过读缓冲末尾",
+              "kind": "finding",
+              "status": "high",
+              "children": [],
+              "finding_id": "SOL-009",
+              "severity": "high",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-010",
+              "label": "内存上限未强制、写缓冲无容量检查、保留消息泄漏",
+              "kind": "finding",
+              "status": "medium",
+              "children": [],
+              "finding_id": "SOL-010",
+              "severity": "medium",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-011",
+              "label": "TLS 服务端不校验客户端证书且默认允许匿名访问",
+              "kind": "finding",
+              "status": "medium",
+              "children": [],
+              "finding_id": "SOL-011",
+              "severity": "medium",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-012",
+              "label": "口令文件解析对畸形行越界读写",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "SOL-012",
+              "severity": "low",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-013",
+              "label": "PUBLISH topic 长度为 0 时读取 topic[-1]",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "SOL-013",
+              "severity": "low",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-014",
+              "label": "check_passwd 未处理 crypt() 返回 NULL",
+              "kind": "finding",
+              "status": "low",
+              "children": [],
+              "finding_id": "SOL-014",
+              "severity": "low",
+              "category": "memory-safety",
+              "note": ""
+            },
+            {
+              "id": "coverage-finding:SOL-015",
+              "label": "全局互斥锁与客户端互斥锁加锁顺序相反，可造成死锁",
+              "kind": "finding",
+              "status": "medium",
+              "children": [],
+              "finding_id": "SOL-015",
+              "severity": "medium",
+              "category": "memory-safety",
+              "note": ""
+            }
+          ],
+          "raw": null
+        },
+        {
+          "id": "stage:model_loading",
+          "label": "model loading",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:deserialization",
+          "label": "deserialization",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:path_traversal",
+          "label": "path traversal",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:sensitive_info",
+          "label": "sensitive info",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:agent_config",
+          "label": "agent config",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:combination_analysis",
+          "label": "combination analysis",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        },
+        {
+          "id": "stage:final_crosscheck",
+          "label": "final crosscheck",
+          "kind": "stage",
+          "status": "unknown",
+          "children": [],
+          "raw": null
+        }
+      ],
+      "project": "benchmark-sol"
+    },
+    "attacks": [
+      {
+        "id": "attack:SOL-001",
+        "label": "CONNECT 报文的 client_id 长度未校验，导致栈缓冲区溢出",
+        "kind": "goal",
+        "status": "critical",
+        "children": [
+          {
+            "id": "attack:SOL-001:entry",
+            "label": "src/mqtt.c",
+            "kind": "entry",
+            "status": "scope",
+            "children": [
+              {
+                "id": "attack:SOL-001:gate",
+                "label": "auth / preconditions",
+                "kind": "precondition",
+                "status": "gate",
+                "children": [
+                  {
+                    "id": "attack:SOL-001:sink",
+                    "label": "unpack_mqtt_connect 从报文字节 10-11 读取 16 位 cid_len（完全由客户端控制），只判断 cid_len > 0，既没有与 MQTT_CLIENT_ID_LEN(64) 比较，也没有与解析函数收到的剩余长度",
+                    "kind": "sink",
+                    "status": "sink",
+                    "children": [
+                      {
+                        "id": "attack:SOL-001:impact",
+                        "label": "未认证远程攻击者可用单个 CONNECT 报文覆写最多 65535 字节栈内存，内容为报文自身的字节；可覆盖 username/password/will_* 指针及 io 之外的栈帧（含保存的返回地址），导致远程代码执行或稳定崩溃。",
+                        "kind": "impact",
+                        "status": "impact",
+                        "children": []
+                      }
+                    ],
+                    "path": "src/server.c"
+                  }
+                ]
+              }
+            ],
+            "path": "src/mqtt.c"
+          }
+        ],
+        "finding_id": "SOL-001",
+        "scene": {
+          "kind": "agent",
+          "variant": "agent tool execution",
+          "entry": "src/mqtt.c",
+          "boundary": "src/mqtt.c",
+          "precondition": "{'remote': True, 'authentication': 'none', 'preconditions': '无（默认配置下可直接连接）'}",
+          "reachability": "{'remote': True, 'authentication': 'non…",
+          "result": "未认证远程攻击者可用单个 CONNECT 报文覆写最多 65535 字节栈内存，内容为报文自身的字节；可覆盖 username/password/will_* 指针及 io 之外的栈帧（含保存的返回地址），导致远程代码执行或稳定崩溃。",
+          "attacker": [
+            "向 src/mqtt.c 发送构造请求",
+            "满足前置条件：{'remote': True, 'authentication': 'none', 'preconditions': '无（默认配置下可直接连接）'}",
+            "读取结果：未认证远程攻击者可用单个 CONNECT 报文覆写最多 65535 字节栈内存，内容为报文自身的字节；可覆盖 username/password/will_* 指针及 io 之外的栈帧（含保存的返回地址），导致远程代码执行或稳定崩溃。"
+          ],
+          "victim": [
+            "unpack_mqtt_connect 从报文字节 10-11 读取 16 位 cid_len（完全由客户端控制），只判断 cid_len > 0，既没有与 MQTT_CLIENT_ID_LEN(64) 比较，也没有与解析函数收到的剩余长度 len 比较，直接 memcpy 到 struct mq…",
+            "unpack_mqtt_connect 从报文字节 10-11 读取 16 位 cid_len（完全由客户端控制），只判断 cid_len > 0，既没有与 MQTT_CLIENT_ID_LEN(64) 比较，也没有与解析函数收到的剩余长…",
+            "unpack_mqtt_connect 从报文字节 10-11 读取 16 位 cid_len（完全由客户端控制），只判断 cid_len > 0，既没有与 MQTT_CLIENT_ID_LEN(64) 比较，也没有与解析函数收到的剩余长度 len 比较，直接 memcpy 到 struct mq…"
+          ],
+          "flow": [
+            "unpack_mqtt_connect 从报文字节 10-11 读取 16 位 cid_len（完全由客户端控制），只判断 cid_len > 0，既没有与 MQTT_CLIENT_ID_LEN(64) 比较，也没有与解析函数收到的剩余长度 len 比较，直接 memcpy 到 struct mq…"
+          ],
+          "visual": "left attacker plants a plugin or configuration, right agent loads it and executes a tool",
+          "evidence": [
+            "src/mqtt.c",
+            "src/mqtt.h",
+            "src/server.c"
+          ],
+          "disclaimer": "场景由候选问题字段生成，用于解释；不是新的漏洞结论"
+        }
+      },
+      {
+        "id": "attack:SOL-002",
+        "label": "PUBLISH 剩余长度整数下溢导致分配巨量内存并 exit() 终止进程",
+        "kind": "goal",
+        "status": "high",
+        "children": [
+          {
+            "id": "attack:SOL-002:entry",
+            "label": "src/mqtt.c",
+            "kind": "entry",
+            "status": "scope",
+            "children": [
+              {
+                "id": "attack:SOL-002:gate",
+                "label": "auth / preconditions",
+                "kind": "precondition",
+                "status": "gate",
+                "children": [
+                  {
+                    "id": "attack:SOL-002:sink",
+                    "label": "unpack_mqtt_publish 中 len 为无符号 usize，执行 len -= (sizeof(u16) + topiclen)；当 topiclen 大于剩余长度时回绕为接近 SIZE_MAX 的值，随后作为 payload",
+                    "kind": "sink",
+                    "status": "sink",
+                    "children": [
+                      {
+                        "id": "attack:SOL-002:impact",
+                        "label": "单个未认证 PUBLISH 报文即可让 broker 进程退出（远程拒绝服务）。若 len+1 回绕为 0，则 memcpy(dest, buf, SIZE_MAX) 会变成大规模越界写，存在进一步内存破坏的可能。",
+                        "kind": "impact",
+                        "status": "impact",
+                        "children": []
+                      }
+                    ],
+                    "path": "src/memory.c"
+                  }
+                ]
+              }
+            ],
+            "path": "src/mqtt.c"
+          }
+        ],
+        "finding_id": "SOL-002",
+        "scene": {
+          "kind": "agent",
+          "variant": "agent tool execution",
+          "entry": "src/mqtt.c",
+          "boundary": "src/mqtt.c",
+          "precondition": "{'remote': True, 'authentication': 'none', 'preconditions': '无（默认配置下可直接连接）'}",
+          "reachability": "{'remote': True, 'authentication': 'non…",
+          "result": "单个未认证 PUBLISH 报文即可让 broker 进程退出（远程拒绝服务）。若 len+1 回绕为 0，则 memcpy(dest, buf, SIZE_MAX) 会变成大规模越界写，存在进一步内存破坏的可能。",
+          "attacker": [
+            "向 src/mqtt.c 发送构造请求",
+            "满足前置条件：{'remote': True, 'authentication': 'none', 'preconditions': '无（默认配置下可直接连接）'}",
+            "读取结果：单个未认证 PUBLISH 报文即可让 broker 进程退出（远程拒绝服务）。若 len+1 回绕为 0，则 memcpy(dest, buf, SIZE_MAX) 会变成大规模越界写，存在进一步内存破坏的可能。"
+          ],
+          "victim": [
+            "unpack_mqtt_publish 中 len 为无符号 usize，执行 len -= (sizeof(u16) + topiclen)；当 topiclen 大于剩余长度时回绕为接近 SIZE_MAX 的值，随后作为 payloadlen 传给 unpack_bytes，而 unpack_…",
+            "unpack_mqtt_publish 中 len 为无符号 usize，执行 len -= (sizeof(u16) + topiclen)；当 topiclen 大于剩余长度时回绕为接近 SIZE_MAX 的值，随后作为 payloa…",
+            "unpack_mqtt_publish 中 len 为无符号 usize，执行 len -= (sizeof(u16) + topiclen)；当 topiclen 大于剩余长度时回绕为接近 SIZE_MAX 的值，随后作为 payloadlen 传给 unpack_bytes，而 unpack_…"
+          ],
+          "flow": [
+            "unpack_mqtt_publish 中 len 为无符号 usize，执行 len -= (sizeof(u16) + topiclen)；当 topiclen 大于剩余长度时回绕为接近 SIZE_MAX 的值，随后作为 payloadlen 传给 unpack_bytes，而 unpack_…"
+          ],
+          "visual": "left attacker plants a plugin or configuration, right agent loads it and executes a tool",
+          "evidence": [
+            "src/mqtt.c",
+            "src/pack.c",
+            "src/memory.c"
+          ],
+          "disclaimer": "场景由候选问题字段生成，用于解释；不是新的漏洞结论"
+        }
+      },
+      {
+        "id": "attack:SOL-003",
+        "label": "SUBSCRIBE/UNSUBSCRIBE 长度下溢导致无限循环、越界读与内存耗尽",
+        "kind": "goal",
+        "status": "high",
+        "children": [
+          {
+            "id": "attack:SOL-003:entry",
+            "label": "src/mqtt.c",
+            "kind": "entry",
+            "status": "scope",
+            "children": [
+              {
+                "id": "attack:SOL-003:gate",
+                "label": "auth / preconditions",
+                "kind": "precondition",
+                "status": "gate",
+                "children": [
+                  {
+                    "id": "attack:SOL-003:sink",
+                    "label": "订阅解析循环用 usize len 控制：for (; len > 0; ++i) { len -= sizeof(u16); ... len -= topic_len; len -= sizeof(u8); }。剩余长度为奇数或 topi",
+                    "kind": "sink",
+                    "status": "sink",
+                    "children": [
+                      {
+                        "id": "attack:SOL-003:impact",
+                        "label": "未认证即可触发 CPU 空转与无界内存增长；最终 try_alloc 失败触发 exit() 或越界读崩溃，造成远程拒绝服务。",
+                        "kind": "impact",
+                        "status": "impact",
+                        "children": []
+                      }
+                    ],
+                    "path": "src/mqtt.c"
+                  }
+                ]
+              }
+            ],
+            "path": "src/mqtt.c"
+          }
+        ],
+        "finding_id": "SOL-003",
+        "scene": {
+          "kind": "generic",
+          "variant": "privileged sink reachability",
+          "entry": "src/mqtt.c",
+          "boundary": "src/mqtt.c",
+          "precondition": "{'remote': True, 'authentication': 'none', 'preconditions': '无（默认配置下可直接连接）'}",
+          "reachability": "{'remote': True, 'authentication': 'non…",
+          "result": "未认证即可触发 CPU 空转与无界内存增长；最终 try_alloc 失败触发 exit() 或越界读崩溃，造成远程拒绝服务。",
+          "attacker": [
+            "向 src/mqtt.c 发送构造请求",
+            "满足前置条件：{'remote': True, 'authentication': 'none', 'preconditions': '无（默认配置下可直接连接）'}",
+            "读取结果：未认证即可触发 CPU 空转与无界内存增长；最终 try_alloc 失败触发 exit() 或越界读崩溃，造成远程拒绝服务。"
+          ],
+          "victim": [
+            "订阅解析循环用 usize len 控制：for (; len > 0; ++i) { len -= sizeof(u16); ... len -= topic_len; len -= sizeof(u8); }。剩余长度为奇数或 topic_len 大于剩余字节数时 len 回绕为极大值，循环条…",
+            "订阅解析循环用 usize len 控制：for (; len > 0; ++i) { len -= sizeof(u16); ... len -= topic_len; len -= sizeof(u8); }。剩余长度为奇数或 top…",
+            "订阅解析循环用 usize len 控制：for (; len > 0; ++i) { len -= sizeof(u16); ... len -= topic_len; len -= sizeof(u8); }。剩余长度为奇数或 topic_len 大于剩余字节数时 len 回绕为极大值，循环条…"
+          ],
+          "flow": [
+            "订阅解析循环用 usize len 控制：for (; len > 0; ++i) { len -= sizeof(u16); ... len -= topic_len; len -= sizeof(u8); }。剩余长度为奇数或 topic_len 大于剩余字节数时 len 回绕为极大值，循环条…"
+          ],
+          "visual": "left attacker sends crafted input across a trust boundary, right service processes it at a privileged sink",
+          "evidence": [
+            "src/mqtt.c"
+          ],
+          "disclaimer": "场景由候选问题字段生成，用于解释；不是新的漏洞结论"
+        }
+      },
+      {
+        "id": "attack:SOL-004",
+        "label": "报文类型 2/9 命中空函数指针，类型 11 越界读取派发表",
+        "kind": "goal",
+        "status": "high",
+        "children": [
+          {
+            "id": "attack:SOL-004:entry",
+            "label": "src/mqtt.c",
+            "kind": "entry",
+            "status": "scope",
+            "children": [
+              {
+                "id": "attack:SOL-004:gate",
+                "label": "auth / preconditions",
+                "kind": "precondition",
+                "status": "gate",
+                "children": [
+                  {
+                    "id": "attack:SOL-004:sink",
+                    "label": "unpack_handlers[11] 的槽位 0/2/9 为 NULL，mqtt_unpack 只对 type 12..14 提前返回，其余直接下标调用；handlers[15] 的槽位 9/11/13 同样为 NULL。server.c",
+                    "kind": "sink",
+                    "status": "sink",
+                    "children": [
+                      {
+                        "id": "attack:SOL-004:impact",
+                        "label": "未认证远程拒绝服务（空指针调用直接崩溃）；越界函数指针调用在特定内存布局下可能造成控制流劫持。",
+                        "kind": "impact",
+                        "status": "impact",
+                        "children": []
+                      }
+                    ],
+                    "path": "src/server.c"
+                  }
+                ]
+              }
+            ],
+            "path": "src/mqtt.c"
+          }
+        ],
+        "finding_id": "SOL-004",
+        "scene": {
+          "kind": "generic",
+          "variant": "privileged sink reachability",
+          "entry": "src/mqtt.c",
+          "boundary": "src/mqtt.c",
+          "precondition": "{'remote': True, 'authentication': 'none', 'preconditions': '无（默认配置下可直接连接）'}",
+          "reachability": "{'remote': True, 'authentication': 'non…",
+          "result": "未认证远程拒绝服务（空指针调用直接崩溃）；越界函数指针调用在特定内存布局下可能造成控制流劫持。",
+          "attacker": [
+            "向 src/mqtt.c 发送构造请求",
+            "满足前置条件：{'remote': True, 'authentication': 'none', 'preconditions': '无（默认配置下可直接连接）'}",
+            "读取结果：未认证远程拒绝服务（空指针调用直接崩溃）；越界函数指针调用在特定内存布局下可能造成控制流劫持。"
+          ],
+          "victim": [
+            "unpack_handlers[11] 的槽位 0/2/9 为 NULL，mqtt_unpack 只对 type 12..14 提前返回，其余直接下标调用；handlers[15] 的槽位 9/11/13 同样为 NULL。server.c:512 的类型校验只要求 opcode 在 1..14，…",
+            "unpack_handlers[11] 的槽位 0/2/9 为 NULL，mqtt_unpack 只对 type 12..14 提前返回，其余直接下标调用；handlers[15] 的槽位 9/11/13 同样为 NULL。server.…",
+            "unpack_handlers[11] 的槽位 0/2/9 为 NULL，mqtt_unpack 只对 type 12..14 提前返回，其余直接下标调用；handlers[15] 的槽位 9/11/13 同样为 NULL。server.c:512 的类型校验只要求 opcode 在 1..14，…"
+          ],
+          "flow": [
+            "unpack_handlers[11] 的槽位 0/2/9 为 NULL，mqtt_unpack 只对 type 12..14 提前返回，其余直接下标调用；handlers[15] 的槽位 9/11/13 同样为 NULL。server.c:512 的类型校验只要求 opcode 在 1..14，…"
+          ],
+          "visual": "left attacker sends crafted input across a trust boundary, right service processes it at a privileged sink",
+          "evidence": [
+            "src/mqtt.c",
+            "src/handlers.c",
+            "src/server.c"
+          ],
+          "disclaimer": "场景由候选问题字段生成，用于解释；不是新的漏洞结论"
+        }
+      },
+      {
+        "id": "attack:SOL-005",
+        "label": "未 CONNECT 时发送 PUBACK/PUBREC/PUBCOMP 导致空 session 解引用",
+        "kind": "goal",
+        "status": "high",
+        "children": [
+          {
+            "id": "attack:SOL-005:entry",
+            "label": "src/handlers.c",
+            "kind": "entry",
+            "status": "scope",
+            "children": [
+              {
+                "id": "attack:SOL-005:gate",
+                "label": "auth / preconditions",
+                "kind": "precondition",
+                "status": "gate",
+                "children": [
+                  {
+                    "id": "attack:SOL-005:sink",
+                    "label": "client_init 把 client->session 初始化为 NULL；ACK 处理函数直接访问 c->session->i_msgs[pkt_id] 与 c->session->i_acks[pkt_id]，没有检查客户端是否已经",
+                    "kind": "sink",
+                    "status": "sink",
+                    "children": [
+                      {
+                        "id": "attack:SOL-005:impact",
+                        "label": "未认证单个报文即可造成空指针写，进程崩溃（远程拒绝服务）。",
+                        "kind": "impact",
+                        "status": "impact",
+                        "children": []
+                      }
+                    ],
+                    "path": "src/server.c"
+                  }
+                ]
+              }
+            ],
+            "path": "src/handlers.c"
+          }
+        ],
+        "finding_id": "SOL-005",
+        "scene": {
+          "kind": "generic",
+          "variant": "privileged sink reachability",
+          "entry": "src/handlers.c",
+          "boundary": "src/handlers.c",
+          "precondition": "{'remote': True, 'authentication': 'none', 'preconditions': '无（默认配置下可直接连接）'}",
+          "reachability": "{'remote': True, 'authentication': 'non…",
+          "result": "未认证单个报文即可造成空指针写，进程崩溃（远程拒绝服务）。",
+          "attacker": [
+            "向 src/handlers.c 发送构造请求",
+            "满足前置条件：{'remote': True, 'authentication': 'none', 'preconditions': '无（默认配置下可直接连接）'}",
+            "读取结果：未认证单个报文即可造成空指针写，进程崩溃（远程拒绝服务）。"
+          ],
+          "victim": [
+            "client_init 把 client",
+            "session 初始化为 NULL；ACK 处理函数直接访问 c -> session",
+            "i_msgs[pkt_id] 与 c -> session -> i_acks[pkt_id]，没有检查客户端是否已经完成 CONNECT。"
+          ],
+          "flow": [
+            "client_init 把 client",
+            "session 初始化为 NULL；ACK 处理函数直接访问 c",
+            "session",
+            "i_msgs[pkt_id] 与 c",
+            "session"
+          ],
+          "visual": "left attacker sends crafted input across a trust boundary, right service processes it at a privileged sink",
+          "evidence": [
+            "src/handlers.c",
+            "src/server.c"
+          ],
+          "disclaimer": "场景由候选问题字段生成，用于解释；不是新的漏洞结论"
+        }
+      },
+      {
+        "id": "attack:SOL-009",
+        "label": "mqtt_decode_length 无界读取续传位，可越过读缓冲末尾",
+        "kind": "goal",
+        "status": "high",
+        "children": [
+          {
+            "id": "attack:SOL-009:entry",
+            "label": "src/mqtt.c",
+            "kind": "entry",
+            "status": "scope",
+            "children": [
+              {
+                "id": "attack:SOL-009:gate",
+                "label": "auth / preconditions",
+                "kind": "precondition",
+                "status": "gate",
+                "children": [
+                  {
+                    "id": "attack:SOL-009:sink",
+                    "label": "解码循环 do { c = *buf++; ... } while (c & 128); 没有 4 字节上限（源码 TODO 已承认）；recv_packet 只保证前 4 字节属于当前报文，而 rbuf 在处理完报文后不清零，攻击者可先用",
+                    "kind": "sink",
+                    "status": "sink",
+                    "children": [
+                      {
+                        "id": "attack:SOL-009:impact",
+                        "label": "未认证远程堆越界读，读到未映射页时进程崩溃（拒绝服务）；长度截断使声明长度与实际解析位置可能不一致。",
+                        "kind": "impact",
+                        "status": "impact",
+                        "children": []
+                      }
+                    ],
+                    "path": "src/server.c"
+                  }
+                ]
+              }
+            ],
+            "path": "src/mqtt.c"
+          }
+        ],
+        "finding_id": "SOL-009",
+        "scene": {
+          "kind": "generic",
+          "variant": "privileged sink reachability",
+          "entry": "src/mqtt.c",
+          "boundary": "src/mqtt.c",
+          "precondition": "{'remote': True, 'authentication': 'none', 'preconditions': '需要同一连接内先发送一个填充 rbuf 的大报文，再发送续传位构造的报文'}",
+          "reachability": "{'remote': True, 'authentication': 'non…",
+          "result": "未认证远程堆越界读，读到未映射页时进程崩溃（拒绝服务）；长度截断使声明长度与实际解析位置可能不一致。",
+          "attacker": [
+            "向 src/mqtt.c 发送构造请求",
+            "满足前置条件：{'remote': True, 'authentication': 'none', 'preconditions': '需要同一连接内先发送一个填充 rbuf 的大报文，再发送续传位构造的报文'}",
+            "读取结果：未认证远程堆越界读，读到未映射页时进程崩溃（拒绝服务）；长度截断使声明长度与实际解析位置可能不一致。"
+          ],
+          "victim": [
+            "解码循环 do { c = *buf++; ... } while (c & 128); 没有 4 字节上限（源码 TODO 已承认）；recv_packet 只保证前 4 字节属于当前报文，而 rbuf 在处理完报文后不清零，攻击者可先用一个报文体把 rbuf 后续字节填满 0xFF，再让新报文…",
+            "解码循环 do { c = *buf++; ... } while (c & 128); 没有 4 字节上限（源码 TODO 已承认）；recv_packet 只保证前 4 字节属于当前报文，而 rbuf 在处理完报文后不清零，攻击者可先…",
+            "解码循环 do { c = *buf++; ... } while (c & 128); 没有 4 字节上限（源码 TODO 已承认）；recv_packet 只保证前 4 字节属于当前报文，而 rbuf 在处理完报文后不清零，攻击者可先用一个报文体把 rbuf 后续字节填满 0xFF，再让新报文…"
+          ],
+          "flow": [
+            "解码循环 do { c = *buf++; ... } while (c & 128); 没有 4 字节上限（源码 TODO 已承认）；recv_packet 只保证前 4 字节属于当前报文，而 rbuf 在处理完报文后不清零，攻击者可先用一个报文体把 rbuf 后续字节填满 0xFF，再让新报文…"
+          ],
+          "visual": "left attacker sends crafted input across a trust boundary, right service processes it at a privileged sink",
+          "evidence": [
+            "src/mqtt.c",
+            "src/server.c"
+          ],
+          "disclaimer": "场景由候选问题字段生成，用于解释；不是新的漏洞结论"
+        }
+      }
+    ]
+  },
+  "counts": {
+    "findings": 15,
+    "critical": 1,
+    "high": 5
+  }
+}

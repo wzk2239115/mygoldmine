@@ -1,0 +1,29 @@
+{
+  "definition": "Tracked C/C++ files; physical lines including comments, blank lines, tests and vendored code. These are size statistics, not an audit-coverage denominator.",
+  "projects": [
+    {
+      "project": "sol",
+      "tracked_files": 62,
+      "c_cpp_files": 42,
+      "c_cpp_physical_lines": 10795
+    },
+    {
+      "project": "pure-ftpd",
+      "tracked_files": 193,
+      "c_cpp_files": 131,
+      "c_cpp_physical_lines": 33390
+    },
+    {
+      "project": "libcoap",
+      "tracked_files": 421,
+      "c_cpp_files": 196,
+      "c_cpp_physical_lines": 110804
+    },
+    {
+      "project": "tlse",
+      "tracked_files": 16,
+      "c_cpp_files": 9,
+      "c_cpp_physical_lines": 67463
+    }
+  ]
+}

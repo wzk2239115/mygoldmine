@@ -1,0 +1,602 @@
+{
+  "project": "benchmark-sol",
+  "project_name": "Sol — 简化版 MQTT 3.1.1 Broker",
+  "source_version": "373d84877d22031b45a7f3599297f691eab09230",
+  "language_of_report": "zh",
+  "overview": {
+    "attack_surface": [
+      "TCP/UNIX socket → MQTT 分帧（server.c:470 recv_packet）",
+      "报文反序列化（mqtt.c / pack.c）",
+      "命令分发与连接状态机（handlers.c）",
+      "主题/订阅/通配符共享状态",
+      "TLS 与认证配置"
+    ],
+    "critical_findings": [
+      "SOL-001 CONNECT client_id 栈缓冲区溢出",
+      "SOL-002 PUBLISH 长度下溢导致 exit()",
+      "SOL-003 SUBSCRIBE 长度下溢无限循环",
+      "SOL-004 报文类型派发空指针/越界",
+      "SOL-005 未 CONNECT 的 ACK 空 session 解引用",
+      "SOL-009 长度解码无界读取"
+    ],
+    "project_types": [
+      "network-service",
+      "mqtt-broker",
+      "c"
+    ],
+    "recommended_next_step": "构建 ASAN 版本镜像，对 SOL-001/002/003/004/005 做最小崩溃复现，再评估是否可升级为 RCE"
+  },
+  "coverage": {
+    "analysis_mode": "static-only",
+    "dynamic_verification": false,
+    "files_read": [
+      "src/mqtt.c",
+      "src/mqtt.h",
+      "src/pack.c",
+      "src/pack.h",
+      "src/server.c",
+      "src/server.h",
+      "src/handlers.c",
+      "src/handlers.h",
+      "src/memory.c",
+      "src/memorypool.c",
+      "src/sol_internal.h",
+      "src/topic.c",
+      "src/topic_store.c",
+      "src/subscriber.c",
+      "src/trie.c",
+      "src/util.c",
+      "src/util.h",
+      "src/config.c",
+      "src/config.h",
+      "src/network.c",
+      "src/sol.c",
+      "src/list.c",
+      "tests/*"
+    ],
+    "not_deeply_reviewed": [
+      "src/ev.c",
+      "src/bst.c",
+      "src/iterator.c",
+      "src/logging.c",
+      "src/uthash.h",
+      "src/trie.c insert/delete"
+    ],
+    "triage": "triage/jev-infra.json 71 个单元，仅用于安排阅读顺序"
+  },
+  "findings": [
+    {
+      "id": "SOL-001",
+      "title": "CONNECT 报文的 client_id 长度未校验，导致栈缓冲区溢出",
+      "title_en": "Unvalidated client_id length in CONNECT leads to stack buffer overflow",
+      "severity": "Critical",
+      "category": "memory-safety",
+      "cwe": "CWE-787",
+      "location": [
+        "src/mqtt.c:220-260",
+        "src/mqtt.c:239-243",
+        "src/mqtt.h:40",
+        "src/mqtt.h:181",
+        "src/server.c:860"
+      ],
+      "root_cause": "unpack_mqtt_connect 从报文字节 10-11 读取 16 位 cid_len（完全由客户端控制），只判断 cid_len > 0，既没有与 MQTT_CLIENT_ID_LEN(64) 比较，也没有与解析函数收到的剩余长度 len 比较，直接 memcpy 到 struct mqtt_connect.payload.client_id[64]，并写 client_id[cid_len]='\\0'。process_message 中的 struct io_event io 是栈变量，io.data 内的 client_id 因此落在栈上。",
+      "impact": "未认证远程攻击者可用单个 CONNECT 报文覆写最多 65535 字节栈内存，内容为报文自身的字节；可覆盖 username/password/will_* 指针及 io 之外的栈帧（含保存的返回地址），导致远程代码执行或稳定崩溃。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "无（默认配置下可直接连接）"
+      },
+      "reproduction": "建立 TCP 连接后发送 CONNECT：固定头 0x10 + 合法剩余长度；变长头按 [协议名长度=0x0004]['MQTT'][level][connect flags][keepalive][client_id_len] 排列，将 client_id_len 置为 0xFFFF，并在报文体中填充至少 65535 字节；解析器会把整段报文体复制进 64 字节字段。",
+      "remediation": "解析前校验 len >= 12；对 cid_len 做上界判断（cid_len > MQTT_CLIENT_ID_LEN-1 直接返回 -MQTT_ERR）；把每个字段的读取改为基于剩余长度的游标推进，任何字段超出剩余长度立即失败。",
+      "evidence": [
+        "src/mqtt.c:239  if (cid_len > 0) {",
+        "src/mqtt.c:240      memcpy(pkt->connect.payload.client_id, buf, cid_len);",
+        "src/mqtt.c:241      pkt->connect.payload.client_id[cid_len] = '\\0';",
+        "src/mqtt.h:181  u8 client_id[MQTT_CLIENT_ID_LEN];  /* MQTT_CLIENT_ID_LEN = 64, src/mqtt.h:40 */",
+        "src/server.c:860  struct io_event io = {.client = c};  /* io.data 位于栈上 */"
+      ],
+      "confidence": "high",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-002",
+      "title": "PUBLISH 剩余长度整数下溢导致分配巨量内存并 exit() 终止进程",
+      "title_en": "Unsigned integer underflow in PUBLISH remaining-length parsing causes huge allocation and exit()",
+      "severity": "High",
+      "category": "memory-safety",
+      "cwe": "CWE-191",
+      "location": [
+        "src/mqtt.c:296-322",
+        "src/mqtt.c:314-316",
+        "src/pack.c:411-418",
+        "src/memory.c:46-56"
+      ],
+      "root_cause": "unpack_mqtt_publish 中 len 为无符号 usize，执行 len -= (sizeof(u16) + topiclen)；当 topiclen 大于剩余长度时回绕为接近 SIZE_MAX 的值，随后作为 payloadlen 传给 unpack_bytes，而 unpack_bytes 调用 try_alloc(len + 1)；try_alloc 在 malloc 失败时直接 exit(EXIT_FAILURE)。",
+      "impact": "单个未认证 PUBLISH 报文即可让 broker 进程退出（远程拒绝服务）。若 len+1 回绕为 0，则 memcpy(dest, buf, SIZE_MAX) 会变成大规模越界写，存在进一步内存破坏的可能。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "无（默认配置下可直接连接）"
+      },
+      "reproduction": "发送 0x30（PUBLISH QoS0）+ 剩余长度 0x05，报文体前两字节为 0xFF 0xFF（topic 长度 65535），后接 3 字节任意数据；5-2-65535 回绕。",
+      "remediation": "所有长度减法前先校验 topiclen <= len - 2；下溢时返回 -MQTT_ERR；try_alloc 不应把来自网络的大小用于可能 exit() 的路径。",
+      "evidence": [
+        "src/mqtt.c:314  len -= (sizeof(u16) + pkt->publish.topiclen);",
+        "src/mqtt.c:315  pkt->publish.payloadlen = len;",
+        "src/mqtt.c:316  pkt->publish.payload    = unpack_bytes(&buf, len);",
+        "src/pack.c:413  u8 *dest = try_alloc(len + 1);",
+        "src/memory.c:49  if (!ptr && size != 0) { ... exit(EXIT_FAILURE); }"
+      ],
+      "confidence": "high",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-003",
+      "title": "SUBSCRIBE/UNSUBSCRIBE 长度下溢导致无限循环、越界读与内存耗尽",
+      "title_en": "Integer underflow in SUBSCRIBE/UNSUBSCRIBE parsing leads to endless loop and OOB reads",
+      "severity": "High",
+      "category": "memory-safety",
+      "cwe": "CWE-191",
+      "location": [
+        "src/mqtt.c:324-367",
+        "src/mqtt.c:342-358",
+        "src/mqtt.c:369-410",
+        "src/mqtt.c:386-401"
+      ],
+      "root_cause": "订阅解析循环用 usize len 控制：for (; len > 0; ++i) { len -= sizeof(u16); ... len -= topic_len; len -= sizeof(u8); }。剩余长度为奇数或 topic_len 大于剩余字节数时 len 回绕为极大值，循环条件永远成立；循环内 unpack_string16 持续越界读取并做最多 64KB 分配，tuples 数组线性增长。",
+      "impact": "未认证即可触发 CPU 空转与无界内存增长；最终 try_alloc 失败触发 exit() 或越界读崩溃，造成远程拒绝服务。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "无（默认配置下可直接连接）"
+      },
+      "reproduction": "发送 0x82（SUBSCRIBE）+ 剩余长度 0x05，报文体 = pkt_id(2 字节) + 0xFF 0xFF + qos(1 字节)。",
+      "remediation": "循环入口校验最小元组长度；每次读 topic_len 后校验 topic_len <= 剩余长度；对 tuples_len 设置硬上限（如 1024）；用显式游标代替减法。",
+      "evidence": [
+        "src/mqtt.c:342  for (; len > 0; ++i) {",
+        "src/mqtt.c:344      len -= sizeof(u16);",
+        "src/mqtt.c:349      subscribe.tuples[i].topic_len = unpack_string16(&buf, &subscribe.tuples[i].topic);",
+        "src/mqtt.c:355      len -= subscribe.tuples[i].topic_len;",
+        "src/mqtt.c:386  for (; len > 0; ++i) {   /* unsubscribe 同样逻辑 */"
+      ],
+      "confidence": "high",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-004",
+      "title": "报文类型 2/9 命中空函数指针，类型 11 越界读取派发表",
+      "title_en": "NULL/out-of-bounds function-pointer dispatch for packet types 2, 9 and 11",
+      "severity": "High",
+      "category": "memory-safety",
+      "cwe": "CWE-476",
+      "location": [
+        "src/mqtt.c:72-82",
+        "src/mqtt.c:422-437",
+        "src/handlers.c:59-75",
+        "src/handlers.c:877-880",
+        "src/server.c:512-523"
+      ],
+      "root_cause": "unpack_handlers[11] 的槽位 0/2/9 为 NULL，mqtt_unpack 只对 type 12..14 提前返回，其余直接下标调用；handlers[15] 的槽位 9/11/13 同样为 NULL。server.c:512 的类型校验只要求 opcode 在 1..14，因此 CONNACK(2)、SUBACK(9) 会命中 NULL 函数指针；UNSUBACK(11) 走 opcode>UNSUBSCRIBE 的提前返回后，unpack_handlers[11] 越界读取一个函数指针并调用。",
+      "impact": "未认证远程拒绝服务（空指针调用直接崩溃）；越界函数指针调用在特定内存布局下可能造成控制流劫持。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "无（默认配置下可直接连接）"
+      },
+      "reproduction": "TCP 连接后直接发送 0x20 0x00 加两个填充字节（方向非法的 CONNACK），即可触发 unpack_handlers[2] 的空指针调用；发送 0x90 开头的报文触发 SUBACK 路径，发送 0xB0 触发越界读。",
+      "remediation": "派发表与 packet_type 枚举对齐（15 项），所有未使用槽位填显式错误处理函数；调用前增加 type < ARRAY_SIZE(unpack_handlers) 边界判断；按方向校验合法的包类型。",
+      "evidence": [
+        "src/mqtt.c:72  static mqtt_unpack_handler *unpack_handlers[11] = {NULL, unpack_mqtt_connect, NULL, ...",
+        "src/mqtt.c:431  if (type >= PINGREQ && type <= DISCONNECT) return rc;",
+        "src/mqtt.c:434  rc = unpack_handlers[type](buf, pkt, len);",
+        "src/handlers.c:877  int handle_command(unsigned type, struct io_event *event) { return handlers[type](event); }",
+        "src/server.c:512  if (DISCONNECT < opcode || CONNECT > opcode) return -ERRPACKETERR;"
+      ],
+      "confidence": "high",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-005",
+      "title": "未 CONNECT 时发送 PUBACK/PUBREC/PUBCOMP 导致空 session 解引用",
+      "title_en": "NULL session dereference by ACK packets sent before CONNECT",
+      "severity": "High",
+      "category": "memory-safety",
+      "cwe": "CWE-476",
+      "location": [
+        "src/handlers.c:785-800",
+        "src/handlers.c:803-820",
+        "src/handlers.c:839-855",
+        "src/server.c:381-404"
+      ],
+      "root_cause": "client_init 把 client->session 初始化为 NULL；ACK 处理函数直接访问 c->session->i_msgs[pkt_id] 与 c->session->i_acks[pkt_id]，没有检查客户端是否已经完成 CONNECT。",
+      "impact": "未认证单个报文即可造成空指针写，进程崩溃（远程拒绝服务）。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "无（默认配置下可直接连接）"
+      },
+      "reproduction": "TCP 连接建立后第一个报文就发送 PUBACK（0x40 0x02 0x00 0x01），不发送 CONNECT。",
+      "remediation": "在 handle_command 入口统一校验 c->connected；未连接时对 ACK 类报文按协议错误断开。",
+      "evidence": [
+        "src/handlers.c:793  inflight_msg_clear(&c->session->i_msgs[pkt_id]);",
+        "src/handlers.c:795  c->session->i_acks[pkt_id] = -1;",
+        "src/handlers.c:817  c->session->i_acks[pkt_id] = time(NULL);",
+        "src/server.c:402  client->session   = NULL;"
+      ],
+      "confidence": "high",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-006",
+      "title": "QoS0 发布给已离线的持久会话客户端时使用已关闭的 fd",
+      "title_en": "",
+      "severity": "Medium",
+      "category": "memory-safety",
+      "cwe": "CWE-416",
+      "location": [
+        "src/handlers.c:160-232",
+        "src/handlers.c:225-230",
+        "src/server.c:412-453"
+      ],
+      "root_cause": "publish_message 对 QoS>0 的分支检查了 !sc || sc->online == false 并转入离线队列，但 QoS0 分支没有该检查，直接对 sc 加锁、写 sc->wbuf 并 enqueue_event_write(sc)。client_deactivate 在 clean_session == false 时不会把客户端从 server.clients_map 移除，而 close_connection 已经关闭了 fd。",
+      "impact": "向已关闭且可能被复用的 fd 注册写事件；若 fd 被新连接复用，数据会被写到其它客户端的连接上，造成跨连接信息泄露或串话；也可能触发事件循环异常。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "需要存在 clean_session=false 的订阅者且其连接已关闭"
+      },
+      "reproduction": "客户端以 clean_session=false 订阅某主题后断开（不发 DISCONNECT 直接关闭连接），再由另一个客户端向该主题发送 QoS0 PUBLISH。",
+      "remediation": "QoS0 分支同样跳过 !sc || sc->online == false 的订阅者；client_deactivate 无条件从 clients_map 移除；enqueue_event_write 前校验 client->online 与 fd 有效。",
+      "evidence": [
+        "src/handlers.c:225  pthread_mutex_lock(&sc->mutex);",
+        "src/handlers.c:227  mqtt_pack(pkt, sc->wbuf + sc->towrite);",
+        "src/handlers.c:228  sc->towrite += len;",
+        "src/handlers.c:231  enqueue_event_write(sc);",
+        "src/server.c:430  if (client->clean_session == true) { ... }  /* false 时不移出 clients_map */"
+      ],
+      "confidence": "medium",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-007",
+      "title": "match_subscription 对 index() 返回值未判空导致空指针解引用",
+      "title_en": "",
+      "severity": "Medium",
+      "category": "memory-safety",
+      "cwe": "CWE-476",
+      "location": [
+        "src/handlers.c:261-303",
+        "src/handlers.c:290-294"
+      ],
+      "root_cause": "通配符匹配在每轮循环中执行 ptopic = index(ptopic, '/')，当剩余串中没有 '/' 时返回 NULL，下一行 if (ptopic[0] == '/') 未判空即解引用；另外 ptopic[j] 在 j 超出主题长度时越界读。",
+      "impact": "持有订阅关系的客户端可构造订阅使发布路径崩溃（远程拒绝服务）。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "需要先建立通配符订阅，再触发一次匹配的发布"
+      },
+      "reproduction": "客户端 A 订阅 a/+/+，客户端 B 向 a/b 发布消息（发布路径会为主题补尾部 '/'），匹配时第二轮 index() 返回 NULL 并触发解引用。",
+      "remediation": "index() 之后立即判空；ptopic[j] 比较前限制 j < strlen(ptopic)；改用按层级切分的显式比较。",
+      "evidence": [
+        "src/handlers.c:292  ptopic = index(ptopic, '/');",
+        "src/handlers.c:293  if (ptopic[0] == '/')",
+        "src/handlers.c:294      ptopic = index(ptopic + 1, '/');",
+        "src/handlers.c:279  } else if (!ptopic || (wtopic[i] != ptopic[j])) {"
+      ],
+      "confidence": "medium",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-008",
+      "title": "SUBSCRIBE topic 长度为 0 时出现负下标栈越界读写",
+      "title_en": "",
+      "severity": "Medium",
+      "category": "memory-safety",
+      "cwe": "CWE-129",
+      "location": [
+        "src/handlers.c:545",
+        "src/handlers.c:557-569"
+      ],
+      "root_cause": "char topic[s->tuples[i].topic_len + 2] 之后立即访问 topic[topic_len - 1] 与 topic[topic_len - 2]；topic_len 为 u16，当其为 0 时下标为 (u16)-1 提升后的巨大值，访问落在 VLA 之前的栈内存。",
+      "impact": "栈越界读；若相邻字节恰好为 '#' 与 '/'，还会执行 topic[topic_len-1]='\\0' 的单字节越界写。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "需要发送包含 0 长度 topic 的 SUBSCRIBE 报文"
+      },
+      "reproduction": "发送 SUBSCRIBE，其元组中 topic_len 字段为 0x0000、qos 为 0。",
+      "remediation": "topic_len == 0 时以协议错误拒绝；用显式边界判断替代 len-1/len-2。",
+      "evidence": [
+        "src/handlers.c:557  char topic[s->tuples[i].topic_len + 2];",
+        "src/handlers.c:563  if (topic[s->tuples[i].topic_len - 1] == '#' &&",
+        "src/handlers.c:564      topic[s->tuples[i].topic_len - 2] == '/') {",
+        "src/handlers.c:565      topic[s->tuples[i].topic_len - 1] = '\\0';",
+        "src/handlers.c:545  unsigned char rcs[s->tuples_len];"
+      ],
+      "confidence": "medium",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-009",
+      "title": "mqtt_decode_length 无界读取续传位，可越过读缓冲末尾",
+      "title_en": "",
+      "severity": "High",
+      "category": "memory-safety",
+      "cwe": "CWE-125",
+      "location": [
+        "src/mqtt.c:136-153",
+        "src/server.c:545",
+        "src/server.c:551",
+        "src/server.c:867"
+      ],
+      "root_cause": "解码循环 do { c = *buf++; ... } while (c & 128); 没有 4 字节上限（源码 TODO 已承认）；recv_packet 只保证前 4 字节属于当前报文，而 rbuf 在处理完报文后不清零，攻击者可先用一个报文体把 rbuf 后续字节填满 0xFF，再让新报文的前 3 个长度字节也带续传位，解码器便会沿 rbuf 读取到分配区之外。返回值 usize 还被赋给 unsigned int pktlen，存在 32 位截断。",
+      "impact": "未认证远程堆越界读，读到未映射页时进程崩溃（拒绝服务）；长度截断使声明长度与实际解析位置可能不一致。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "需要同一连接内先发送一个填充 rbuf 的大报文，再发送续传位构造的报文"
+      },
+      "reproduction": "先发送一个报文体为全 0xFF 的合法大包把 rbuf 填满，再发送以 0xFF 0xFF 0xFF 开头的新报文，在 ASAN 下应能观察到 heap-buffer-overflow。",
+      "remediation": "最多读取 4 字节，第 4 字节仍带续传位即视为协议错误；用 size_t 接收返回值并在与 max_request_size 比较后再收窄类型；每处理完一个报文清零或记录已消费长度。",
+      "evidence": [
+        "src/mqtt.c:144  do {",
+        "src/mqtt.c:145      c = *buf;",
+        "src/mqtt.c:146      value += (c & 127) * multiplier;",
+        "src/mqtt.c:150  } while ((c & 128) != 0);",
+        "src/server.c:545  pktlen = mqtt_decode_length(c->rbuf + 1, &pos);",
+        "src/server.c:867  c->toread = c->read = c->rpos = 0;  /* rbuf 内容未清零 */"
+      ],
+      "confidence": "medium",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-010",
+      "title": "内存上限未强制、写缓冲无容量检查、保留消息泄漏",
+      "title_en": "",
+      "severity": "Medium",
+      "category": "memory-safety",
+      "cwe": "CWE-770",
+      "location": [
+        "src/handlers.c:747",
+        "src/handlers.c:356-375",
+        "src/handlers.c:230",
+        "src/config.c:228-229",
+        "src/config.c:424",
+        "src/server.c:236"
+      ],
+      "root_cause": "max_memory 只被解析与打印，memory_used() 仅用于统计，从不参与准入控制；retained 消息每次覆盖 t->retained_msg 而不释放旧值；写路径普遍假设 towrite + len <= max_request_size。",
+      "impact": "慢速或不读数据的订阅者、以及大量保留消息更新可把内存推到 OOM；由于 try_alloc 失败时 exit()，最终表现为进程终止（远程拒绝服务）。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "无（默认配置下可直接连接）"
+      },
+      "reproduction": "订阅者反复发布带 retain 的消息并保持一个不读取数据的订阅者连接，观察内存与 towrite 单调增长。",
+      "remediation": "mqtt_pack 前统一校验剩余缓冲；超过 max_request_size 时断开或阻塞客户端；更新 retained 消息前 free_memory 旧值；把 max_memory 接入分配器准入判断。",
+      "evidence": [
+        "src/handlers.c:747  t->retained_msg = try_alloc(mqtt_size(&e->data, NULL));",
+        "src/handlers.c:227  mqtt_pack(pkt, sc->wbuf + sc->towrite);",
+        "src/config.c:228  } else if (STREQ(\"max_memory\", key, klen) == true) {",
+        "src/config.c:424  log_info(\"Max memory: %s\", human_memory);",
+        "src/server.c:236  long long memory = memory_used();"
+      ],
+      "confidence": "high",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-011",
+      "title": "TLS 服务端不校验客户端证书且默认允许匿名访问",
+      "title_en": "",
+      "severity": "Medium",
+      "category": "memory-safety",
+      "cwe": "CWE-306",
+      "location": [
+        "src/network.c:373",
+        "src/network.c:353-359",
+        "src/config.c:369",
+        "conf/sol.conf:30-33"
+      ],
+      "root_cause": "load_certificates 显式调用 SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, ...)，client_certificate_verify 永远不会执行；config_set_default 把 allow_anonymous 设为 true，示例配置也未开启 allow_anonymous false。",
+      "impact": "任何能连到端口的客户端都可以订阅/发布任意主题；若监听非回环地址，等同于开放中继与数据面暴露。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "无（默认配置下可直接连接）"
+      },
+      "reproduction": "使用任意 MQTT 客户端以匿名方式连接（不提供用户名口令），即可完成 CONNECT 并订阅 #。",
+      "remediation": "需要双向认证时使用 SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT；默认 allow_anonymous = false；文档明确生产部署必须配置认证。",
+      "evidence": [
+        "src/network.c:373  SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, client_certificate_verify);",
+        "src/network.c:353  static int client_certificate_verify(int preverify_ok, X509_STORE_CTX *ctx)",
+        "src/config.c:369  config.allow_anonymous    = true;",
+        "src/handlers.c:379  if (conf->allow_anonymous == false) {"
+      ],
+      "confidence": "high",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-012",
+      "title": "口令文件解析对畸形行越界读写",
+      "title_en": "",
+      "severity": "Low",
+      "category": "memory-safety",
+      "cwe": "CWE-787",
+      "location": [
+        "src/config.c:443-471"
+      ],
+      "root_cause": "config_read_passwd_file 用 while (*puname != ':') username[i++] = *puname++; 与 while (*puname != '\\n') password[i++] = *puname++; 解析行，两个循环都没有长度上限也不检查字符串结束符；畸形行（缺分隔符，或末行没有换行）会继续读过 line[0xFFF] 并写出 username[0xFF]/password[0xFFF]。",
+      "impact": "配置文件被破坏或被低权限用户篡改时，broker 启动阶段发生栈溢出。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "需要可写或可替换的口令文件（本地输入）"
+      },
+      "reproduction": "构造一行不含 ':' 且长度超过 255 的口令文件行，重启 broker 观察越界写。",
+      "remediation": "使用 strchr 定位分隔符并校验长度；两个复制循环都加上 i < sizeof(buf)-1 的边界。",
+      "evidence": [
+        "src/config.c:459  while (*puname != ':')",
+        "src/config.c:460      username[i++] = *puname++;",
+        "src/config.c:463  while (*puname != '\\n')",
+        "src/config.c:464      password[i++] = *puname++;",
+        "src/config.c:449  char line[0xFFF], username[0xFF], password[0xFFF];"
+      ],
+      "confidence": "high",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-013",
+      "title": "PUBLISH topic 长度为 0 时读取 topic[-1]",
+      "title_en": "",
+      "severity": "Low",
+      "category": "memory-safety",
+      "cwe": "CWE-125",
+      "location": [
+        "src/handlers.c:696-706"
+      ],
+      "root_cause": "p->topic[p->topiclen - 1] 在 topiclen == 0 时读取 topic[-1]，即 try_alloc 写在数据之前的 size_t 长度头。",
+      "impact": "堆越界读一个字节，并可能改变后续主题规范化分支的选择。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "需要发送 topic 长度为 0 的 PUBLISH 报文"
+      },
+      "reproduction": "发送 PUBLISH，topic 长度字段为 0x0000。",
+      "remediation": "topiclen == 0 时直接拒绝该报文。",
+      "evidence": [
+        "src/handlers.c:696  char topic[p->topiclen + 2];",
+        "src/handlers.c:703  if (p->topic[p->topiclen - 1] != '/')"
+      ],
+      "confidence": "high",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-014",
+      "title": "check_passwd 未处理 crypt() 返回 NULL",
+      "title_en": "",
+      "severity": "Low",
+      "category": "memory-safety",
+      "cwe": "CWE-476",
+      "location": [
+        "src/util.c:142-145"
+      ],
+      "root_cause": "check_passwd 直接把 crypt(passwd, salt) 的返回值传给字符串比较宏；crypt 在 salt 非法或底层失败时返回 NULL。",
+      "impact": "配置了非法 hash 的环境下，认证路径发生空指针解引用而崩溃。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "口令文件中存在非法 hash（本地配置）"
+      },
+      "reproduction": "在口令文件中写入一段非法 salt/hash，然后以该用户名尝试连接。",
+      "remediation": "先保存 char *h = crypt(...)，判空后再比较；使用常量时间比较函数。",
+      "evidence": [
+        "src/util.c:142  bool check_passwd(const char *passwd, const char *salt)",
+        "src/util.c:144      return STREQ(crypt(passwd, salt), salt, strlen(salt));"
+      ],
+      "confidence": "medium",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    },
+    {
+      "id": "SOL-015",
+      "title": "全局互斥锁与客户端互斥锁加锁顺序相反，可造成死锁",
+      "title_en": "",
+      "severity": "Medium",
+      "category": "memory-safety",
+      "cwe": "CWE-833",
+      "location": [
+        "src/handlers.c:151-152",
+        "src/handlers.c:209",
+        "src/handlers.c:225",
+        "src/handlers.c:580-581",
+        "src/handlers.c:654-655",
+        "src/server.h:39"
+      ],
+      "root_cause": "publish_message 先加全局 mutex（handlers.c:152），再加目标客户端 sc->mutex（209/225）；而 subscribe_handler 与 unsubscribe_handler 先加 c->mutex（580/654），再加全局 mutex（581/655），加锁顺序正好相反。THREADSNR 默认为 2（server.h:39），两个 worker 线程可并发执行这两条路径。",
+      "impact": "攻击者用一个客户端持续 SUBSCRIBE/UNSUBSCRIBE，同时用另一个客户端向该客户端已订阅的主题发布，即可让两个工作线程互相等待，broker 永久停止处理请求（拒绝服务）。",
+      "reachability": {
+        "remote": true,
+        "authentication": "none",
+        "preconditions": "多线程构建（THREADSNR>0，默认 2）且存在并发订阅与发布"
+      },
+      "reproduction": "客户端 A 订阅主题 T（并保持连接），客户端 B 高频向 T 发布；A 同时高频发送 SUBSCRIBE/UNSUBSCRIBE，在多线程构建下可观察到两个线程挂起、服务无响应。",
+      "remediation": "统一加锁顺序（例如一律先全局后客户端，或使用细粒度锁/锁层级注解）；subscribe/unsubscribe 中不要持有 c->mutex 再去获取全局 mutex。",
+      "evidence": [
+        "src/handlers.c:152  pthread_mutex_lock(&mutex);   /* publish_message：全局锁在前 */",
+        "src/handlers.c:209  pthread_mutex_lock(&sc->mutex);",
+        "src/handlers.c:580  pthread_mutex_lock(&c->mutex);   /* subscribe_handler：客户端锁在前 */",
+        "src/handlers.c:581  pthread_mutex_lock(&mutex);",
+        "src/handlers.c:654  pthread_mutex_lock(&c->mutex);   /* unsubscribe_handler 同理 */",
+        "src/server.h:39  #define THREADSNR 2"
+      ],
+      "confidence": "medium",
+      "verification": {
+        "status": "unverified",
+        "method": "static-review",
+        "note": "静态确认代码路径；容器内缺少 C 编译器与 OpenSSL 头文件，未构建运行，未做 ASAN 复现。"
+      }
+    }
+  ],
+  "limitations": [
+    "所有结论均为静态审阅（verification.status=unverified），未做动态复现或 ASAN 验证。",
+    "审计容器内没有 gcc/cc/clang/make/cmake 及 OpenSSL 头文件（/usr/include/openssl/ssl.h 缺失），无法构建目标或运行最小复现。",
+    "未访问公网、未检索 CVE；报告中不含任何 CVE 断言。",
+    "src/ev.c（事件循环后端）、src/bst.c、src/iterator.c、src/logging.c、src/uthash.h 以及 trie.c 的 insert/delete 路径未深入审阅；trie_prefix_find 中 try_realloc 局部指针更新存在理论 UAF，但该函数当前无调用点，未列为候选。",
+    "SOL-006（跨连接 fd 复用）与 SOL-009（堆越界读）依赖具体的运行时/内存布局与时序，静态确认了调用路径但未验证实际触发概率。",
+    "未发现仓库内硬编码密钥；conf/sol.conf 引用的 certs/ 目录未提交。"
+  ]
+}

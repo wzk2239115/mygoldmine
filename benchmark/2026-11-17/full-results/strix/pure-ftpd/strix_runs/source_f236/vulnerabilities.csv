@@ -1,0 +1,3 @@
+id,title,severity,timestamp,file
+vuln-0002,Uninitialized stack memory disclosed in EPRT IPv6 error reply,MEDIUM,2026-11-17 10:20:42 UTC,vulnerabilities/vuln-0002.md
+vuln-0001,"PureDB IPv6 allow/deny IP rules are silently discarded, bypassing per-user deny lists",LOW,2026-11-17 10:20:01 UTC,vulnerabilities/vuln-0001.md

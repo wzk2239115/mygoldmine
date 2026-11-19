@@ -1,0 +1,61 @@
+{
+  "documentType": "codex-security.scan-manifest",
+  "scan": {
+    "artifacts": [
+      {
+        "mediaType": "application/json",
+        "path": "findings.json",
+        "sha256": "7fa0d5268f280dfcdb758ea8a81d0c74f4c6ced3dbec7a1ec293c26ad558c819"
+      }
+    ],
+    "complete": true,
+    "completedAt": "2026-11-17T10:54:58.843736Z",
+    "findingsRef": "findings.json",
+    "id": "e2734f35-14d6-4012-968e-66758e9463d2",
+    "mode": "repository",
+    "preservedCheckpointHeads": {
+      ".": "checkpoint-heads/0a1785ab5624bd4dda1a517ad3c604ec965ca64a9a4607fee18a3d86d2426e2f.json"
+    },
+    "preservedSources": {
+      "checkpoint-heads/0a1785ab5624bd4dda1a517ad3c604ec965ca64a9a4607fee18a3d86d2426e2f.json": "0a1785ab5624bd4dda1a517ad3c604ec965ca64a9a4607fee18a3d86d2426e2f",
+      "checkpoints/76f70e4bbb6bcc464872b7a7454a73b1e7ad5033f3ad60c79b433610f56cd235.json": "2511ca6f64f445bbd0d6a07efc843cbf74bb0e1379a28260d254e0756f593df5",
+      "checkpoints/bb9c9653fa4fce63968e70f2c6c881b693a8ea5f2bbf98264c869943f167d569.json": "39d8acf58e657d5e7c1bf7003b6bad33b91152ac55bd030245d78c7af26190c6",
+      "checkpoints/d954b2ec281551673c9017febf12b8f7b43193ce44fcb4e69371de0bf474cbcb.json": "d954b2ec281551673c9017febf12b8f7b43193ce44fcb4e69371de0bf474cbcb",
+      "checkpoints/e688fabfaea1ffa6f5be23871543f223d5fa14659cf035e56241fdd8fd9da31b.json": "e688fabfaea1ffa6f5be23871543f223d5fa14659cf035e56241fdd8fd9da31b",
+      "checkpoints/e7d278bbf32ffe614376923559acec3942ab4cb51813560820956aadea429cd7.json": "e7d278bbf32ffe614376923559acec3942ab4cb51813560820956aadea429cd7",
+      "source-order/65474ec9874394d1874db9350c383f6d142e195fbd4ca21897173186db51c856.json": "65474ec9874394d1874db9350c383f6d142e195fbd4ca21897173186db51c856"
+    },
+    "producer": {
+      "name": "codex-security-plugin",
+      "version": "0.1.95"
+    },
+    "review": {
+      "excludedPaths": [
+        "passwd.py",
+        "conf/sol.conf",
+        "tests/**"
+      ]
+    },
+    "scope": {
+      "excludePaths": [],
+      "includePaths": [
+        "."
+      ]
+    },
+    "sealedAt": "2026-11-17T10:54:58.843736Z",
+    "startedAt": "2026-11-17T10:24:20.169945Z",
+    "status": "completed",
+    "target": {
+      "displayName": "sol",
+      "kind": "git_worktree",
+      "revision": "373d84877d22031b45a7f3599297f691eab09230",
+      "snapshotDigest": "codex-security-snapshot/v1:sha256:90a9aaf0853034ca9c071ef712b2764bb7029ccab11863cb27f966f728f30f92",
+      "targetId": "target_sha256_2918393a005d2f1a51ed200775af03f62779b65cbc9127937ee6747fbf8737a1"
+    },
+    "threatModel": {
+      "content": "# Sol MQTT broker threat model\n\n## Scope\nEntire repository at `373d84877d22031b45a7f3599297f691eab09230`. Product is a C MQTT 3.1.1 broker with a TCP listener (default 127.0.0.1:1883), optional TLS, and a single shared process serving all clients. The default configuration permits anonymous clients (`allow_anonymous = true`) and allocates a fixed per-client read/write buffer of `max_request_size` (512KB default; 50MB in `conf/sol.conf`).\n\n## Assets\nBroker process integrity and availability; authenticated session state; queued and retained MQTT messages; topic subscriptions; authentication records; internal `$SOL` statistics; host memory and file descriptors.\n\n## Attacker capabilities\nAn unauthenticated network client can open one or more TCP connections and send arbitrary MQTT bytes, including malformed remaining lengths, packet types, variable-length fields, duplicate client IDs, and oversized publishes. A lower-trust authenticated client can additionally use any valid username/password when anonymous access is disabled. Clients can be slow readers and can disconnect/reconnect with chosen client IDs and clean-session flags.\n\n## Trust boundaries and controls\n1. Network bytes -> `recv_packet` framing -> `mqtt_unpack` field decoding. The decoder must validate every attacker-supplied length against the received packet and destination capacity.\n2. Decoded packet -> `handle_command` dispatch. Only packet types with implemented handlers should be dispatched, and a CONNECT handshake should precede session-dependent operations.\n3. Handler -> per-client write buffer and subscriber fan-out. Writes must be bounded by `max_request_size`; offline/queue replay must not exceed the destination buffer.\n4. Client-selected client ID -> session lookup and `clients_map`. A session must not be silently shared with a different connection unless the protocol's takeover semantics are applied.\n5. Packet ownership -> destructor. Each decoded packet must be destroyed exactly once.\n\n## Security objectives\nReject malformed or unsupported MQTT input without memory corruption or process termination; keep each client's sessions and queued messages isolated; preserve broker availability; do not expose or corrupt data across clients.\n\n## Assumptions and uncertainty\nThe broker is deployed as a shared service reachable by untrusted MQTT clients. Authentication, if enabled, is username/password only; there is no topic ACL in this source. Whether a particular deployment exposes the listener to the internet is deployment-dependent, but the default network parser is reachable by any client that can reach the configured port. Runtime exploitation was not performed because the scan environment lacks a C compiler; validation is source-backed.",
+      "format": "markdown"
+    }
+  },
+  "schemaVersion": "1.0"
+}

@@ -1,0 +1,7 @@
+id,title,severity,timestamp,file
+vuln-0001,Pre-authentication heap buffer overflow via unbounded appends to the per-client MQTT write buffer,HIGH,2026-11-17 10:12:24 UTC,vulnerabilities/vuln-0001.md
+vuln-0003,Pre-auth remote process kill via NULL dispatch on unimplemented MQTT packet types (`handlers[]` / `unpack_handlers[]`),HIGH,2026-11-17 10:14:02 UTC,vulnerabilities/vuln-0003.md
+vuln-0004,Pre-auth process kill: PUBACK/PUBCOMP for an unallocated packet id DECREFs a NULL in-flight packet,HIGH,2026-11-17 10:14:55 UTC,vulnerabilities/vuln-0004.md
+vuln-0005,Non-terminating SUBSCRIBE/UNSUBSCRIBE tuple loops: unsigned underflow lets one 7-byte pre-auth packet crash or exhaust the broker,HIGH,2026-11-17 10:19:53 UTC,vulnerabilities/vuln-0005.md
+vuln-0006,Pre-auth heap out-of-bounds write from unbounded Remaining-Length decode and unchecked toread in recv_packet,HIGH,2026-11-17 10:21:03 UTC,vulnerabilities/vuln-0006.md
+vuln-0002,Pre-authentication use-after-free of a shared MQTT session on ClientId reuse,MEDIUM,2026-11-17 10:13:36 UTC,vulnerabilities/vuln-0002.md

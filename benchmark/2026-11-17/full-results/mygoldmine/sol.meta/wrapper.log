@@ -1,0 +1,23 @@
+[mine_docker] 启动容器: project=benchmark-sol image=mygoldmine:dev timeout=3600s model=deepseek/deepseek-v4.1-flash
+[entrypoint] 复制目标源码到可写工作副本: /target -> /workspace/repo
+[entrypoint] 已链接 .claude -> /opt/mygoldmine/.claude
+[entrypoint] 提示词已写入 /tmp/mygoldmine-prompt.txt
+[entrypoint] 委托 mine_one.sh 执行审计（timeout=3600s, model=deepseek/deepseek-v4.1-flash, agent=security-orchestrator）
+Traceback (most recent call last):
+  File "/opt/mygoldmine/scripts/stages/exploration.py", line 336, in <module>
+    main()
+  File "/opt/mygoldmine/scripts/stages/exploration.py", line 331, in main
+    plan(ROOT, identifier(args.project)),
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/mygoldmine/scripts/stages/exploration.py", line 17, in plan
+    rendered = SkillBank(repo).render("orchestrator", project)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/mygoldmine/scripts/stages/skill_bank.py", line 105, in render
+    candidate=self.candidate(cid)
+              ^^^^^^^^^^^^^^^^^^^
+  File "/opt/mygoldmine/scripts/stages/skill_bank.py", line 67, in candidate
+    if not value or value['id']!=cid:raise ValueError('候选不存在')
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: 候选不存在
+[mine_one] ERROR: 无法准备探索计划 5
+[mine_docker] 容器退出 rc=5 run_dir=/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine/sol

@@ -1,0 +1,405 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "4149d915-b8f5-452a-bb55-55a7a18223b6"
+      },
+      "properties": {
+        "codexSecuritySchemaVersion": "1.0",
+        "codexSecurityTargetKind": "git_worktree"
+      },
+      "results": [
+        {
+          "level": "note",
+          "locations": [
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftp_parser.c"
+                },
+                "region": {
+                  "endLine": 658,
+                  "startLine": 626
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ls.c"
+                },
+                "region": {
+                  "endLine": 1046,
+                  "startLine": 981
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ls.c"
+                },
+                "region": {
+                  "endLine": 1110,
+                  "startLine": 1062
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftpd.c"
+                },
+                "region": {
+                  "endLine": 4512,
+                  "startLine": 4469
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftpd.c"
+                },
+                "region": {
+                  "endLine": 836,
+                  "startLine": 761
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:dot-policy-control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftpd.c"
+                },
+                "region": {
+                  "endLine": 814,
+                  "startLine": 761
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "NLST/MLSD/MLST/MDTM/SIZE bypass the -X dot-file read policy\n\nWhen the server is started with -X (dot_read_ok = 0), RETR and CWD call checknamesanity(), but NLST, MLSD, MLST, MDTM, and SIZE do not. An authenticated user can therefore list dot-directories, enumerate their entries, and stat dot-files even though the administrator prohibited reading them.\n\nSeverity: low\n\nCategory: Authorization policy bypass\n\nWeaknesses: CWE-863, CWE-200\n\nRemediation:\nApply the same checknamesanity(path, dot_read_ok) gate to NLST, MLSD, MLST, MDTM, and SIZE, or move the dot-file check into a shared path-resolution helper used by every filesystem command. Keep RETR and CWD behavior unchanged.\n\nRemediation tests:\n- With -X enabled, assert NLST, MLSD, MLST, MDTM, and SIZE reject .ssh and .ssh/known_hosts with the same policy error as CWD/RETR.\n- With -X disabled, assert the same commands continue to work.\n- Add a regression test that verifies a dot-directory cannot be traversed through a listing command.\n\nPreventive controls:\n- Centralize command-path validation so new filesystem commands cannot omit the dot-read policy.\n- Add protocol-level tests for every filesystem command against a dot-file fixture."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:f26e9163e70b45df68865f22cd00045d3ddf538108446e6902472d3a9d666aa7"
+          },
+          "properties": {
+            "category": "authorization-policy-bypass",
+            "confidence": "high",
+            "findingId": "csf_1c8b9e21028e8538645a5b70",
+            "occurrenceId": "occ_2501d9bff23ef65b6a863ff5",
+            "severity": "low"
+          },
+          "ruleId": "access-control.dotfile-policy-bypass",
+          "ruleIndex": 0
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "message": {
+                "text": "control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/pure-pw.h"
+                },
+                "region": {
+                  "endLine": 38,
+                  "startLine": 36
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/pure-pw.c"
+                },
+                "region": {
+                  "endLine": 731,
+                  "startLine": 710
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "transformation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/utils.c"
+                },
+                "region": {
+                  "endLine": 79,
+                  "startLine": 59
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/log_puredb.c"
+                },
+                "region": {
+                  "endLine": 437,
+                  "startLine": 412
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/log_puredb.c"
+                },
+                "region": {
+                  "endLine": 249,
+                  "startLine": 219
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:empty-deny-allows"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/log_puredb.c"
+                },
+                "region": {
+                  "endLine": 237,
+                  "startLine": 225
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "PureDB IPv6 deny rules are silently discarded by colon-delimited record parsing\n\npure-pw writes deny-client and deny-local IP rules verbatim into a colon-delimited PureDB record. An IPv6 literal contains colons, so the parser splits the rule into extra fields before access_ip_check(). For -R '::1/128' and -I '::1/128', the deny fields become empty and login is permitted; the intended deny policy is never enforced.\n\nSeverity: low\n\nCategory: Authorization policy bypass\n\nWeaknesses: CWE-863\n\nRemediation:\nDo not store unescaped IP-rule text in a single-character-delimited record. Reject colons in IPv4/IPv6 rule fields, encode each field (for example base64 or a length prefix), or split the record with a parser that understands bracketed IPv6 literals. Make the parser fail closed when extra fields or malformed CIDR widths appear, and validate IPv6 CIDRs before writing the PureDB record.\n\nRemediation tests:\n- Add a regression test that creates a user with -R '::1/128', rebuilds the database, and verifies a login from ::1 is denied.\n- Add equivalent tests for -I '::1/128', -r '::1/128', and -i '::1/128'.\n- Assert that records containing an unexpected extra field are rejected rather than silently treated as unrestricted.\n\nPreventive controls:\n- Use one serializer/parser pair for PureDB records and reject any field value containing the separator.\n- Prefer an unambiguous encoding for network-policy fields and validate CIDR syntax before persistence."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:9d34a039be5d3793e6bd747807b6654aac1b27e8be4fc38e8549bdba88d08b18"
+          },
+          "properties": {
+            "category": "authorization-policy-bypass",
+            "confidence": "high",
+            "findingId": "csf_3293fd73a622706a2d623cbb",
+            "occurrenceId": "occ_2b739259e9dad1bd7ae473e5",
+            "severity": "low"
+          },
+          "ruleId": "authorization.puredb-ipv6-deny-rule-bypass",
+          "ruleIndex": 1
+        },
+        {
+          "level": "note",
+          "locations": [
+            {
+              "message": {
+                "text": "source"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftpd.c"
+                },
+                "region": {
+                  "endLine": 866,
+                  "startLine": 838
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "transformation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftpd.c"
+                },
+                "region": {
+                  "endLine": 588,
+                  "startLine": 575
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftpd.c"
+                },
+                "region": {
+                  "endLine": 2352,
+                  "startLine": 2305
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:eprt-storage"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftpd.c"
+                },
+                "region": {
+                  "endLine": 842,
+                  "startLine": 838
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:eprt-call"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftpd.c"
+                },
+                "region": {
+                  "endLine": 865,
+                  "startLine": 862
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:getnameinfo-reply"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/ftpd.c"
+                },
+                "region": {
+                  "endLine": 2347,
+                  "startLine": 2335
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "IPv6 EPRT error reply discloses uninitialized stack memory\n\nAn authenticated FTP client can send an IPv6 EPRT for an address different from its control connection. do_ipv6_port() passes an uninitialized sockaddr_storage to generic_aton(), which initializes only the family and address bytes. doport2() then formats the structure with getnameinfo() in the FXP-denial reply; glibc appends the uninitialized sin6_scope_id as a %N suffix, leaking four bytes of stale stack per request.\n\nSeverity: low\n\nCategory: Uninitialized memory disclosure\n\nWeaknesses: CWE-457, CWE-200\n\nRemediation:\nZero the sockaddr_storage before generic_aton() in do_ipv6_port(), as the IPv4 EPRT and PORT paths already do: memset(&a, 0, sizeof a). More generally, initialize every stack sockaddr structure at declaration and keep address construction in one helper that initializes the complete structure.\n\nRemediation tests:\n- Build with a nonzero sin6_scope_id left in a poisoned stack and verify EPRT mismatch replies contain no %N suffix.\n- Send EPRT |2|2001:db8::1|1025| after stack-shaping commands and confirm the reply is identical to the plain numeric address.\n\nPreventive controls:\n- Use a single address-construction helper that always zeroes sockaddr_storage before filling it.\n- Add a source-level regression test or compiler sanitizer run for EPRT IPv6 mismatch handling."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:5eb9940d5a083ca57ef21a251031a644a7227055fc5c9aecfeec85dfb926d570"
+          },
+          "properties": {
+            "category": "uninitialized-memory-disclosure",
+            "confidence": "high",
+            "findingId": "csf_2c5d2d0b63eeb94ba1ce7fe7",
+            "occurrenceId": "occ_ddfe7b46af20d808ae12927d",
+            "severity": "low"
+          },
+          "ruleId": "memory-safety.ipv6-eprt-uninitialized-scope-id",
+          "ruleIndex": 2
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Codex Security",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Access control: Dotfile policy bypass. Categories: Authorization policy bypass. Weaknesses: CWE-200, CWE-863."
+              },
+              "help": {
+                "markdown": "Access control: Dotfile policy bypass. Categories: Authorization policy bypass. Weaknesses: CWE-200, CWE-863.\n\n## Remediation\n\nApply the same checknamesanity(path, dot_read_ok) gate to NLST, MLSD, MLST, MDTM, and SIZE, or move the dot-file check into a shared path-resolution helper used by every filesystem command. Keep RETR and CWD behavior unchanged.",
+                "text": "Access control: Dotfile policy bypass. Categories: Authorization policy bypass. Weaknesses: CWE-200, CWE-863.\n\nRemediation:\n\nApply the same checknamesanity(path, dot_read_ok) gate to NLST, MLSD, MLST, MDTM, and SIZE, or move the dot-file check into a shared path-resolution helper used by every filesystem command. Keep RETR and CWD behavior unchanged."
+              },
+              "id": "access-control.dotfile-policy-bypass",
+              "name": "Access control: Dotfile policy bypass",
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "authorization-policy-bypass",
+                  "external/cwe/cwe-200",
+                  "external/cwe/cwe-863",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Access control: Dotfile policy bypass"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Authorization: Puredb ipv6 deny rule bypass. Categories: Authorization policy bypass. Weaknesses: CWE-863."
+              },
+              "help": {
+                "markdown": "Authorization: Puredb ipv6 deny rule bypass. Categories: Authorization policy bypass. Weaknesses: CWE-863.\n\n## Remediation\n\nDo not store unescaped IP-rule text in a single-character-delimited record. Reject colons in IPv4/IPv6 rule fields, encode each field (for example base64 or a length prefix), or split the record with a parser that understands bracketed IPv6 literals. Make the parser fail closed when extra fields or malformed CIDR widths appear, and validate IPv6 CIDRs before writing the PureDB record.",
+                "text": "Authorization: Puredb ipv6 deny rule bypass. Categories: Authorization policy bypass. Weaknesses: CWE-863.\n\nRemediation:\n\nDo not store unescaped IP-rule text in a single-character-delimited record. Reject colons in IPv4/IPv6 rule fields, encode each field (for example base64 or a length prefix), or split the record with a parser that understands bracketed IPv6 literals. Make the parser fail closed when extra fields or malformed CIDR widths appear, and validate IPv6 CIDRs before writing the PureDB record."
+              },
+              "id": "authorization.puredb-ipv6-deny-rule-bypass",
+              "name": "Authorization: Puredb ipv6 deny rule bypass",
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "authorization-policy-bypass",
+                  "external/cwe/cwe-863",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Authorization: Puredb ipv6 deny rule bypass"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory safety: Ipv6 eprt uninitialized scope ID. Categories: Uninitialized memory disclosure. Weaknesses: CWE-200, CWE-457."
+              },
+              "help": {
+                "markdown": "Memory safety: Ipv6 eprt uninitialized scope ID. Categories: Uninitialized memory disclosure. Weaknesses: CWE-200, CWE-457.\n\n## Remediation\n\nZero the sockaddr_storage before generic_aton() in do_ipv6_port(), as the IPv4 EPRT and PORT paths already do: memset(&a, 0, sizeof a). More generally, initialize every stack sockaddr structure at declaration and keep address construction in one helper that initializes the complete structure.",
+                "text": "Memory safety: Ipv6 eprt uninitialized scope ID. Categories: Uninitialized memory disclosure. Weaknesses: CWE-200, CWE-457.\n\nRemediation:\n\nZero the sockaddr_storage before generic_aton() in do_ipv6_port(), as the IPv4 EPRT and PORT paths already do: memset(&a, 0, sizeof a). More generally, initialize every stack sockaddr structure at declaration and keep address construction in one helper that initializes the complete structure."
+              },
+              "id": "memory-safety.ipv6-eprt-uninitialized-scope-id",
+              "name": "Memory safety: Ipv6 eprt uninitialized scope ID",
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "external/cwe/cwe-200",
+                  "external/cwe/cwe-457",
+                  "security",
+                  "uninitialized-memory-disclosure"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory safety: Ipv6 eprt uninitialized scope ID"
+              }
+            }
+          ],
+          "version": "0.1.95"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

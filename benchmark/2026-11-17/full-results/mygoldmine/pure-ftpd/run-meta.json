@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "project": "benchmark-pure-ftpd",
+  "target_url": "https://github.com/jedisct1/pure-ftpd.git",
+  "commit": "b64c56dc81bc4a7fa5d09d76afa59012ca5509a6",
+  "branch": "master",
+  "started_at": "2026-11-17T03:12:20Z",
+  "ended_at": "2026-11-17T04:12:23Z",
+  "duration_seconds": 3603,
+  "model": "deepseek/deepseek-v4.1-flash",
+  "agent": "security-orchestrator",
+  "status": "timeout",
+  "attempts": 1,
+  "exit_code": 124,
+  "timed_out": true,
+  "interrupted": false,
+  "renderer_exit_code": 0,
+  "reports_complete": true,
+  "artifacts": {
+    "raw": "raw.jsonl",
+    "rendered": "claude.rendered.log",
+    "stderr": "claude.stderr.log",
+    "report_md": "audit-report.md",
+    "report_json": "audit-report.json"
+  }
+}

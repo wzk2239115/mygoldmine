@@ -1,0 +1,52 @@
+{
+  "id": "78f103b8-fe36-43c3-8a1c-965c68e0fccc",
+  "stage": "orchestrator",
+  "decision": "accepted",
+  "validation_scope": "artifact_contract",
+  "artifact": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/audit-report.json",
+  "sha256": "754064ee6554b34f612fc290ae2b171a49d4ee413c013bc5bfb360e87cf0bd0d",
+  "files": [
+    {
+      "path": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/audit-report.json",
+      "size": 32910,
+      "sha256": "754064ee6554b34f612fc290ae2b171a49d4ee413c013bc5bfb360e87cf0bd0d"
+    },
+    {
+      "path": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/audit-report.md",
+      "size": 22798,
+      "sha256": "2e9b84f3b411412327a1bba6507787a7b89c66bdc0f636403f9219bd925c9c63"
+    },
+    {
+      "path": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/task-artifacts/exploration-plan.json",
+      "size": 271,
+      "sha256": "1235e23ec1e53c86e8efc020a4f06a075dddc928f930057848adba501f467513"
+    },
+    {
+      "path": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/task-artifacts/read-coverage/context.json",
+      "size": 122,
+      "sha256": "c19ce90238830db9f504e69ba9429d8d7456e207d11aa9a7b70eecbd10e06e71"
+    },
+    {
+      "path": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/task-artifacts/read-coverage/events.jsonl",
+      "size": 522429,
+      "sha256": "d99dd4058bc8181d8e0b6d76e0fcf92b9983ff9ca0c2573c9cc24ea1d60eaeef"
+    }
+  ],
+  "summary": "对 sol（C 语言 MQTT 3.1.1 broker，v0.18.5，commit 373d848）完成静态安全审计，共 15 条候选：1 Critical、5 High、6 Medium、3 Low。核心问题集中在未认证的 MQTT 报文解析路径：CONNECT 的 client_id 长度无上界导致栈溢出（Critical，可远程触发）；PUBLISH/SUBSCRIBE 的无符号长度下溢导致进程 exit() 与无限循环；报文类型 2/9/11 命中空或越界的函数指针派发表；未 CONNECT 时发送 ACK 造成空 session 解引用；长度解码无界读取、锁顺序反转死锁等。已优先阅读 Jev triage 中 priority>=0.6 的单元（sol.c/config.c/network.c/server.c/handlers.c），Jev 仅用于排序。",
+  "limitations": [
+    "所有结论均为静态审阅（verification.status=unverified），未做动态复现或 ASAN 验证。",
+    "审计容器内没有 gcc/cc/clang/make/cmake 及 OpenSSL 头文件（/usr/include/openssl/ssl.h 缺失），无法构建目标或运行最小复现。",
+    "未访问公网、未检索 CVE；报告中不含任何 CVE 断言。",
+    "src/ev.c（事件循环后端）、src/bst.c、src/iterator.c、src/logging.c、src/uthash.h 以及 trie.c 的 insert/delete 路径未深入审阅；trie_prefix_find 中 try_realloc 局部指针更新存在理论 UAF，但该函数当前无调用点，未列为候选。",
+    "SOL-006（跨连接 fd 复用）与 SOL-009（堆越界读）依赖具体的运行时/内存布局与时序，静态确认了调用路径但未验证实际触发概率。",
+    "未发现仓库内硬编码密钥；conf/sol.conf 引用的 certs/ 目录未提交。"
+  ],
+  "errors": [],
+  "checked_at": "2026-11-17T05:55:57.819203+00:00",
+  "notice": "交付文件检查不替代动态验收、随机标记来源检查或人工验收；原有阶段门槛继续生效。",
+  "success": true,
+  "next_action": "交付已接受；不要再修改已提交文件。可完成本次分析，后续调度由框架处理。",
+  "delivery_id": "78f103b8-fe36-43c3-8a1c-965c68e0fccc",
+  "artifact_path": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/mygoldmine-clean/sol/audit-report.json",
+  "tool": "submit_audit_report"
+}

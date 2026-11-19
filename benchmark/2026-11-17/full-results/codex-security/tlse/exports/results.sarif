@@ -1,0 +1,544 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "automationDetails": {
+        "id": "49339c8b-6c5a-48f0-82ce-21caa9ee8c8c"
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "level": "warning",
+              "message": {
+                "text": "Skipped malformed coverage surface 1: coverage.surfaces[0].id: expected a non-empty string."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Skipped malformed coverage surface 2: coverage.surfaces[1].id: expected a non-empty string."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Skipped malformed coverage surface 3: coverage.surfaces[2].id: expected a non-empty string."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Skipped malformed coverage surface 4: coverage.surfaces[3].id: expected a non-empty string."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Skipped malformed coverage surface 5: coverage.surfaces[4].id: expected a non-empty string."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Skipped malformed coverage surface 6: coverage.surfaces[5].id: expected a non-empty string."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Skipped malformed coverage surface 7: coverage.surfaces[6].id: expected a non-empty string."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Skipped malformed coverage surface 8: coverage.surfaces[7].id: expected a non-empty string."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Skipped malformed coverage surface 9: coverage.surfaces[8].id: expected a non-empty string."
+              }
+            },
+            {
+              "level": "warning",
+              "message": {
+                "text": "Skipped malformed coverage surface 10: coverage.surfaces[9].id: expected a non-empty string."
+              }
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "codexSecuritySchemaVersion": "1.0",
+        "codexSecurityTargetKind": "git_worktree"
+      },
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 11590,
+                  "startLine": 11580
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 8702,
+                  "startLine": 8637
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "concrete_implementation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 4604,
+                  "startLine": 4597
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 4557,
+                  "startLine": 4546
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:asn1-sign-key-underflow"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 4605,
+                  "startLine": 4597
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:asn1-copy-sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 4558,
+                  "startLine": 4546
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:asn1-cert-entry"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 8702,
+                  "startLine": 8702
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Zero-length certificate BIT STRING underflows into an unbounded memcpy\n\nIn the default build (TLS_FULL_X509 is not defined), the ASN.1 certificate parser passes the outer signatureValue BIT STRING to tls_certificate_set_sign_key(). For a zero-length BIT STRING (DER 03 00), length is 0; tls_certificate_set_sign_key reads val[0], the byte after the TLV, and when that byte is zero it decrements len to -1. tls_certificate_set_copy then treats -1 as a non-zero length, calls TLS_MALLOC(len + 1) == malloc(0), and on glibc receives a non-NULL pointer, after which memcpy(*member, val, (size_t)-1) and (*member)[-1] = 0 corrupt memory far beyond the allocation. The certificate is parsed before the application certificate_verify callback, so an untrusted TLS peer reaches this pre-verification.\n\nSeverity: medium\n\nCategory: Memory corruption\n\nWeaknesses: CWE-191, CWE-787, CWE-125\n\nRemediation:\nRequire length >= 1 before reading val[0] and reject zero-length signature BIT STRINGs. In tls_certificate_set_copy, reject negative lengths explicitly instead of relying on the truthiness of an int. Do not allocate zero bytes for a non-empty logical value.\n\nRemediation tests:\n- Feed a certificate whose outer signatureValue is 03 00 followed by 00 and assert TLS_BROKEN_PACKET or TLS_UNSUPPORTED_CERTIFICATE without a memcpy.\n- Run the certificate parser under ASan and assert no heap-buffer-overflow for zero-length BIT STRING inputs."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:6a28fa6b15e929062ee60d187a851bb8b367f40822a11bc684b20d3f638cd39b"
+          },
+          "properties": {
+            "category": "memory-corruption",
+            "confidence": "high",
+            "findingId": "csf_fbc4abb098475ffba57d2e6e",
+            "occurrenceId": "occ_63d37b44d8613f46d20fb247",
+            "severity": "medium"
+          },
+          "ruleId": "memory-corruption.asn1-bitstring-length",
+          "ruleIndex": 0
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 12550,
+                  "startLine": 12524
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 12434,
+                  "startLine": 12434
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 9850,
+                  "startLine": 9801
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint/wrapper"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 14066,
+                  "startLine": 14006
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:dtls-fragment-bounds-check"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 12527,
+                  "startLine": 12524
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:dtls-fragment-accumulation"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 12550,
+                  "startLine": 12543
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:dtls-stack-buffer"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 9802,
+                  "startLine": 9801
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:dtls-stack-copy"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 9850,
+                  "startLine": 9847
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:dtls-unauthenticated-gate"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 12508,
+                  "startLine": 12505
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Overlapping DTLS fragments overflow the stack reassembly buffer\n\ntls_consume_stream() accumulates each DTLS handshake fragment's fragment_length into fragment->written without ever checking that written + fragment_length still fits the declared data_length. The backing heap buffer is allocated as data_length * sizeof(char *), so repeated overlapping fragments (fragment_offset = 0) keep the heap copies in bounds while written grows far past data_length. A later DTLS record with data_length == fragment_length takes the non-fragmented path and reaches tls_parse_payload(), which copies fragment->written bytes into a 0x4000C-byte stack buffer. A remote sender can drive written to 0x4FB00 with five 0xFF00-byte fragments (each record fits in a UDP datagram) and overflow the stack by roughly 64 KB with attacker-controlled and uninitialized heap bytes.\n\nSeverity: high\n\nCategory: Memory corruption\n\nWeaknesses: CWE-121, CWE-787\n\nRemediation:\nTrack filled bytes independently of the declared length, reject any fragment for which fragment_offset + fragment_length exceeds data_length or for which written + fragment_length would exceed data_length, size the fragment allocation to data_length (not data_length * sizeof(char *)), and require written + 12 <= sizeof(local_buffer) before the stack copy. Prefer rejecting overlapping fragments entirely.\n\nRemediation tests:\n- Send five overlapping 0xFF00-byte fragments with data_length=0x40000 followed by a small data_length==fragment_length record; assert TLS_BROKEN_PACKET before the memcpy and no ASan report.\n- Fuzz DTLS fragment_offset/fragment_length/data_length combinations and assert written never exceeds data_length."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:804a6edaaf2b335902b3e42397bc3b9582cd35c4739a7324b6033f627abe01c4"
+          },
+          "properties": {
+            "category": "memory-corruption",
+            "confidence": "high",
+            "findingId": "csf_33f781cd28ee98927fe61556",
+            "occurrenceId": "occ_93a64a559c1a7353434de113",
+            "severity": "high"
+          },
+          "ruleId": "memory-corruption.dtls-fragment-overlap",
+          "ruleIndex": 1
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "message": {
+                "text": "root_control"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 13085,
+                  "startLine": 13085
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 13070,
+                  "startLine": 13070
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "sink"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 13219,
+                  "startLine": 13201
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "entrypoint/wrapper"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 14006,
+                  "startLine": 14000
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:stun-key-buffer"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 13085,
+                  "startLine": 13078
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:stun-username-limit"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 13189,
+                  "startLine": 13182
+                }
+              }
+            },
+            {
+              "message": {
+                "text": "evidence:stun-realm-limit"
+              },
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tlse.c"
+                },
+                "region": {
+                  "endLine": 13258,
+                  "startLine": 13252
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "STUN USERNAME and REALM attributes overflow the credential key buffer\n\ntls_stun_parse() accepts a USERNAME attribute of up to 513 bytes and a REALM attribute of up to 763 bytes, then concatenates username + ':' + realm + ':' + password into char key[0x4CE] (1230 bytes). Even before the 24-byte local password is appended, 513 + 1 + 763 = 1277 bytes overwrite the end of key by 47 bytes. The code also advances the pointer by username_len instead of realm_len after copying the realm. The overflow happens while processing MESSAGE-INTEGRITY, before the HMAC comparison, so a sender does not need valid credentials.\n\nSeverity: high\n\nCategory: Memory corruption\n\nWeaknesses: CWE-121, CWE-787\n\nRemediation:\nCompute the total credential length first and reject unless username_len + 1 + realm_len + 1 + pwd_len + 1 <= sizeof(key). Advance ptr by realm_len after the realm copy, cap both attributes to values that leave room for the password and separators, and avoid placing attacker-sized concatenations in a fixed stack buffer.\n\nRemediation tests:\n- Send a binding request with a 513-byte USERNAME, a 763-byte REALM, and a 20-byte MESSAGE-INTEGRITY value; assert the parser rejects the credential build without writing past key.\n- Repeat with a valid MESSAGE-INTEGRITY and assert the same bound holds."
+          },
+          "partialFingerprints": {
+            "codexSecurity/v1": "codex-security/v1:sha256:e67b1488406f2c2f71f0dd51fce60f7fb2fa0f0bf3ef16195b34bd5669805c53"
+          },
+          "properties": {
+            "category": "memory-corruption",
+            "confidence": "high",
+            "findingId": "csf_398b08305d312d64566b1098",
+            "occurrenceId": "occ_e602f5cd84592601c6d9868b",
+            "severity": "high"
+          },
+          "ruleId": "memory-corruption.stun-credential-overflow",
+          "ruleIndex": 2
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Codex Security",
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Memory corruption: Asn1 bitstring length. Categories: Memory corruption. Weaknesses: CWE-125, CWE-191, CWE-787."
+              },
+              "help": {
+                "markdown": "Memory corruption: Asn1 bitstring length. Categories: Memory corruption. Weaknesses: CWE-125, CWE-191, CWE-787.\n\n## Remediation\n\nRequire length >= 1 before reading val[0] and reject zero-length signature BIT STRINGs. In tls_certificate_set_copy, reject negative lengths explicitly instead of relying on the truthiness of an int. Do not allocate zero bytes for a non-empty logical value.",
+                "text": "Memory corruption: Asn1 bitstring length. Categories: Memory corruption. Weaknesses: CWE-125, CWE-191, CWE-787.\n\nRemediation:\n\nRequire length >= 1 before reading val[0] and reject zero-length signature BIT STRINGs. In tls_certificate_set_copy, reject negative lengths explicitly instead of relying on the truthiness of an int. Do not allocate zero bytes for a non-empty logical value."
+              },
+              "id": "memory-corruption.asn1-bitstring-length",
+              "name": "Memory corruption: Asn1 bitstring length",
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "external/cwe/cwe-125",
+                  "external/cwe/cwe-191",
+                  "external/cwe/cwe-787",
+                  "memory-corruption",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory corruption: Asn1 bitstring length"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory corruption: Dtls fragment overlap. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787."
+              },
+              "help": {
+                "markdown": "Memory corruption: Dtls fragment overlap. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787.\n\n## Remediation\n\nTrack filled bytes independently of the declared length, reject any fragment for which fragment_offset + fragment_length exceeds data_length or for which written + fragment_length would exceed data_length, size the fragment allocation to data_length (not data_length * sizeof(char *)), and require written + 12 <= sizeof(local_buffer) before the stack copy. Prefer rejecting overlapping fragments entirely.",
+                "text": "Memory corruption: Dtls fragment overlap. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787.\n\nRemediation:\n\nTrack filled bytes independently of the declared length, reject any fragment for which fragment_offset + fragment_length exceeds data_length or for which written + fragment_length would exceed data_length, size the fragment allocation to data_length (not data_length * sizeof(char *)), and require written + 12 <= sizeof(local_buffer) before the stack copy. Prefer rejecting overlapping fragments entirely."
+              },
+              "id": "memory-corruption.dtls-fragment-overlap",
+              "name": "Memory corruption: Dtls fragment overlap",
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "external/cwe/cwe-121",
+                  "external/cwe/cwe-787",
+                  "memory-corruption",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory corruption: Dtls fragment overlap"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Memory corruption: Stun credential overflow. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787."
+              },
+              "help": {
+                "markdown": "Memory corruption: Stun credential overflow. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787.\n\n## Remediation\n\nCompute the total credential length first and reject unless username_len + 1 + realm_len + 1 + pwd_len + 1 <= sizeof(key). Advance ptr by realm_len after the realm copy, cap both attributes to values that leave room for the password and separators, and avoid placing attacker-sized concatenations in a fixed stack buffer.",
+                "text": "Memory corruption: Stun credential overflow. Categories: Memory corruption. Weaknesses: CWE-121, CWE-787.\n\nRemediation:\n\nCompute the total credential length first and reject unless username_len + 1 + realm_len + 1 + pwd_len + 1 <= sizeof(key). Advance ptr by realm_len after the realm copy, cap both attributes to values that leave room for the password and separators, and avoid placing attacker-sized concatenations in a fixed stack buffer."
+              },
+              "id": "memory-corruption.stun-credential-overflow",
+              "name": "Memory corruption: Stun credential overflow",
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "external/cwe/cwe-121",
+                  "external/cwe/cwe-787",
+                  "memory-corruption",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Memory corruption: Stun credential overflow"
+              }
+            }
+          ],
+          "version": "0.1.95"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

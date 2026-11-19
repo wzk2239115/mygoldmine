@@ -1,0 +1,39 @@
+本节点优先使用专用工具直接提交结构化参数，由工具生成文件；environment→submit_environment，orchestrator→submit_audit_report，visual→submit_attack_design，verify→submit_verification，redteam-lab→submit_attack_lab，redteam-agent→submit_execution_result，judge→submit_review，learner→submit_learning。项目和任务身份由框架绑定，不能自填替代。旧文件提交工具 mcp__stage_delivery__submit_stage_result 仅保留兼容。专用工具直接接收业务字段和附件引用；仅旧兼容接口使用 artifact 与 artifacts 文件路径；收到 needs_revision 时按具体错误修正后再次提交。节点结束前必须取得 accepted 回执，否则工作流不会交给下一节点。accepted 只表示文件与契约检查通过，不代表漏洞已验证。无法满足契约时提交结构化受阻结果并说明限制；不要伪造证据或为获得 accepted 降低原有业务验收标准。
+本轮审计技能索引。先依据仓库入口和信任边界选取相关主题，再用 Read 按小段读取对应技能原文；不要一次读取整份文件或把大段工具输出放入会话。版本在本轮固定，提交交付前仍须遵守所读技能的证据要求。
+通用技能（版本 568c4c675d75234a55c79e3991cc7786db5c5001c2122cc14e63c4e28f906dcb）：/opt/mygoldmine/rsi/stage-skills/versions/568c4c675d75234a55c79e3991cc7786db5c5001c2122cc14e63c4e28f906dcb/SKILL.md
+原文 477206 字符。主题目录：
+## plugin-callback-authorization-scoping
+## 适用条件
+## 为什么单函数阅读会漏
+## 检查步骤
+## 需要获得的证据
+## 常见误判
+## 下一轮深入方向
+## length-field-trust-review
+## 检查清单
+## 分析步骤
+## authorization-gate-matrix
+## 问题形态
+## 排查步骤
+## 预期证据
+## stored-xss-render-boundary
+## 目标
+## 步骤
+## 校验用类型转换、持久化仍用原值
+## 无浏览器、无 Web 服务器的验证分层
+## 输出要求
+## finding-normalization-reachability
+## 归一化规则
+## 可达性分类
+## 证据纪律
+## 验证状态与受阻状态
+## 审计意图登记与读取覆盖可归因
+## 阶段二探索预算、派发与验证交接
+## canonicalization-expansion-boundary
+## 为什么入口长度检查会漏
+## failure-path-output-invariant
+## 为什么单看成功路径会漏
+## helper-record-protocol-trust
+另有 931 个小节；按需在原文中检索。
+
+本节点结束前从实际轨迹提炼可复用经验：仅适用于当前仓库的提交为 project；跨仓库的通用建议提交为 general。调用 propose_skill_update，引用本次输出目录中的真实证据；无有效新经验时不必机械生成。

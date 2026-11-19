@@ -1,0 +1,885 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-17 10:22:32 UTC",
+  "run_id": "source_f236",
+  "run_name": "source_f236",
+  "scope": {
+    "targets": [
+      {
+        "type": "local_code",
+        "details": {
+          "target_path": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/pure-ftpd/source",
+          "workspace_subdir": "source"
+        },
+        "original": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/pure-ftpd/source"
+      }
+    ],
+    "scan_mode": "standard",
+    "scope_mode": "full",
+    "diff_scope": {
+      "active": false,
+      "mode": "full"
+    },
+    "instruction": "Audit only this local source snapshot and any service you build inside its sandbox. Do not contact upstream services or the LAN. Report validated findings with evidence."
+  },
+  "summary": {
+    "surfaces_reviewed": 57,
+    "outcomes": {
+      "reported": 1,
+      "no_issue_found": 18,
+      "ruled_out": 32,
+      "not_applicable": 3,
+      "needs_follow_up": 3
+    },
+    "findings_filed": 2,
+    "gaps": 7
+  },
+  "machine_observed": {
+    "agents": [
+      {
+        "agent_id": "accc54e8",
+        "agent_name": "CLI Tools And Scoreboard Auditor",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "race_conditions"
+        ],
+        "task": "Target: /workspace/source (Pure-FTPd 1.0.54 C source, white-box). Audit only this snapshot; run only local services/CLIs you build. Never contact upstream services or the LAN.\n\nCall get_threat_model(\"/workspace/source\") first.\n\nScope (remaining unattended modules): src/pure-pw.c (virtual-user DB tool), puredb/src/puredb_write.c, src/altlog.c, src/pure-statsdecode.c, src/pure-ftpwho.c, src/ftpwho-update.c, src/ftpwho-read.c, src/log_extauth.c + src/pure-authd.c, src/daemons.c, src/crypto.c (coordinate: another agent has TLS/crypto — skip crypto if so).\n\nQuestions to answer:\n1. pure-pw: parsing of CLI options and the PureDB record it writes (`pure-pw add/usermod`), integer fields (uid/gid/quota/ratio) — can a crafted input produce a record that later authenticates as uid 0 or corrupts the DB? Is the output record always well-formed (separator escaping of gecos/home/shell)? Check `pure-pw passwd` and `pure-pw show` too. NOTE: the attacker here is a local admin, so only report if there is a privilege boundary crossed (e.g. an unprivileged local user influencing the DB).\n2. puredb_write.c: record length fields, offsets, and buffer allocation when building a DB from lines of attacker-influenced length (e.g. a passwd file with a very long line, or a gecos field). Can it produce a DB whose reader later OOB-reads?\n3. altlog.c: format-string or log-injection in CLF lines built from FTP usernames/filenames; any buffer overflow with long usernames.\n4. pure-statsdecode.c / pure-ftpwho.c / ftpwho-read.c: parsing of the scoreboard client-<pid> files (root-run tools). Check size/uid/permission validation, format-string use of file content (e.g. printf(line) rather than printf(\"%s\", line)), partial/truncated record handling, and whether an FTP user (uid-ranged) can place a file that the root tool later parses unsafely.\n5. log_extauth.c + pure-authd.c (WITH_EXTAUTH): request/response framing with a local auth daemon, buffer sizes, and handling of a short/oversized reply. Mark clearly if it requires the non-default --with-extauth build.\n\nBuild artifacts available: /tmp/pftp-build (config.h: WITH_PUREDB, QUOTAS, FTPWHO, COOKIE, THROTTLING; PAM/LDAP/MySQL/PGSQL/TLS off). Tools built there: src/pure-pw, src/pure-quotacheck, src/pure-uploadscript, plus the daemon. You can also compile individual units with gcc -I/tmp/pftp-build -I/tmp/pftp-build/src.\n\nFor each CONFIRMED issue: file create_vulnerability_report with details, PoC, and code_locations with verbatim fix_before/fix_after + fix_pr_body + fix_verification. Record coverage per surface with the named control when ruled out; needs_follow_up for gaps.\n\nReport back concisely: audited surfaces, confirmed (report ids), ruled out + control, open gaps.",
+        "is_root": false
+      },
+      {
+        "agent_id": "8af962e2",
+        "agent_name": "Jail And Path Auditor",
+        "status": "completed",
+        "skills": [
+          "path_traversal_lfi_rfi",
+          "source_aware_sast"
+        ],
+        "task": "Target: /workspace/source (Pure-FTPd 1.0.54 C source, white-box). Audit only this source snapshot; build/run locally in the sandbox as needed. Never contact upstream services or the LAN.\n\nCall get_threat_model(\"/workspace/source\") first.\n\nScope: the filesystem jail and path resolution: src/fakechroot.c, src/fakechroot.h, src/bsd-realpath.c, src/diraliases.c, and every path-taking command handler in src/ftpd.c (CWD, CDUP, RETR, STOR, APPE, DELE, MKD, RMD, RNFR/RNTO, SIZE, MDTM, LIST/NLST/MLSD, STAT, SITE CHMOD/UTIME, and glob/alias expansion in src/bsd-glob.c if reachable with client input).\n\nSpecifically hunt for:\n- Path traversal / jail escape: `..` sequences, absolute paths, trailing separators, backslashes, NUL/embedded control chars, double-encoding, symlink following, renaming a symlink then using it, chroot-relative handling when chroot() is unavailable (fakechroot mode) and when it is available.\n- fakechroot path rewriting bugs: prefix matching that accepts a path merely starting with the jail string (e.g. \"/home/user2\" matching \"/home/user\"), missing normalisation, buffer sizes in the rewrite helper, ordering of rewrite vs symlink resolution.\n- diraliases (`ALIAS` command) resolution: alias matching, case-insensitivity, `cdpath`-style prefix substitution producing a path outside the jail.\n- Validated-vs-consumed mismatch: path validated then re-composed or truncated later, or truncated by snprintf before the check.\n\nMethod: read end to end, then prove dynamically. Practical route: build pure-ftpd from this tree (./autogen.sh && ./configure --prefix=/tmp/pftp && make; adjust flags as needed), run it on a high port with a jail dir and a virtual user (pure-pw), and drive it with a Python ftplib/socket client — this is an in-scope local service you built. If the build fails, state exactly why and fall back to complete static traces.\n\nFor each CONFIRMED issue: file create_vulnerability_report with full details, PoC, and code_locations with verbatim fix_before/fix_after + fix_pr_body + fix_verification. Record coverage for cleared surfaces with the named control; needs_follow_up + agent_finish(open_items) for unprovable candidates.\n\nReport back concisely: audited surfaces, confirmed (report ids), ruled out + control, open gaps.",
+        "is_root": false
+      },
+      {
+        "agent_id": "a8079969",
+        "agent_name": "Listing Glob And Upload Hook Auditor",
+        "status": "running",
+        "skills": [
+          "source_aware_sast",
+          "argument_injection"
+        ],
+        "task": "Target: /workspace/source (Pure-FTPd 1.0.54 C source, white-box). Audit only this snapshot; run only local services you build (localhost only). Never contact upstream services or the LAN.\n\nCall get_threat_model(\"/workspace/source\") first.\n\nScope (areas not covered by the other auditors):\n1. src/ls.c — LIST/NLST/MLSD/STAT formatting: fixed buffers for filenames, owner/group names from getpwuid/getgrgid, symlink target rendering, MLSD fact values, control-character handling, off-by-one in reply-size accumulation, and any length taken from a filename/symlink target that feeds memcpy/sprintf.\n2. src/bsd-glob.c — glob expansion of a client-supplied pattern (LIST/STAT with globbing, and ALIAS/cdpath): recursion/size limits, GLOB_LIMIT / stack exhaustion, alloca of attacker-controlled length, and whether a pattern can expand outside the jail.\n3. src/upload-pipe.c, src/pure-uploadscript.c — the upload hook: filename/PID/uid values written to the pipe and then passed as argv to an admin-configured program. Check for argument injection (filename starting with `-`, embedded spaces/newlines/`;`, NUL), buffer/format issues, and whether a malicious FTP filename can influence the invoked command's argument vector. Note this needs WITH_UPLOAD_SCRIPT (compile option) — say so if not built.\n4. src/crypto.c and src/dynamic.c — COOKIE/HOST/other SITE helpers, base64/CRC parsing of client-supplied data, shared-memory scoreboard naming/size computation.\n\nA working build of this tree is at /tmp/pftp-build (daemon: /tmp/pftp-build/src/pure-ftpd; config.h there: WITH_PUREDB, QUOTAS, FTPWHO, COOKIE, THROTTLING; PAM/LDAP/MySQL/PGSQL/TLS disabled). Rebuild with extra flags if needed via `cd /tmp/pftp-build && make clean && make CFLAGS=\"-fsanitize=address -g -O1\" LDFLAGS=\"-fsanitize=address\"`; note the tree is a copy and audited sources stay in /workspace/source. If WITH_UPLOAD_SCRIPT is not enabled in that build, either rebuild with the flag or assess upload-pipe/pure-uploadscript as a standalone binary.\n\nMethod: read end to end; prove with dynamic tests where practical (crafted filenames, symlink targets, glob patterns, MLSD-triggering directory entries). For ls.c, creating files with adversarial names inside the jail and issuing LIST/NLST/MLSD is enough to exercise the formatting path; run under ASAN.\n\nFor each CONFIRMED issue: file create_vulnerability_report with details, PoC, and code_locations with verbatim fix_before/fix_after + fix_pr_body + fix_verification. Record coverage per surface with the named control when ruled out; needs_follow_up for gaps.\n\nReport back concisely: audited surfaces, confirmed (report ids), ruled out + control, open gaps.",
+        "is_root": false
+      },
+      {
+        "agent_id": "5da9210d",
+        "agent_name": "Protocol And IP Rule Auditor",
+        "status": "running",
+        "skills": [
+          "source_aware_sast",
+          "rce"
+        ],
+        "task": "Target: /workspace/source (Pure-FTPd 1.0.54 C source, white-box). Audit only this source snapshot; build/run locally as needed. Never contact upstream services or the LAN.\n\nCall get_threat_model(\"/workspace/source\") first.\n\nScope A — protocol parsing (src/ftp_parser.c, src/parser.c, src/parser_p.h, and argument handling in src/ftpd.c): command tokenisation, argument length limits, buffer sizes, MLSD fact parsing (ChangeLog mentions a prior OOB read fix), PORT/EPRT address+port parsing and port-range checks (ChangeLog claims client port range validation was added — verify enforcement on every path, including IPv6 EPRT with `|` delimiters and PASV/EPSV), SIZE/MDTM/UTIME date parsing, SITE sub-parsers, REPLY/REST/TYPE parsing. Hunt for stack/heap overflows, off-by-one, unchecked atoi/long parsing, parsed length used as allocation size, and state not reset on parse failure (e.g. PORT/EPRT failure leaving a half-updated data address).\n\nScope B — IP access control (src/ipstack.c plus callers in src/ftpd.c and src/simpleconf.c): allow/deny rule matching. ChangeLog claims IPv6 patterns now work, hostname rules resolve with the client's address family, and malformed CIDR widths fail closed. Verify line-for-line: does a malformed/out-of-range CIDR mask fail closed (or does `>> 32`/UB shift or a wrong mask comparison match everything)? Can a deny rule be bypassed by address representation (IPv4-mapped IPv6, leading zeros, octal-looking octets, zone-id `%eth0`)? Is rule order/priority correct, and is \"unknown host\" allow or deny?\n\nMethod: read end to end, then prove dynamically where possible. Build pure-ftpd from this tree and run it locally, then drive raw FTP over Python sockets to test parser handling (oversized args, malformed EPRT, MLSD with crafted facts) and IP rules (-E / ipaccess with crafted client addresses). Prefer raw protocol scripts over ftplib for malformed input. Use ASAN builds (CFLAGS=\"-fsanitize=address -g\") to confirm memory bugs.\n\nFor each CONFIRMED issue: file create_vulnerability_report with full details, PoC, and code_locations with verbatim fix_before/fix_after + fix_pr_body + fix_verification. Record coverage per surface with the named control when ruled out; needs_follow_up for gaps.\n\nReport back concisely: audited surfaces, confirmed (report ids), ruled out + control, open gaps.",
+        "is_root": false
+      },
+      {
+        "agent_id": "b8409c83",
+        "agent_name": "PureDB And Auth Auditor",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "authentication_jwt"
+        ],
+        "task": "Target: /workspace/source (Pure-FTPd 1.0.54 C source, white-box). Audit only this source snapshot; build/run locally in the sandbox as needed. Never contact upstream services or the LAN.\n\nCall get_threat_model(\"/workspace/source\") first.\n\nScope: the authentication and virtual-user path — src/log_puredb.c, puredb/src/puredb_read.c, puredb/src/puredb_write.c, puredb/src/puredb_p.h, src/log_unix.c, src/log_pam.c, src/pure-pw.c, src/pure-pwconvert.c, and the auth flow in src/ftpd.c (USER/PASS/ACCT handling, disable_pass_command, accept_root_* globals, MACRO helpers in src/ftpd.h).\n\nSpecifically hunt for:\n- Out-of-bounds read/write, off-by-one, or integer issues in PureDB record/field parsing (field lengths, block/offset arithmetic, 8-bit vs longer fields, buffer sizes vs sizeof).\n- Missing or bypassable uid/gid validation that lets a PureDB record select uid 0 or a non-numeric value (ChangeLog 1.0.54 claims this is now rejected — verify the claim and whether the check covers every path, e.g. puredb_get_user vs pure-pw add/update, numeric-but-partial strings like \"0x10\", \" 0\", \"00\", negative, overflowing).\n- Authentication bypass: any path where a wrong password/empty password/ACCT value or malformed record yields a logged-in session, or where a username containing separators (`:`, newline) corrupts record parsing (pure-pwconvert claim).\n- Memory-safety in the PureDB read path; be honest about attacker control of DB content.\n\nMethod: read the path end to end; where a candidate looks real, build the component locally (pure-pw binary or a small harness linking puredb_read.c) and demonstrate with real input. Dynamic proof beats static reasoning; if you cannot build, produce a complete trace and say so.\n\nFor each CONFIRMED issue: file create_vulnerability_report with full details, PoC, and code_locations with verbatim fix_before/fix_after plus fix_pr_body + fix_verification. Record coverage (record_coverage) for each surface you clear, naming the specific control. Use record_coverage outcome=needs_follow_up and agent_finish(open_items=...) for unprovable candidates.\n\nReport back concisely: surfaces audited, confirmed (report ids), ruled out + the control, open gaps.",
+        "is_root": false
+      },
+      {
+        "agent_id": "4b6f2395",
+        "agent_name": "Quota And Aux Module Auditor",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast",
+          "race_conditions"
+        ],
+        "task": "Target: /workspace/source (Pure-FTPd 1.0.54 C source, white-box). Audit only this source snapshot; build/run locally as needed. Never contact upstream services or the LAN.\n\nCall get_threat_model(\"/workspace/source\") first.\n\nScope: quota accounting and auxiliary privileged/semi-privileged modules —\nsrc/quotas.c, src/pure-quotacheck.c, src/ftpwho-update.c, src/ftpwho-read.c, src/pure-ftpwho.c, src/log_ldap.c, src/log_pam.c, src/simpleconf.c (config parser), and the quota/size accounting in src/ftpd.c (dofile, upload/download accounting, `--maxfilesize`, `.ftpquota` handling).\n\nSpecifically hunt for:\n- Quota file parsing (`quotas.c`, `struct quota` / `quota_update`, `.ftpquota` fields): malformed or oversized field handling, off-by-one on the fixed-size line buffer, a quota file whose values are attacker-influenced (a logged-in FTP user can upload/overwrite `.ftpquota` in their home if permissions allow — judge honestly whether they can), archive-bit/`quota_update` semantics that let a user reset their used-bytes to 0 or bypass the limit, and the \"locked ... file checks\" claim in ChangeLog 1.0.54 (verify actual locking and fail-closed behaviour).\n- Size accounting arithmetic: overflow when summing file sizes (off_t/int/long), negative sizes, sparse files, counting a file twice, failing open when the quota file cannot be written.\n- Scoreboard/ftpwho file parsing: reading a PID/UID/path file that another local user or an FTP user could influence, format-string or buffer issues, and whether a forged scoreboard entry causes privileged action in pure-ftpwho.\n- LDAP (`log_ldap.c`): filter/attribute construction with the attacker-supplied username, LDAP-injection characters (`*`, `)`, `(`, `\\`), and DN construction; the ChangeLog claim that multi-entry search results are now rejected as ambiguous — verify the check is actually there and that anonymous-bind regression is fixed. Mark this class clearly if it only matters under a non-default build option (--with-ldap).\n- PAM (`log_pam.c`): username handling, buffer sizes, null-termination, and the ChangeLog's PAM hardening claim.\n- `simpleconf.c`: parsing of config values, address/port parsing, and any buffer that client- or file-controlled length feeds.\n\nMethod: read end to end. For quotas, build a small local harness or run pure-quotacheck / the daemon against crafted `.ftpquota` files to prove behaviour; for LDAP/PAM, if you cannot build with those libraries installed, say so and rely on a complete static trace (note the build option). For simpleconf, a small unit harness reading crafted config files is enough.\n\nFor each CONFIRMED issue: file create_vulnerability_report with full details, PoC, and code_locations with verbatim fix_before/fix_after + fix_pr_body + fix_verification. Record coverage per surface with the named control when ruled out; needs_follow_up for gaps.\n\nReport back concisely: audited surfaces, confirmed (report ids), ruled out + control, open gaps, and whether LDAP/PAM were actually buildable.",
+        "is_root": false
+      },
+      {
+        "agent_id": "c7c3d6f5",
+        "agent_name": "Root Agent",
+        "status": "running",
+        "skills": [],
+        "task": "\n\nLocal Codebases: - /vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/pure-ftpd/source (available at: /workspace/source; this is the user's real directory, mounted live and writable — .git/.agents/.codex are read-only)\n\nSpecial instructions: Audit only this local source snapshot and any service you build inside its sandbox. Do not contact upstream services or the LAN. Report validated findings with evidence.",
+        "is_root": true
+      },
+      {
+        "agent_id": "63a8678e",
+        "agent_name": "Static Baseline Triage",
+        "status": "completed",
+        "skills": [
+          "source_aware_sast"
+        ],
+        "task": "Target: /workspace/source (Pure-FTPd 1.0.54 C source, white-box).\n\nCall get_threat_model(\"/workspace/source\") first.\n\nGoal: produce the source-aware baseline triage artifact set for the whole repo (this satisfies the scan's static coverage floor). Do NOT file reports; produce ranked candidates and artifacts for the other agents.\n\nRequired work, run from the repo root with artifacts in /workspace/.source-aware:\n1. `opengrep scan --config /opt/opengrep-rules --taint-intrafile --json --output /workspace/.source-aware/opengrep.json .` (if too slow, narrow to c + generic/secrets but do at least one full pass attempt with a bounded timeout).\n2. Derive /workspace/.source-aware/sg-targets.txt from opengrep.json `paths.scanned` (fallback: unique results[].path) and run `xargs -r -n 200 sg run --pattern '$F($$$ARGS)' --json=stream < sg-targets.txt > ast-grep.json`.\n3. `gitleaks detect --source . --report-format json --report-path /workspace/.source-aware/gitleaks.json` and `trufflehog filesystem --no-update --json --no-verification . > trufflehog.json`.\n4. `trivy fs --scanners vuln,misconfig --timeout 30m --offline-scan --format json --output trivy-fs.json .`\n5. Also run cppcheck if present (`cppcheck --enable=warning,style,performance,portability --inline-suppr --std=c99 src puredb/src 2> cppcheck.log`), and a quick grep pass for unbounded copies/allocation in network-facing code (strcpy, strcat, alloca, memcpy with parsed lengths, fixed arrays indexed by parsed values).\n\nReport back (agent_finish) with: artifact paths, and a ranked list (max ~10) of concrete risky locations: file:line, the source→sink reason, whether input is attacker-controlled from the FTP protocol. Explicitly include anything where a length from the wire feeds an allocation or copy in src/ftpd.c, src/ftp_parser.c, src/log_puredb.c, puredb/src/puredb_read.c, src/ipstack.c, src/quotas.c, src/fakechroot.c. Do not just paste raw scanner output; triage it.",
+        "is_root": false
+      },
+      {
+        "agent_id": "c78a2c46",
+        "agent_name": "TLS And Cert Path Auditor",
+        "status": "running",
+        "skills": [
+          "source_aware_sast",
+          "authentication_jwt"
+        ],
+        "task": "Target: /workspace/source (Pure-FTPd 1.0.54 C source, white-box). Audit only this snapshot; run only local services you build (localhost only). Never contact upstream services or the LAN.\n\nCall get_threat_model(\"/workspace/source\") first.\n\nScope: the TLS and client-certificate path — src/tls.c, src/tls_extcert.c, src/tls_extcert_p.h, src/pure-certd.c, src/crypto.c, and the TLS hooks in src/ftpd.c (tls_init_control_session, enforce_tls_auth levels, data_protection_level, ssl_ctx setup, verify modes, cipher selection, SNI handling).\n\nSpecifically hunt for:\n- Certificate/hostname verification gaps: SSL_VERIFY_NONE usage, verify callbacks that always return 1, missing SSL_set_verify_result/X509_check_host, acceptance of any client cert, and whether `use_extcert` decisions from pure-certd can be influenced by the client (SNI string) to choose a server key/cert or to bypass auth.\n- Auth bypass via the extcert flow: CertResult action semantics (deny/default/fallback/strict), cert_ok handling, the `cert_finalized` logic, partial/truncated responses from the cert daemon (safe_read once), and whether a cert daemon reply line with no trailing newline is silently ignored (callback never invoked) yet still treated as OK.\n- Buffer handling: `sni_name` passed into snprintf, line[4096] parsing of daemon replies, strncmp keyword matching that accepts prefix collisions (e.g. callback keyword is a prefix of another), and the `result->action` default value when no action line is received.\n- crypto.c: base64/CRC/hex parsing of client-supplied COOKIE/FEAT data, padding and length handling.\n- TLS session/data-channel confusion and whether a failed TLS negotiation leaves the session authenticated or in a bad state.\n\nNote TLS is NOT enabled in /tmp/pftp-build (no OpenSSL dev headers found by configure — check /usr/include/openssl; if headers exist, rebuild with --with-tls). If you cannot build with TLS, say so explicitly and rest the conclusion on a complete static trace, with confidence medium.\n\nFor each CONFIRMED issue: file create_vulnerability_report with details, PoC, and code_locations with verbatim fix_before/fix_after + fix_pr_body + fix_verification. Record coverage per surface with the named control when ruled out; needs_follow_up for gaps.\n\nReport back concisely: audited surfaces, confirmed (report ids), ruled out + control, open gaps, and whether TLS was buildable.",
+        "is_root": false
+      }
+    ],
+    "skills_exercised": [
+      "argument_injection",
+      "authentication_jwt",
+      "path_traversal_lfi_rfi",
+      "race_conditions",
+      "rce",
+      "source_aware_sast"
+    ],
+    "findings_filed": 2,
+    "source": "runtime"
+  },
+  "completeness": {
+    "complete": false,
+    "scan_status": "interrupted",
+    "exit_reason": null,
+    "caveats": [
+      "The scan ended with status 'interrupted' rather than completing, so coverage reflects only the work finished before it stopped.",
+      "4 agent(s) did not finish cleanly (Listing Glob And Upload Hook Auditor, Protocol And IP Rule Auditor, Root Agent, TLS And Cert Path Auditor); any surface they held is under-covered."
+    ]
+  },
+  "entries": [
+    {
+      "surface": "src/quotas.c + quota_update() callers in src/ftpd.c",
+      "risk_area": "quota accounting bypass / fail-open error handling",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "quota_update() zeroes *quota at quotas.c:97 before parsing, and returns -1 on a record without a space (quotas.c:116-121); both callers treat that error as \"no quota problem\" (ftpd.c:3702-3704 returns 0, ftpd.c:4303-4311 skips the whole check). Fail-open is certain at code level; the gap is that no remote way to corrupt /.ftpquota was found (checknamesanity blocks any name containing .ftpquota while quotas are active, ftpd.c:775-786).",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:37:19 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "puredb/src/puredb_read.c puredb_find() record parsing",
+      "risk_area": "out-of-bounds read / wrapped length arithmetic",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "The suspicious check at puredb_read.c:277 (data_size > db->size - data) can only wrap if data > db->size, but the preceding read_be_long(db, data, &data_size) rejects offset > size-4 in both the mapped path (:53) and the lseek/read path (:60-66), and puredb_read() re-validates offset/len at :306-309 before any copy.",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:37:19 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_puredb.c access_ip_match()/access_ip_check()",
+      "risk_area": "per-user IP allow/deny bypass (CIDR parsing, address family confusion)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "access_ip_match() returns -1 for malformed IPv4/IPv6 CIDR (log_puredb.c:102-106, 146-161) and access_ip_check() denies on any non-1 result (:229-244), so malformed rules fail closed; fourinsix() is applied to ctrlconn and peer before authentication (ftpd.c:4953,4969) so v4-mapped IPv6 peers cannot dodge IPv4 deny rules.",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:37:27 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "puredb/src/puredb_read.c read_memcmp() ALLOCA",
+      "risk_area": "stack exhaustion / unbounded allocation from wire length",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "read_memcmp() ALLOCA(len) at puredb_read.c:89 uses len = strlen(USER argument) only on non-mmap builds; bounded by cmdsize = PATH_MAX+16 (globals.h:34) and freed on every path. No overflow, only bounded stack use per lookup.",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:37:27 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/ftp_parser.c sfgets()/parser()",
+      "risk_area": "buffer overflow / OOB read in FTP command reader",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "cmd[] is PATH_MAX+32 while cmdsize is PATH_MAX+16 (globals.h:34-35), so the isalnum(cmd[n]) read before the n<cmdsize test at ftp_parser.c:274 is in bounds; sfgets() caps growth at cmdsize and dies on a too-long line, and cmd[scanned-1] cannot underflow because seen_r is only set after scanned++.",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:37:35 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_puredb.c pw_puredb_parseline() uid/gid handling",
+      "risk_area": "privilege escalation via PureDB record fields",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "pw_puredb_parseline() parses uid/gid with strtoul plus full-consumption check (log_puredb.c:299-310) and rejects uid/gid 0 unless ACCEPT_ROOT_VIRTUAL_USERS is defined (:311-315); truncated values such as 4294967296 land on uid 0 and are rejected by that gate.",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:37:35 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/ftpd.c path handling (checknamesanity, docwd, get_atomic_file, STOR/DELE paths)",
+      "risk_area": "jail escape / path overflow from FTP path arguments",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Dynamically re-verified on two live builds of this tree (real-chroot build and --with-virtualchroot + --with-diraliases build), PureDB user, ftplib/socket driver. No path argument reached outside the jail root: RETR/CWD/LIST/NLST/STAT/MLSD/SIZE/MDTM/MKD/RMD/DELE/RNFR+RNTO/SITE CHMOD/SITE UTIME with `../../..`, absolute `/etc/passwd`, 1000x `../`, `.//..//..`, `a/..//..//..`, trailing separators, `..%2f` and backslash variants all returned 550/553 or resolved inside the jail; 4096-byte names fail with ENAMETOOLONG and never truncate into a different existing path. Named controls: kernel chroot() in the default build; fakexlate() prefix test `strncmp(curdirtmp, chroot_base, chroot_len) != 0 || curdirtmp[chroot_len] != '/'` plus the EPERM `..` checks in virtual-chroot builds; checknamesanity() for control chars/backslash. dot_ok==1 for chrooted users is therefore compensated by those two controls on every attacker-reachable path, and the `..` components it allows are normalized by the kernel (retested with `inside/../file1.txt` which succeeds only inside the jail).",
+      "recorded_by": "Jail And Path Auditor",
+      "recorded_at": "2026-11-17 09:37:46 UTC",
+      "updated_at": "2026-11-17 09:46:23 UTC",
+      "previous_outcomes": [
+        "ruled_out"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/ls.c wrstr()/donlst()/domlsd()/listfile()",
+      "risk_area": "buffer overflow via long file names in listing output",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "wrstr() chunking in ls.c:35-106 keeps l <= sizeof outbuf on all three paths (exact fit handled by the <= test and the l > sizeof outbuf flush loop); NLST checks name_len > sizeof line - 3 (ls.c:1028) and MLSD goes through modernformat(..., sizeof line, ...) which is SNCHECK-guarded (ftpd.c:1076-1160).",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:37:46 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/fakechroot.c fakexlate()/fakesymlink()",
+      "risk_area": "jail escape via virtual-chroot path rewriting",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Resolved by building --with-virtualchroot and exercising it live. fakexlate() cannot be walked out of: `..` at the root is clamped (`../..` repeatedly keeps cwd at `/`), `a/../x` is rejected with EPERM, absolute arguments are re-based on chroot_base, and a sibling directory whose path shares the jail prefix (`.../ftproot_sibling` vs jail `.../ftproot`) was not reachable by any command. fakegetcwd()'s prefix-only strncmp cannot see a foreign directory because curdir is only ever assigned from fakexlate() output, which always begins with chroot_base + '/'. The flagged fakesymlink() is unreachable: no FTP command creates symlinks (only link() in tryautorename(), src/ftpd.c:3591/3610). The one escape observed — a pre-existing symlink in the home directory pointing outside the jail (`abs_link -> /etc/passwd`, `up_link -> .../outside`) is read through RETR in virtual-chroot mode — is the documented purpose of the option (README:253-260 \"symbolic links are always followed... This feature isn't enabled by default\"); the same requests fail in the default chroot build. Not a defect.",
+      "recorded_by": "Jail And Path Auditor",
+      "recorded_at": "2026-11-17 09:37:54 UTC",
+      "updated_at": "2026-11-17 09:46:23 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/ftpd.c PORT/EPRT/PASV/EPSV handling",
+      "risk_area": "FTP bounce / data-connection target manipulation",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "doport()/doeprt() range-check all octets and ports (ftpd.c:2198-2204, 975-995), doport2() refuses ports < 1024 and enforces the anti-FXP check via addrcmp() before connecting (ftpd.c:2315-2352), and dopasv() binds the control-connection address.",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:37:54 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "auth back ends: log_unix.c, log_pam.c, log_ldap.c, log_mysql.c, log_pgsql.c",
+      "risk_area": "authentication bypass / SQLi in auth back ends",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "log_unix.c password check uses crypt()+pure_strcmp (constant-time compare, correct), log_pam.c validates num_msg before calloc, log_ldap.c rejects multi-entry results (log_ldap.c:272-278) and its opengrep double-free is a free(NULL) false positive, and log_mysql.c/log_pgsql.c escape every substituted value via pw_mysql_escape_string/pw_pgsql_escape_string after pw_mysql_validate_name. No auth shortcut found.",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:38:01 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/ipstack.c (OLD_IP_STACK shim)",
+      "risk_area": "memory corruption in simplified resolver shim",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "Entire file is inside #ifdef OLD_IP_STACK (inactive on Linux/glibc) and every memcpy is preceded by a length check against the destination size (ipstack.c:50-65, 135-138).",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:38:01 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "repository secrets (gitleaks, trufflehog)",
+      "risk_area": "hardcoded credentials / secret exposure",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "gitleaks and trufflehog both flag README.TLS:72-99, a sample certificate/key pair printed as documentation in the TLS setup instructions (the same section tells the operator to generate their own key with openssl req). No live credential is committed.",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:38:09 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "repository dependency and misconfiguration scan (trivy fs, cppcheck)",
+      "risk_area": "known-CVE dependency / supply-chain scan",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "trivy cannot complete: vuln scanning needs the trivy-db OCI artifact and misconfig needs the checks bundle, both of which stall through the egress proxy (mirror.gcr.io returns 502, ghcr.io transfer froze at 1.31/133.70 MiB). The snapshot also ships no lockfile/manifest, so SCA coverage remains unverified rather than clean. cppcheck could not be installed (no write access to /var/lib/dpkg).",
+      "recorded_by": "Static Baseline Triage",
+      "recorded_at": "2026-11-17 09:38:09 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/diraliases.c + docwd() alias fallback (CWD, SITE ALIAS)",
+      "risk_area": "jail escape via alias expansion (prefix substitution, case folding, alias to host path)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Alias data comes only from ALIASES_FILE (CONFDIR, root-owned, parsed once at startup by init_aliases()); no client input reaches the alias table. lookup_alias() is an exact strcmp — no prefix/case-insensitive matching, so \"alias/src\" or \"ALIAS\" do not select an alias. Live test with `aliasin=/inside/` and `aliasout=<host>/outside/`: `CWD aliasin` resolved to /inside inside the jail, `CWD aliasout` failed (the absolute host path is re-based by chroot()/fakexlate()), and `CWD` never returned an out-of-jail path. The alias chdir target skips checknamesanity(), but it is still subject to the kernel chroot / fakexlate rewrite on every path, and the value is operator-controlled configuration.",
+      "recorded_by": "Jail And Path Auditor",
+      "recorded_at": "2026-11-17 09:47:42 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/bsd-glob.c sglob()/glob0()/globexp2() with client-supplied patterns (LIST, STAT, NLST)",
+      "risk_area": "memory corruption / DoS via glob expansion of FTP path arguments",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Fuzzed live with 18 pathological patterns per command (thousands of `*`, unbalanced { } [ ], `[a-` ranges, 4000-char patterns, 500-char backslash runs) plus 1000-component `../` paths: every request returned a normal 226/550 reply, no crash, no session or daemon death, no memory errors observed. Structurally: glob_() rejects patterns >= PATH_MAX (bsd-glob.c:194) and GLOB_LIMIT caps stars at 3 via check_stars() (:158-161); callers pass max_ls_files/max_ls_depth. Matched names are only stat()ed and listed, so globbing cannot widen filesystem reach: path arguments still go through the chroot/fakexlate translation for the chdir()/stat() that follow.",
+      "recorded_by": "Jail And Path Auditor",
+      "recorded_at": "2026-11-17 09:47:42 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/bsd-realpath.c bsd_realpath()",
+      "risk_area": "canonicalisation bypass / OOB read in built-in realpath",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "bsd-realpath.c is only compiled when !HAVE_REALPATH || USE_BUILTIN_REALPATH; on glibc -DHAVE_REALPATH=1 makes the platform realpath() the compiled-in one (verified by building both ways). Its only caller in the daemon is displayrate() (src/ftpd.c:2803) for the upload-script/altlog path after a transfer completes — it never gates a filesystem operation, so a failure there only aborts the log entry. Latent nit noted for completeness: the dead `else if (slen == 0)` branch inside `if (slen < 0 || slen >= sizeof symlink)` leaves slen==0 reaching `symlink[slen - 1]` (bsd-realpath.c:269), a one-byte stack read; Linux cannot create a symlink with an empty target (symlink(\"\") fails ENOENT) and readlink() on a valid link returns >= 1, so it is unreachable.",
+      "recorded_by": "Jail And Path Auditor",
+      "recorded_at": "2026-11-17 09:47:51 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "douser() anonymous jail setup + anonymous path commands",
+      "risk_area": "jail escape for anonymous sessions (ANON_DIR setup path)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Live anonymous session against a --with-virtualchroot build (ANON_DIR jail, dot_read_anon=0): `RETR ../afile.txt`, `../../afile.txt`, `/afile.txt`, `/etc/passwd` and `../../../ftproot_sibling/sib.txt` all resolved inside the jail or returned 550; `CWD ..`, `../..`, `/` clamp to `/`; `STOR ../up.txt` created the file at the jail root (verified on disk as <jail>/up.txt) and not outside; MKD/DELE/CHMOD are refused by the anonymous policy in dodele/domkd/dochmod before any filesystem call. The anonymous chroot setup path (douser(): chdir(pw_dir) || chroot(pw_dir) || chdir(\"/\")) therefore leaves the same controls in place as the virtual-user path.",
+      "recorded_by": "Jail And Path Auditor",
+      "recorded_at": "2026-11-17 09:47:51 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/pure-quotacheck.c traversal and quota file writer",
+      "risk_area": "Accounting correctness / buffer sizing / symlink handling",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Built and ran: crafted tree (regular files, subdir, symlink, garbage pre-existing .ftpquota) produced `5 10306`, matching 6+5000+300 bytes plus symlink target and subdir, with .ftpquota skipped. Path buffer is sized slen+strlen(name) and snprintf with a boundary-checked SNCHECK; inode/device dedup prevents loops; uid/gid must be >0.",
+      "recorded_by": "Quota And Aux Module Auditor",
+      "recorded_at": "2026-11-17 09:57:41 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/quotas.c quota_update (.ftpquota parsing, files/size accounting, locking)",
+      "risk_area": "Quota bypass / malformed quota file reset to zero / integer overflow",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "A quota'd user cannot touch /.ftpquota: checknamesanity() rejects any name containing QUOTA_FILE (src/ftpd.c:786-791) on every mutating command; verified 553 for STOR/APPE/DELE/MKD/RMD/RNFR/CHMOD/UTIME/MFMT including /, ./, suffix and upper-case variants. File is 0600 owned by session uid. Accounting verified live against the built daemon (exact limit accepted, +1 byte rejected and rolled back, aborted RST upload accounted, delete/rename/mkdir/rmdir consistent). Fail-open on a malformed file is real but needs a local writer who can already write the user's files directly, so no privilege boundary is crossed; wrapping of stored values near 2^64 is unreachable from the daemon path.",
+      "recorded_by": "Quota And Aux Module Auditor",
+      "recorded_at": "2026-11-17 09:57:41 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "ftpd.c quota/size accounting (dostor, dodele, dornto, domkd, dormd, ul_quota_update, max_filesize)",
+      "risk_area": "Upload/download size accounting, max_filesize, negative/overflow sizes",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Live daemon tests: 1 MiB quota - 1048576-byte STOR accepted (`1 1048576`), 1048577 bytes rejected with 552 and file unlinked/quota rolled back; RST-aborted upload of 400000 bytes still accounted (`2 707200`); overwrite 900KB->100KB, APPE +50KB and REST/truncate accounting all tracked disk state; RNTO over an existing file decremented the replaced file (2 files/819200 -> 1 file/512000, matching ls); MKD/RMD +/-1 file consistent; no trim beyond ~one chunk beyond max_filesize = user_quota_size - quota.size.",
+      "recorded_by": "Quota And Aux Module Auditor",
+      "recorded_at": "2026-11-17 09:57:50 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/ftpwho-read.c ftpwho_read_count / scoreboard_cleanup",
+      "risk_area": "Per-user limit bypass via forged/parsed scoreboard",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Verified with `-y 2:2`: two concurrent vuser sessions accepted, third rejected with `421 I can't accept more than 2 connections as the same user`; scoreboard files appear as root-owned 0600 `client-<pid>` inside the root-owned 0700 /run/pure-ftpd, which is what ftpwho_read_count consumes (offsetof(account), 128 bytes, strcasecmp).",
+      "recorded_by": "Quota And Aux Module Auditor",
+      "recorded_at": "2026-11-17 09:57:50 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/ftpwho-update.c + src/pure-ftpwho.c scoreboard write/read (root helper)",
+      "risk_area": "Forged scoreboard entry causing privileged action / format-string / buffer issues",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Scoreboard dir is created/hardened to root-owned 0700 (ftpwho-update.c:108-130); entries are opened O_NOFOLLOW and required to be regular, uid 0, mode 0600 and exactly sizeof(FTPWhoEntry) (pure-ftpwho.c:841-854) before parsing, so a non-root local user or FTP client cannot inject an entry; pure-ftpwho refuses to run unless euid is 0 (737-742) and unlinks only names starting with `client-` that fail kill(pid,0). Attacker-controlled filename/account strings go through xml_escaped/shell_escaped, and control characters (incl. ESC) are rejected at upload time by ISCTRLCODE in checknamesanity, so no terminal/HTML injection via filenames.",
+      "recorded_by": "Quota And Aux Module Auditor",
+      "recorded_at": "2026-11-17 09:58:01 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_ldap.c filter/DN construction and credential check",
+      "risk_area": "LDAP injection, ambiguous multi-entry result, anonymous-bind regression",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Static trace (LDAP back end is not buildable here: no ldap.h dev headers, requires --with-ldap). The username reaches LDAP only after pw_ldap_validate_name (src/log_ldap.c:319-336) which allows only a-zA-Z0-9 space - @ _ ' . and rejects `*`, `(`, `)`, `\\` and control characters, so filter injection is impossible; the filter itself is a config template where '%' is refused and only `\\L` becomes `%s`, and snprintf is size-checked (log_ldap.c:250-264). The ChangeLog 1.0.54 multi-entry claim is present and correct: ldap_count_entries != 1 rejects ambiguous results with a warning (log_ldap.c:271-284). Anonymous bind is intact for a NULL binddn (pwd set NULL, ldap_bind_s(NULL,NULL)) at log_ldap.c:163-165 and 225.",
+      "recorded_by": "Quota And Aux Module Auditor",
+      "recorded_at": "2026-11-17 09:58:01 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_pam.c pw_pam_check / PAM_conv",
+      "risk_area": "Username buffer handling / null termination / conversation overflow",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Static trace only (USE_PAM back end not buildable: no security/pam_appl.h, requires --with-pam). No fixed-size copies of user data: PAM_username/PAM_password are used via strdup in PAM_conv (src/log_pam.c:89,99); the username comes from account[MAX_USER_LENGTH+1] bounded by strncpy in doUSER; the conversation error path frees only calloc'd slots (free(NULL) safe) and leaves *resp NULL; PAM_RHOST buffer is 1025 with explicit NUL; pam_end is reached on every path.",
+      "recorded_by": "Quota And Aux Module Auditor",
+      "recorded_at": "2026-11-17 09:58:10 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/simpleconf.c config parser",
+      "risk_area": "Buffer overflow / unbounded value length in config parsing",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Compiled simpleconf.c with ASan+UBSan and drove sc_build_command_line_from_file with the real simpleconf_ftpd.h entry table over 15 crafted configs: 100 KB value, 65530-char line, exactly-64 KB line, unterminated/empty quotes, `CertFileAndKey (a) (b) (c) (d)`, embedded NUL, missing trailing newline, blank/whitespace-only lines, 70000-char Include path. Result: no ASan/UBSan report, only clean syntax/property-not-found messages; arg template is capped at SC_MAX_ARG_LENGTH (E2BIG) and matches[] is bounds-checked (matches_len >= 10) before every add_to_matches.",
+      "recorded_by": "Quota And Aux Module Auditor",
+      "recorded_at": "2026-11-17 09:58:10 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_puredb.c pw_puredb_parseline uid/gid validation (PureDB record -> process identity)",
+      "risk_area": "Privilege escalation / uid 0 selection via virtual-user record",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Control: after `result->uid = (uid_t) strtoul(line,&endptr,10)` the check `line==endptr || *endptr!=0` rejects non-numeric/partial fields and `if (result->uid <= (uid_t)0 || result->gid <= (gid_t)0) return -1` (log_puredb.c:321-336, #ifndef ACCEPT_ROOT_VIRTUAL_USERS) runs on the post-truncation value, so every string that truncates to 0 is rejected. Verified dynamically both in-process (harness linking the real log_puredb.c + puredb_read.c) and over FTP against a locally built daemon: uid '0','00','0000',' 0','0 ','+0','-0','0x0','4294967296' and gid '0',' 0','4294967296' all -> auth_ok=-1 / 530; control record uid 1000 logs in and the file it uploads is owned 1000:1000, proving the identity that is actually applied. ACCEPT_ROOT_VIRTUAL_USERS is never defined by configure.ac, so the default build always enforces this.",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:08:45 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_puredb.c password verification (crypt/pure_strcmp, empty password field)",
+      "risk_area": "Authentication bypass (wrong/empty/prefix password accepted)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Control: crypt(pwd,stored) compared with pure_strcmp (constant-time, len+1 bytes so a prefix can never match) and `*line == 0` on the stored-password field rejects empty hashes before any comparison (log_puredb.c:292-317). Verified dynamically: correct password -> auth_ok=1; wrong, empty, 'testpas', 'testpassword', hash-as-password -> auth_ok=-1; record with empty password field -> auth_ok=-1 for both empty and non-empty PASS. Also confirmed over FTP (230 vs 530) with the same records.",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:08:45 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_puredb.c record field tokenisation (pw_puredb_parseline field walk, pure_strtok2)",
+      "risk_area": "Malformed/short record accepted as a valid login; OOB in field parsing",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Every malformed-record shape I generated ends in an explicit failure: missing/short field stream, empty uid/gid/home, relative home -> auth_ok=-1; 1500 pseudo-random records (charset incl ':', '/', digits, high bytes, 3KB home) parsed under ASan/UBSan -> no memory error and no auth_ok=1. The parser only returns 0 (success) after the password comparison and all mandatory fields, and every later field failure path is `return -1`/`return 0`-after-password, so no path yields a logged-in session from a corrupt record.",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:08:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "puredb/src/puredb_read.c puredb_open/puredb_find/puredb_read on malformed databases",
+      "risk_area": "Out-of-bounds read/write on corrupted or hostile PureDB file",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Fuzzed the real puredb_read.c under ASan/UBSan: 8000 iterations of 1-8 random byte mutations plus truncation on a 337 KB database, calling puredb_find_s for several keys and puredb_read on hits -> no out-of-bounds access. Bounds checks are effective at each dereference: read_be_long (offset > db->size-4), read_memcmp (len > db->size-offset), the key_size/data_size window checks in puredb_find, and the `offset/len` clamp in puredb_read. Only defect found is a signed left-shift UB at puredb_read.c:69 (`mapoffset[0] << 24` on int) which UBSan reports but which has no memory-safety consequence. Note the DB is root-owned data, so this class is not remotely reachable.",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:08:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_puredb.c access_ip_match/access_ip_check (per-user client and local IP rules)",
+      "risk_area": "IP allow/deny ACL bypass, malformed CIDR failing open",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Tested over FTP from two distinct peer addresses (127.0.0.1 and the container's 172.17.0.2) with records built by mkdb_raw so each field is unambiguous: exact /32 allow, foreign /8 allow, deny-only, allow+deny, /31 pair, 0.0.0.0/1 mask arithmetic, comma lists, hostname rule (A record), and invalid widths (/33, /0, /-1) all behaved as documented, with invalid widths and unparsable allow patterns denying. Positive and negative controls differed (allow=127.0.0.1 -> 230 from 127.0.0.1, 530 from 172.17.0.2; allow=172.17.0.2 -> the inverse). access_ip_check is fail-closed: with a non-empty allow list a non-match returns -1, and a malformed CIDR returns -1 from access_ip_match which is also treated as deny.",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:09:06 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_puredb.c IPv6 CIDR matching (access_ip_match inet_pton/ipv6_cidr_match branch) and IPv6 rules as stored by pure-pw",
+      "risk_area": "IPv6 CIDR rules silently dropped -> ACL bypass",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Security outcome is fail-closed in every variant I could construct: '::1/128', '::/0', '2001:db8::/32', '::ffff:1.2.3.4' written into any of the four IP fields all shift the record because ':' is PW_LINE_SEP; the truncated first token always lands in a position that either fails access_ip_match (no CIDR, no inet_pton, no resolution -> deny) or leaves garbage in the time field, which time_restrictions_check rejects (sscanf \"%u-%u\" != 2 -> return -1). Verified end-to-end: pure-pw useradd -r '::1/128' produced an empty \"Allowed client IPs\" field plus a stray \"1/128\" time field, and the account was denied from both 127.0.0.1 and ::1. The hostname path (which is the only way an IPv6 comparison actually runs) works correctly: allow=localhost matches a ::1 client (230) and denies 172.17.0.2 (530), while IPv4-only rules deny a v6 peer. Defect recorded as an observation for the parent: IPv6 CIDR patterns cannot be represented in the record format at all (pure-pw does not escape ':' in -r/-R/-i/-I), so the ChangeLog's \"IP access rules now support IPv6 patterns\" is unusable and self-locks the account rather than weakening it.",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:09:06 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/pure-pw.c useradd/usermod/passwd/mkdb field validation + puredb/src/puredb_write.c",
+      "risk_area": "Writing uid 0 / separator-injected records via the admin tool; offset overflow in the DB writer",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Verified end-to-end with the built pure-pw + daemon: useradd/mkdb/puredb-read chain authenticates a bcrypt record (auth_ok=1) and rejects a wrong password. do_useradd rejects uid/gid <= 0 before writing (pure-pw.c:848-853) and parse_pw_line rejects them when reading back (405-411); filter_pw_line_sep scrubs ':' from login/gecos/home so a login cannot inject extra fields. puredbw_add's size/offset checks (puredb_write.c:93-125) keep the merged file under 4 GiB so the u32 offsets cannot overflow. Observed defects (no privilege gain, recorded for the parent): out-of-range numeric fields are silently truncated on read (uid '4294967297' -> uid 1 was accepted and an uploaded file was owned by uid 1; '4294976296' -> uid 9000; values > 2^64 -> (uid_t)-1 -> setuid fails and the session is killed without a reply), and ':' in -r/-R/-i/-I is not escaped (see the IPv6 coverage entry).",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:09:18 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/pure-pwconvert.c field sanitisation",
+      "risk_area": "Record injection via ':'/newline in /etc/passwd fields; root entry conversion",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Control: has_forbidden_pwconvert_char() rejects ':' CR LF in pw_name, pw_gecos, pw_dir and in the resolved password field before the printf, and uid/gid <= 0 are skipped (pure-pwconvert.c:9-12, 37-75). Verified dynamically by LD_PRELOAD-ing a getpwent/getspnam shim that returned hostile entries (name 'bob:0:0', gecos containing \"\\nroot:x:0:0:root:/root:/bin/sh\", dir '/tmp/x:y', uid 0, gid 0): the tool emitted only the single clean record, so no extra record or field can be injected into the generated passwd file.",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:09:18 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_unix.c pw_unix_check (system user backend)",
+      "risk_area": "System-user password bypass (locked/shadow/empty hash, disallowed shell)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Built the daemon with the unix backend and tested with two throwaway local accounts: correct system password -> 230, wrong -> 530, empty -> 530, password prefix ('Pw-test-12') -> 530, user with /sbin/nologin shell -> 530, nonexistent user -> 530. Control at src/log_unix.c:78-85: the stored hash (from getspnam when /etc/passwd holds 'x'/'##name', otherwise pw_passwd) is compared with crypt()+pure_strcmp and PASSWD_UNKNOWN falls through with auth_ok=0 while a shell/lookup failure exits with auth_ok=-1 so the backend chain cannot continue to a lenient backend.",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:09:28 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_pam.c pw_pam_check (PAM backend, USE_PAM build)",
+      "risk_area": "PAM authentication bypass / auth_ok mishandling",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Static review only: libpam headers and pam modules are not installed in the sandbox, so the USE_PAM build could not be produced. Read of log_pam.c:144-221 shows the success path requires pam_authenticate()==PAM_SUCCESS and pam_acct_mgmt()==PAM_SUCCESS, each guarded by PAM_BAIL which jumps to the cleanup label leaving auth_ok at 0/-1, and auth_ok is only raised to 1 after getpwnam(), strdup(dir), initgroups() and pam_setcred() have all succeeded. No dynamic evidence obtained; PAM is also a non-default compile option.",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:09:28 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/ftpd.c douser/dopass/pw_check auth state machine and src/ftp_parser.c pre-auth command gate",
+      "risk_area": "Login-state machine bypass (ACCT, pre-auth commands, repeated USER/PASS, failed privilege drop)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "ftpd.c auth flow reviewed and exercised: ACCT is answered 202 by the parser and never reaches an authentication routine (ftp_parser.c:336-340); the pre-auth command set (noop/user/acct/pass/quit/syst/auth/pbsz/prot/type/mode/feat/opts/stru/help) contains no filesystem or state-changing handler, and everything else is behind `else if (loggedin == 0) -> 530` (ftp_parser.c:453-456). dopass rejects a second PASS, an empty account, passwords >= MAX_PASSWORD_LEN, and requires auth_ok == 1 from pw_check before any of the jail/identity work; setgid/setgid and setuid/seteuid failures call _EXIT so a session can never continue with an unverified identity (ftpd.c:1801-1805, 1920-1932). Verified over FTP: USER/PASS with correct credentials reaches 230 and is chrooted to the record home (-A test: CWD/SIZE outside the jail all 550), wrong credentials give 530, and re-issued USER/PASS after login give 331/230 without changing identity.",
+      "recorded_by": "PureDB And Auth Auditor",
+      "recorded_at": "2026-11-17 10:09:38 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/pure-pw.c: uid/gid integer fields written into the PureDB record (useradd/usermod/show/passwd)",
+      "risk_area": "Privilege escalation — record authenticating as uid/gid 0",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named controls on every path: (1) do_useradd rejects uid/gid <= 0 unless ACCEPT_ROOT_VIRTUAL_USERS (pure-pw.c:844-848, not defined in the 1.0.54 build); (2) parse_pw_line rejects uid/gid <= 0 for existing text records (pure-pw.c:405-409); (3) usermod only overrides a fetched uid/gid when > 0 (pure-pw.c:936-941) so `-u 0`/`-u root` is a no-op; (4) the daemon-side reader re-validates with strtoul+endptr and <=0 rejection (log_puredb.c:318-336) regardless of what mkdb wrote. Verified by running the built pure-pw against a crafted passwd file: uid \"0\" lines are rejected by show/list, `-u root` is ignored by usermod. Residual (not a boundary): pure-pw's own parse uses strtoul without endptr, so \"-1\" becomes 4294967295 and is written to the DB; the daemon also accepts it (endptr consumed fully) but setuid(4294967295) fails and ftpd.c:1433/1923 exit the session, so it never yields a usable or root identity.",
+      "recorded_by": "CLI Tools And Scoreboard Auditor",
+      "recorded_at": "2026-11-17 10:19:43 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/pure-pw.c: record serialization (login/gecos/home/ip fields) and long-line handling",
+      "risk_area": "Credential-DB record injection via unescaped field separators / newlines (no privilege boundary)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Tested the built pure-pw (ASan+UBSan) with records containing 4090-char gecos, a >LINE_MAX line (split by fgets at pure-pw.c:520/578/1237 and re-parsed as two records), 20-colon tails and 8000-byte lines: no memory error in list/show/usermod/mkdb, every read is fgets-bounded into LINE_MAX=4096 buffers. Separator handling: filter_pw_line_sep (pure-pw.c:164-173, called for login/gecos/home at 1355/1364/1410) only maps ':' to '_'; it does NOT neutralise CR/LF. Demonstrated: `pure-pw useradd bob -c $'Bob\\nevil:...:1:1:evil:/home/evil/./:'` produced a second line in pureftpd.passwd that mkdb turned into an extra account (the ':' chars inside it became '_'). Also unfiltered: the -i/-I/-r/-R IP fields, and a newline in login or -d. This is a real record-injection/DB-corruption defect but there is no privilege boundary: every input comes from argv or from the root-owned 0600 passwd file (umask 0177 at pure-pw.c:1477, temp file O_EXCL|O_NOFOLLOW at 553-555), so only the local admin can reach it. Recommend the same guard pure-pwconvert uses (reject/escape \\r and \\n) for consistency.",
+      "recorded_by": "CLI Tools And Scoreboard Auditor",
+      "recorded_at": "2026-11-17 10:19:51 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "puredb/src/puredb_write.c (+ puredb_read.c consumer)",
+      "risk_area": "Integer overflow in record length/offset handling producing a DB the reader over-reads",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named controls: puredbw_add validates key_len/content_len against the u32 boundary and projects data_offset_counter + offset_first_data + the worst-case 256*4 writekeys bump before storing anything (puredb_write.c:93-125), returning -1 rather than writing a wrapped offset; writekeys computes offset_first_data to its final value in the offset-table pass before any data offset is stored (203-238); the reader bounds every access (read_be_long puredb_read.c:53, read_memcmp puredb_read.c:83, table/pointer/key/content checks at 175-196, 245-268, 273-303). Verified dynamically: pure-pw mkdb on a file with a 4094-char gecos produced a 6339-byte DB, and an ASan/UBSan reader opened it and read the 2042-byte and 58-byte records with no OOB or UB. Header/length values above 4 GiB are unreachable from pure-pw anyway because each record comes from a LINE_MAX=4096 fgets buffer.",
+      "recorded_by": "CLI Tools And Scoreboard Auditor",
+      "recorded_at": "2026-11-17 10:19:58 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/altlog.c: CLF / stats / W3C / xferlog line construction",
+      "risk_area": "Format-string / buffer overflow via long usernames or filenames",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "No format string use: every altlog_* builder passes a fixed format and user data as %s arguments (altlog.c:75, 219, 297, 351). Every buffer comes from ALLOCA with a size computed from the exact field lengths (strlen(host_)+strlen(account_)+strlen(quoted_filename)+fixed widths, incl. the 20-digit %llu width) and the write is wrapped in SNCHECK, which is `(CALL) >= (int)SIZE` for CONF_SNPRINTF_TYPE 8 (mysnprintf.h:27) — a failing call is dropped instead of written. urlencode (altlog.c:102-152) is length-checked at every emit. Verified with an ASan/UBSan harness driving altlog_writexfer for all four formats with a 4001-byte filename, a 127-byte account, a 2001-byte filename of regex-special '%' and an unsanitised host string: no overflow, no UB, all lines emitted whole.",
+      "recorded_by": "CLI Tools And Scoreboard Auditor",
+      "recorded_at": "2026-11-17 10:20:06 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/altlog.c: attacker-controlled username in log lines",
+      "risk_area": "Log injection / forging of CLF records from FTP usernames",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Log-format confusion is demonstrable but contained to one field of one line: a username is copied verbatim into `account` (ftpd.c:1293, strncpy 127 chars) and printed unescaped in the CLF/W3C/xferlog/stats user field, so `USER bob\" [1/Jan/2020:00:00:00 +0000] \"GET /spoof` produces a line with fabricated inner structure (harness output: `1.2.3.4 - bob\" [1/Jan/2020:00:00:00 +0000] \"GET /spoof [17/Nov/2026:10:16:24 -0000] \"GET /x\" 200 12345`). It cannot become a new log record: sfgets() maps every control character (incl. CR and LF) to '_' before parsing (ftp_parser.c:148-156, ISCTRLCODE in ftpd.h:768), so no \\n or \\r can reach the log. `host` is additionally sanitised to [A-Za-z0-9.:-_] by dns_sanitize() (ftpd.c:4903) and filenames are urlencoded in CLF/W3C and space/ctrl-mapped in xferlog, so neither is injectable. Net: log-field forgery by an authenticated user, no log-record injection and no other sink — observation only, not filed as a finding.",
+      "recorded_by": "CLI Tools And Scoreboard Auditor",
+      "recorded_at": "2026-11-17 10:20:14 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/pure-statsdecode.c",
+      "risk_area": "OOB read/write when parsing an attacker-supplied stats log",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "The only attacker-influenced surface is the file it is pointed at, and the parser is bounded: 42-byte timestamp buffer written only while `instamp < sizeof-1` (pure-statsdecode.c:54) so the terminator write at line 59 is always in range, and output is limited to non-control characters. Verified with an ASan build on a 5000-digit line, a line of 41+digits then text, embedded NUL bytes and a truncated stamp: no OOB. Running it as a root post-processing tool on a log an FTP user cannot write (altlog files are opened O_NOFOLLOW by root, ftpd.c:5069-5076) gives no privilege path.",
+      "recorded_by": "CLI Tools And Scoreboard Auditor",
+      "recorded_at": "2026-11-17 10:20:21 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/pure-ftpwho.c + src/ftpwho-update.c + src/ftpwho-read.c",
+      "risk_area": "Privileged parsing of attacker-planted scoreboard files (OOB read, format string, TOCTOU)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named controls on the root-parsing path: the scoreboard directory must be root-owned and is forced to 0700 (ftpwho-update.c:108-130), entries are opened O_NOFOLLOW with 0600 and must be regular, root-owned and exactly sizeof(FTPWhoEntry) (pure-ftpwho.c:826-841), account/filename are always NUL-terminated by the daemon on all four write sites (ftpd.c:1461-1465, 1938-1942, 3372-3380, 4335-4343), and ftpwho_read_count NUL-terminates its 128-byte read (ftpwho-read.c:73). Tested first-hand as root against /var/run/pure-ftpd: a symlink to /etc/shadow, a 100-byte file, and a file owned by uid 1000 were all skipped; a 1456-byte crafted entry with no NUL in account/filename printed garbage out of the zero-filled mapping but did not crash (mmap page padding bounds the over-read). Placement requires root-owned 0600 files in a root-only dir, so no FTP user (uid-ranged) can plant one. Minor hardening notes, not findings: `(st.st_mode & 0600) != 0600` accepts 0644 scoreboards, and pure-ftpwho does not itself validate SCOREBOARD_PATH (it chdir()s blindly) — harmless only because the daemon created it root-owned 0700.",
+      "recorded_by": "CLI Tools And Scoreboard Auditor",
+      "recorded_at": "2026-11-17 10:20:29 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/log_extauth.c + src/pure-authd.c request/response framing",
+      "risk_area": "Buffer overflow / auth bypass on short or oversized auth-daemon reply (WITH_EXTAUTH)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Non-default build option: only compiled with --with-extauth. Request side: one 4096-byte stack buffer, snprintf wrapped in SNCHECK, so an account+password that would overflow makes the whole request be dropped and the login fails closed (log_extauth.c:213-231); account is capped at 127 bytes by ftpd.c and can contain no newline, so no field injection into the authd request. Reply side: a single safe_read capped at sizeof-1 with line[readnb]=0 (237-240), keyword matching bounded by strlen(keyword) (248-254), and the result is forced to failure unless the daemon sent the end marker AND uid>0 AND gid>0 AND an absolute dir (258-263) — a short, truncated or oversized reply therefore denies rather than authenticates. pure-authd mirrors the pattern (4095-byte buffer, ended marker required, child _exit(EXIT_FAILURE) otherwise, pure-authd.c:288-340) and its socket is created 0600 with the path length checked against sun_path (354-392). No unchecked copies: the only memcpy uses are the sun_path copies, sized strlen+1 into a malloc(strlen+1+sizeof) block. Nothing here is reachable by an FTP client beyond the two credential strings.",
+      "recorded_by": "CLI Tools And Scoreboard Auditor",
+      "recorded_at": "2026-11-17 10:20:39 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/daemons.c",
+      "risk_area": "OOB read / connection-count bypass in the /proc/net/tcp parser",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Input is kernel-generated /proc/net/tcp[6] (/proc is root-owned and not writable by FTP users), and the parser cannot write out of bounds: reads are capped at 2048-e with buf[2048] permanently 0 (daemons.c:25-33, 126-134). The only defect is a one-byte over-read: if a 2048-byte chunk ends without a ':' the cursor can become e+1 and strtoul(buf+b) reads buf[2049] (daemons.c:52-54 and 148-151). That needs a line of >=2048 bytes with no field separator — the kernel's fixed-format rows are far shorter — so it is not reachable with attacker-influenced data and produces a miscount at worst, not memory corruption. Not filed.",
+      "recorded_by": "CLI Tools And Scoreboard Auditor",
+      "recorded_at": "2026-11-17 10:20:47 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/pure-ftpwho.c HTML/XML/plist/shell output",
+      "risk_area": "Stored XSS / output-injection in the CGI status page via attacker-controlled session fields",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "pure-ftpwho is commonly deployed as a CGI (-c / GATEWAY_INTERFACE) that renders the account, filename and peer host of live sessions — all attacker-influenced. Every one of those fields is passed through html_escaped()/xml_escaped() (pure-ftpwho.c:214-271, 344-403, 460-510), which entity-encodes &, <, > and \" with bounds-checked output (left < sizeof \"&quot;\"-1 etc.), and the numeric fields use %lu. No unescaped user data reaches the HTML/XML/plist/shell writers; the shell writer additionally escapes | and \\ and maps control characters (pure-ftpwho.c:592-620). No XSS/format-string path from a session's filename or login into the status page.",
+      "recorded_by": "CLI Tools And Scoreboard Auditor",
+      "recorded_at": "2026-11-17 10:21:10 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "PORT and EPRT client port-range enforcement (IPv4 PORT, IPv4/IPv6 EPRT, PASV/EPSV)",
+      "risk_area": "FTP bounce / privileged-port connection via active mode",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control: doport2() (src/ftpd.c) rejects any port below 1024 with 501 MSG_BAD_PORT, and that function is the single entry point for both PORT and EPRT (IPv4 branch and do_ipv6_port both end in doport2()). The parsers additionally reject port 0 and >65535 (doeprt: `port > 65535U || port <= 0U` after atoi; do_ipv6_port: strtoul with endptr==delimiter and `port <= 0 || port > 65535`). Verified live: PORT 127,0,0,1,0,21 and EPRT |1|...|1| return 501 \"won't connect to ports < 1024\"; ports 0, 65536, 99999, -1 and huge decimal strings return 501 syntax error; 1024/65535 are accepted. PASV/EPSV expose only server-chosen ports from firstport..lastport.",
+      "recorded_by": "Protocol And IP Rule Auditor",
+      "recorded_at": "2026-11-17 10:21:34 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/ftp_parser.c command tokeniser and line reader (sfgets/parser/revealextraspc/sfgets pipelining)",
+      "risk_area": "Memory safety: stack/heap overflow, off-by-one, OOB read on command lines and arguments",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Every read/write is bounded by the command buffer and length control declared in src/globals.h (cmdsize = PATH_MAX + 16, cmd[PATH_MAX + 32]); sfgets refuses to scan past cmdsize and calls die(421, MSG_LINE_TOO_LONG) when no newline is found, and it always leaves a NUL inside the buffer, so the parser's `while (isalnum(cmd[n]) && n < cmdsize)` loop and the `n >= cmdsize` guard cannot run off the buffer. Verified dynamically under an AddressSanitizer build (-fsanitize=address) with boundary lines of 4110/4111/4112/4113/4200/9000 bytes, pipelined commands, bare LF/CRLF and 850+ randomised malformed command iterations: no ASAN reports, and 4110 bytes is accepted while 4111+ returns 421 Line too long.",
+      "recorded_by": "Protocol And IP Rule Auditor",
+      "recorded_at": "2026-11-17 10:21:34 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "PORT/EPRT parse-failure state reset in src/ftpd.c (doport, doeprt, do_ipv6_port, doport2)",
+      "risk_area": "Half-updated data-address/port state after a failed PORT/EPRT parse",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Both failure paths reset the data channel state: doport() closes datafd and sets it to -1 on a parse error, doeprt()/do_ipv6_port() jump to the shared `nope:` label which closes datafd and sets -1 before replying 501, and doport2() closes datafd before returning on the p<1024, doport3 failure and FXP-rejection branches. peerdataport is only updated after doport3() succeeds, and the peer address is only replaced when allowfxp permits FXP. Verified dynamically: a successful PORT followed by a malformed PORT/EPRT leaves no data socket (subsequent LIST returns 425 rather than connecting to the old target), and a malformed EPRT after PASV does not disturb passive semantics.",
+      "recorded_by": "Protocol And IP Rule Auditor",
+      "recorded_at": "2026-11-17 10:21:48 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "EPRT IPv6 address construction (do_ipv6_port) and its getnameinfo reply",
+      "risk_area": "Information disclosure of uninitialized stack memory",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "as above",
+      "recorded_by": "Protocol And IP Rule Auditor",
+      "recorded_at": "2026-11-17 10:21:48 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "MLSD/MLST/LIST/NLST output path (src/ls.c domlsd/donlst/listfile/dolist, src/ftpd.c modernformat/domlst)",
+      "risk_area": "Memory safety in fact/listing formatting (long names, symlink targets, long path arguments)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Every formatted line goes through snprintf into a PATH_MAX-sized buffer and the return value is checked with SNCHECK, which triggers a clean _EXIT instead of an overflow; readlink() into link_target is bounded by sizeof-1 and NUL-terminated, and domlsd skips entries whose name cannot be formatted. Verified under the ASAN build against a directory containing a 255-byte filename, 100/1000/4000/4090-byte symlink targets, high-bit UTF-8 names and control-character names, via MLSD, MLST, LIST -la, LIST -R, NLST and MLST with a 4000-byte path: no ASAN reports. (Observation only, not a security issue: the non-guest branch of modernformat omits the symlink-target %s that the guest branch prints, so symlink targets are not shown to virtual users.)",
+      "recorded_by": "Protocol And IP Rule Auditor",
+      "recorded_at": "2026-11-17 10:22:03 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "SIZE/MDTM/MFMT/SITE UTIME date parsing and REST/ALLO numeric parsing (src/ftpd.c, src/ftp_parser.c)",
+      "risk_area": "Numeric/date parsing: unchecked atoi/strtoul, out-of-range values, length used for allocation",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "doutime parses with bounded sscanf widths (%4d%2d%2d%2d%2d%2d) into a zeroed struct tm and rejects tm_mon<0, tm_year<=0 and ts==(time_t)-1; dorest/doallo use strtoull with endptr plus a negative off_t check, and no parse result is ever used as an allocation size. Verified live with empty, short, overflowing (18446744073709551616), negative, out-of-range (month 99, year 99999999999999999999) and garbage arguments: all rejected with 501/554 and no crash under ASAN.",
+      "recorded_by": "Protocol And IP Rule Auditor",
+      "recorded_at": "2026-11-17 10:22:03 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "SITE sub-parsers (CHMOD/IDLE/UTIME/HELP/ALIAS) and OPTS/TYPE/MODE/STRU handlers (src/ftp_parser.c)",
+      "risk_area": "Sub-parser argument handling: buffer overflows, unchecked conversions, malformed token splitting",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "SITE CHMOD parses the mode with strtoul(base 8) and rejects values above 07777 (including -1 and 21-digit strings, which saturate), SITE IDLE uses strtoul with endptr garbage detection and caps at MAX_SITE_IDLE (2520), SITE UTIME requires the RFC 3659 five-token form and splits it with bounded strrchr pointer walks that always terminate on the argument string itself, SITE HELP/ALIAS only compare strings, and OPTS/MLST truncates its reply from a constant. Verified live with malformed, negative, overflowing and truncated arguments for each: correct 501/550 replies, no crash under ASAN.",
+      "recorded_by": "Protocol And IP Rule Auditor",
+      "recorded_at": "2026-11-17 10:22:18 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "PureDB IPv4 allow/deny rule evaluation (src/log_puredb.c access_ip_check/access_ip_match)",
+      "risk_area": "IP access-control matching logic: rule priority, allow/deny semantics, unknown host, address representation",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Verified the access_ip_check() decision table for every combination: allow-only (empty allow => unrestricted; match => permitted; malformed CIDR => -1 => denied), deny-only (match or malformed => -1 => denied; no match => permitted), and both (permitted only when allow matches and deny does not). Unknown hostnames resolve to no match (ws_puredb logs and continues) which denies allow-only rules and permits deny-only rules. Dynamic 25-case matrix from 127.0.0.1, ::1 and ::ffff:127.0.0.1 covered /32, /8, hostname, comma lists, malformed /33, /0, leading-zero octets and both-lists cases; all behaved as specified, including IPv4 deny applied to the IPv4-mapped client.",
+      "recorded_by": "Protocol And IP Rule Auditor",
+      "recorded_at": "2026-11-17 10:22:18 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Malformed CIDR width handling in access_ip_match (IPv4 mask maths, IPv6 prefix parsing)",
+      "risk_area": "Fail-open on malformed CIDR widths (mask underflow/UB shift)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control: access_ip_match() rejects IPv4 widths with netbits==0 or >32 and IPv6 prefixes that are 0, >128 or non-numeric by returning -1 after logging the offending pattern, and every caller in access_ip_check() maps -1 to \"denied\" (allow-only returns -1, deny-only treats non-zero as denied, both-lists requires allow==1 and deny==0). Verified live: allow rule 127.0.0.1/33 and 127.0.0.0/0 both deny the client, deny rule 127.0.0.1/33 denies, and a /129 IPv6 prefix is rejected for IPv6 clients. No wrap-around or `>> 32` shift is reachable because the width is range-checked before the mask computation.",
+      "recorded_by": "Protocol And IP Rule Auditor",
+      "recorded_at": "2026-11-17 10:22:30 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Client address normalisation before rule evaluation (fourinsix/checkvalidaddr in src/ftpd.c doit)",
+      "risk_area": "Deny-rule bypass by address representation (IPv4-mapped IPv6, zone-id, leading zeros)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control: fourinsix() in src/ftpd.c converts AF_INET6 source addresses that are IPv4-mapped into AF_INET, and doit() applies it to both ctrlconn and peer before any authentication (and again to accepted data connections). Verified live: a client connecting to ::ffff:127.0.0.1 is matched by an IPv4 deny rule (127.0.0.1/32 denies it) rather than escaping it, and an IPv4 rule does not match a genuine ::1 client, which is the documented per-family behaviour an operator must cover explicitly.",
+      "recorded_by": "Protocol And IP Rule Auditor",
+      "recorded_at": "2026-11-17 10:22:30 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/quotas.c + quota_update() callers in src/ftpd.c",
+      "risk_area": "quota accounting bypass / fail-open error handling",
+      "detail": "quota_update() zeroes *quota at quotas.c:97 before parsing, and returns -1 on a record without a space (quotas.c:116-121); both callers treat that error as \"no quota problem\" (ftpd.c:3702-3704 returns 0, ftpd.c:4303-4311 skips the whole check). Fail-open is certain at code level; the gap is that no remote way to corrupt /.ftpquota was found (checknamesanity blocks any name containing .ftpquota while quotas are active, ftpd.c:775-786)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "repository dependency and misconfiguration scan (trivy fs, cppcheck)",
+      "risk_area": "known-CVE dependency / supply-chain scan",
+      "detail": "trivy cannot complete: vuln scanning needs the trivy-db OCI artifact and misconfig needs the checks bundle, both of which stall through the egress proxy (mirror.gcr.io returns 502, ghcr.io transfer froze at 1.31/133.70 MiB). The snapshot also ships no lockfile/manifest, so SCA coverage remains unverified rather than clean. cppcheck could not be installed (no write access to /var/lib/dpkg)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/log_pam.c pw_pam_check (PAM backend, USE_PAM build)",
+      "risk_area": "PAM authentication bypass / auth_ok mishandling",
+      "detail": "Static review only: libpam headers and pam modules are not installed in the sandbox, so the USE_PAM build could not be produced. Read of log_pam.c:144-221 shows the success path requires pam_authenticate()==PAM_SUCCESS and pam_acct_mgmt()==PAM_SUCCESS, each guarded by PAM_BAIL which jumps to the cleanup label leaving auth_ok at 0/-1, and auth_ok is only raised to 1 after getpwnam(), strdup(dir), initgroups() and pam_setcred() have all succeeded. No dynamic evidence obtained; PAM is also a non-default compile option."
+    },
+    {
+      "kind": "unrecorded_risk_class",
+      "risk_area": "argument injection",
+      "detail": "Agent(s) Listing Glob And Upload Hook Auditor were assigned the 'argument_injection' skill, but no coverage entry records this class being assessed. Treat it as unexamined, not as clean."
+    },
+    {
+      "kind": "unrecorded_risk_class",
+      "risk_area": "path traversal lfi rfi",
+      "detail": "Agent(s) Jail And Path Auditor were assigned the 'path_traversal_lfi_rfi' skill, but no coverage entry records this class being assessed. Treat it as unexamined, not as clean."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "Listing Glob And Upload Hook Auditor",
+      "detail": "Listing Glob And Upload Hook Auditor ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "TLS And Cert Path Auditor",
+      "detail": "TLS And Cert Path Auditor ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    }
+  ]
+}

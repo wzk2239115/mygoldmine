@@ -1,0 +1,6 @@
+{
+  "exit_code": 124,
+  "phase": "tool_running",
+  "reason": "wall_timeout",
+  "ended_at": "2026-11-17T04:12:22.641473+00:00"
+}

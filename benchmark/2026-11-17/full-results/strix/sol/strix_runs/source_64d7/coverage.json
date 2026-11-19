@@ -1,0 +1,1377 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-11-17 10:22:32 UTC",
+  "run_id": "source_64d7",
+  "run_name": "source_64d7",
+  "scope": {
+    "targets": [
+      {
+        "type": "local_code",
+        "details": {
+          "target_path": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/sol/source",
+          "workspace_subdir": "source"
+        },
+        "original": "/vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/sol/source"
+      }
+    ],
+    "scan_mode": "standard",
+    "scope_mode": "full",
+    "diff_scope": {
+      "active": false,
+      "mode": "full"
+    },
+    "instruction": "Audit only this local source snapshot and any service you build inside its sandbox. Do not contact upstream services or the LAN. Report validated findings with evidence."
+  },
+  "summary": {
+    "surfaces_reviewed": 76,
+    "outcomes": {
+      "reported": 21,
+      "no_issue_found": 5,
+      "ruled_out": 12,
+      "not_applicable": 2,
+      "needs_follow_up": 36
+    },
+    "findings_filed": 6,
+    "gaps": 39
+  },
+  "machine_observed": {
+    "agents": [
+      {
+        "agent_id": "78283fad",
+        "agent_name": "Auth TLS Reporter",
+        "status": "running",
+        "skills": [
+          "vulnerabilities/authentication_jwt",
+          "custom/source_aware_sast"
+        ],
+        "task": "Target repo: /workspace/source (C MQTT broker `sol`). Call get_threat_model(\"/workspace/source\") first.\n\nYOUR JOB: file THREE vulnerability reports WITH inline fixes from already-validated dynamic evidence. Read the auth/TLS findings notes (`list_notes(tags=[\"auth\",\"tls\"])`) and the PoCs /workspace/poc/poc_tls_spin_dos.sh, poc_tls_spin_proof.sh, poc_auth_crypt_race.py, poc_auth_falseaccept.py, poc_auth_edge.py, plus certs in /workspace/poc/tls/. Harness: /workspace/harness.\n\nREPORT 1 (high, availability) — pre-auth TLS busy-loop denial of service. `ssl_recv_bytes` (src/network.c:449-455) does `continue` on `SSL_ERROR_WANT_READ` instead of returning to the event loop, so a socket that sends a few handshake bytes and then stays silent spins a worker thread at ~100% CPU. Validated: one connection sending 3 bytes (`16 03 01`) pinned 74-86% of a core with ~800,000 `SSL_read` calls/second measured by an LD_PRELOAD counter; three such connections (one per event loop) took ~200% CPU and a legitimate TLS MQTT client could no longer complete a handshake (8 s timeout). Negative control: an idle TLS socket that sends nothing costs 0 CPU, and a legitimate TLS client completes CONNACK `20 02 00 00` in 0.01 s when no spinning connection exists. Re-run the PoC yourself and capture the CPU/counter evidence.\n\nREPORT 2 (medium, authentication availability) — `crypt(3)` is called concurrently from three event loops with no lock; libcrypt is not thread-safe, so credential checks produce wrong results under concurrency. Validated at broker level: serial control 60/60 correct passwords accepted and 60/60 wrong rejected; with 4 concurrent clients, 2063 of 2140 correct-password attempts were falsely rejected (~96%), and the effect is cross-user (alice falsely rejected 1314/1438 while only bob was being guessed). Library-level triplicate confirms the race (3340/3352 wrong results with 3 threads, 0/900 serially). Crucially there were ZERO false accepts in 22,883 wrong-password attempts — so this is an authentication-availability/lockout defect, not an auth bypass; state that explicitly and do not inflate it. Re-run and capture both the serial control and the concurrent failure numbers.\n\nREPORT 3 (low, authentication) — credential comparison fails open on a malformed stored hash and silently truncates at NUL. In `check_passwd` (src/util.c:130-150, used via src/util.h:46), an entry whose stored hash is empty (`user:` in the password file) makes `strlen(salt) == 0` so the `strncasecmp` of length 0 succeeds and ANY password is accepted (validated: arbitrary, empty and 60-character passwords all returned CONNACK rc=0); separately, embedded NULs truncate both the presented username and password (`alice\\0junk`, `secret123\\0junk` both authenticate as alice). Be honest in the report that the empty-hash case requires the operator's password file to contain an empty hash field, which lowers severity, and that the NUL case still requires knowing the real credential — that is why this is low. Re-run both cases yourself.\n\nFOR EACH REPORT:\n- All required fields; `poc_description` steps only, `poc_script_code` the real script, `remediation_steps` prose only, `evidence` with verbatim command output (CPU ticks, counters, CONNACK bytes, attempt counts) and the control measurements.\n- `code_locations`: repo-relative, exact 1-based ranges verified against the file, verbatim `fix_before`, complete `fix_after`, labels. Report 1's fix must return to the event loop on WANT_READ/WANT_WRITE (and handle a stalled handshake with a timeout/close) rather than spinning. Report 2's fix must make the credential check thread-safe (serialize `crypt` with a lock, or use the reentrant variant available on the target libc) without changing the accept/reject semantics. Report 3's fix must reject empty/malformed stored hashes and compare using the full presented credential length without NUL-truncation ambiguity.\n- `fix_verification`: apply each patch in your own copy, rebuild, and prove closure with the original PoC plus the control (for report 1: spinning connections no longer burn CPU and a real TLS client still connects; for report 2: concurrent correct-password logins all succeed while wrong ones still fail; for report 3: the empty-hash entry is rejected and a normal credential still authenticates). Run /workspace/harness/test_smoke.py in auth mode for preserved behaviour. Record exact commands and mark any gate you could only reason about as a gap.\n- `fix_pr_body` markdown summary.\n\nCRITICAL: do NOT edit /workspace/source. `cp -a /workspace/source /workspace/fix-auth-tls` and work there; `code_locations.file` stays repo-relative.\n\nDo not file anything about pre-CONNECT dispatch, the SUBSCRIBE NULL session crash, max_request_size/50MB memory cost, the missing rate limit or the TLS 1.0/1.1 posture — those are owned elsewhere or will be recorded as observations. File exactly these three. Call agent_finish with report ids, severities, patched lines in your copy, and the PoC commands proving closure.",
+        "is_root": false
+      },
+      {
+        "agent_id": "a4ac4d37",
+        "agent_name": "Auth and TLS Validator",
+        "status": "completed",
+        "skills": [
+          "vulnerabilities/authentication_jwt",
+          "tooling/python"
+        ],
+        "task": "Target: the C MQTT broker `sol` at /workspace/source. Call get_threat_model(\"/workspace/source\") first. Harness at /workspace/harness (build-asan/sol, build-dev/sol, run.sh, mqttclient.py) — read run.sh usage (it supports `--mode auth --user U --pass P` and generates the hashed password file) and mqttclient.py first. Bind only 127.0.0.1; never contact external/LAN services.\n\nYOUR JOB: assess the authentication and TLS controls dynamically, and the shipped security posture. Another agent owns the pre-CONNECT authorization bypass; do not duplicate that. Focus on whether the credential check itself can be bypassed or confused, and on the TLS configuration.\n\nAuthentication (src/handlers.c CONNECT path, src/util.c/util.h, src/config.c allow_anonymous/password_file, passwd.py):\n1. Baseline: with `allow_anonymous=false` and a known good credential, confirm a correct CONNECT is accepted (CONNACK rc=0) and a wrong password is rejected (CONNACK rc=4/5). This is your control pair.\n2. Try to bypass with: (a) username flag set but password flag clear; (b) password flag set with a zero-length password; (c) username present, password absent entirely from the payload; (d) an empty username with a password; (e) a username that exists in the password file but with the hash string itself as the password; (f) a username not in the file; (g) a username that is a prefix of a valid one and vice versa (the compare is reported to be `strncasecmp`-based — verify whether that makes the comparison prefix-tolerant or case-insensitive in a way that matters); (h) very long username/password (e.g. 60KB) to see whether the compare reads past a buffer. For each, record the exact CONNACK return code and whether the broker then accepts a SUBSCRIBE/PUBLISH (i.e. whether the client is treated as authenticated).\n3. Determine whether `allow_anonymous` is honoured when no password_file is configured and when the file is missing/unreadable (does it fail open — accept everyone — or fail closed?). Test with a config that sets allow_anonymous=false but no password_file, and one pointing at a nonexistent path.\n4. Check whether a client that is rejected (bad_auth) can keep retrying CONNECT on the same socket unlimited times, and whether that allows credential brute force at line rate (measure how many attempts per second one connection achieves).\n5. If `crypt()` is called from multiple worker threads (the broker spawns threads), run two concurrent authenticated connections with different credentials repeatedly and see whether either ever gets a wrong accept/reject — a data race here would be a real auth flaw. Report whether you observed any nondeterminism at all; if you cannot provoke it, say that plainly.\n\nTLS (src/network.c, src/config.c, conf/sol.conf):\n6. Generate a self-signed CA + server cert inside /workspace/poc/tls/ (openssl), start the broker with cafile/certfile/keyfile set, and confirm a TLS connection works. Then determine: which protocol versions actually negotiate — test TLS 1.0, 1.1, 1.2, 1.3 with `openssl s_client` and record which succeed; whether the server requires a client certificate at all (connect with no client cert); and what `SSL_VERIFY_NONE` in network.c means in practice (does it ever verify a presented client cert?).\n7. Check the shipped `conf/sol.conf` posture: `tls_protocols tlsv1,tlsv1_1,tlsv1_2,tlsv1_3` and `max_request_size 50MB`. Confirm empirically which versions the shipped config accepts, and note the availability implications of the 50MB per-client buffers (what does one connection cost in RSS?).\n\nRules: every claim needs observed evidence — CONNACK bytes, openssl s_client output, RSS numbers, attempt rates. Report honestly if a control holds (that is a valid, useful outcome). Do NOT patch source, do NOT file vulnerability reports. Save PoCs/scripts under /workspace/poc/ with distinctive names (poc_auth_bypass.py, poc_auth_race.py, poc_tls_versions.sh), write findings notes (tags [\"auth\",\"tls\"]), record_coverage per surface. Call agent_finish with per-item verdicts, evidence excerpts, reproduction commands, and severity reasoning — clearly separating \"real vulnerability\" from \"weak/insecure default\".",
+        "is_root": false
+      },
+      {
+        "agent_id": "6b11f7c3",
+        "agent_name": "Authz and Leak Reporter",
+        "status": "running",
+        "skills": [
+          "vulnerabilities/broken_function_level_authorization",
+          "custom/source_aware_sast"
+        ],
+        "task": "Target repo: /workspace/source (C MQTT broker `sol`). Call get_threat_model(\"/workspace/source\") first.\n\nYOUR JOB: file TWO vulnerability reports WITH inline fixes from validated dynamic evidence. Read notes 2a8636, 81dcf6, 1d2f75 and the PoCs /workspace/poc/poc_preauth_publish.py, /workspace/poc/poc_session_leak.py with transcripts in /workspace/poc/evidence/. Harness: /workspace/harness (run.sh supports `--mode auth --user U --pass P`, test_smoke.py, build-asan/sol, build-dev/sol).\n\nREPORT 1 — authentication is enforced only inside the CONNECT handler, so an unconnected socket can publish (and write the retained store) even with `allow_anonymous=false`. Root cause: `process_message` (src/server.c:858-898) dispatches every opcode with no connected/authenticated gate, and `publish_handler` never consults `c->session` or an auth flag. Validated with the harness in auth mode: a socket that never sent CONNECT has its QoS0 retain PUBLISH accepted silently (socket stays open and served) and its QoS1 publish answered `40 07 07` (PUBACK); the retained payload it wrote is then delivered to an AUTHENTICATED subscriber, and an anonymous publisher overwrote an authenticated publisher's retained value (`TRUSTED-ORIGINAL` → `FORGED-BY-ANON`) both live and for later subscribers. Control that makes this a real access-control defect: the same PUBLISH after a valid CONNECT, and CONNACK rc=4 for wrong credentials. Supporting weaknesses to state inside the report (not as separate findings): `bad_auth` (src/handlers.c:482-487) leaves the socket open for unlimited CONNECT retries — four wrong passwords each answered `20 00 04` with no lockout — and the rejected socket keeps full publish rights; a pre-CONNECT SUBSCRIBE additionally dereferences a NULL `client->session` at src/subscriber.c:45 and kills the broker, which is the same missing connected-state gate, so cite it as a second impact/location of this report rather than a separate finding. Re-run both PoCs before filing.\n\nREPORT 2 — unbounded memory leak on `clean_session=false` disconnect (unauthenticated under the shipped default). Root cause: `client_deactivate` (src/server.c:430-443) performs teardown only when `clean_session == true`, so every persistent-session client that disconnects leaks the `struct client` plus its two `max_request_size` buffers and stays in the client table; `max_memory` is parsed but never enforced. Validated: 40 connect/disconnect cycles with clean_session=0 and unique ClientIds grew VmRSS by 155664 KiB (~3891.6 KiB per connection) linearly, while 40 clean_session=1 cycles stayed flat (+6156 KiB warm-up) — that differential is your control. With a reused ClientId it is 2048-2253 KiB/cycle; with auth enabled it needs one valid credential (3951 KiB/connection) and unauthenticated/bad-credential connections leak nothing, so state the precondition honestly. Under RLIMIT_AS=700MB the broker printed `memory.c:51 Out of memory (1048576 bytes)` and exited status 1 after 127 connections, so the leak terminates in process death rather than degradation.\n\nFOR EACH REPORT:\n- All required fields; `poc_description` steps only, `poc_script_code` the real script, `remediation_steps` prose only, `evidence` with verbatim client/server output, response bytes, and the RSS measurements including the clean_session=1 control.\n- `code_locations`: repo-relative, exact 1-based ranges verified against the file, verbatim `fix_before`, complete `fix_after`, labels. Report 1's fix must gate dispatch on an authenticated/connected state (a single check in `process_message` before the handler table call, plus closing the socket on auth failure) while still allowing CONNECT/PINGREQ-appropriate pre-auth packets — keep the legitimate flow working. Report 2's fix must make teardown unconditional for the connection-owned resources while preserving genuine persistent-session semantics (a persistent session must not leak the socket buffers or stay referenced), and must not introduce a use-after-free — be careful, another finding in this codebase is a session refcount UAF, so your patch must DECREF correctly rather than double-free.\n- `fix_verification`: apply the patch in your own copy, rebuild, and prove closure — for report 1, the unauthenticated PUBLISH must be rejected while an authenticated publish still reaches its subscriber; for report 2, show RSS flat across clean_session=0 cycles AND that a persistent session still resumes correctly (session_present=1) and its subscriptions still work. Run /workspace/harness/test_smoke.py for preserved behaviour. Record exact commands and mark any gate you could only reason about as a gap.\n- `fix_pr_body` markdown summary.\n\nCRITICAL: do NOT edit /workspace/source. `cp -a /workspace/source /workspace/fix-authz-leak` and work there; `code_locations.file` stays repo-relative.\n\nSeverity: report 1 is a demonstrated authentication bypass with integrity impact on another client's retained data (I:H, A:H optional via the SUBSCRIBE crash, C:L — justify each metric from the evidence, and note it requires the operator to have enabled authentication for the bypass to matter). Report 2 is availability only (A:H) via unbounded pre-auth memory growth; note what would lower it (a supervisor enforcing restart, or a low connection cap).\n\nFile exactly these two reports; other agents own the decoder arithmetic, wbuf overflow, session UAF, dispatch NULL, ACK NULL-DECREF and TLS posture. Call agent_finish with report ids, severities, patched lines in your copy, and the PoC commands proving closure.",
+        "is_root": false
+      },
+      {
+        "agent_id": "04fb6a4f",
+        "agent_name": "Broker State Auditor",
+        "status": "completed",
+        "skills": [
+          "custom/source_aware_sast"
+        ],
+        "task": "Target: the C MQTT broker at /workspace/source. Call get_threat_model(\"/workspace/source\") first.\n\nYOUR JOB: source audit of the broker's STATE layer — subscriptions, topic trie, retained store, client/session table, in-flight QoS bookkeeping, and the config/password handling. A separate agent covers the packet decoder arithmetic (mqtt.c unpack functions / recv_packet framing) — do not duplicate that; focus on what happens to the data AFTER it is decoded.\n\nScope:\n- src/topic.c, src/trie.c: subscription insert/remove/match, `+`/`#` wildcard handling, recursion depth, per-topic subscriber lists, ownership of topic strings, and what happens when a client disconnects while its subscription node is being iterated.\n- src/topic_store.c: retained message map (uthash) — key/value ownership, replacement, delete-during-iteration.\n- src/subscriber.c, src/list.c, src/bst.c, src/iterator.c: node lifetime, remove-while-iterating, dangling pointers, double free.\n- src/server.c: `client_init`, `client_deactivate`, the client table (uthash `UT_hash` usage), ClientId handling in the CONNECT path (can client A register client B's existing ClientId — what happens to B's session, subscriptions, in-flight messages), `process_message` for each opcode, `inflight_msg_check`, `publish_stats` (does it publish attacker-influenced data to `$SOL` topics?).\n- src/config.c: config parsing of `password_file`, `allow_anonymous`, `tls_protocols`, numeric sizes — can a malformed value cause overflow/misparse; is the default auth posture weak.\n- src/network.c: TLS setup — which protocol versions are enabled, certificate verification mode, any `SSL_VERIFY_NONE`, and whether client certs are required.\n- Authentication: find where CONNECT username/password is compared against the password file (grep for crypt/strcmp/memcmp/password), and determine exactly how the comparison is done — timing, NULL handling, whether password can be omitted while username is present, whether an empty/absent password authenticates, whether `allow_anonymous` is checked on every path, and whether a client can publish/subscribe before authentication completes.\n\nFor each candidate: file:line for the source, the specific control (or its absence) on the attacker's path, the sink, and a concrete attacker story (sequence of MQTT actions with one or two raw clients). Distinguish pre-auth from post-auth reachability, and distinguish memory-safety from authorization/design issues — both matter, but label them.\n\nRequirements: run the source-aware baseline into /workspace/.source-aware-state/ (one opengrep pass with /opt/opengrep-rules, one `sg`/AST structural pass, and gitleaks or trufflehog for secrets) and read the actual code; do not depend on scanner output alone. Do NOT run the broker and do NOT send network traffic (another agent owns dynamic work) — but DO write down exact reproduction steps.\n\nClosure discipline: every candidate ends confirmed-by-trace, ruled_out (name the control and its location), or open_proof_gap. Record coverage per surface with record_coverage, including clean ones. Write findings/complex-state candidates as notes (category findings, tags [\"state\",\"auth\"]) and call agent_finish with a ranked summary plus what the dynamic agents should try first. Do NOT file vulnerability reports yourself.",
+        "is_root": false
+      },
+      {
+        "agent_id": "14c01dca",
+        "agent_name": "Build Harness Engineer",
+        "status": "completed",
+        "skills": [
+          "tooling/python",
+          "custom/source_aware_sast"
+        ],
+        "task": "Target: the C MQTT broker source at /workspace/source (also reachable at /vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/sol/source, mounted read-write; .git/.agents/.codex are read-only). Call get_threat_model(\"/workspace/source\") first.\n\nYOUR JOB IS INFRASTRUCTURE ONLY — build and run the broker locally, and give the rest of the scan a reusable harness. Do NOT hunt for vulnerabilities and do NOT file reports; other agents do that.\n\nDeliver, in /workspace/harness/ (create it):\n1. `build.sh` — configures and builds TWO variants of the broker out-of-tree (never pollute /workspace/source with build artifacts if avoidable; use /workspace/harness/build-asan and /workspace/harness/build-dev):\n   - an ASan+UBSan build. Note the repo's own `-DDEBUG=1` path already adds `-fsanitize=address -fsanitize=undefined -ggdb`, but it also adds `-Werror -Wunused -pedantic` which may fail on modern GCC, and it forces `-O3` in the release path. Prefer passing your own flags via CMAKE_C_FLAGS (e.g. `-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all`) with DEBUG=0, and link `pthread ssl crypto crypt` as CMakeLists does. Make ASan report to a file and abort on error (ASAN_OPTIONS=abort_on_error=1:detect_leaks=0:log_path=...).\n   - a plain release build for realistic behaviour comparison.\n   If the build needs packages (libssl-dev, libcrypt-dev/libxcrypt, cmake, gcc), install them with apt. Record exactly what you installed.\n2. `run.sh` — starts a broker instance on 127.0.0.1 with a chosen port, a config file you generate, logging to a file, and prints PID. It must support: anonymous mode, and auth mode with a password file (use the repo's `passwd.py` to hash `user:pass` entries — inspect it first and document the exact invocation). Include a helper to stop instances and to collect/print the ASan report after a crash.\n3. `mqttclient.py` — a small, dependency-free (stdlib socket) MQTT v3.1.1 helper module with functions to: open a raw TCP connection, send a CONNECT with arbitrary raw fields (protocol name/level/flags/keepalive/client_id/username/password, including deliberately malformed ones), send arbitrary raw bytes, send PUBLISH (qos 0/1/2, arbitrary topic/payload/pkt id, arbitrary declared topic length if you allow raw construction), SUBSCRIBE/UNSUBSCRIBE with arbitrary tuples, PUBACK/PUBREC/PUBREL/PUBCOMP, PINGREQ, DISCONNECT, and read responses with timeouts. Also provide raw `send_bytes(conn, data)` so testers can assemble packets by hand. Also provide an encoder for the MQTT remaining-length varint and the MQTT string16 form.\n4. `test_smoke.py` — proves the harness works end to end against the RUNNING broker: connect anonymously, subscribe to a topic, publish to it from a second connection, receive the message, disconnect. Print PASS/FAIL clearly. Also confirm the broker logs the connection and stays alive.\n5. `/workspace/harness/README.md` — exact commands for: starting anonymous broker, starting auth broker + creating a password file, running the smoke test, finding the ASan log, restarting after a crash.\n\nConstraints: bind only to 127.0.0.1 (do not bind 0.0.0.0, do not contact any external or LAN service; downloading apt/pip packages is fine). Keep the broker processes you start cleaned up at the end except leave none running — testers will start their own.\n\nWhen done, call agent_finish with the exact paths, the exact start command for each mode, the port(s) you validated, and any build caveats (patches you had to make, warnings, anything that did not work). If the build genuinely cannot be made to work, say precisely what failed — that is a valid outcome the scan needs to know.",
+        "is_root": false
+      },
+      {
+        "agent_id": "4529647f",
+        "agent_name": "Decoder Arithmetic Validator",
+        "status": "completed",
+        "skills": [
+          "vulnerabilities/rce",
+          "tooling/python"
+        ],
+        "task": "Target: the C MQTT broker `sol` at /workspace/source. Call get_threat_model(\"/workspace/source\") first. Harness at /workspace/harness (build-asan/sol, build-dev/sol, run.sh, mqttclient.py) — read run.sh usage and mqttclient.py before writing packets; `./run.sh start --name <n> --bin asan`, `./run.sh asan --name <n>`, `./run.sh stop --name <n>`. Bind only 127.0.0.1; never contact external/LAN services.\n\nYOUR JOB: dynamically prove (or disprove) the packet-decoder length/arithmetic defects. A static agent is tracing the same functions; check `list_notes(tags=[\"decoder\"])` first and build on what is already written rather than re-deriving. Start from these concrete hypotheses (verify the line numbers against the code yourself):\n\n1. CONNECT ClientId overflow — src/mqtt.c `unpack_mqtt_connect`: `cid_len` is a u16 read from the packet and is `memcpy`'d into `pkt->connect.payload.client_id`, a fixed array (check `MQTT_CLIENT_ID_LEN` in src/mqtt.h). Send a CONNECT with a declared client-id length far larger than the array AND larger than the actual bytes supplied. Determine: does the copy happen at all, how much does it copy, where is the destination (stack or heap), and is the packet's declared remaining length checked first? Try declared lengths straddling the array size so you get a clean ASan report showing the overflow size, and separately try a short packet with a huge declared length.\n2. PUBLISH length underflow — `unpack_mqtt_publish` does `len -= (sizeof(u16) + pkt->publish.topiclen)` where `len` is `usize`. Send a PUBLISH whose declared topic length exceeds the packet's remaining length. Determine whether `payloadlen` underflows to a huge value, what `unpack_bytes(&buf, len)` does with it (read src/pack.c), and what the server does with the resulting payload pointer/length afterwards. Watch for: enormous allocation, OOB read, and the payload being copied to subscribers (which would leak broker memory to an attacker).\n3. SUBSCRIBE/UNSUBSCRIBE loop underflow — the `for (; len > 0; ++i)` loops subtract `sizeof(u16)` and the attacker-declared topic_len from an unsigned `len`. Craft a SUBSCRIBE where the declared topic length exceeds the remaining bytes and observe: does the loop run away (CPU spin, repeated realloc), does it read past the buffer, does the process die, and how long does it take? Use a timeout and measure.\n4. Length-prefix decoder OOB — `mqtt_decode_length` is called with `c->rbuf + 1` after only 4 bytes were read and loops while the continuation bit is set, with no cap on the number of bytes (there is a TODO admitting it). Send a packet whose first 4+ bytes all have bit 7 set and determine how far it reads past the buffer, what `pos` becomes, and how that feeds `c->rpos`/`c->toread` and the `pktlen > max_request_size` check (can it bypass the size check or wrap?).\n\nFor each: give the exact bytes sent (hex), the observed result, and — for any crash — the verbatim ASan/UBSan report with the top stack frame and the function/line it points at. If a case does NOT crash, say so plainly and explain what the code did instead (e.g. allocation failed, connection closed).\n\nRules: no claim without the sanitizer output or observed behaviour. Keep PoCs under /workspace/poc/ with names you own (poc_connect_cid.py, poc_publish_underflow.py, poc_subscribe_underflow.py, poc_length_prefix.py). Write one findings note per confirmed case (category findings, tags [\"decoder\",\"memory-safety\"]). record_coverage per surface. Do NOT patch source and do NOT file vulnerability reports — a reporting agent does that from your evidence. Call agent_finish with a per-candidate confirmed/not verdict, reproduction commands, sanitizer excerpts, and severity reasoning.",
+        "is_root": false
+      },
+      {
+        "agent_id": "f1151be2",
+        "agent_name": "Decoder Framing Reporter",
+        "status": "completed",
+        "skills": [
+          "vulnerabilities/rce",
+          "custom/source_aware_sast"
+        ],
+        "task": "Target repo: /workspace/source (C MQTT broker `sol`). Call get_threat_model(\"/workspace/source\") first.\n\nYOUR JOB: file TWO vulnerability reports WITH inline fixes from already-validated evidence. Read `list_notes(tags=[\"decoder\"])` first — notes 539088 (D3), 83694a (D4), 3c15c0 (D7), e49831 (D6), 282772 (repro commands), 1076b3. PoCs: /workspace/poc/poc_subscribe_underflow.py, /workspace/poc/poc_length_prefix.py, /workspace/poc/poc_toread_overflow.py; harness at /workspace/harness (build-asan/sol = ASan+UBSan, build-dev/sol = -O3 no stack protector, run.sh starts 127.0.0.1 instances; a 4 KiB or 64 KiB max_request_size config is needed to reproduce some cases).\n\nREPORT 1 — non-terminating tuple loop with unsigned underflow in `unpack_mqtt_subscribe` and `unpack_mqtt_unsubscribe` (src/mqtt.c:342-358 and 386-401): the loop is `for (; len > 0; ++i)` and subtracts `sizeof(u16)`, the attacker-declared `topic_len`, and `sizeof(u8)` from an unsigned `len` BEFORE any lower-bound test, so a declared length larger than the packet underflows `len` to ~2^64 and the loop never exits: per-iteration allocation, unbounded realloc growth, and `buf` advancing out of the packet buffer. Validated: 7 bytes `82 05 00 01 00 FF 41` (subscribe) and `A2 05 00 01 00 FF 41` (unsubscribe) → production build SIGSEGV in `unpack_integer`/`unpack_string16` within 0.1 s with `len = 18446744073708498974` visible in the frame; under ASan with a small buffer → heap-buffer-overflow READ at pack.c:91; under ASan at the 1 MiB default → a thread pinned at ~100% CPU and RSS 55 MB → 950 MB in 0.5 s, and the process ignored SIGTERM. Two locations (subscribe and unsubscribe) in one report since it is one root cause; re-run the PoCs yourself.\n\nREPORT 2 — framing arithmetic: unbounded length-prefix decode plus an unchecked `toread` (src/mqtt.c:136-155 `mqtt_decode_length` and src/server.c:540-575 `recv_packet`). `mqtt_decode_length` has no `MAX_LEN_BYTES` cap even though the constant exists (only the encoder uses it) and is handed `c->rbuf + 1` when only 4 bytes were actually received, so continuation bits at rbuf[4..] (stale bytes from a previous packet / a pooled connection) drive it past the 4-byte window; `pos` becomes attacker-influenced, and `c->toread = pktlen + pos + 1` is computed without checking against the `max_request_size`-sized rbuf allocation, while only `pktlen` itself is validated. Validated: `30 80 80 C0` + 1 MiB → ASan heap-buffer-overflow WRITE in `recv` from server.c:575; a primed rbuf makes the decoder walk past its allocation (ASan READ of size 1 at mqtt.c:145); and `pos = 4000` from that walk yields a 4001-byte attacker-controlled heap write past rbuf (ASan WRITE of size 69533). Two locations in one report (decoder and framing). Re-run and capture verbatim output.\n\nFOR EACH REPORT:\n- All required fields populated; `poc_description` is steps only, all code in `poc_script_code` (use the real working script), `remediation_steps` prose only.\n- `code_locations` with verified repo-relative paths and exact 1-based line ranges, verbatim `fix_before`, a complete `fix_after` closing the whole class (for the loops: validate remaining bytes before each subtraction so the loop can only consume what the packet declares; for framing: cap the length decode at 4 bytes and bound `toread` against the actual buffer allocation, validating the total before the recv).\n- `fix_verification`: closure (re-run each PoC against your patched build, show the broker survives and the packet is rejected), bypass review (other length fields, the publish path, a valid multi-tuple SUBSCRIBE still working), preserved behaviour (run /workspace/harness/test_smoke.py against the patched build), and the exact build/test commands. Mark any gate you could not execute as an explicit gap.\n- `fix_pr_body` markdown summary.\n\nCRITICAL: do NOT edit /workspace/source. Copy it (e.g. `cp -a /workspace/source /workspace/fix-decoder-framing`) and verify patches there. `code_locations.file` stays repo-relative.\n\nSeverity: score the demonstrated consequence. For report 1 the demo includes both a deterministic pre-auth crash and a CPU/memory exhaustion that ignores SIGTERM; for report 2 it is a heap out-of-bounds write with attacker-controlled content and length — say honestly what is proven (write primitive, crash) versus unproven (controlled exploitation), and state what additional evidence would raise the rating.\n\nFile exactly these two reports; do not duplicate other agents' findings (CONNECT ClientId overflow, PUBLISH underflow, session UAF, wbuf overflow, dispatch NULL, double free belong to others). Call agent_finish with the two report ids, severities, patched lines in your copy, and the PoC commands that proved closure.",
+        "is_root": false
+      },
+      {
+        "agent_id": "fbbd24f8",
+        "agent_name": "Decoder Overflow Reporter",
+        "status": "running",
+        "skills": [
+          "vulnerabilities/rce",
+          "custom/source_aware_sast"
+        ],
+        "task": "Target repo: /workspace/source (C MQTT broker `sol`). Call get_threat_model(\"/workspace/source\") first.\n\nYOUR JOB: file TWO vulnerability reports WITH their fixes inline, from evidence that is already validated. Read the shared notes first: `list_notes(tags=[\"decoder\"])`, especially notes 0f8784 (D1), ce292d (D2), 282772 (repro commands), 5243eb and 1cc769 (static traces). The reproduction evidence lives in /workspace/poc/ (poc_connect_cid.py, poc_publish_underflow.py, poclib.py) and /workspace/poc/evidence-decoder/; the harness is /workspace/harness (build-asan/sol is ASan+UBSan, build-dev/sol is -O3 with no stack protector; run.sh starts instances on 127.0.0.1).\n\nREPORT 1 — pre-auth stack buffer overflow in `unpack_mqtt_connect` (src/mqtt.c:235-243): the u16 ClientId length read from the wire is `memcpy`'d into a 64-byte array (`MQTT_CLIENT_ID_LEN`, src/mqtt.h:181) inside the stack-resident `struct mqtt_packet` with no bounds check; the function's `len` parameter is never used. Validated: 271-byte packet `10 8C 02 00 04 4D 51 54 54 04 02 00 3C 01 00` + 256×'A' → ASan stack-buffer-overflow WRITE of size 256; 22-byte packet declaring cid_len 0xFFFF with 8 bytes supplied → WRITE of size 65535; on the -O3 production build the process SIGSEGVs at `ret` with rbp and 14 return frames equal to 0x4141414141414141, i.e. attacker-chosen return address; the same crash occurs with `allow_anonymous=false`. Re-run the PoC yourself to confirm before filing, and capture the verbatim sanitizer excerpt.\n\nREPORT 2 — pre-auth unsigned underflow in `unpack_mqtt_publish` (src/mqtt.c:296-321): `len -= (sizeof(u16) + pkt->publish.topiclen)` on a `usize` with no check that the declared topic length fits in the packet, then `unpack_bytes(&buf, len)` → `try_alloc(len+1)` → `memcpy(dest, src, len)` (src/pack.c:405-415). Validated: 7 bytes `30 05 00 04 41 41 41` → ASan negative-size-param (size=-1) in that memcpy; `30 05 00 FF 41 41 41` → allocation-size-too-big / `Out of memory (18446744073709551365 bytes)` → `exit(EXIT_FAILURE)` kills the whole broker. Re-run both yourself.\n\nFOR EACH REPORT you must:\n- Populate every required field: title, description, impact, target, endpoint (e.g. \"MQTT CONNECT over TCP\"), technical_analysis, poc_description (steps only), poc_script_code (the actual working script), remediation_steps (prose), evidence (verbatim sanitizer/console excerpt plus the exact bytes), assumptions, counterevidence, confidence, confidence_rationale if not high, severity_change_conditions, fix_effort, cwe, cvss_breakdown.\n- `code_locations`: repo-relative path, exact 1-based start_line/end_line that you VERIFY against the current file, verbatim `fix_before`, a complete `fix_after` that closes the whole input class (not just the sample payload), and a `label`. Split non-contiguous edits (e.g. a helper + its call site) into separate location entries.\n- `fix_verification`: work the gates in order and record what you actually ran — closure (re-run the PoC against the patched build), bypass review (alternate lengths/encodings, sibling call sites such as the will/username/password `unpack_string16` calls that share the unchecked-length pattern, the SUBSCRIBE path), preserved behaviour (a normal CONNECT and a normal PUBLISH still work — use /workspace/harness/test_smoke.py), and the build/check commands. State any gate you could only reason about as an explicit gap.\n- Also populate `fix_pr_body` with a short markdown PR description (summary + rationale).\n\nCRITICAL WORKFLOW CONSTRAINT: do NOT edit /workspace/source. Copy it to your own directory (e.g. `cp -a /workspace/source /workspace/fix-decoder-overflow`) and apply/verify your patches THERE, so a concurrent reporting agent patching the same files cannot collide with you. The `code_locations.file` paths must still be repo-relative (e.g. `src/mqtt.c`).\n\nSeverity calibration: score what you demonstrated. Report 1 has a proven control-flow-influence primitive on the shipped build flags → critical is defensible; state exactly what would lower it. Report 2 is deterministic pre-auth process termination (and a negative-size memcpy) — rate the demonstrated consequence honestly and say what would raise it (e.g. a demonstrated controlled write rather than a crash).\n\nDo not file more than these two reports, and do not file duplicates of other agents' findings (session UAF, wbuf overflow, dispatch NULL, subscribe loop, framing/toread belong to other reporters). When done, call agent_finish with the two report ids, the severity you assigned, the fix files/lines you changed in your copy, and the PoC commands you re-ran to prove closure.",
+        "is_root": false
+      },
+      {
+        "agent_id": "d56af419",
+        "agent_name": "Decoder Secondary Validator",
+        "status": "running",
+        "skills": [
+          "vulnerabilities/rce",
+          "tooling/python"
+        ],
+        "task": "Target: the C MQTT broker `sol` at /workspace/source. Call get_threat_model(\"/workspace/source\") first. Harness at /workspace/harness (build-asan/sol, build-dev/sol, run.sh, mqttclient.py) — read run.sh usage and mqttclient.py first. Bind only 127.0.0.1; never contact external/LAN services.\n\nContext: a decoder static audit already traced these. Read `list_notes(tags=[\"decoder\"])` for full detail (notes 96c97e, fbce10, e49831, bb1d02, 5243eb). Another agent is concurrently proving the plain CONNECT ClientId overflow and the PUBLISH/SUBSCRIBE length underflows — do NOT redo those. Prove these instead, one script each, restarting the broker between cases (try_alloc calls exit() on OOM so a dead listener contaminates later tests):\n\n1. UNSUBSCRIBE double free — handlers.c:676 destroys `e->data` and then server.c:880 `process_message` destroys the same decoded packet again, freeing the tuples array and each topic pointer twice. Static-supplied trigger: 7 bytes `A2 05 00 01 00 01 41`. Confirm with ASan (expect attempting-double-free / alloc-dealloc-mismatch) or a glibc tcache abort in the dev build. Report the exact minimum bytes and the top frames.\n\n2. `unpack_handlers[11]` out-of-bounds function-pointer call — the dispatch table is declared with 11 entries (mqtt.c:72-82) but UNSUBACK (type 11) is neither early-returned (only 12..14 are) nor a valid index, and `server.c:512` admits opcode 11. Static-supplied trigger: 2 bytes `B0 00`. Confirm the broker dies and, from the ASan/segfault backtrace or a debugger, that the call target is the table read past its end rather than something else. Compare with a control (`B0 02 00 01`, a well-formed UNSUBACK of the same opcode) to show the type check is what is missing rather than the packet being malformed.\n\n3. `toread` exceeds the rbuf allocation — only `pktlen` is checked against `max_request_size` (server.c:551) but the socket read is sized by `toread = pktlen + pos + 1` (server.c:561-575), so a packet with a multi-byte length prefix at exactly the limit over-reads/writes past rbuf. Use a config with a small max_request_size (e.g. 4096) and send a length-encoded packet whose declared pktlen equals the limit while using a 3-4 byte length prefix. Determine whether the recv writes past the allocation (ASan heap-buffer-overflow on rbuf) and whether the subsequent decode consumes the bytes. If a small limit makes the prefix itself exceed the buffer, say so precisely — describe the exact relationship between pktlen, prefix length, and buffer size that triggers it.\n\n4. Tuple-count overflow / memory exhaustion — the SUBSCRIBE decode loop counter is `usize` but `tuples_len` is `u16`, so a SUBSCRIBE with more than 65535 minimal tuples leaves the excess allocations unreferenced (~64 bytes leaked each). Build a SUBSCRIBE with as many minimal 3-byte tuples as fit in a modest max_request_size, measure broker RSS before/after and across repeated packets, and confirm the leak grows monotonically. Report bytes leaked per packet. If the process hits try_alloc's exit() path, record it.\n\n5. CONNECT ClientId overflow, control-flow variant (different from the plain overflow another agent is doing): `cid_len` of roughly 64..80 overwrites the adjacent pointers and the embedded `struct ref refcount` inside the stack-resident `struct mqtt_packet` (`mqtt_packet_destroy`, mqtt.c:568-598, eventually indirect-calls `refcount.free` with the packet address). Attempt to demonstrate that the overwritten function pointer is reached — e.g. by choosing a cid_len that lands controlled bytes on the free-pointer field and observing the crash address or ASan output point at an attacker-chosen value. If a stack canary or ASan intercepts first, report exactly what interposed and whether the pointer overwrite is still demonstrable. Also check the built binary for `__stack_chk_fail` (`readelf -s` / `nm`) and say whether a stack protector is present in this build.\n\nRules: no claim without sanitizer output or observed behaviour; if a case fails to reproduce, say so and explain what happened instead. Do NOT patch source, do NOT file vulnerability reports. Save PoCs under /workspace/poc/ with distinctive names (poc_unsub_doublefree.py, poc_unpack_oob_call.py, poc_toread_overflow.py, poc_tuple_leak.py, poc_cid_refcount.py), write findings notes (tags [\"decoder\",\"memory-safety\"]), record_coverage per surface. Call agent_finish with per-candidate verdicts, reproduction commands, evidence excerpts, and severity reasoning.",
+        "is_root": false
+      },
+      {
+        "agent_id": "ae892c84",
+        "agent_name": "Decoder Static Auditor",
+        "status": "completed",
+        "skills": [
+          "custom/source_aware_sast",
+          "vulnerabilities/rce"
+        ],
+        "task": "Target: the C MQTT broker at /workspace/source. Call get_threat_model(\"/workspace/source\") first — it names the trust boundary you are auditing.\n\nYOUR JOB: a rigorous source-level audit of the MQTT packet DECODER path and its arithmetic. This is the highest-value surface; be exhaustive and precise.\n\nScope (read all of it, in this order):\n- src/server.c: `recv_packet` (framing, `mqtt_decode_length` call site, rbuf/read/toread/rpos bookkeeping, opcode check, max_request_size check), `read_data`, `process_message` dispatch, `client_init`/`client_deactivate` buffer allocation, and every place decoded fields are consumed.\n- src/mqtt.c: `mqtt_decode_length`, `mqtt_encode_length`, `unpack_mqtt_connect`, `unpack_mqtt_publish`, `unpack_mqtt_subscribe`, `unpack_mqtt_unsubscribe`, `unpack_mqtt_ack`, `mqtt_unpack` dispatch, `mqtt_packet_alloc`, `mqtt_packet_destroy`, and the pack_* functions where they write into buffers.\n- src/pack.c / src/pack.h: `unpack`, `unpack_string16`, `unpack_integer`, `unpack_bytes`, and any length handling inside them.\n- src/mqtt.h + src/sol_internal.h: struct sizes that matter — `MQTT_CLIENT_ID_LEN`, the `struct mqtt_connect` payload layout (client_id array, will_topic/will_message/username/password pointers and how they are allocated), `struct mqtt_publish`, subscribe/unsubscribe tuple structs, buffer sizes for `rbuf`/`wbuf`.\n\nSpecifically establish, with file:line evidence for each:\n1. Every attacker-controlled length/count that is used for a `memcpy`/`malloc`/`realloc`/index or subtracted from an unsigned counter. For each, state whether a bounds check exists on the attacker's path, and what the exact consequence of violating it is (stack/heap overflow, OOB read, unbounded allocation, infinite loop, integer underflow).\n2. `unpack_mqtt_connect`: the ClientId copy path in particular — what bounds the declared client-id length, what the destination array size is, and whether anything about the packet's actual remaining length is checked before the copy. Also the will/username/password `unpack_string16` calls and their allocation sizing.\n3. `unpack_mqtt_publish`: the `len -= (sizeof(u16) + pkt->publish.topiclen)` computation. `len` is `usize`; determine exactly what happens when topiclen exceeds the remaining length, what `unpack_bytes(&buf, len)` then does (read pack.c), and where the resulting pointer/length is later consumed (grep server.c for payloadlen).\n4. `unpack_mqtt_subscribe` / `unpack_mqtt_unsubscribe`: the `for (; len > 0; ++i)` loops. Determine whether `len` can underflow and make the loop continue past the packet, what each iteration does (realloc growth, `unpack_string16`, `unpack_integer`), and whether the loop can terminate.\n5. `mqtt_decode_length` + `recv_packet`: the decoder is given `c->rbuf + 1` and only 4 bytes were read from the socket. Determine how many bytes the loop can consume if the continuation bit stays set, what memory it reads past, and how `pos` then feeds `c->rpos`/`c->toread`. Also check whether `pktlen` (unsigned int) can overflow or wrap relative to max_request_size.\n6. Struct/field lifetime for decoded pointers (who frees them, is `mqtt_packet_destroy` called on every error path, can a partially-decoded packet be dispatched).\n\nMethod requirements: run the source-aware baseline and keep artifacts in /workspace/.source-aware-decoder/ — at minimum one `opengrep scan --config /opt/opengrep-rules --taint-intrafile --json` pass, one AST/structural pass with `sg` (build the target list from opengrep scope), and read the real code (the scanners are a starting point, not the finding). Do NOT compile/run the broker and do NOT send any network traffic — a separate agent owns dynamic reproduction; coordinate by writing precise reproduction hypotheses.\n\nDeliverables: for each distinct candidate, a note via create_note (category findings, tags [\"decoder\",\"memory-safety\"]) containing: file:line for source, control (if any), sink, exact attacker bytes that trigger it, expected sanitizer report, and severity reasoning. Closure discipline: each candidate must end as confirmed-by-trace, ruled_out with the named control, or open_proof_gap — do not silently drop candidates. Then record_coverage for each distinct decoder surface you assessed (even clean ones). Do NOT file vulnerability reports; the dynamic/validation agents will. Call agent_finish with a ranked list of the most exploitable candidates and exactly what you want the dynamic agent to try first.",
+        "is_root": false
+      },
+      {
+        "agent_id": "b0a007bf",
+        "agent_name": "Dispatch Crash Reporter",
+        "status": "completed",
+        "skills": [
+          "vulnerabilities/rce",
+          "custom/source_aware_sast"
+        ],
+        "task": "Target repo: /workspace/source (C MQTT broker `sol`). Call get_threat_model(\"/workspace/source\") first.\n\nYOUR JOB: file TWO vulnerability reports WITH inline fixes from validated dynamic evidence. Read notes 01daeb, 1f23af, 2a8636, fb95db, fbce10 and the PoCs /workspace/poc/poc_null_dispatch.py, /workspace/poc/poc_puback_null.py with transcripts in /workspace/poc/evidence/. Harness: /workspace/harness (build-asan/sol = ASan+UBSan, build-dev/sol = -O3, run.sh, test_smoke.py).\n\nREPORT 1 — unhandled packet type reaches an unchecked dispatch table → NULL indirect call (pre-auth process kill). Root cause: `handlers[]` (src/handlers.c:62-76) has NULL entries for CONNACK/SUBACK/UNSUBACK/PINGRESP (types 2, 9, 11, 13) and `handle_command` (src/handlers.c:879) calls the entry with no NULL check, while the opcode gate (src/server.c:512) admits CONNECT..DISCONNECT. Validated: two bytes `D0 00` (PINGRESP) on a fresh connection with no CONNECT → ASan SEGV at pc=0 in `process_message` src/server.c:867, dev build SIGSEGV; negative control `C0 00` (PINGREQ) is answered `D0 00` and the broker stays alive; the crash also occurs after a valid CONNECT. SAME REPORT, second location: the decoder-side table `unpack_handlers[11]` (src/mqtt.c:72-82) has only 11 entries but UNSUBACK (type 11) is neither early-returned (only 12..14 are) nor a valid index, so `mqtt_unpack` calls `unpack_handlers[11]` out of bounds (UBSan: index 11 out of bounds for type 'mqtt_unpack_handler *[11]'; `B0 00` crashes). `90 00 00 00` and `20 00 00 00` crash via NULL unpack_handlers[9]/[2] as well. Re-run both PoCs before filing.\n\nREPORT 2 — PUBACK/PUBCOMP for an unallocated packet id DECREFs a NULL packet (pre-auth process kill). Root cause: `inflight_msg_clear` (src/handlers.c:785-801 and :840-856) takes the decoded u16 packet id, indexes `c->session->i_msgs[]` and DECREFs the result without a session-state or liveness check (src/ref.h:50-54 writes through the pointer). Validated: CONNECT then `40 02 00 01` → UBSan \"member access within null pointer\" at handlers.c:793 then SIGSEGV on the dev build; same for `70 02 00 01` and id 0xffff, and with no CONNECT at all. Strong differential to quote: the identical 4 bytes for an ALLOCATED mid are harmless and the broker keeps serving, and — important — re-sending a duplicate PUBACK after a legitimate QoS1 ACK also crashes, so this is reachable from ordinary client traffic without an attacker. The `--inflights` u16 underflow was ruled out as an independent defect; say so instead of claiming it.\n\nFOR EACH REPORT:\n- All required fields; `poc_description` steps only, `poc_script_code` the real script, `remediation_steps` prose only, `evidence` with the verbatim sanitizer/console output, the exact byte sequences and the negative controls.\n- `code_locations`: repo-relative, exact 1-based ranges verified against the file, verbatim `fix_before`, complete `fix_after`, labels. Report 1's fix must bound BOTH tables and NULL-check the looked-up handler before the call (and make the opcode gate reject types the broker does not implement). Report 2's fix must validate the packet id's slot is live/owned (and require a connected session) before any DECREF, and must keep the legitimate ack path working.\n- `fix_verification`: apply the patch in your own copy, rebuild, re-run both PoCs plus the negative controls to prove closure AND prove normal traffic still works (a real QoS1 publish/PUBACK round trip; /workspace/harness/test_smoke.py). Record the exact commands and mark any gate you could only reason about as a gap.\n- `fix_pr_body` markdown summary.\n\nCRITICAL: do NOT edit /workspace/source. `cp -a /workspace/source /workspace/fix-dispatch-crash` and work there; `code_locations.file` stays repo-relative.\n\nSeverity: both are zero-credential, zero-interaction, single-packet remote kills of a single-process broker — availability impact only (C:N/I:N); do not claim code execution, since pc was exactly 0 and the call target was not attacker-controlled. Note in the report what would raise it (evidence the broker is the sole instance / no supervisor, or control of a call target).\n\nFile exactly these two reports; other agents own the decoder arithmetic, wbuf overflow, session UAF, pre-CONNECT authorization bypass, clean_session leak and TLS posture. Call agent_finish with report ids, severities, patched lines in your copy, and the PoC commands proving closure.",
+        "is_root": false
+      },
+      {
+        "agent_id": "42e777fc",
+        "agent_name": "Heap Corruption Validator",
+        "status": "completed",
+        "skills": [
+          "vulnerabilities/rce",
+          "tooling/python"
+        ],
+        "task": "Target: the C MQTT broker `sol` at /workspace/source. Call get_threat_model(\"/workspace/source\") first. A reused harness is at /workspace/harness (build-asan/sol, build-dev/sol, run.sh, mqttclient.py) — read run.sh usage and mqttclient.py API before writing exploits; `./run.sh start --name <n> --bin asan` starts an instrumented broker on 127.0.0.1, `./run.sh asan --name <n>` prints sanitizer reports, `./run.sh stop --name <n>`. Bind only 127.0.0.1; never contact external/LAN services. Confirm the harness works for you before trusting it.\n\nYOUR JOB: prove (or disprove) the two highest-value HEAP memory-corruption candidates found by the state auditor. Both are pre-auth under the default (allow_anonymous) posture. Work one at a time, keep each PoC in its own script, and capture the sanitizer report verbatim.\n\nCANDIDATE 1 — heap-buffer-overflow in the write path (no bound check on `c->towrite` vs the `wbuf` allocation):\n- wbuf is allocated exactly `conf->max_request_size` bytes (server.c ~397-399). Writes into it happen at handlers.c:227, handlers.c:615-619 (retained-message replay on SUBSCRIBE), server.c:132-143 (session-resume flush, has a TODO admitting it), server.c:338 and 354 (inflight retransmit) — verify all these line numbers yourself, they came from a static read.\n- Deterministic variant to try first: configure a SMALL max_request_size (e.g. 1024 or 4096) via the harness config, publish N retained messages whose topic+payload sizes sum past max_request_size, then have a second client SUBSCRIBE with tuples matching all of them so the retained replay loop overflows wbuf. The static estimate was \"two S-byte retained messages + one SUBSCRIBE with both tuples when 2S+6 > max_request_size\".\n- Also try the QoS-1 unacked-message retransmit variant and the session-resume variant (clean_session=0 client disconnects with queued messages, reconnects by same ClientId).\n- Success = ASan heap-buffer-overflow WRITE report with the top frame in handlers.c/server.c, plus evidence the overflowing bytes are attacker-chosen (use a distinctive pattern like AAAA.../0x41 so the report and any dump show your payload).\n\nCANDIDATE 2 — use-after-free on session reuse without INCREF:\n- handlers.c:400-405 reuses an existing session for a second connection with the same ClientId without INCREF; only the create branch (417-419) increments. Suspected sequence: client A connects clean_session=1 with ClientId \"v\"; client B connects clean_session=0 with ClientId \"v\" (reusing A's session); A disconnects -> server.c:438 frees the session while B is still live; then B performs actions that touch the freed session (SUBSCRIBE, PUBACK, QoS1 publish, or wait for the inflight timer).\n- Verify the refcount semantics in src/ref.h and the exact branches yourself; the sequence above is a hypothesis, adapt it if the code requires.\n- Success = ASan heap-use-after-free report naming the freed allocation and the later access. Report the minimum, reliable trigger sequence.\n- Extra value if achievable (report as an observation, not a claim, unless you truly demonstrate it): whether the freed block can be reallocated with attacker-controlled PUBLISH payload data so the later access operates on attacker bytes rather than crashing.\n\nRULES:\n- Every claim needs the actual sanitizer output or observed broker behaviour. No sanitizer line, no finding.\n- Distinguish \"crash/DoS\" from \"controlled memory corruption\" honestly — if you only get a crash, say crash.\n- Record coverage with record_coverage for each candidate surface, using outcome reported / ruled_out (name the control) / needs_follow_up.\n- Do NOT patch the source and do NOT file vulnerability reports; a reporting agent will do both from your evidence. Save PoC scripts under /workspace/poc/ with names you own (e.g. poc_wbuf_overflow.py, poc_session_uaf.py) and write a findings note (category findings, tags [\"memory-corruption\",\"asan\"]) carrying: file:line, root cause, exact trigger sequence, verbatim sanitizer excerpt, and the reproduction command.\n- Call agent_finish with: confirmed vs not, the exact reproduction commands, the sanitizer excerpts, and your severity assessment with reasoning.",
+        "is_root": false
+      },
+      {
+        "agent_id": "27e4cbc8",
+        "agent_name": "Heap State Reporter",
+        "status": "completed",
+        "skills": [
+          "vulnerabilities/rce",
+          "custom/source_aware_sast"
+        ],
+        "task": "Target repo: /workspace/source (C MQTT broker `sol`). Call get_threat_model(\"/workspace/source\") first.\n\nYOUR JOB: file TWO vulnerability reports WITH inline fixes from already-validated dynamic evidence. Read notes 8103b1 (heap findings), 0ff666 and 99b93f first, and inspect the PoCs and captured ASan reports in /workspace/poc/ (poc_wbuf_overflow.py, poc_wbuf_resume.py, poc_wbuf_inflight.py, poc_session_uaf.py, poc_session_uaf_trace.sh, /workspace/poc/evidence-heap/). Harness: /workspace/harness (build-asan/sol, build-dev/sol, run.sh, test_smoke.py).\n\nREPORT 1 — pre-auth heap-buffer-overflow WRITE into the per-client write buffer. Root cause: `c->wbuf` is allocated at exactly `conf->max_request_size` (src/server.c:397-399) and NO write site bounds `c->towrite`. Three proven sinks, one root cause, cite all three as separate `code_locations`: (a) src/handlers.c:615-619 (memcpy at :617) retained-message replay on SUBSCRIBE — ASan WRITE of size 910 past a 1032-byte region with a 1024-byte max_request_size, and WRITE of size 3010 at the harness default 1 MB, and WRITE of size 1048587 at the shipped 50 MB; the overflowing bytes were proven by gdb to be the attacker's own PUBLISH payload (`HEAPSTRIKE41`) at wbuf+908; (b) src/handlers.c:331-340 (`mqtt_pack`/`set_connack` at :336) session-resume flush; (c) src/server.c:326-356 (`mqtt_pack` at :354) inflight retransmit. A negative control (subscription that fits) leaves the broker alive, and the plain -O3 build SIGSEGVs on the overflowing case, so this is a production crash plus an attacker-controlled heap write, not an ASan artefact. Re-run the primary PoC yourself before filing and capture verbatim output.\n\nREPORT 2 — pre-auth heap-use-after-free of `struct client_session` on ClientId reuse. Root cause: src/handlers.c:399-420 — the session-reuse branch (:404-405) does not INCREF, only the create branch (:417-419) does, so two live connections share a refcount-1 session; when the clean_session=1 owner disconnects, src/server.c:430-438 frees it while the other connection still points at it. Minimum trigger: A CONNECT cid \"victim\" clean=1, B CONNECT cid \"victim\" clean=0 (CONNACK session_present=1), close A, B SUBSCRIBE → ASan heap-use-after-free READ of size 64 at src/subscriber.c:45 (via topic_add_subscriber → subscribe_handler), freed by session_free ← ref_dec ← client_deactivate. Follow-on write proven with gdb: `list_push` at handlers.c:593 links into the list that `session_free` already destroyed. Be honest in the report that on the plain build this sequence does not crash (silent heap corruption; the freed chunk could not be reallocated with attacker data because the two connections are served by different event-loop threads) — say exactly that, and say what evidence would raise it.\n\nFOR EACH REPORT:\n- All required fields; `poc_description` steps only, `poc_script_code` the real script, `remediation_steps` prose only, `evidence` with the verbatim sanitizer/gdb excerpts and the trigger sequence.\n- `code_locations`: repo-relative paths, exact 1-based ranges verified against the file, verbatim `fix_before`, complete `fix_after`, labels. For the wbuf finding the fix must enforce the bound at EVERY write site (a shared append helper that checks `towrite + len <= max_request_size` and drops/errors instead of overrunning, applied at the retained-replay, connack-flush, inflight-retransmit and publish fan-out sites) — not just the one sink; that means several location entries. For the UAF the fix must make the reuse branch take its own reference and make DECREF/free symmetric with the connection that created it.\n- `fix_verification`: actually apply the patch in your own copy, rebuild, and re-run the PoCs to prove closure; run /workspace/harness/test_smoke.py against the patched build to prove normal subscribe/publish still works; document bypass review (duplicate SUBSCRIBE tuples, several QoS1 unacked messages, session resume) and mark any gate you could not execute as a gap. Include the exact commands.\n- `fix_pr_body` markdown summary.\n\nCRITICAL: do NOT edit /workspace/source. `cp -a /workspace/source /workspace/fix-heap-state` and work there; `code_locations.file` stays repo-relative.\n\nSeverity: report 1 is a pre-auth heap out-of-bounds WRITE with attacker-controlled length and content, reliably crashing the shipped configuration — high is the floor; only claim higher if you demonstrate more than a write primitive (do not score C/I:H without proof of control). Report 2 is a pre-auth UAF whose demonstrated impact is silent heap corruption plus a crash under instrumentation — rate accordingly and state the change conditions.\n\nFile exactly these two reports; other agents own the decoder overflow/underflow, framing, dispatch NULL, ACK handling, double free and authorization findings. Call agent_finish with the two report ids, severities, patched files/lines in your copy, and the PoC commands proving closure.",
+        "is_root": false
+      },
+      {
+        "agent_id": "e118e5ab",
+        "agent_name": "Preauth Logic Validator",
+        "status": "completed",
+        "skills": [
+          "vulnerabilities/broken_function_level_authorization",
+          "tooling/python"
+        ],
+        "task": "Target: the C MQTT broker `sol` at /workspace/source. Call get_threat_model(\"/workspace/source\") first. Harness at /workspace/harness (build-asan/sol, build-dev/sol, run.sh, mqttclient.py) — read run.sh usage and mqttclient.py first; `./run.sh start --name <n> --bin asan --mode anon|auth`, `./run.sh asan --name <n>`, `./run.sh stop --name <n>`. Bind only 127.0.0.1; never contact external/LAN services.\n\nYOUR JOB: dynamically confirm the pre-auth dispatch/authorization defects (crash-class and access-control-class). Take them in this order and keep each PoC separate.\n\n1. Unhandled packet type → NULL function-pointer call. Static read says `handlers[]` (src/handlers.c:62-76) has NULL entries for CONNACK, SUBACK, UNSUBACK, PINGRESP (types 2, 9, 11, 13) and `handlers.c:879` calls the entry without a NULL check, while `server.c:512` admits opcodes CONNECT..DISCONNECT. Send the two-byte packet `D0 00` (PINGRESP, remaining length 0) on a fresh connection and confirm the broker process dies. Capture the signal/exit code and, if ASan/UBSan says anything, the report. Then compare against a control: `C0 00` (PINGREQ) must be handled and must NOT kill the broker — that negative control is what makes this a real defect rather than a broken service. Document the exact minimal byte sequence and whether CONNECT is required first.\n\n2. Pre-CONNECT PUBLISH / authorization bypass with authentication ENABLED. Start the harness in `--mode auth` (allow_anonymous=false, password_file set). On a socket that has NOT sent CONNECT, send a PUBLISH. Static read says `process_message` (server.c:858-898) dispatches every opcode with no connected/authenticated gate. Determine: (a) does the publish succeed (no CONNACK, no error, connection stays up)? (b) can it set a RETAINED message that an authenticated subscriber later receives — i.e. does unauthenticated data reach authenticated clients? (c) can the unauthenticated socket SUBSCRIBE and receive messages? (d) what does a CONNECT with wrong credentials do — does the socket stay open for unlimited retries (bad_auth path handlers.c:482-487)? Provide the response bytes observed for each. A control that matters: same PUBLISH after a valid CONNECT, and same PUBLISH from a socket rejected by bad_auth.\n\n3. PUBACK/PUBCOMP with an unused packet id → NULL packet DECREF. Static read says `inflight_msg_clear` DECREFs a NULL packet (handlers.c:793, 848 → ref.h:50-54). Send CONNECT then `40 02 00 01` (PUBACK id=1, never allocated) and confirm the broker dies; capture the ASan report and top frame. Also check the u16 `--inflights` underflow claim (wraps to 65535, permanently satisfying has_inflight) and say whether it is reachable/benign.\n\n4. Resource-exhaustion: clean_session=false disconnect leak. Static read says `client_deactivate` (server.c:430-443) only frees on clean_session==true, so clean_session=0 clients leak the client struct plus rbuf/wbuf (up to max_request_size each). Measure RSS across ~30-50 connect/disconnect cycles with clean_session=0 in the dev build (or a config with a moderate max_request_size so the leak is visible), and compare with clean_session=1 cycles as the control. Report the per-cycle leak in bytes and whether the process eventually exits (try_alloc exit() on OOM) or is merely unbounded.\n\nRules: every claim needs observed evidence — bytes sent, bytes received, exit status, sanitizer output, RSS numbers. Where a hypothesis fails, say so plainly. Do NOT patch source and do NOT file vulnerability reports. Save PoCs under /workspace/poc/ with names you own (poc_null_dispatch.py, poc_preauth_publish.py, poc_puback_null.py, poc_session_leak.py), write findings notes (category findings, tags [\"preauth\",\"authz\",\"dos\"]), and record_coverage per surface. Call agent_finish with per-candidate verdicts, reproduction commands, evidence excerpts, and severity reasoning (availability impact vs access-control impact).",
+        "is_root": false
+      },
+      {
+        "agent_id": "8b7a7553",
+        "agent_name": "Root Agent",
+        "status": "waiting",
+        "skills": [],
+        "task": "\n\nLocal Codebases: - /vol1/1000/mygoldmine-benchmark/2026-11-17/results/strix/sol/source (available at: /workspace/source; this is the user's real directory, mounted live and writable — .git/.agents/.codex are read-only)\n\nSpecial instructions: Audit only this local source snapshot and any service you build inside its sandbox. Do not contact upstream services or the LAN. Report validated findings with evidence.",
+        "is_root": true
+      }
+    ],
+    "skills_exercised": [
+      "authentication_jwt",
+      "broken_function_level_authorization",
+      "python",
+      "rce",
+      "source_aware_sast"
+    ],
+    "findings_filed": 6,
+    "source": "runtime"
+  },
+  "completeness": {
+    "complete": false,
+    "scan_status": "interrupted",
+    "exit_reason": null,
+    "caveats": [
+      "The scan ended with status 'interrupted' rather than completing, so coverage reflects only the work finished before it stopped.",
+      "5 agent(s) did not finish cleanly (Auth TLS Reporter, Authz and Leak Reporter, Decoder Overflow Reporter, Decoder Secondary Validator, Root Agent); any surface they held is under-covered."
+    ]
+  },
+  "entries": [
+    {
+      "surface": "src/mqtt.c unpack_mqtt_connect (ClientId copy, will/username/password)",
+      "risk_area": "Decoder memory safety — attacker-controlled length driving memcpy",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED BY TRACE, needs dynamic reproduction. mqtt.c:240 memcpy(client_id, buf, cid_len) with cid_len a raw u16 from the wire into u8 client_id[64] (mqtt.h:181) that lives in the stack-resident io.data (server.c:860). No bounds check anywhere; `len` param unused. PoC bytes recorded in note 5243eb (303-byte CONNECT, cid_len=0x0100). Nearest case: ASAN stack-buffer-overflow WRITE; production: stack smashing/control-flow overwrite. Highest-value candidate on target.</evidence>",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:05 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c unpack_mqtt_publish (payloadlen arithmetic)",
+      "risk_area": "Decoder memory safety — unsigned underflow to allocation/memcpy size",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED BY TRACE. mqtt.c:314 len -= (2 + topiclen) on usize with no check that 2+topiclen <= len; mqtt.c:316 unpack_bytes(&buf, len) -> pack.c:413 try_alloc(len+1) + pack.c:414 memcpy(dest,*buf,len). len == SIZE_MAX makes try_alloc(0) succeed and memcpy(SIZE_MAX) fault; other magnitudes make malloc fail -> exit(EXIT_FAILURE) (memory.c:49-53). 7-byte PoC `30 05 00 04 41 41 41` (and `30 05 00 FF 41 41 41` for the exit variant) in note 1cc769.</evidence>",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:05 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c unpack_mqtt_subscribe (tuple loop)",
+      "risk_area": "Decoder memory safety — unsigned underflow / loop termination / unbounded allocation",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED BY TRACE. mqtt.c:342-358: `for (; len > 0; ++i)` with `len -= sizeof(u16)` at :344 and `len -= topic_len` at :355 on a usize, both before any lower-bound test -> underflow to ~2^64 -> loop never terminates; each iteration reallocs the tuple array, allocates topic_len+1 bytes and copies from a monotonically advancing buf (unbounded OOB heap read). 7-byte PoC `82 05 00 01 00 FF 41` in note 1076b3. Also u16 tuples_len truncation leaks topics past 65536 (note bb1d02).",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:11 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c unpack_mqtt_unsubscribe (tuple loop) + its destroy path",
+      "risk_area": "Decoder memory safety — underflow, infinite loop, double free",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED BY TRACE, two distinct defects: (1) same `len -= 2` / `len -= topic_len` underflow as decode before the `len > 0` test (mqtt.c:386-401) -> infinite loop with unbounded OOB reads (note 1076b3, 7-byte PoC `A2 05 00 01 00 FF 41`); (2) double free — handlers.c:676 destroys e->data and server.c:880 destroys io.data again, so the decoded tuples array and each topic are freed twice (note 96c97e, 7-byte PoC `A2 05 00 01 00 01 41` -> glibc abort).",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:11 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c mqtt_unpack dispatch table + unpack_mqtt_ack",
+      "risk_area": "Decoder dispatch — out-of-bounds function pointer index",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Dynamic confirmation and filing: vuln-0003. `B0 00` (UNSUBACK, type 11) produced UBSan \"index 11 out of bounds for type 'mqtt_unpack_handler *[11]'\" at mqtt.c:434 on the ASan build and SIGSEGV on the -O2 build; the decoder table was resized to MQTT_PACKET_TYPES (16 commented slots) and mqtt_unpack now rejects non-client packet types and bounds/NULL-checks the slot before the call. Rebuild verified: `B0 00`, `B0 0C ...`, `90 00 00 00`, `90 02 00 01`, `20 00 00 00`, `D0 00`, `D0 05 ...`, `F0 00` all leave the patched broker alive while the unpatched build dies; PINGREQ control still answered.",
+      "recorded_by": "Dispatch Crash Reporter",
+      "recorded_at": "2026-11-17 09:42:18 UTC",
+      "updated_at": "2026-11-17 10:15:24 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/pack.c unpack / unpack_bytes / unpack_string16 / unpack_integer",
+      "risk_area": "Decoder primitives — allocation/copy helpers and their failure modes",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "ruled_out as a memory-safety issue with the named control: unpack_bytes (pack.c:411-418) can never return NULL because try_alloc (memory.c:46-57) either returns a valid pointer or calls exit(EXIT_FAILURE) — so the four `if (!ptr) return -MQTT_ERR` guards (mqtt.c:301,318,352,397) and the `err:` labels (mqtt.c:365,408) are dead code, i.e. the partial-decode leak path cannot happen. No bounds parameter exists, which is why the *callers* are the findings (notes 5243eb/1cc769/1076b3). unpack_integer/unpackiXX read fixed widths with no bounds (1/2/4/8 bytes) — safe only relative to the 512KB rbuf, see D8.",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:18 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/server.c process_message + handle_command",
+      "risk_area": "Dispatch of partially decoded packets / error handling",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED BY TRACE: server.c:865 discards mqtt_unpack's return value and server.c:867 dispatches regardless, so handlers act on partially decoded packets (safe only because io.data is zero-initialised at server.c:860). Enables/amplifies the decoder findings and means error returns cannot be relied on for a fix (note 392a40... see note 5243eb family; D9 note id in 'Decoder audit' methodology note). No independent memory-safety consequence found here.",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:24 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/server.c recv_packet (WAITING_HEADER/WAITING_LENGTH/WAITING_DATA) + read_data + mqtt_decode_length call site",
+      "risk_area": "Framing/arithmetic — remaining-length decoding, buffer bookkeeping, OOB read/write",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED BY TRACE, two defects: (1) mqtt_decode_length (mqtt.c:136-153) has no MAX_LEN_BYTES cap even though the constant exists at mqtt.c:59 (used only by the encoder) — it is handed rbuf+1 after only 4 bytes were recv'd (server.c:530/545), so continuation bytes at rbuf[4..] (stale previous-packet bytes; rbuf is never scrubbed) drive it past the 512KB allocation (note 3c15c0). (2) server.c:551 validates pktlen but server.c:562 sets toread = pktlen+pos+1 and server.c:575 recv's toread-read bytes into rbuf+read, so pktlen == max_request_size overflows rbuf by pos bytes (4 with the default 512KB config, note e49831). Opcode gate bypass (R1) and pktlen 64->32 truncation (R2) were examined and ruled out in note fb95db.",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:31 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c mqtt_packet_alloc + mqtt_packet_destroy (per-opcode free paths)",
+      "risk_area": "Decoded-pointer lifetime / ownership",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "CONFIRMED BY TRACE (note fb95db R6): mqtt_packet_alloc (mqtt.c:685-692) is never used on the decode path (io.data is a stack value), mqtt_packet_destroy is called once per decoded non-PUBLISH packet from server.c:880/895 — the single exception is UNSUBSCRIBE which also destroys it itself at handlers.c:676 (double free, tracked as note 96c97e). mqtt_unsubscribe/mqtt_subscribe are prefix-compatible so the shared destroy branch is layout-safe, and PUBLISH ownership is deliberately transferred to mqtt_packet_alloc'd copies via refcount (handlers.c:742-755).",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:31 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/handlers.c publish_handler + publish_message",
+      "risk_area": "Consumption of decoded topic/payload fields (VLA sizing, wbuf writes, retained store)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED BY TRACE. handlers.c:696-706: `char topic[p->topiclen+2]` VLA then `p->topic[p->topiclen-1]` -> index -1 when topiclen==0 (heap read inside the try_alloc size header, ASAN-invisible); handlers.c:746-749 stores a full serialized copy of the attacker PUBLISH as the retained message, which is the primitive for the wbuf overflow. Payload bytes / payloadlen reach pack_mqtt_publish (mqtt.c:520) via publish_message (handlers.c:227). See note 99b93f (D11) and 392a40-adjacent D10 note.",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:37 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/handlers.c subscribe_handler (rcs/topic VLAs, retained-message copy)",
+      "risk_area": "Consumption of decoded tuple fields (VLA sizing, index underflow, wbuf write)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED BY TRACE. handlers.c:545 `unsigned char rcs[s->tuples_len]` and handlers.c:557-569 `char topic[topic_len+2]` are attacker-sized VLAs (up to 64KB each, ~128KB of stack per handler call) and handlers.c:563/564 index topic[-1]/[-2] when topic_len is 0 or 1 (stack-buffer-underflow READ, 7-byte PoC `82 05 00 01 00 00 02`, note 392a40). handlers.c:615-619 copies each topic's retained message into c->wbuf + c->towrite with no boundary check, once per tuple including duplicates, giving a controlled heap overflow on the 512KB wbuf and a subsequent heap read-back through send_data (note 99b93f).",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:37 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/handlers.c puback/pubcomp handlers (i_msgs[pkt_id])",
+      "risk_area": "Consumption of decoded pkt_id — NULL pointer dereference",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Resolved and filed as vuln-0004. The precise defect (c->session NULL before CONNECT, and i_msgs[id].packet NULL for unallocated or already-acknowledged ids, both passed to DECREF before any check) was reproduced dynamically on both builds for ids 1 and 0xffff, with and without CONNECT, plus the duplicate-PUBACK case that needs no attacker intent; `inflight_msg_get()` now validates both conditions before the clear, and the legitimate QoS1/QoS2 ack paths were re-verified after rebuild.",
+      "recorded_by": "Dispatch Crash Reporter",
+      "recorded_at": "2026-11-17 09:42:44 UTC",
+      "updated_at": "2026-11-17 10:15:34 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/handlers.c unsubscribe_handler (destroy + REPLY return)",
+      "risk_area": "Decoded-object lifetime — double free",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED BY TRACE (note 96c97e): handlers.c:676 mqtt_packet_destroy(&e->data) followed by server.c:880 mqtt_packet_destroy(&io.data) frees the same decoded tuples array and every topic pointer twice; reachable pre-auth with `A2 05 00 01 00 01 41`. Expected ASAN double-free / glibc \"double free detected in tcache 2\" abort.",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:44 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/handlers.c connect_handler + set_connack + check_passwd",
+      "risk_area": "Consumption of decoded CONNECT fields (client id, credentials, LWT)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Reviewed handlers.c:345-495. The decoded ClientId is only consumed through bounds-limited calls once the overflow in the decoder (note 5243eb) has not already fired: snprintf(cc->client_id, MQTT_CLIENT_ID_LEN, \"%s\", ...) at :394 and generate_random_id's snprintf(dest, MQTT_CLIENT_ID_LEN-1, ...) at util.c:139. Auth path (allow_anonymous=false) looks up the NUL-terminated username via uthash and calls check_passwd -> crypt(passwd, salt) + STREQ with strlen(salt) (util.c:142-145): no attacker-controlled length reaches a copy. Will/LWT copies go through try_strdup (strlen-bounded). No independent memory-safety issue in this handler beyond D1 upstream and D12's missing connected-state guard.",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c pack_* functions, mqtt_pack dispatch, mqtt_size, mqtt_encode_length",
+      "risk_area": "Encode-side sizing and dispatch",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "ruled_out for the dispatch and size math (note fb95db R3): mqtt_pack (mqtt.c:529-535) only ever receives server-built packets (CONNACK_B, SUBACK_B, PUBLISH_B from mqtt_packet_publish/PUBLISH_B literals, PINGRESP_B, explicit mqtt_pack_mono bytes) — no decoded header byte reaches pack_handlers[], so the pack_handlers[13] array cannot be indexed out of range. mqtt_size (mqtt.c:640-674) arithmetic cannot wrap for the 512KB max_request_size (usize, additions only). The one real write hazard in this family is the caller-side wbuf accumulation, tracked separately (handlers.c publish_message / subscribe_handler).",
+      "recorded_by": "Decoder Static Auditor",
+      "recorded_at": "2026-11-17 09:42:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/handlers.c handle_command dispatch table (handlers[15]) + src/server.c:512 opcode filter",
+      "risk_area": "Unhandled packet type dispatch / NULL function pointer call",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Resolved and filed as vuln-0003 (High, AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H). Reproduced dynamically on ASan+UBSan (`D0 00` -> SEGV pc=0x0 in process_message server.c:867, rax=0xd) and on the plain -O2 build (SIGSEGV) for all four NULL slots (types 2, 9, 11, 13), pre-auth and post-CONNECT, with `C0 00` answered `d0 00` as the negative control. Fix (handlers[] sized to MQTT_PACKET_TYPES with per-type comments, bounds+NULL guard in handle_command, opcode predicate in the server.c:512 gate) rebuilt and verified: all crash cases now survive, 12-payload bypass corpus survives, normal QoS1/QoS2 traffic and the smoke suite still pass.",
+      "recorded_by": "Dispatch Crash Reporter",
+      "recorded_at": "2026-11-17 09:43:04 UTC",
+      "updated_at": "2026-11-17 10:15:16 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/bst.c AVL rotate/insert used as the trie child index",
+      "risk_area": "Memory safety in topic-trie balancing (NULL deref, broken invariant)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: bst_rotate_left (bst.c:61-73) reads x->left and then y->right with no NULL check; called from bst.c:139-140 for right-heavy nodes. Three publishes/subscription tuples with ascending first chars (a/x, b/x, c/x) reach NULL deref. Not yet filed; needs dynamic PoC.",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:04 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "CONNECT handler session table (handlers.c:382-430) + server.sessions uthash",
+      "risk_area": "ClientId session takeover / use-after-free on session refcount",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: session reuse branch (handlers.c:400-405) takes no INCREF, only the create branch does (handlers.c:417-419); two clients sharing one ClientId leave refcount 1, and the clean_session=1 client's disconnect DECREFs to 0 and frees the session still pointed at by the other live client (server.c:438). Needs dynamic heap/UAF confirmation.",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:12 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/server.c client_deactivate / client_init lifecycle",
+      "risk_area": "Resource leak and lock-state handling on disconnect",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: all teardown is inside if (client->clean_session == true) (server.c:430-443), so a clean_session=false disconnect leaks the struct client plus rbuf/wbuf (2x max_request_size; 100MB with shipped conf) and leaves it in clients_map; max_memory is never enforced (only parsed/printed) and try_alloc exit()s on OOM. Also server.c:415-419 returns with client->mutex held and 442 frees the pool block before the unlock/destroy at 450-451.",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:12 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "in-flight QoS bookkeeping: handlers.c puback/pubrec/pubcomp/pubrel + server.c inflight_msg_check",
+      "risk_area": "Packet-id validation, refcount deref, unbounded retransmit writes",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: inflight_msg_clear on an unused id DECREFs a NULL packet (handlers.c:793, 848 -> ref.h:50-54 writes through NULL); --inflights wraps u16 to 65535 permanently enabling has_inflight; inflight_msg_check re-packs every unacked msg each second into c->wbuf with no bound (server.c:326-359) and its ACK branch packs the stale/NULL p (server.c:354).",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:19 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "per-client write buffer (wbuf/towrite) across handlers.c publish+subscribe and server.c set_connack/inflight",
+      "risk_area": "Unbounded write into fixed-size heap buffer (heap overflow)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: no site compares towrite against conf->max_request_size; sinks are handlers.c:227, handlers.c:615-619 (retained memcpy), server.c:132-143 (session-resume flush, carries a TODO admitting the missing check), server.c:338/354. Deterministic trigger: two retained messages of S bytes + one SUBSCRIBE with both tuples, 2S+6 > wbuf.",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:19 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "pre-CONNECT packet processing (server.c:858-898 process_message) and CONNECT credential check (handlers.c:366-374, util.c:142)",
+      "risk_area": "Authentication/authorization bypass",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: process_message dispatches every opcode with no connected/auth gate, so with allow_anonymous=false a socket that never sends CONNECT can PUBLISH (handlers.c:681-783 never touches c->session) and set retained messages; bad_auth (handlers.c:482-487) leaves the socket open for unlimited retries. CONNECT itself has no omission bypass (both username and password flags required).",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:25 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/topic.c + src/trie.c + src/topic_store.c subscription/topic store (insert, remove, wildcard fan-out)",
+      "risk_area": "Subscription lifecycle and wildcard matching correctness",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: wildcard fan-out guard is inverted (handlers.c:719 iterates only when the list is empty) so '+' filters never deliver and '#' only sees topics existing at subscribe time; UNSUBSCRIBE looks up the unnormalized name (handlers.c:658-663) while subscribe/publish append '/' (handlers.c:567-570, 703-706) so unsubscribing is a no-op; retained_msg replaced without free (handlers.c:747); topic_add_subscriber leaks on duplicate (topic.c:92-96).",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:25 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "remove-while-iterating in list.c/list.h, subscriber.c, iterator.c and client_deactivate's subscription teardown",
+      "risk_area": "Iterator invalidation / dangling pointers during container mutation",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control: every teardown path mutates a different container than the one being iterated. client_deactivate and read_callback iterate session->subscriptions with list_foreach (list.h:84-86) and call topic_del_subscriber, which operates on t->subscribers (uthash) in topic.c:107-115; the list nodes themselves are untouched, and list_remove (list.h:93-112, the only mutating iteration) is used solely for store->wildcards outside any foreach. publish_message's HASH_ITER over t->subscribers (handlers.c:136-243) only adds to s->outgoing_msgs, never deletes subscriber entries. No topic is destroyed at runtime (topic_store_del/trie_delete have no callers), so no destructor runs under an iterator.",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:33 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/server.c publish_stats $SOL topic publisher (server.c:212-298)",
+      "risk_area": "Attacker-influenced data published to system topics / NULL topic deref",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control: all 11 $SOL topics are created before the listener starts (server.c:987-991), so topic_store_get cannot return NULL into publish_message at server.c:249-297, and every payload is an snprintf of an atomic counter or memory_used() - no client-supplied string, topic or identifier reaches the stats publisher. (The reverse direction - clients publishing to $SOL - is a separate, recorded issue.)",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:33 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/config.c parsing (string values, numeric sizes, password_file, allow_anonymous, tls_protocols, defaults)",
+      "risk_area": "Config-value overflow / misparse and insecure defaults",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control for attacker reachability: every value passed to add_config_value comes from config_load reading an operator-owned file (-c argument or DEFAULT_CONF_PATH) or from sol.c getopt; no network input reaches this parser, so the strcpy overflow into config.port/hostname (config.c:219-253), the unbounded ':'/'\\n' scan in config_read_passwd_file (config.c:457-462) and the unchecked size multipliers (config.c:64-111) are operator-triggered only. The insecure *defaults* (allow_anonymous true at config.c:368, 50MB max_request_size and TLS 1.0/1.1 in conf/sol.conf) are recorded separately as posture issues.",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:40 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "$SOL system topics as a publish target (publish_handler topic handling)",
+      "risk_area": "Integrity of broker telemetry topics",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: publish_handler applies no namespace restriction, so any client (even pre-CONNECT) can publish or retain to $SOL/broker/... and poison what other clients read as broker statistics. Low-severity integrity issue; needs dynamic confirmation of the observable effect.",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:40 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/network.c TLS setup (SSL_CTX options, verify mode, handshake)",
+      "risk_area": "TLS protocol strength / client authentication",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: SSL_CTX_set_verify(SSL_VERIFY_NONE) at network.c:373 means client certs are never requested, so cafile is inert and mTLS cannot be used as an auth control; protocol gating is negative-option only (network.c:324-338) and the shipped conf enables tlsv1/tlsv1_1; ssl_accept (network.c:393-401) does a single SSL_accept on a non-blocking fd with no WANT_READ retry and returns the SSL* regardless of failure.",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:47 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/trie.c dead-code helpers trie_prefix_find / trie_prefix_count / trie_prefix_delete",
+      "risk_area": "Heap overflow and double free in prefix helpers",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "The helpers have no callers anywhere in src/ (verified by recursive grep: only their definitions and prototypes exist), so the 32-byte str with a first write at plen-1 (trie.c:303-346) and the free of a pointer that try_realloc may already have moved (trie.c:348) cannot be triggered. Dead code: delete or fix, no runtime exposure.",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:47 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "handlers.c match_subscription wildcard matcher",
+      "risk_area": "NULL pointer dereference during wildcard match",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Named control, with its own bug: match_subscription's only caller is the loop body at handlers.c:720-736, guarded by if (topic_store_wildcards_empty(server.store)) at handlers.c:719. The body therefore runs only when the wildcard list is empty, so no iteration ever reaches the ptopic=index(...); ptopic[0] NULL deref at handlers.c:290-295. Unreachable while the inverted guard exists (repairing the guard would make it reachable - see the recorded wildcard finding).",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:55 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "retained message store (struct topic.retained_msg, handlers.c:256-261 / 746-749 / 615-619)",
+      "risk_area": "Retained-message ownership, replacement and unbounded growth",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: each retained publish overwrites t->retained_msg without freeing the previous buffer (handlers.c:747) and the LWT path does the same (handlers.c:259-261); no cap on retained size or topic count; the buffer is replayed into a subscriber's fixed wbuf with only alloc_size as the length (handlers.c:615-619), which is the write-buffer overflow trigger. Owners: topic (freed only by topic_destroy, which never runs at runtime).",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:43:55 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "SUBSCRIBE/UNSUBSCRIBE/PLC topic string indexing (handlers.c:557-570, 696-706)",
+      "risk_area": "Out-of-bounds read on attacker-supplied topic length",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by trace: VLA char topic[tuple_len+2] with u16 tuple_len, then topic[tuple_len-1] and topic[tuple_len-2] (handlers.c:563-564,567) - for length 0/1 these are topic[-1]/topic[-2]; same class at handlers.c:703 (p->topic[p->topiclen-1] with topiclen 0). Reads only, used in comparisons, so impact is low but the access is out of bounds. Needs a 1-byte dynamic check (ASAN build).",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:44:02 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "repository secret scan (gitleaks dir + trufflehog filesystem) and opengrep/AST baselines",
+      "risk_area": "Hardcoded secrets and static-analysis triage baseline",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "gitleaks dir reported [] and trufflehog filesystem --no-verification produced 0 findings over the snapshot (passwd.py is an offline hash helper, no baked credentials). opengrep (245 c+generic rules) produced only generic hygiene hits (strcpy/strtok/memset) in config.c/network.c/sol.c/trie.c; none of the state-layer issues are covered by the bundled ruleset, so the manual trace above is the primary evidence. AST pass was run with tree-sitter (ast-grep in this image has no C grammar); artifacts in /workspace/.source-aware-state/.",
+      "recorded_by": "Broker State Auditor",
+      "recorded_at": "2026-11-17 09:44:02 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "sol broker local build + execution (build.sh / run.sh / mqttclient.py / test_smoke.py)",
+      "risk_area": "Dynamic testability (build & run harness, sanitizer instrumentation)",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Built out of tree (cmake 4.3.4 + gcc 16.2, -DCMAKE_POLICY_VERSION_MINIMUM=3.5 for the 2.8 policy floor): build-asan/sol (ASan+UBSan, zero warnings) and build-dev/sol (-O2 -g). Ran both on 127.0.0.1: anonymous and password-file modes start, accept MQTT CONNECT/SUBSCRIBE/PUBLISH, and shut down via SIGTERM in ~63 ms. test_smoke.py passes 9/9 on anon (asan) and on auth (correct creds -> CONNACK 0, wrong/missing -> 4). ASan/UBSan abort-on-error reports land in run/<name>/asan/report.<pid> with symbolized traces (verified end to end).",
+      "recorded_by": "Build Harness Engineer",
+      "recorded_at": "2026-11-17 09:47:44 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c unpack_mqtt_connect — CONNECT ClientId decode (mqtt.c:235-243)",
+      "risk_area": "Remote stack buffer overflow / pre-auth control-flow corruption",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Dynamically confirmed on ASan (stack-buffer-overflow WRITE of size 256, then 65535, at src/mqtt.c:240) and on the production-style -O3 build (SIGSEGV at `ret` in read_callback with rbp/return chain = 0x4141414141414141). Also reproduced with allow_anonymous=false (CONNACK 4 then death), so it precedes authentication. No control exists: the packet's declared length is unused and cid_len is never compared to the 64-byte array. Report to be filed by the reporting agent from note 0f8784.",
+      "recorded_by": "Decoder Arithmetic Validator",
+      "recorded_at": "2026-11-17 09:56:35 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c unpack_mqtt_publish — payloadlen arithmetic (mqtt.c:296-321)",
+      "risk_area": "Unsigned length underflow → wild memcpy / allocation-failure exit (DoS)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Dynamically confirmed: `30 05 00 04 41 41 41` → ASan negative-size-param (size=-1) in memcpy at src/pack.c:414 from mqtt.c:316; `30 05 00 FF 41 41 41` → ASan allocation-size-too-big at src/memory.c:48, and on the -O3 build the broker self-exits with \"[memory.c:51] Out of memory (18446744073709551365 bytes)\". Control packet `30 04 00 02 41 41` leaves the broker alive. No CONNECT required. Report to be filed by the reporting agent from note ce292d.",
+      "recorded_by": "Decoder Arithmetic Validator",
+      "recorded_at": "2026-11-17 09:56:35 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c unpack_mqtt_subscribe / unpack_mqtt_unsubscribe tuple loops (mqtt.c:342-358, 386-401)",
+      "risk_area": "Unsigned loop-counter underflow → infinite loop, unbounded allocation, heap OOB read, crash",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Dynamically confirmed for both SUBSCRIBE (`82 05 00 01 00 FF 41`) and UNSUBSCRIBE (`A2 05 00 01 00 FF 41`). Production-style build: SIGSEGV in unpack_integer (src/pack.c:388) from unpack_mqtt_subscribe mqtt.c:350 / unpack_mqtt_unsubscribe mqtt.c:395 with len=18446744073708498974 in the frame, process dead in ~0.1 s. ASan build: loop walks off rbuf — heap-buffer-overflow READ of size 1 at pack.c:91 (0.09 s at 4 KiB, 2.5 s at 64 KiB max_request_size); at the 1 MiB default it instead pins one thread at ~100% CPU and grows RSS 55MB→950MB in 0.5 s and did not honour SIGTERM. Report to be filed by the reporting agent from note 539088.",
+      "recorded_by": "Decoder Arithmetic Validator",
+      "recorded_at": "2026-11-17 09:56:42 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c mqtt_decode_length + src/server.c recv_packet framing (mqtt.c:138-155, server.c:540-575)",
+      "risk_area": "Unbounded varint length decoder → stale-buffer walk, OOB read, toread heap overflow, frame desync",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Dynamically confirmed: (1) `30 80 80 80` on a fresh buffer → pktlen=0, pos=4, toread=5 with read=4 → client wedged in WAITING_LENGTH, no crash; (2) `30 80 80 C0` + 1 MiB → pktlen == max_request_size passes the `>` check, toread = max+5 → ASan heap-buffer-overflow WRITE of size 4 in recv from recv_packet server.c:575, 0 bytes past the rbuf allocation; (3) primed 64 KiB rbuf → ASan heap-buffer-overflow READ of size 1 at src/mqtt.c:145 in mqtt_decode_length, i.e. the walk runs past the allocation; (4) pos=4000 from the stale walk → toread = 65536+4001 → ASan WRITE of size 69533, 0 bytes past the 65544-byte rbuf. The size check bounds pktlen but not toread, so overflow = pos+1 attacker bytes. Report to be filed by the reporting agent from note 83694a.",
+      "recorded_by": "Decoder Arithmetic Validator",
+      "recorded_at": "2026-11-17 09:56:42 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/handlers.c:615-619 retained-message replay in subscribe_handler (writes into c->wbuf)",
+      "risk_area": "Heap-buffer-overflow WRITE (unbounded write vs max_request_size allocation)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "ASan: \"WRITE of size 910 ... subscribe_handler /workspace/source/src/handlers.c:617\", region \"0 bytes after 1032-byte region\" allocated at client_init server.c:399 (/workspace/poc/evidence-heap/asan_wbuf_retained_1024.txt). Reproduced with max_request_size 1 MB (harness default, 400 retained msgs, asan_wbuf_retained_1mb.txt), 50 MB (shipped conf/sol.conf, asan_wbuf_retained_shipped.txt), and with the plain build (SIGSEGV, exit -11) while a single-tuple control stays alive. gdb confirms the copied bytes are the attacker's retained PUBLISH (topic \"a/2\" + 900-byte 0x41/HEAPSTRIKE41 payload) written 792 bytes past the buffer.",
+      "recorded_by": "Heap Corruption Validator",
+      "recorded_at": "2026-11-17 09:56:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/handlers.c:331-340 set_connack() outgoing_msgs flush on session resume (writes into c->wbuf)",
+      "risk_area": "Heap-buffer-overflow WRITE (unbounded write vs max_request_size allocation)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "ASan: \"WRITE of size 600 ... pack_mqtt_publish src/mqtt.c:520 <- mqtt_pack mqtt.c:534 <- set_connack handlers.c:336 <- connect_handler handlers.c:471\" (evidence-heap/asan_wbuf_resume.txt). Trigger requires the DISCONNECT-packet path (server.c:884) so subscriptions survive deactivation; a plain socket close removes them at server.c:823-830 and leaves the queue empty (verified no report). The TODO at handlers.c:334 admits the missing check.",
+      "recorded_by": "Heap Corruption Validator",
+      "recorded_at": "2026-11-17 09:56:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/server.c:326-356 inflight_msg_check() QoS1 retransmit (writes into c->wbuf)",
+      "risk_area": "Heap-buffer-overflow WRITE (unbounded write vs max_request_size allocation)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "ASan: \"WRITE of size 600 ... pack_mqtt_publish src/mqtt.c:520 <- inflight_msg_check /workspace/source/src/server.c:354\" (evidence-heap/asan_wbuf_inflight.txt). Trigger: connected QoS1 subscriber reads but never PUBACKs 6x600B messages; the 20s cron repacks all inflight packets in one pass. No client interaction needed beyond staying connected.",
+      "recorded_by": "Heap Corruption Validator",
+      "recorded_at": "2026-11-17 09:57:02 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/handlers.c:399-420 connect_handler session reuse without INCREF -> src/server.c:430-438 DECREF/free",
+      "risk_area": "Use-after-free of struct client_session (dangling session on second ClientId connection)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "ASan: \"heap-use-after-free ... READ of size 64 ... subscriber_new src/subscriber.c:45 <- topic_add_subscriber topic.c:92 <- subscribe_handler handlers.c:588\"; freed by \"session_free handlers.c:98 <- ref_dec ref.h:53 <- client_deactivate server.c:438\" (evidence-heap/asan_session_uaf.txt). Sequence A(clean=1,cid=v) -> B(clean=0,cid=v, CONNACK session_present=1) -> A close -> B SUBSCRIBE. Follow-on list_push(e->client->session->subscriptions, t) at handlers.c:593 targets lists already destroyed by session_free (handlers.c:89-90).",
+      "recorded_by": "Heap Corruption Validator",
+      "recorded_at": "2026-11-17 09:57:02 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Reuse of the freed client_session chunk with attacker-controlled PUBLISH payload (session UAF exploitation)",
+      "risk_area": "Controlled reallocation of freed session memory (UAF -> attacker bytes)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Size classes match (sizeof(client_session)=320, try_alloc header 8 -> 328-byte malloc request; a retained PUBLISH packed to 320 bytes issues the same 328-byte request), but /workspace/poc/poc_session_reuse.sh (gdb, non-ASan build) still shows the original \"victim\" bytes when subscriber_new copies session->session_id, i.e. the freed chunk was not reclaimed. The free and the later allocation land on different event-loop threads (THREADSNR 2 + main loop all epoll one listener), so the chunk stays in another thread's tcache; ASan quarantine blocks the experiment there. Not demonstrated; would need thread placement control or tcache-draining grooming.",
+      "recorded_by": "Heap Corruption Validator",
+      "recorded_at": "2026-11-17 09:57:08 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "sol fixed-header dispatch: src/handlers.c handlers[15] + handle_command (types 0-14) and src/mqtt.c unpack_handlers[11]",
+      "risk_area": "Pre-auth crash / NULL function-pointer call on unhandled packet types",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Resolved and filed as vuln-0003. Same root cause as ec5ecd: handlers[] NULL holes plus unpack_handlers[11] being too small for UNSUBACK (11). Dynamic evidence recorded: ASan SEGV pc=0x0 at server.c:867 for `D0 00`; UBSan \"index 11 out of bounds for type 'mqtt_unpack_handler *[11]'\" at mqtt.c:434 for `B0 00`; SEGV at server.c:865 for `90 00 00 00`/`20 00 00 00`; dev build SIGSEGV for all four; `C0 00` control answered. Fix verified by rebuild (both variants), crash cases and a 12-payload bypass corpus now survive, legitimate traffic unaffected.",
+      "recorded_by": "Dispatch Crash Reporter",
+      "recorded_at": "2026-11-17 09:58:38 UTC",
+      "updated_at": "2026-11-17 10:15:16 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Pre-CONNECT PUBLISH against allow_anonymous=false broker (src/server.c process_message -> handlers.c publish_handler)",
+      "risk_area": "Authentication bypass / unauthorized publish and retained-message injection",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED, report not filed here. No connected/authenticated gate in process_message or publish_handler. Anonymous socket PUBLISH (0x31 retain=1) accepted with no error; QoS1 publish answered `40 07 07` (PUBACK); retained payload from the anonymous socket delivered to an authenticated subscriber (`31 00 0b ... | 90 00 01 00`); anonymous retain overwrote TRUSTED-ORIGINAL with FORGED-BY-ANON for both the live subscriber and later subscribers. Control: same publish after valid CONNECT behaves identically. PoC /workspace/poc/poc_preauth_publish.py, evidence /workspace/poc/evidence/02_preauth_authz.txt.",
+      "recorded_by": "Preauth Logic Validator",
+      "recorded_at": "2026-11-17 09:58:38 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Pre-CONNECT SUBSCRIBE (src/handlers.c subscribe_handler, line 589 topic_add_subscriber)",
+      "risk_area": "Pre-auth NULL dereference DoS (unauthenticated SUBSCRIBE)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED, report not filed here. subscribe_handler has no connected check; topic_add_subscriber -> subscriber_new (src/subscriber.c:45) memcpy's from the NULL client->session. Pre-CONNECT `82 10 00 01 00 0b plv/preauth 00` gives PEER-CLOSED and UBsan \"member access within null pointer of type 'struct client_session'\" (subscriber.c:45 -> topic.c:92 -> handlers.c:588); dev build SIGSEGV, also in the default allow_anonymous=true config. PoC /workspace/poc/poc_preauth_publish.py unauth-subscribe, evidence /workspace/poc/evidence/02_preauth_authz.txt.",
+      "recorded_by": "Preauth Logic Validator",
+      "recorded_at": "2026-11-17 09:58:44 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "PUBACK/PUBCOMP handlers (src/handlers.c:793 and :848 -> inflight_msg_clear / ref_dec in src/ref.h:50-54)",
+      "risk_area": "Pre-auth crash via NULL packet DECREF",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Resolved and filed as vuln-0004 (High, AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H). Reproduced on ASan+UBSan (UBSan \"member access within null pointer of type 'struct mqtt_packet'\" at handlers.c:793 for PUBACK and handlers.c:848 for PUBCOMP; \"struct client_session\" when no CONNECT was sent) and on the -O2 build (SIGSEGV) for ids 1 and 0xffff, with and without CONNECT. Negative control: the same 4 bytes for an ALLOCATED mid are harmless and PINGREQ is still answered; a duplicate PUBACK after a legal ack also kills the unpatched broker (t=+0.3s poll=-11). Fix: inflight_msg_get() validates session + slot liveness under the client mutex before any DECREF, and `inflights` is only decremented on the live path. Rebuild verified: all crash cases survive with no sanitizer report, QoS1 and full QoS2 ack flows still complete, smoke suite 7/7.",
+      "recorded_by": "Dispatch Crash Reporter",
+      "recorded_at": "2026-11-17 09:58:44 UTC",
+      "updated_at": "2026-11-17 10:15:24 UTC",
+      "previous_outcomes": [
+        "needs_follow_up"
+      ],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Session teardown for clean_session=false clients (src/server.c client_deactivate, lines 411-451)",
+      "risk_area": "Unbounded memory growth / remote resource-exhaustion DoS",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "CONFIRMED, report not filed here. client_deactivate (server.c:430-443) frees the client/session only when clean_session==true. Measured on the dev build (max_request_size 1MB): 40 cycles clean_session=1 plateau at +6156 KiB total (0 KiB/cycle from cycle ~15); 40 cycles clean_session=0 with unique ClientId grow +155664 KiB = 3891.6 KiB/connection, linear (VmRSS 54 MB -> 210 MB). Decomposition: same ClientId + DISCONNECT = 2048-2253 KiB/cycle (the two max_request_size buffers), so the per-session tables (i_acks 512 KiB + i_msgs ~1.5 MiB) add ~1.6 MiB. Under RLIMIT_AS=700MB the broker exits after 127 connections: \"memory.c:51 Out of memory (1048576 bytes)\", status 1. PoC /workspace/poc/poc_session_leak.py, evidence /workspace/poc/evidence/04_session_leak.txt.",
+      "recorded_by": "Preauth Logic Validator",
+      "recorded_at": "2026-11-17 09:58:51 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "client_session.inflights counter (src/sol_internal.h:231, handlers.c:796/850)",
+      "risk_area": "u16 counter underflow permanently satisfying has_inflight()",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "No separate defect. Both decrement sites (handlers.c:796, :850) are preceded by inflight_msg_clear; a NULL i_msgs[id].packet crashes the handler before the decrement (proven), and a non-NULL one is only written by publish_message (handlers.c:204/218) which increments inflights next to inflight_msg_init, so the counter is >=1. Reusing an in-flight mid needs next_free_mid (handlers.c:118-121) to wrap at 65536. No reachable sequence found; the counter stayed consistent across a real QoS1 publish/ack round trip (broker healthy afterwards). Latent hardening gap at most.",
+      "recorded_by": "Preauth Logic Validator",
+      "recorded_at": "2026-11-17 09:58:51 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "CONNECT authentication failure path (bad_auth, src/handlers.c:483-487) with allow_anonymous=false",
+      "risk_area": "Credential brute force / no rate limiting or lockout",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Measured: 4 wrong-password CONNECTs on one socket each answered `20 00 04` with the socket kept open, then a retained PUBLISH from that never-authenticated socket was accepted and delivered to an authenticated subscriber, then a correct-password CONNECT on the same socket was accepted (`20 00 00`). No delay, lockout, connection close, or attempt counter exists in the bad_auth path (handlers.c:482-487) — only the cost of one SHA-512-crypt verification per attempt limits throughput. Supporting weakness for the auth-bypass finding; low severity on its own. Evidence /workspace/poc/evidence/02_preauth_authz.txt.",
+      "recorded_by": "Preauth Logic Validator",
+      "recorded_at": "2026-11-17 09:58:58 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Operator config max_memory (src/config.c:228, src/server.c:236)",
+      "risk_area": "Configured resource limit not enforced",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed by source and by measurement: max_memory is parsed (config.c:228-229) and only read back for the $SOL stats payload (server.c:236 memory_used()); no allocation path consults it. A broker configured with max_memory 8MB kept running at 87 MB VmRSS after 10 clean_session=0 connections (10x over the cap) and only died when RLIMIT_AS made malloc fail (memory.c:51 exit). Recorded as a supporting fact for the memory-exhaustion finding, not as an independent vulnerability.",
+      "recorded_by": "Preauth Logic Validator",
+      "recorded_at": "2026-11-17 09:58:58 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "PINGREQ handling (src/handlers.c:857-875) pre-CONNECT",
+      "risk_area": "Unhandled packet / crash on a well-formed control packet",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Negative control for the dispatch crash: `C0 00` sent pre-CONNECT is decoded and answered `D0 00` (PINGRESP) and the broker stays alive/serving (state=S); also confirmed after every crash-free test run. No defect on this path.",
+      "recorded_by": "Preauth Logic Validator",
+      "recorded_at": "2026-11-17 09:59:05 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Legitimate PUBACK for an allocated packet id (QoS1 delivery path)",
+      "risk_area": "QoS1 in-flight message acknowledgement",
+      "outcome": "no_issue_found",
+      "outcome_label": "No issue identified",
+      "evidence": "Negative control for the PUBACK crash: a real QoS1 round trip (SUBSCRIBE qos1 -> PUBLISH qos1 from a second client -> mid 1 delivered -> PUBACK for mid 1) is handled correctly, no reply expected, PINGREQ afterwards answered `D0`, broker ALIVE. Proves the crash is the missing validity check, not a broken broker.",
+      "recorded_by": "Preauth Logic Validator",
+      "recorded_at": "2026-11-17 09:59:05 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "CONNECT credential check (src/handlers.c connect_handler + src/util.c check_passwd)",
+      "risk_area": "Authentication bypass (flag/emptiness/prefix/case/length/NUL/hash-as-password)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Control pair observed: alice/secret123 -> CONNACK 20 02 00 00 then SUBACK 90 03 00 07 00 + PUBACK; alice/wrongpass -> 20 02 00 04. Ten bypass variants all rc=4: password flag clear, zero-length password, password flag without bytes, empty username, hash-as-password, unknown user, alic/alice2/Alice/ALICE/\"alice \", 60KB username and 60KB password (no ASan report). Control that blocks them: both-flag gate `if (c->bits.username==0 || c->bits.password==0) goto bad_auth` plus exact uthash HASH_FIND_STR lookup (memcmp, not prefix/case tolerant) plus crypt comparison, and it runs before cc->connected=true on every path.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:09:26 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "check_passwd() empty stored hash / strncasecmp hash comparison (src/util.c:142)",
+      "risk_area": "Fail-open credential comparison",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed: with a password_file entry `emptyuser:` (empty hash field) any password is accepted - arbitrary, empty and 60-char passwords all returned CONNACK rc=0 while the control user alice still returned rc=4. Cause: strlen(salt)==0 makes strncasecmp(...,0)==0. Confirmed but NOT filed as a report (task instruction); parent should decide reporting. Severity: low - requires an operator-written password file with an empty hash field.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:09:26 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Repeated CONNECT on a single socket after rc=4 (server.c process_message re-arm path)",
+      "risk_area": "Credential brute force / missing rate limiting",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed: after rc=4 the broker neither closes the socket nor slows down. 2157 CONNECT attempts with wrong passwords on ONE TCP socket in 5.00s = 431.2 attempts/s (all rc=4), and a correct password on that same socket afterwards still returned rc=0. No lockout, backoff or disconnect exists (handlers.c returns MQTT_BAD_USERNAME_OR_PASSWORD and server.c just enqueues the CONNACK and re-arms EV_READ). Not filed as a report per task instruction; parent should decide (medium: offline-dictionary-speed online guessing per connection, scales with connection count).",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:09:33 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "allow_anonymous=false with no/missing/empty/unreadable password_file (src/server.c:982)",
+      "risk_area": "Auth fail-open on missing/unreadable credential store",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Four configs with allow_anonymous=false were started and probed with no credentials / any user+pass / the valid alice credential: no password_file line, password_file to a nonexistent path, empty file, and chmod 000 file. Every attempt returned CONNACK rc=4 in all four cases (fail closed). server.c logs \"Failed to read passwd file\" and continues with an empty auth table, so the only consequence is total lockout rather than open access. Control: the same probe with a valid password_file returned rc=0 for alice/secret123.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:09:33 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Username lookup timing in connect_handler (known vs unknown user)",
+      "risk_area": "Username enumeration via response-time oracle",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed oracle: 150 CONNECTs per case. Known username 'alice' mean 2.39 ms / median 2.19 ms / p95 3.62 ms; unknown username mean 0.14 ms / median 0.09 ms / p95 0.20 ms - 17x with no overlap, because `if (!auth || !check_passwd(...))` only runs crypt() when the username exists. Confirmed but not filed per task instruction; feeds the brute-force item (attacker learns valid usernames, then guesses at 431/s per socket).",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:09:41 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "check_passwd()/crypt(3) under concurrent authentication (src/util.c:142, 3 event-loop threads)",
+      "risk_area": "Data race in credential verification (wrong accept/reject)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed false rejects, no false accepts. Library level: libcrypt 4.5.2 crypt() called from 3 threads with one salt produced 3340 wrong results out of 3352 calls (0/900 wrong serially). Broker level: serial control 60/60 good accepted and 60/60 bad rejected; with 4 concurrent clients 2063/2140 correct-password attempts got CONNACK rc=4 and 0/2138 wrong-password attempts were accepted; second run (8 workers, 90 s) 21558/22508 legit rejected, 0/22883 wrong-password accepts. Root cause: sol calls non-reentrant crypt() from 3 event loops with no lock (util.c:142-145, handlers.c). Impact is authentication DoS / lockout of a known account, not bypass. Not filed per task instruction.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:09:41 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "TLS data path ssl_recv_bytes() (src/network.c:438-455)",
+      "risk_area": "Pre-authentication denial of service (busy loop)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed pre-auth CPU exhaustion, no credentials needed: one TLS connection that sends a 3-byte truncated record (`16 03 01`) and stays silent pins a worker thread in ssl_recv_bytes()'s `continue` on SSL_ERROR_WANT_READ. LD_PRELOAD counter on SSL_read shows ~800,000 calls/second (777451, 865766, 869275, 847659, 800826, 789077, 719399, 898729). One connection = 74-86% of a core; 3 connections (one per event loop, THREADSNR=2+main) = ~200% CPU with per-thread ticks 857/790/969, and a legitimate TLS client then cannot complete a handshake (8 s timeout). Not filed per task instruction; this is the highest-impact item found (A:H, AV:N, PR:N).",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:09:48 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "tls_protocols policy (src/config.c:191-265, conf/sol.conf) and protocol negotiation",
+      "risk_area": "Weak TLS protocol versions enabled by shipped configuration",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Observed with openssl s_client against a broker using the shipped protocol list: TLSv1 ACCEPTED (ECDHE-RSA-AES256-SHA), TLSv1.1 ACCEPTED, TLSv1.2 and TLSv1.3 ACCEPTED; TLSv1.0 succeeded even at s_client's default security level, so the server really offers it. `tls_protocols tlsv1_2` correctly rejected 1.0/1.1/1.3. Default when the directive is omitted is TLSv1.2 only (TLSv1.3 rejected because `#ifdef TLS1_3_VERSION` is false while compiling config.h). Weak/insecure default rather than an exploitable flaw; not filed per task instruction.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:09:48 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "TLS peer verification (SSL_VERIFY_NONE, network.c:362-391)",
+      "risk_area": "Mutual TLS / client certificate verification bypass",
+      "outcome": "not_applicable",
+      "outcome_label": "Not applicable",
+      "evidence": "SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, ...) at network.c:373 means no CertificateRequest is ever sent: s_client reports \"No client certificate CA names sent\" and the handshake succeeds identically with no client cert and with a rogue self-signed client cert (Verify return code 0 in both). cafile is loaded via SSL_CTX_load_verify_locations but is never used to authenticate a peer. The risk \"defeat client-certificate authentication\" therefore cannot apply - there is no such control to defeat; recorded as a posture gap for operators who set cafile expecting mTLS.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:09:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "max_request_size buffer allocation per client (src/server.c:client_init, shipped conf 50MB)",
+      "risk_area": "Memory exhaustion denial of service (per-connection buffer cost)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed: try_calloc is malloc+memset so both per-client buffers are resident immediately. With `max_request_size 50MB` 20 idle TCP connections (no bytes, no credentials) took RSS from 76 MB to 2145 MB = ~107 MB/connection, retained after all closed; with 1MB the same test is ~2 MB/connection. max_memory is never enforced and try_alloc exits on failure (memory.c:49-53): under an 800 MB address-space cap the broker died at the 8th connection, \"Out of memory (52428800 bytes)\", exit status 1. Not filed per task instruction; availability impact for the shipped 50MB config.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:09:56 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Rejected CONNECT followed by SUBSCRIBE on the same socket (handlers.c:588 subscriber_new)",
+      "risk_area": "Processing of MQTT commands by an unauthenticated peer (crash)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed with the ASan build: CONNECT with a wrong password returns CONNACK rc=4, then the same socket can send SUBSCRIBE and the broker dispatches it - subscriber_new (src/subscriber.c:45) dereferences a NULL client_session (\"runtime error: member access within null pointer of type 'struct client_session'\") and the broker aborts. Two small packets, no credentials, pre-auth denial of service. This sits on the boundary with the pre-CONNECT/dispatch area another agent owns, so it is recorded here for the parent to route/dedupe rather than filed.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:10:02 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Shipped conf/sol.conf security posture",
+      "risk_area": "Insecure shipped defaults (no auth, legacy TLS, oversized buffers)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed posture, three parts: (1) allow_anonymous is commented out in conf/sol.conf and the compiled default is true, so the shipped deployment is unauthenticated; (2) the shipped tls_protocols value enables TLS 1.0 and 1.1 (verified accepted) alongside 1.2/1.3; (3) max_request_size 50MB costs ~107 MB RSS per idle connection and exhaustion kills the process. The broker also refuses to start as shipped because certs/ca.crt is absent (fail-closed, exit 1), so the TLS defaults only apply once an operator supplies certificates. Recorded as an insecure-default observation, not an exploitable flaw.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:10:02 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "Embedded NUL bytes in CONNECT username/password (unpack_string16, mqtt.c:251-257)",
+      "risk_area": "Credential string confusion (embedded NUL)",
+      "outcome": "needs_follow_up",
+      "outcome_label": "Requires further review",
+      "evidence": "Confirmed: username `alice\\0junk` with the correct password returned rc=0 (C-string truncation in the uthash lookup), and passwords `secret123\\0junk` / `secret123\\0` also returned rc=0 (crypt stops at NUL). MQTT 3.1.1 requires UTF-8 strings without U+0000, which sol never validates. Low on its own - the same credential is reached by a shorter string - but it is a second credential representation that any auditing/provisioning component would treat differently.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:10:12 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "TLS handshake at accept time (conn_tls_accept / ssl_accept, network.c:393-401,500-510)",
+      "risk_area": "Blocking handshake / slowloris on the accept path",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "Candidate was \"a blocking SSL_accept in the accept path stalls the listener\". Disproved: accept_conn() sets the client socket non-blocking (network.c:211) and ssl_accept() is attempted once, so an idle TLS connection that sends nothing consumes 0 CPU ticks over 2 s and any subsequent byte causes SSL_read to fail hard and the connection to be closed (\"Closing connection ... : Success\"). A legitimate TLS client was still served (CONNACK 20 02 00 00 in 0.01 s) while an idle socket was held. The real spin needs a byte to arrive first, which is covered by the ssl_recv_bytes entry.",
+      "recorded_by": "Auth and TLS Validator",
+      "recorded_at": "2026-11-17 10:10:12 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "MQTT session lifecycle on ClientId reuse (connect_handler session lookup and client_deactivate teardown)",
+      "risk_area": "Use-after-free / session object lifetime (pre-auth)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Confirmed dynamically: A CONNECT cid victim clean=1, B CONNECT same cid clean=0 (CONNACK 0100 session_present=1), close A, B SUBSCRIBE -> ASan heap-use-after-free READ of size 64 in subscriber_new at src/subscriber.c:45, freed by session_free via ref_dec via client_deactivate (server.c:438). gdb proves the follow-on write: list_push at handlers.c:593 receives l == the list session_free already destroyed (identity check 1). Production build does not crash (silent corruption); reclamation with attacker bytes attempted and not achieved because the connections run on different event-loop threads. Filed as vuln-0002 with the reference-count fix, verified by PoC re-run on both builds plus an 8-check session lifecycle regression script.",
+      "recorded_by": "Heap State Reporter",
+      "recorded_at": "2026-11-17 10:13:48 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "MQTT per-client write buffer (c->wbuf) and all packet-append sites (handlers.c, server.c)",
+      "risk_area": "Heap out-of-bounds write / memory corruption (pre-auth)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Confirmed dynamically three times over: ASan heap-buffer-overflow WRITE of 910 bytes past the 1032-byte wbuf at src/handlers.c:617 (retained replay), 600 bytes at handlers.c:336 (session resume) and 600 bytes at server.c:354 (inflight retransmit); reproduced at 1 MB (WRITE 3010) and the shipped 50 MB (WRITE 1048587); plain -O3 build exits SIGSEGV (-11) while a one-tuple control survives; gdb proves the overflow bytes are the attacker payload at wbuf+908. Filed as vuln-0001 with inline fixes for all 14 append sites, verified by re-running every PoC plus duplicate-tuple and near-exact-fit bypass variants, smoke test 7/7 and unit tests 13/13 on a patched copy.",
+      "recorded_by": "Heap State Reporter",
+      "recorded_at": "2026-11-17 10:13:48 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "UNSUBSCRIBE decode + dispatch (mqtt.c:369-410 unpack_mqtt_unsubscribe, handlers.c:646-679, server.c:868-894)",
+      "risk_area": "Double free / use-after-free of the decoded packet (memory safety, pre-auth DoS)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Reproduced with a 7-byte pre-auth packet a2 05 00 01 00 01 41. ASan: heap-use-after-free READ of size 8 at mqtt.c:585 from process_message server.c:880, freed by mqtt_packet_destroy mqtt.c:586 <- unsubscribe_handler handlers.c:676 (exit -6). Plain build: glibc \"free(): double free detected in tcache 2\" -> SIGABRT. Control: same-shape SUBSCRIBE 82 06 00 01 00 01 41 00 after CONNECT survives (CONNACK + SUBACK), proving the extra destroy is in unsubscribe_handler. PoC /workspace/poc/poc_unsub_doublefree.py; note d5ff41.",
+      "recorded_by": "Decoder Secondary Validator",
+      "recorded_at": "2026-11-17 10:19:53 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "mqtt_unpack dispatch (mqtt.c:72-82 unpack_handlers[11], mqtt.c:422-437) with opcode 11 (UNSUBACK) admitted by server.c:512",
+      "risk_area": "Out-of-bounds dispatch-table index -> indirect call (pre-auth crash)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "2-byte pre-auth b0 00. ASan-only build: \"global-buffer-overflow ... READ of size 8\" at mqtt.c:434, \"0 bytes after global variable 'unpack_handlers' ... of size 88\". Harness ASan+UBSan build: \"index 11 out of bounds for type 'mqtt_unpack_handler *[11]'\" at mqtt.c:434 (halts, exit 1). Plain build: SIGSEGV; gdb shows RIP=0 called from process_message server.c:865 with &unpack_handlers[11] = (nil) -- the linker zero after the array. Control b0 02 00 01 (well-formed UNSUBACK) also kills it; c0 00 PINGREQ survives with d0 00. PoC /workspace/poc/poc_unpack_oob_call.py; note bc3c85.",
+      "recorded_by": "Decoder Secondary Validator",
+      "recorded_at": "2026-11-17 10:20:05 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "recv_packet framing (server.c:475-575 recv_data/toread vs rbuf allocation at server.c:393-394)",
+      "risk_area": "Heap buffer overflow by unchecked read length (toread vs rbuf size)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "max_request_size 4096 + a 3-byte length prefix encoding pktlen==4096 (30 80 a0 00 + 4096 bytes): ASan heap-buffer-overflow WRITE of size 4096 at network.c:273 (recv_bytes) <- server.c:575, \"0 bytes after 4104-byte region\" allocated by client_init server.c:394. gdb trace: recv writes [rbuf+4, rbuf+4100), unpack_bytes copies 4092 bytes from rbuf+8 through rbuf+4099, i.e. the decoder consumes the 4 out-of-bounds bytes. Plain build: glibc \"corrupted size vs. prev_size\" abort at shutdown. With max_request_size 2 the 4-byte prefix read itself overflows (ASan WRITE of size 2 at server.c:530). Control: pktlen 4092 with 3-byte prefix (toread==4096 exactly) -> no report, PUBLISH decoded (4088 payload). Overrun = pktlen + pos + 1 - max_request_size = pos+1 bytes, max 4 at pktlen==max_request_size. PoC /workspace/poc/poc_toread_overflow.py; note 00e375.",
+      "recorded_by": "Decoder Secondary Validator",
+      "recorded_at": "2026-11-17 10:20:16 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "SUBSCRIBE tuple decode + destroy (mqtt.c:324-361 loop counter usize vs u16 tuples_len; mqtt_packet_destroy mqtt.c:582-587)",
+      "risk_area": "Unbounded memory leak / memory-exhaustion DoS (integer truncation of tuple count)",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "196,618-byte SUBSCRIBE with 65,537 minimal tuples -> SUBACK 90 02 00 01 (tuples_len truncated to 1). LSAN at graceful exit: \"Direct leak of 589815 byte(s) in 65535 object(s)\" from unpack_bytes pack.c:413 <- unpack_string16 <- unpack_mqtt_subscribe mqtt.c:350 <- process_message server.c:865. Broker-reported $SOL/broker/memory/used grows monotonically +1,114,136 per packet (589,824 real + ~524,296 try_realloc counter drift) and RSS ~+2 MB per packet over 6 packets. The tuples_len==0 variant instead trips handlers.c:545 VLA-bound UBSan first, so 65,537 tuples is used. PoC /workspace/poc/poc_tuple_leak.py; note 013f6d.",
+      "recorded_by": "Decoder Secondary Validator",
+      "recorded_at": "2026-11-17 10:20:27 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "CONNECT ClientId overflow, control-flow variant (mqtt.c:235-243 memcpy into client_id[64] inside struct io_event, mqtt.c:568-598 mqtt_packet_destroy)",
+      "risk_area": "Control-flow hijack via overwritten function pointer in the decoded packet (refcount.free indirect call)",
+      "outcome": "ruled_out",
+      "outcome_label": "Ruled out",
+      "evidence": "gdb at connect_handler with cid_len=102 shows username/password/will_topic/will_message holding 0x41../0x42../0x43../0x44.. inside the 144-byte `io` frame. Control that rules the control-flow variant out: mqtt_packet_destroy's CONNECT branch frees only those four pointers and never touches refcount; each free is gated on a flag bit located before the copied region, and with those bits set unpack_mqtt_connect rewrites the pointers with fresh heap allocations (observed 0x7f9d.. values with flags=0xc6); no code path DECREFs a decoded packet (DECREF only on mqtt_packet_alloc copies, handlers.c:755, and i_msgs, handlers.c:93). Aiming refcount.free at 0xdeadbeefcafebabe (cid_len=110) then CONNECT/PINGREQ/PUBLISH/DISCONNECT/close left the broker alive. ASan-only build: silent for cid_len<=117 (overflow stays inside io), reports WRITE of size 1 at mqtt.c:241 for 118 and WRITE of size 130 at mqtt.c:240 for 130. No stack protector: no __stack_chk_fail/__stack_chk_guard and zero fs:0x28 loads in both harness binaries. PoC /workspace/poc/poc_cid_refcount.py; note fd300c.",
+      "recorded_by": "Decoder Secondary Validator",
+      "recorded_at": "2026-11-17 10:20:38 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/mqtt.c unpack_mqtt_subscribe / unpack_mqtt_unsubscribe tuple loops",
+      "risk_area": "Integer underflow, unbounded loop/allocation, out-of-bounds read, pre-auth DoS",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "Reproduced with 7 bytes (82 05 00 01 00 FF 41 / A2 05 00 01 00 FF 41): production-flags build SIGSEGV in 0.2-0.4 s in unpack_integer via unpack_string16 with len=18446744073707446302; ASan 4 KiB heap-buffer-overflow READ at pack.c:91; ASan 1 MiB RSS 52->965 MB in 0.5 s at ~95% CPU, SIGTERM ignored. Filed as vuln-0005 with inline fixes; patched build survives (flat RSS, no report, rejects packet) and the smoke/functional tests still pass.",
+      "recorded_by": "Decoder Framing Reporter",
+      "recorded_at": "2026-11-17 10:21:17 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    },
+    {
+      "surface": "src/server.c recv_packet framing and src/mqtt.c mqtt_decode_length",
+      "risk_area": "Out-of-bounds heap write via unbounded length-prefix decode and unchecked toread, pre-auth",
+      "outcome": "reported",
+      "outcome_label": "Finding reported",
+      "evidence": "gdb at server.c:575 on the uninstrumented build shows toread=69537 against a 65536-byte rbuf (4001 bytes past), and toread=1048581 against 1048576. ASan: WRITE of size 69533 at recv from server.c:575; READ of size 1 at mqtt.c:145 for the unbounded walk. Filed as vuln-0006 with inline fixes; patched build survives all six variant/config combinations with no sanitizer report, while 1/2/3-byte Remaining Length packets and a max-sized frame still work.",
+      "recorded_by": "Decoder Framing Reporter",
+      "recorded_at": "2026-11-17 10:21:17 UTC",
+      "updated_at": "",
+      "previous_outcomes": [],
+      "source": "agent_reported"
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/mqtt.c unpack_mqtt_connect (ClientId copy, will/username/password)",
+      "risk_area": "Decoder memory safety — attacker-controlled length driving memcpy",
+      "detail": "CONFIRMED BY TRACE, needs dynamic reproduction. mqtt.c:240 memcpy(client_id, buf, cid_len) with cid_len a raw u16 from the wire into u8 client_id[64] (mqtt.h:181) that lives in the stack-resident io.data (server.c:860). No bounds check anywhere; `len` param unused. PoC bytes recorded in note 5243eb (303-byte CONNECT, cid_len=0x0100). Nearest case: ASAN stack-buffer-overflow WRITE; production: stack smashing/control-flow overwrite. Highest-value candidate on target.</evidence>"
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/mqtt.c unpack_mqtt_publish (payloadlen arithmetic)",
+      "risk_area": "Decoder memory safety — unsigned underflow to allocation/memcpy size",
+      "detail": "CONFIRMED BY TRACE. mqtt.c:314 len -= (2 + topiclen) on usize with no check that 2+topiclen <= len; mqtt.c:316 unpack_bytes(&buf, len) -> pack.c:413 try_alloc(len+1) + pack.c:414 memcpy(dest,*buf,len). len == SIZE_MAX makes try_alloc(0) succeed and memcpy(SIZE_MAX) fault; other magnitudes make malloc fail -> exit(EXIT_FAILURE) (memory.c:49-53). 7-byte PoC `30 05 00 04 41 41 41` (and `30 05 00 FF 41 41 41` for the exit variant) in note 1cc769.</evidence>"
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/mqtt.c unpack_mqtt_subscribe (tuple loop)",
+      "risk_area": "Decoder memory safety — unsigned underflow / loop termination / unbounded allocation",
+      "detail": "CONFIRMED BY TRACE. mqtt.c:342-358: `for (; len > 0; ++i)` with `len -= sizeof(u16)` at :344 and `len -= topic_len` at :355 on a usize, both before any lower-bound test -> underflow to ~2^64 -> loop never terminates; each iteration reallocs the tuple array, allocates topic_len+1 bytes and copies from a monotonically advancing buf (unbounded OOB heap read). 7-byte PoC `82 05 00 01 00 FF 41` in note 1076b3. Also u16 tuples_len truncation leaks topics past 65536 (note bb1d02)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/mqtt.c unpack_mqtt_unsubscribe (tuple loop) + its destroy path",
+      "risk_area": "Decoder memory safety — underflow, infinite loop, double free",
+      "detail": "CONFIRMED BY TRACE, two distinct defects: (1) same `len -= 2` / `len -= topic_len` underflow as decode before the `len > 0` test (mqtt.c:386-401) -> infinite loop with unbounded OOB reads (note 1076b3, 7-byte PoC `A2 05 00 01 00 FF 41`); (2) double free — handlers.c:676 destroys e->data and server.c:880 destroys io.data again, so the decoded tuples array and each topic are freed twice (note 96c97e, 7-byte PoC `A2 05 00 01 00 01 41` -> glibc abort)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/server.c process_message + handle_command",
+      "risk_area": "Dispatch of partially decoded packets / error handling",
+      "detail": "CONFIRMED BY TRACE: server.c:865 discards mqtt_unpack's return value and server.c:867 dispatches regardless, so handlers act on partially decoded packets (safe only because io.data is zero-initialised at server.c:860). Enables/amplifies the decoder findings and means error returns cannot be relied on for a fix (note 392a40... see note 5243eb family; D9 note id in 'Decoder audit' methodology note). No independent memory-safety consequence found here."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/server.c recv_packet (WAITING_HEADER/WAITING_LENGTH/WAITING_DATA) + read_data + mqtt_decode_length call site",
+      "risk_area": "Framing/arithmetic — remaining-length decoding, buffer bookkeeping, OOB read/write",
+      "detail": "CONFIRMED BY TRACE, two defects: (1) mqtt_decode_length (mqtt.c:136-153) has no MAX_LEN_BYTES cap even though the constant exists at mqtt.c:59 (used only by the encoder) — it is handed rbuf+1 after only 4 bytes were recv'd (server.c:530/545), so continuation bytes at rbuf[4..] (stale previous-packet bytes; rbuf is never scrubbed) drive it past the 512KB allocation (note 3c15c0). (2) server.c:551 validates pktlen but server.c:562 sets toread = pktlen+pos+1 and server.c:575 recv's toread-read bytes into rbuf+read, so pktlen == max_request_size overflows rbuf by pos bytes (4 with the default 512KB config, note e49831). Opcode gate bypass (R1) and pktlen 64->32 truncation (R2) were examined and ruled out in note fb95db."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/handlers.c publish_handler + publish_message",
+      "risk_area": "Consumption of decoded topic/payload fields (VLA sizing, wbuf writes, retained store)",
+      "detail": "CONFIRMED BY TRACE. handlers.c:696-706: `char topic[p->topiclen+2]` VLA then `p->topic[p->topiclen-1]` -> index -1 when topiclen==0 (heap read inside the try_alloc size header, ASAN-invisible); handlers.c:746-749 stores a full serialized copy of the attacker PUBLISH as the retained message, which is the primitive for the wbuf overflow. Payload bytes / payloadlen reach pack_mqtt_publish (mqtt.c:520) via publish_message (handlers.c:227). See note 99b93f (D11) and 392a40-adjacent D10 note."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/handlers.c subscribe_handler (rcs/topic VLAs, retained-message copy)",
+      "risk_area": "Consumption of decoded tuple fields (VLA sizing, index underflow, wbuf write)",
+      "detail": "CONFIRMED BY TRACE. handlers.c:545 `unsigned char rcs[s->tuples_len]` and handlers.c:557-569 `char topic[topic_len+2]` are attacker-sized VLAs (up to 64KB each, ~128KB of stack per handler call) and handlers.c:563/564 index topic[-1]/[-2] when topic_len is 0 or 1 (stack-buffer-underflow READ, 7-byte PoC `82 05 00 01 00 00 02`, note 392a40). handlers.c:615-619 copies each topic's retained message into c->wbuf + c->towrite with no boundary check, once per tuple including duplicates, giving a controlled heap overflow on the 512KB wbuf and a subsequent heap read-back through send_data (note 99b93f)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/handlers.c unsubscribe_handler (destroy + REPLY return)",
+      "risk_area": "Decoded-object lifetime — double free",
+      "detail": "CONFIRMED BY TRACE (note 96c97e): handlers.c:676 mqtt_packet_destroy(&e->data) followed by server.c:880 mqtt_packet_destroy(&io.data) frees the same decoded tuples array and every topic pointer twice; reachable pre-auth with `A2 05 00 01 00 01 41`. Expected ASAN double-free / glibc \"double free detected in tcache 2\" abort."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/bst.c AVL rotate/insert used as the trie child index",
+      "risk_area": "Memory safety in topic-trie balancing (NULL deref, broken invariant)",
+      "detail": "Confirmed by trace: bst_rotate_left (bst.c:61-73) reads x->left and then y->right with no NULL check; called from bst.c:139-140 for right-heavy nodes. Three publishes/subscription tuples with ascending first chars (a/x, b/x, c/x) reach NULL deref. Not yet filed; needs dynamic PoC."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "CONNECT handler session table (handlers.c:382-430) + server.sessions uthash",
+      "risk_area": "ClientId session takeover / use-after-free on session refcount",
+      "detail": "Confirmed by trace: session reuse branch (handlers.c:400-405) takes no INCREF, only the create branch does (handlers.c:417-419); two clients sharing one ClientId leave refcount 1, and the clean_session=1 client's disconnect DECREFs to 0 and frees the session still pointed at by the other live client (server.c:438). Needs dynamic heap/UAF confirmation."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/server.c client_deactivate / client_init lifecycle",
+      "risk_area": "Resource leak and lock-state handling on disconnect",
+      "detail": "Confirmed by trace: all teardown is inside if (client->clean_session == true) (server.c:430-443), so a clean_session=false disconnect leaks the struct client plus rbuf/wbuf (2x max_request_size; 100MB with shipped conf) and leaves it in clients_map; max_memory is never enforced (only parsed/printed) and try_alloc exit()s on OOM. Also server.c:415-419 returns with client->mutex held and 442 frees the pool block before the unlock/destroy at 450-451."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "in-flight QoS bookkeeping: handlers.c puback/pubrec/pubcomp/pubrel + server.c inflight_msg_check",
+      "risk_area": "Packet-id validation, refcount deref, unbounded retransmit writes",
+      "detail": "Confirmed by trace: inflight_msg_clear on an unused id DECREFs a NULL packet (handlers.c:793, 848 -> ref.h:50-54 writes through NULL); --inflights wraps u16 to 65535 permanently enabling has_inflight; inflight_msg_check re-packs every unacked msg each second into c->wbuf with no bound (server.c:326-359) and its ACK branch packs the stale/NULL p (server.c:354)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "per-client write buffer (wbuf/towrite) across handlers.c publish+subscribe and server.c set_connack/inflight",
+      "risk_area": "Unbounded write into fixed-size heap buffer (heap overflow)",
+      "detail": "Confirmed by trace: no site compares towrite against conf->max_request_size; sinks are handlers.c:227, handlers.c:615-619 (retained memcpy), server.c:132-143 (session-resume flush, carries a TODO admitting the missing check), server.c:338/354. Deterministic trigger: two retained messages of S bytes + one SUBSCRIBE with both tuples, 2S+6 > wbuf."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "pre-CONNECT packet processing (server.c:858-898 process_message) and CONNECT credential check (handlers.c:366-374, util.c:142)",
+      "risk_area": "Authentication/authorization bypass",
+      "detail": "Confirmed by trace: process_message dispatches every opcode with no connected/auth gate, so with allow_anonymous=false a socket that never sends CONNECT can PUBLISH (handlers.c:681-783 never touches c->session) and set retained messages; bad_auth (handlers.c:482-487) leaves the socket open for unlimited retries. CONNECT itself has no omission bypass (both username and password flags required)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/topic.c + src/trie.c + src/topic_store.c subscription/topic store (insert, remove, wildcard fan-out)",
+      "risk_area": "Subscription lifecycle and wildcard matching correctness",
+      "detail": "Confirmed by trace: wildcard fan-out guard is inverted (handlers.c:719 iterates only when the list is empty) so '+' filters never deliver and '#' only sees topics existing at subscribe time; UNSUBSCRIBE looks up the unnormalized name (handlers.c:658-663) while subscribe/publish append '/' (handlers.c:567-570, 703-706) so unsubscribing is a no-op; retained_msg replaced without free (handlers.c:747); topic_add_subscriber leaks on duplicate (topic.c:92-96)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "$SOL system topics as a publish target (publish_handler topic handling)",
+      "risk_area": "Integrity of broker telemetry topics",
+      "detail": "Confirmed by trace: publish_handler applies no namespace restriction, so any client (even pre-CONNECT) can publish or retain to $SOL/broker/... and poison what other clients read as broker statistics. Low-severity integrity issue; needs dynamic confirmation of the observable effect."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "src/network.c TLS setup (SSL_CTX options, verify mode, handshake)",
+      "risk_area": "TLS protocol strength / client authentication",
+      "detail": "Confirmed by trace: SSL_CTX_set_verify(SSL_VERIFY_NONE) at network.c:373 means client certs are never requested, so cafile is inert and mTLS cannot be used as an auth control; protocol gating is negative-option only (network.c:324-338) and the shipped conf enables tlsv1/tlsv1_1; ssl_accept (network.c:393-401) does a single SSL_accept on a non-blocking fd with no WANT_READ retry and returns the SSL* regardless of failure."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "retained message store (struct topic.retained_msg, handlers.c:256-261 / 746-749 / 615-619)",
+      "risk_area": "Retained-message ownership, replacement and unbounded growth",
+      "detail": "Confirmed by trace: each retained publish overwrites t->retained_msg without freeing the previous buffer (handlers.c:747) and the LWT path does the same (handlers.c:259-261); no cap on retained size or topic count; the buffer is replayed into a subscriber's fixed wbuf with only alloc_size as the length (handlers.c:615-619), which is the write-buffer overflow trigger. Owners: topic (freed only by topic_destroy, which never runs at runtime)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "SUBSCRIBE/UNSUBSCRIBE/PLC topic string indexing (handlers.c:557-570, 696-706)",
+      "risk_area": "Out-of-bounds read on attacker-supplied topic length",
+      "detail": "Confirmed by trace: VLA char topic[tuple_len+2] with u16 tuple_len, then topic[tuple_len-1] and topic[tuple_len-2] (handlers.c:563-564,567) - for length 0/1 these are topic[-1]/topic[-2]; same class at handlers.c:703 (p->topic[p->topiclen-1] with topiclen 0). Reads only, used in comparisons, so impact is low but the access is out of bounds. Needs a 1-byte dynamic check (ASAN build)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Reuse of the freed client_session chunk with attacker-controlled PUBLISH payload (session UAF exploitation)",
+      "risk_area": "Controlled reallocation of freed session memory (UAF -> attacker bytes)",
+      "detail": "Size classes match (sizeof(client_session)=320, try_alloc header 8 -> 328-byte malloc request; a retained PUBLISH packed to 320 bytes issues the same 328-byte request), but /workspace/poc/poc_session_reuse.sh (gdb, non-ASan build) still shows the original \"victim\" bytes when subscriber_new copies session->session_id, i.e. the freed chunk was not reclaimed. The free and the later allocation land on different event-loop threads (THREADSNR 2 + main loop all epoll one listener), so the chunk stays in another thread's tcache; ASan quarantine blocks the experiment there. Not demonstrated; would need thread placement control or tcache-draining grooming."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Pre-CONNECT PUBLISH against allow_anonymous=false broker (src/server.c process_message -> handlers.c publish_handler)",
+      "risk_area": "Authentication bypass / unauthorized publish and retained-message injection",
+      "detail": "CONFIRMED, report not filed here. No connected/authenticated gate in process_message or publish_handler. Anonymous socket PUBLISH (0x31 retain=1) accepted with no error; QoS1 publish answered `40 07 07` (PUBACK); retained payload from the anonymous socket delivered to an authenticated subscriber (`31 00 0b ... | 90 00 01 00`); anonymous retain overwrote TRUSTED-ORIGINAL with FORGED-BY-ANON for both the live subscriber and later subscribers. Control: same publish after valid CONNECT behaves identically. PoC /workspace/poc/poc_preauth_publish.py, evidence /workspace/poc/evidence/02_preauth_authz.txt."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Pre-CONNECT SUBSCRIBE (src/handlers.c subscribe_handler, line 589 topic_add_subscriber)",
+      "risk_area": "Pre-auth NULL dereference DoS (unauthenticated SUBSCRIBE)",
+      "detail": "CONFIRMED, report not filed here. subscribe_handler has no connected check; topic_add_subscriber -> subscriber_new (src/subscriber.c:45) memcpy's from the NULL client->session. Pre-CONNECT `82 10 00 01 00 0b plv/preauth 00` gives PEER-CLOSED and UBsan \"member access within null pointer of type 'struct client_session'\" (subscriber.c:45 -> topic.c:92 -> handlers.c:588); dev build SIGSEGV, also in the default allow_anonymous=true config. PoC /workspace/poc/poc_preauth_publish.py unauth-subscribe, evidence /workspace/poc/evidence/02_preauth_authz.txt."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Session teardown for clean_session=false clients (src/server.c client_deactivate, lines 411-451)",
+      "risk_area": "Unbounded memory growth / remote resource-exhaustion DoS",
+      "detail": "CONFIRMED, report not filed here. client_deactivate (server.c:430-443) frees the client/session only when clean_session==true. Measured on the dev build (max_request_size 1MB): 40 cycles clean_session=1 plateau at +6156 KiB total (0 KiB/cycle from cycle ~15); 40 cycles clean_session=0 with unique ClientId grow +155664 KiB = 3891.6 KiB/connection, linear (VmRSS 54 MB -> 210 MB). Decomposition: same ClientId + DISCONNECT = 2048-2253 KiB/cycle (the two max_request_size buffers), so the per-session tables (i_acks 512 KiB + i_msgs ~1.5 MiB) add ~1.6 MiB. Under RLIMIT_AS=700MB the broker exits after 127 connections: \"memory.c:51 Out of memory (1048576 bytes)\", status 1. PoC /workspace/poc/poc_session_leak.py, evidence /workspace/poc/evidence/04_session_leak.txt."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "CONNECT authentication failure path (bad_auth, src/handlers.c:483-487) with allow_anonymous=false",
+      "risk_area": "Credential brute force / no rate limiting or lockout",
+      "detail": "Measured: 4 wrong-password CONNECTs on one socket each answered `20 00 04` with the socket kept open, then a retained PUBLISH from that never-authenticated socket was accepted and delivered to an authenticated subscriber, then a correct-password CONNECT on the same socket was accepted (`20 00 00`). No delay, lockout, connection close, or attempt counter exists in the bad_auth path (handlers.c:482-487) — only the cost of one SHA-512-crypt verification per attempt limits throughput. Supporting weakness for the auth-bypass finding; low severity on its own. Evidence /workspace/poc/evidence/02_preauth_authz.txt."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Operator config max_memory (src/config.c:228, src/server.c:236)",
+      "risk_area": "Configured resource limit not enforced",
+      "detail": "Confirmed by source and by measurement: max_memory is parsed (config.c:228-229) and only read back for the $SOL stats payload (server.c:236 memory_used()); no allocation path consults it. A broker configured with max_memory 8MB kept running at 87 MB VmRSS after 10 clean_session=0 connections (10x over the cap) and only died when RLIMIT_AS made malloc fail (memory.c:51 exit). Recorded as a supporting fact for the memory-exhaustion finding, not as an independent vulnerability."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "check_passwd() empty stored hash / strncasecmp hash comparison (src/util.c:142)",
+      "risk_area": "Fail-open credential comparison",
+      "detail": "Confirmed: with a password_file entry `emptyuser:` (empty hash field) any password is accepted - arbitrary, empty and 60-char passwords all returned CONNACK rc=0 while the control user alice still returned rc=4. Cause: strlen(salt)==0 makes strncasecmp(...,0)==0. Confirmed but NOT filed as a report (task instruction); parent should decide reporting. Severity: low - requires an operator-written password file with an empty hash field."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Repeated CONNECT on a single socket after rc=4 (server.c process_message re-arm path)",
+      "risk_area": "Credential brute force / missing rate limiting",
+      "detail": "Confirmed: after rc=4 the broker neither closes the socket nor slows down. 2157 CONNECT attempts with wrong passwords on ONE TCP socket in 5.00s = 431.2 attempts/s (all rc=4), and a correct password on that same socket afterwards still returned rc=0. No lockout, backoff or disconnect exists (handlers.c returns MQTT_BAD_USERNAME_OR_PASSWORD and server.c just enqueues the CONNACK and re-arms EV_READ). Not filed as a report per task instruction; parent should decide (medium: offline-dictionary-speed online guessing per connection, scales with connection count)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Username lookup timing in connect_handler (known vs unknown user)",
+      "risk_area": "Username enumeration via response-time oracle",
+      "detail": "Confirmed oracle: 150 CONNECTs per case. Known username 'alice' mean 2.39 ms / median 2.19 ms / p95 3.62 ms; unknown username mean 0.14 ms / median 0.09 ms / p95 0.20 ms - 17x with no overlap, because `if (!auth || !check_passwd(...))` only runs crypt() when the username exists. Confirmed but not filed per task instruction; feeds the brute-force item (attacker learns valid usernames, then guesses at 431/s per socket)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "check_passwd()/crypt(3) under concurrent authentication (src/util.c:142, 3 event-loop threads)",
+      "risk_area": "Data race in credential verification (wrong accept/reject)",
+      "detail": "Confirmed false rejects, no false accepts. Library level: libcrypt 4.5.2 crypt() called from 3 threads with one salt produced 3340 wrong results out of 3352 calls (0/900 wrong serially). Broker level: serial control 60/60 good accepted and 60/60 bad rejected; with 4 concurrent clients 2063/2140 correct-password attempts got CONNACK rc=4 and 0/2138 wrong-password attempts were accepted; second run (8 workers, 90 s) 21558/22508 legit rejected, 0/22883 wrong-password accepts. Root cause: sol calls non-reentrant crypt() from 3 event loops with no lock (util.c:142-145, handlers.c). Impact is authentication DoS / lockout of a known account, not bypass. Not filed per task instruction."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "TLS data path ssl_recv_bytes() (src/network.c:438-455)",
+      "risk_area": "Pre-authentication denial of service (busy loop)",
+      "detail": "Confirmed pre-auth CPU exhaustion, no credentials needed: one TLS connection that sends a 3-byte truncated record (`16 03 01`) and stays silent pins a worker thread in ssl_recv_bytes()'s `continue` on SSL_ERROR_WANT_READ. LD_PRELOAD counter on SSL_read shows ~800,000 calls/second (777451, 865766, 869275, 847659, 800826, 789077, 719399, 898729). One connection = 74-86% of a core; 3 connections (one per event loop, THREADSNR=2+main) = ~200% CPU with per-thread ticks 857/790/969, and a legitimate TLS client then cannot complete a handshake (8 s timeout). Not filed per task instruction; this is the highest-impact item found (A:H, AV:N, PR:N)."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "tls_protocols policy (src/config.c:191-265, conf/sol.conf) and protocol negotiation",
+      "risk_area": "Weak TLS protocol versions enabled by shipped configuration",
+      "detail": "Observed with openssl s_client against a broker using the shipped protocol list: TLSv1 ACCEPTED (ECDHE-RSA-AES256-SHA), TLSv1.1 ACCEPTED, TLSv1.2 and TLSv1.3 ACCEPTED; TLSv1.0 succeeded even at s_client's default security level, so the server really offers it. `tls_protocols tlsv1_2` correctly rejected 1.0/1.1/1.3. Default when the directive is omitted is TLSv1.2 only (TLSv1.3 rejected because `#ifdef TLS1_3_VERSION` is false while compiling config.h). Weak/insecure default rather than an exploitable flaw; not filed per task instruction."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "max_request_size buffer allocation per client (src/server.c:client_init, shipped conf 50MB)",
+      "risk_area": "Memory exhaustion denial of service (per-connection buffer cost)",
+      "detail": "Confirmed: try_calloc is malloc+memset so both per-client buffers are resident immediately. With `max_request_size 50MB` 20 idle TCP connections (no bytes, no credentials) took RSS from 76 MB to 2145 MB = ~107 MB/connection, retained after all closed; with 1MB the same test is ~2 MB/connection. max_memory is never enforced and try_alloc exits on failure (memory.c:49-53): under an 800 MB address-space cap the broker died at the 8th connection, \"Out of memory (52428800 bytes)\", exit status 1. Not filed per task instruction; availability impact for the shipped 50MB config."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Rejected CONNECT followed by SUBSCRIBE on the same socket (handlers.c:588 subscriber_new)",
+      "risk_area": "Processing of MQTT commands by an unauthenticated peer (crash)",
+      "detail": "Confirmed with the ASan build: CONNECT with a wrong password returns CONNACK rc=4, then the same socket can send SUBSCRIBE and the broker dispatches it - subscriber_new (src/subscriber.c:45) dereferences a NULL client_session (\"runtime error: member access within null pointer of type 'struct client_session'\") and the broker aborts. Two small packets, no credentials, pre-auth denial of service. This sits on the boundary with the pre-CONNECT/dispatch area another agent owns, so it is recorded here for the parent to route/dedupe rather than filed."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Shipped conf/sol.conf security posture",
+      "risk_area": "Insecure shipped defaults (no auth, legacy TLS, oversized buffers)",
+      "detail": "Confirmed posture, three parts: (1) allow_anonymous is commented out in conf/sol.conf and the compiled default is true, so the shipped deployment is unauthenticated; (2) the shipped tls_protocols value enables TLS 1.0 and 1.1 (verified accepted) alongside 1.2/1.3; (3) max_request_size 50MB costs ~107 MB RSS per idle connection and exhaustion kills the process. The broker also refuses to start as shipped because certs/ca.crt is absent (fail-closed, exit 1), so the TLS defaults only apply once an operator supplies certificates. Recorded as an insecure-default observation, not an exploitable flaw."
+    },
+    {
+      "kind": "needs_follow_up",
+      "surface": "Embedded NUL bytes in CONNECT username/password (unpack_string16, mqtt.c:251-257)",
+      "risk_area": "Credential string confusion (embedded NUL)",
+      "detail": "Confirmed: username `alice\\0junk` with the correct password returned rc=0 (C-string truncation in the uthash lookup), and passwords `secret123\\0junk` / `secret123\\0` also returned rc=0 (crypt stops at NUL). MQTT 3.1.1 requires UTF-8 strings without U+0000, which sol never validates. Low on its own - the same credential is reached by a shorter string - but it is a second credential representation that any auditing/provisioning component would treat differently."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "Auth TLS Reporter",
+      "detail": "Auth TLS Reporter ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "Authz and Leak Reporter",
+      "detail": "Authz and Leak Reporter ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    },
+    {
+      "kind": "agent_recorded_no_coverage",
+      "agent_name": "Decoder Overflow Reporter",
+      "detail": "Decoder Overflow Reporter ran (status: running) without recording any coverage. Whatever it examined is absent from this record."
+    }
+  ]
+}

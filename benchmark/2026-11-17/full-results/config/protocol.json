@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-17",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "provider": "360",
+  "wall_seconds_per_tool_target": 3600,
+  "targets": [
+    "codepr/sol",
+    "jedisct1/pure-ftpd",
+    "obgm/libcoap",
+    "eduardsui/tlse"
+  ],
+  "revision_policy": "upstream default branch HEAD frozen before execution",
+  "codex_security": {
+    "status": "not_run_missing_official_access",
+    "findings": null
+  },
+  "comparison": "source-audit discovery; distinguish static candidates, tool-validated results, independently confirmed results; missing access is not zero findings",
+  "mygoldmine_mode": "stage-II audit only; no prior runs or learned skills from these four targets",
+  "repoaudit_scope": "NPD, MLK, UAF; preserve separate common-category results",
+  "claude_security_review_mode": "adapted full-source review by treating selected source files as review scope; no GitHub comments or synthetic PR publication",
+  "storage": "NAS only",
+  "publication": "not automatically published",
+  "auxiliary_models": {
+    "mygoldmine_jev": {
+      "requested": "typesafe/jev-latest",
+      "returned": "typesafe/jev-1.14-20261014",
+      "included_in_wall_time": true
+    }
+  },
+  "repoaudit_budget_allocation_seconds": {
+    "NPD": 1200,
+    "MLK": 1200,
+    "UAF": 1200
+  },
+  "strix_cost_cap_usd": 10,
+  "cost_caveat": "Provider pricing must be verified; a proxy model cost estimate may be unavailable. Time caps remain enforced.",
+  "resources": {
+    "host": "NAS x86_64; approximately 16 GiB RAM; other NAS services remain running",
+    "comparator_cli": "3 GiB RAM, 2 CPUs per container",
+    "strix_sandbox": "3 GiB RAM",
+    "mygoldmine": "existing runner defaults; no explicit CPU/RAM cap in runner",
+    "timing_limitation": "Concurrent shared-host execution and unequal native sandbox defaults; wall times are operational observations, not controlled speed benchmarks."
+  }
+}

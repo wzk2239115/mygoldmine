@@ -1,0 +1,38 @@
+[
+  {
+    "target": "sol",
+    "status": "finished",
+    "started_at": "2026-11-17T10:24:04.760889+00:00",
+    "model": "deepseek/deepseek-v4.1-flash",
+    "limit_seconds": 3600,
+    "exit_code": 0,
+    "ended_at": "2026-11-17T10:56:22.674634+00:00"
+  },
+  {
+    "target": "pure-ftpd",
+    "status": "finished",
+    "started_at": "2026-11-17T10:56:22.675632+00:00",
+    "model": "deepseek/deepseek-v4.1-flash",
+    "limit_seconds": 3600,
+    "exit_code": 0,
+    "ended_at": "2026-11-17T11:44:17.219913+00:00"
+  },
+  {
+    "target": "libcoap",
+    "status": "finished",
+    "started_at": "2026-11-17T11:44:17.223272+00:00",
+    "model": "deepseek/deepseek-v4.1-flash",
+    "limit_seconds": 3600,
+    "exit_code": 0,
+    "ended_at": "2026-11-17T12:41:20.243391+00:00"
+  },
+  {
+    "target": "tlse",
+    "status": "finished",
+    "started_at": "2026-11-17T12:41:20.245650+00:00",
+    "model": "deepseek/deepseek-v4.1-flash",
+    "limit_seconds": 3600,
+    "exit_code": 0,
+    "ended_at": "2026-11-17T13:12:50.516697+00:00"
+  }
+]
