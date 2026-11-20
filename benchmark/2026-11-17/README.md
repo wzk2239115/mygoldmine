@@ -18,7 +18,7 @@ This directory contains the aggregated results of a five-tool, four-target secur
 
 Raw candidate counts are not true vulnerability counts. Several runs reached the one-hour limit, one Claude Code Security Review run has an invalid structured report, and some RepoAudit categories did not finish. Missing or unparsed results are not treated as zero.
 
-No reference vulnerability list exists for the four frozen targets, so precision and recall cannot be computed. An AI subagent TP/FP/UNKNOWN adjudication table now exists in `adjudication/`; its labels are not human confirmation and not independent dynamic confirmation. See `labeling-policy.md`.
+No reference vulnerability list exists for the four frozen targets, so precision and recall cannot be computed. An AI subagent adjudication table now exists in `adjudication/`. It has a strict security layer (`TP_security`/`FP`/`UNKNOWN`) and a second-pass low-impact layer (`TP_low`); `source_consistent_total = TP_security + TP_low`. Labels are not human confirmation and not independent dynamic confirmation. See `labeling-policy.md`.
 
 ## Excluded material
 

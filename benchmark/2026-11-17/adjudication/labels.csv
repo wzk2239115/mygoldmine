@@ -1,90 +1,90 @@
-candidate_id,tool,target,label,confidence,root_cause_key,duplicate_of,evidence_level,report_path
-claude:sol:1,Claude Code Security Review,sol,TP,high,sol:mqtt-connect-client-id-overflow,,static_source,results/claude-security-review/sol/filtered-findings.json
-claude:sol:2,Claude Code Security Review,sol,TP,high,sol:wbuf-unbounded-append,,static_source,results/claude-security-review/sol/filtered-findings.json
-claude:sol:3,Claude Code Security Review,sol,TP,high,sol:preconnect-auth-bypass,,static_source,results/claude-security-review/sol/filtered-findings.json
-claude:sol:4,Claude Code Security Review,sol,TP,medium,sol:passwd-weak-des-crypt,,static_source,results/claude-security-review/sol/filtered-findings.json
-codex:sol:csf_0e8e471e474aae0c70a637ff,Codex Security,sol,TP,high,sol:mqtt-publish-remaining-len-underflow,,static_source,results/codex-security/sol/findings.json
-codex:sol:csf_23a3bf8eba641b6e840b8f80,Codex Security,sol,TP,medium,sol:session-duplicate-clientid-uaf,,static_source,results/codex-security/sol/findings.json
-codex:sol:csf_4292b7a02a3db5a0227aa30c,Codex Security,sol,TP,high,sol:preconnect-auth-bypass,,static_source,results/codex-security/sol/findings.json
-codex:sol:csf_5b60ce4633836ded1816514e,Codex Security,sol,TP,high,sol:mqtt-dispatch-null-oob,,static_source,results/codex-security/sol/findings.json
-codex:sol:csf_6268a97e8332fdb158973f8c,Codex Security,sol,TP,high,sol:wbuf-unbounded-append,,static_source,results/codex-security/sol/findings.json
-codex:sol:csf_8985d173af3333bd56a6bfed,Codex Security,sol,TP,high,sol:inflight-ack-null-pack,,static_source,results/codex-security/sol/findings.json
-codex:sol:csf_e3613e6e319d7795ee580a56,Codex Security,sol,TP,high,sol:unsubscribe-double-free,,static_source,results/codex-security/sol/findings.json
-codex:sol:csf_f2461257ac40d1cc686f5889,Codex Security,sol,TP,high,sol:mqtt-connect-client-id-overflow,,static_source,results/codex-security/sol/findings.json
-mygoldmine:sol:SOL-001,Mygoldmine,sol,TP,high,sol:mqtt-connect-client-id-overflow,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-002,Mygoldmine,sol,TP,high,sol:mqtt-publish-remaining-len-underflow,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-003,Mygoldmine,sol,TP,high,sol:mqtt-subscribe-unsubscribe-len-underflow,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-004,Mygoldmine,sol,TP,high,sol:mqtt-dispatch-null-oob,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-005,Mygoldmine,sol,TP,high,sol:preconnect-ack-null-session,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-006,Mygoldmine,sol,TP,medium,sol:qos0-offline-closed-fd,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-007,Mygoldmine,sol,FP,high,sol:match-subscription-null-index,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-008,Mygoldmine,sol,TP,medium,sol:subscribe-zero-topic-negative-index,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-009,Mygoldmine,sol,TP,medium,sol:mqtt-decode-length-unbounded,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-010,Mygoldmine,sol,TP,high,sol:wbuf-unbounded-append,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-011,Mygoldmine,sol,FP,medium,sol:tls-anonymous-config,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-012,Mygoldmine,sol,TP,medium,sol:config-passwd-parse-oob,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-013,Mygoldmine,sol,FP,medium,sol:publish-zero-topic-index,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-014,Mygoldmine,sol,TP,low,sol:crypt-null-deref,,static_source,results/mygoldmine-clean/sol/audit-report.json
-mygoldmine:sol:SOL-015,Mygoldmine,sol,TP,medium,sol:mutex-lock-order-inversion,,static_source,results/mygoldmine-clean/sol/audit-report.json
-repoaudit:sol:NPD:0,RepoAudit,sol,TP,high,sol:inflight-ack-null-pack,,static_source,tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/sol/2026-11-17-07-14-31-0/detect_info.json
-repoaudit:sol:NPD:1,RepoAudit,sol,TP,high,sol:inflight-ack-null-pack,repoaudit:sol:NPD:0,static_source,tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/sol/2026-11-17-07-14-31-0/detect_info.json
-strix:sol:vuln-0001,Strix,sol,TP,high,sol:wbuf-unbounded-append,,static_source,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
-strix:sol:vuln-0002,Strix,sol,TP,medium,sol:session-duplicate-clientid-uaf,,static_source,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
-strix:sol:vuln-0003,Strix,sol,TP,high,sol:mqtt-dispatch-null-oob,,static_source,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
-strix:sol:vuln-0004,Strix,sol,TP,high,sol:ack-inflight-null-slot,,static_source,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
-strix:sol:vuln-0005,Strix,sol,TP,high,sol:mqtt-subscribe-unsubscribe-len-underflow,,static_source,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
-strix:sol:vuln-0006,Strix,sol,TP,medium,sol:mqtt-decode-length-unbounded,,static_source,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
-codex:pure-ftpd:csf_1c8b9e21028e8538645a5b70,Codex Security,pure-ftpd,TP,medium,pure-ftpd:dotfile-read-policy-bypass,mygoldmine:pure-ftpd:NORM-PATH-001,static_source,results/codex-security/pure-ftpd/findings.json
-codex:pure-ftpd:csf_2c5d2d0b63eeb94ba1ce7fe7,Codex Security,pure-ftpd,TP,high,pure-ftpd:eprt-uninitialized-scope,strix:pure-ftpd:vuln-0002,static_source,results/codex-security/pure-ftpd/findings.json
-codex:pure-ftpd:csf_3293fd73a622706a2d623cbb,Codex Security,pure-ftpd,TP,high,pure-ftpd:puredb-ipv6-deny-rule,strix:pure-ftpd:vuln-0001,static_source,results/codex-security/pure-ftpd/findings.json
-mygoldmine:pure-ftpd:AUTH-001,Mygoldmine,pure-ftpd,TP,high,pure-ftpd:sql-null-crypto-strcasecmp,,static_source,results/mygoldmine/pure-ftpd/audit-report.json
-mygoldmine:pure-ftpd:NORM-INT-001,Mygoldmine,pure-ftpd,FP,medium,pure-ftpd:quota-unsigned-sentinel,,static_source,results/mygoldmine/pure-ftpd/audit-report.json
-mygoldmine:pure-ftpd:NORM-PATH-001,Mygoldmine,pure-ftpd,TP,medium,pure-ftpd:dotfile-read-policy-bypass,,static_source,results/mygoldmine/pure-ftpd/audit-report.json
-mygoldmine:pure-ftpd:NORM-TLS-001,Mygoldmine,pure-ftpd,FP,medium,pure-ftpd:extcert-sni-credential-leak,,static_source,results/mygoldmine/pure-ftpd/audit-report.json
-repoaudit:pure-ftpd:NPD:0,RepoAudit,pure-ftpd,FP,high,pure-ftpd:pam-conv-null-resp,,static_source,tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/pure-ftpd/2026-11-17-07-24-36-0/detect_info.json
-strix:pure-ftpd:vuln-0001,Strix,pure-ftpd,TP,high,pure-ftpd:puredb-ipv6-deny-rule,,static_source,results/strix/pure-ftpd/strix_runs/source_f236/vulnerabilities.json
-strix:pure-ftpd:vuln-0002,Strix,pure-ftpd,TP,high,pure-ftpd:eprt-uninitialized-scope,,static_source,results/strix/pure-ftpd/strix_runs/source_f236/vulnerabilities.json
-claude:libcoap:1,Claude Code Security Review,libcoap,UNKNOWN,medium,libcoap:pdu408-payload-marker-oob,,static_source,results/claude-security-review/libcoap/filtered-findings.json
-codex:libcoap:csf_023ec23c2cbe953b45fc7827,Codex Security,libcoap,TP,high,libcoap:oscore-b2-context-leak,strix:libcoap:vuln-0002,static_source,results/codex-security/libcoap/findings.json
-codex:libcoap:csf_288fdb40ff0454c59f470c31,Codex Security,libcoap,UNKNOWN,medium,libcoap:pdu408-payload-marker-oob,claude:libcoap:1,static_source,results/codex-security/libcoap/findings.json
-codex:libcoap:csf_32734e421a875ddd2784abce,Codex Security,libcoap,TP,high,libcoap:block1-uninitialized-body,strix:libcoap:vuln-0004,static_source,results/codex-security/libcoap/findings.json
-codex:libcoap:csf_3c106f9bc73be3b8e1515ab2,Codex Security,libcoap,TP,high,libcoap:oscore-b2-kid-context-overflow,mygoldmine:libcoap:LIBCOAP-MED-001,static_source,results/codex-security/libcoap/findings.json
-codex:libcoap:csf_ab0c516faf7fa934803d85e3,Codex Security,libcoap,TP,medium,libcoap:ws-close-stack-buffer,mygoldmine:libcoap:LIBCOAP-HIGH-001,static_source,results/codex-security/libcoap/findings.json
-codex:libcoap:csf_e5a6f872843887c3c4589713,Codex Security,libcoap,TP,high,libcoap:oscore-external-null-recipient,strix:libcoap:vuln-0003,static_source,results/codex-security/libcoap/findings.json
-codex:libcoap:csf_e80e19758657003d888c192b,Codex Security,libcoap,TP,medium,libcoap:oscore-response-replay-no-rollback,mygoldmine:libcoap:LIBCOAP-MED-002,static_source,results/codex-security/libcoap/findings.json
-codex:libcoap:csf_fe20db137dc4af291df950fd,Codex Security,libcoap,TP,medium,libcoap:uripath-abbrev-payload-drop,mygoldmine:libcoap:LIBCOAP-LOW-001,static_source,results/codex-security/libcoap/findings.json
-mygoldmine:libcoap:LIBCOAP-HIGH-001,Mygoldmine,libcoap,TP,medium,libcoap:ws-close-stack-buffer,,static_source,results/mygoldmine-clean/libcoap/audit-report.md
-mygoldmine:libcoap:LIBCOAP-LOW-001,Mygoldmine,libcoap,TP,medium,libcoap:uripath-abbrev-payload-drop,,static_source,results/mygoldmine-clean/libcoap/audit-report.md
-mygoldmine:libcoap:LIBCOAP-LOW-002,Mygoldmine,libcoap,TP,low,libcoap:ws-close-single-byte-uninit,,static_source,results/mygoldmine-clean/libcoap/audit-report.md
-mygoldmine:libcoap:LIBCOAP-LOW-003,Mygoldmine,libcoap,FP,medium,libcoap:proxy-uri-stale-pointer,,static_source,results/mygoldmine-clean/libcoap/audit-report.md
-mygoldmine:libcoap:LIBCOAP-LOW-004,Mygoldmine,libcoap,UNKNOWN,low,libcoap:proxy-hop-limit-hardening,,static_source,results/mygoldmine-clean/libcoap/audit-report.md
-mygoldmine:libcoap:LIBCOAP-LOW-005,Mygoldmine,libcoap,UNKNOWN,low,libcoap:proxy-unix-domain-target,,static_source,results/mygoldmine-clean/libcoap/audit-report.md
-mygoldmine:libcoap:LIBCOAP-MED-001,Mygoldmine,libcoap,TP,high,libcoap:oscore-b2-kid-context-overflow,,static_source,results/mygoldmine-clean/libcoap/audit-report.md
-mygoldmine:libcoap:LIBCOAP-MED-002,Mygoldmine,libcoap,TP,medium,libcoap:oscore-response-replay-no-rollback,,static_source,results/mygoldmine-clean/libcoap/audit-report.md
-strix:libcoap:vuln-0001,Strix,libcoap,TP,medium,libcoap:uripath-abbrev-payload-drop,mygoldmine:libcoap:LIBCOAP-LOW-001,static_source,results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json
-strix:libcoap:vuln-0002,Strix,libcoap,TP,high,libcoap:oscore-b2-context-leak,,static_source,results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json
-strix:libcoap:vuln-0003,Strix,libcoap,TP,high,libcoap:oscore-external-null-recipient,,static_source,results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json
-strix:libcoap:vuln-0004,Strix,libcoap,TP,high,libcoap:block1-uninitialized-body,,static_source,results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json
-claude:tlse:unparsed-1,Claude Code Security Review,tlse,TP,high,tlse:tls13-missing-certificate-verify,,static_source,results/claude-security-review/tlse/execution.log
-claude:tlse:unparsed-2,Claude Code Security Review,tlse,TP,high,tlse:asn1-zero-length-bitstring,,static_source,results/claude-security-review/tlse/execution.log
-codex:tlse:csf_33f781cd28ee98927fe61556,Codex Security,tlse,TP,high,tlse:dtls-fragment-overflow,,static_source,results/codex-security/tlse/findings.json
-codex:tlse:csf_398b08305d312d64566b1098,Codex Security,tlse,TP,high,tlse:stun-key-overflow,,static_source,results/codex-security/tlse/findings.json
-codex:tlse:csf_fbc4abb098475ffba57d2e6e,Codex Security,tlse,TP,high,tlse:asn1-zero-length-bitstring,,static_source,results/codex-security/tlse/findings.json
-mygoldmine:tlse:IPC-SERIAL-001,Mygoldmine,tlse,UNKNOWN,medium,tlse:import-mac-length-oob-read,,static_source,results/mygoldmine-clean/tlse/audit-report.json
-mygoldmine:tlse:IPC-SERIAL-002,Mygoldmine,tlse,FP,medium,tlse:import-uninitialized-cbc-iv,,static_source,results/mygoldmine-clean/tlse/audit-report.json
-mygoldmine:tlse:IPC-SERIAL-003,Mygoldmine,tlse,UNKNOWN,medium,tlse:reexportable-null-deref,,static_source,results/mygoldmine-clean/tlse/audit-report.json
-mygoldmine:tlse:MEM-CERTLEN-001,Mygoldmine,tlse,TP,low,tlse:dtls-verify-request-oob-read,,static_source,results/mygoldmine-clean/tlse/audit-report.json
-mygoldmine:tlse:MEM-STUN-001,Mygoldmine,tlse,TP,high,tlse:stun-key-overflow,,static_source,results/mygoldmine-clean/tlse/audit-report.json
-mygoldmine:tlse:MEM-X509-001,Mygoldmine,tlse,TP,high,tlse:asn1-zero-length-bitstring,,static_source,results/mygoldmine-clean/tlse/audit-report.json
-strix:tlse:vuln-0001,Strix,tlse,TP,high,tlse:asn1-zero-length-bitstring,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0002,Strix,tlse,TP,high,tlse:stun-key-overflow,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0003,Strix,tlse,TP,high,tlse:tls13-missing-certificate-verify,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0004,Strix,tlse,TP,medium,tlse:dtls-cookie-no-address-binding,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0005,Strix,tlse,TP,low,tlse:cbc-zero-length-record-oob-read,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0006,Strix,tlse,TP,high,tlse:dtls-fragment-overflow,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0007,Strix,tlse,TP,high,tlse:chain-no-basic-constraints,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0008,Strix,tlse,TP,medium,tlse:cert-to-string-negative-size,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0009,Strix,tlse,TP,low,tlse:dtls-fragment-header-oob-read,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0010,Strix,tlse,TP,medium,tlse:stale-pk-len-null-deref,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0011,Strix,tlse,UNKNOWN,medium,tlse:client-cert-not-enforced,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
-strix:tlse:vuln-0012,Strix,tlse,TP,medium,tlse:dtls-no-anti-replay,,static_source,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+candidate_id,tool,target,strict_label,secondary_label,confidence,root_cause_key,duplicate_of,report_path
+claude:sol:1,Claude Code Security Review,sol,TP,TP_security,high,sol:mqtt-connect-client-id-overflow,,results/claude-security-review/sol/filtered-findings.json
+claude:sol:2,Claude Code Security Review,sol,TP,TP_security,high,sol:wbuf-unbounded-append,,results/claude-security-review/sol/filtered-findings.json
+claude:sol:3,Claude Code Security Review,sol,TP,TP_security,high,sol:preconnect-auth-bypass,,results/claude-security-review/sol/filtered-findings.json
+claude:sol:4,Claude Code Security Review,sol,TP,TP_security,medium,sol:passwd-weak-des-crypt,,results/claude-security-review/sol/filtered-findings.json
+codex:sol:csf_0e8e471e474aae0c70a637ff,Codex Security,sol,TP,TP_security,high,sol:mqtt-publish-remaining-len-underflow,,results/codex-security/sol/findings.json
+codex:sol:csf_23a3bf8eba641b6e840b8f80,Codex Security,sol,TP,TP_security,medium,sol:session-duplicate-clientid-uaf,,results/codex-security/sol/findings.json
+codex:sol:csf_4292b7a02a3db5a0227aa30c,Codex Security,sol,TP,TP_security,high,sol:preconnect-auth-bypass,,results/codex-security/sol/findings.json
+codex:sol:csf_5b60ce4633836ded1816514e,Codex Security,sol,TP,TP_security,high,sol:mqtt-dispatch-null-oob,,results/codex-security/sol/findings.json
+codex:sol:csf_6268a97e8332fdb158973f8c,Codex Security,sol,TP,TP_security,high,sol:wbuf-unbounded-append,,results/codex-security/sol/findings.json
+codex:sol:csf_8985d173af3333bd56a6bfed,Codex Security,sol,TP,TP_security,high,sol:inflight-ack-null-pack,,results/codex-security/sol/findings.json
+codex:sol:csf_e3613e6e319d7795ee580a56,Codex Security,sol,TP,TP_security,high,sol:unsubscribe-double-free,,results/codex-security/sol/findings.json
+codex:sol:csf_f2461257ac40d1cc686f5889,Codex Security,sol,TP,TP_security,high,sol:mqtt-connect-client-id-overflow,,results/codex-security/sol/findings.json
+mygoldmine:sol:SOL-001,Mygoldmine,sol,TP,TP_security,high,sol:mqtt-connect-client-id-overflow,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-002,Mygoldmine,sol,TP,TP_security,high,sol:mqtt-publish-remaining-len-underflow,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-003,Mygoldmine,sol,TP,TP_security,high,sol:mqtt-subscribe-unsubscribe-len-underflow,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-004,Mygoldmine,sol,TP,TP_security,high,sol:mqtt-dispatch-null-oob,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-005,Mygoldmine,sol,TP,TP_security,high,sol:preconnect-ack-null-session,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-006,Mygoldmine,sol,TP,TP_security,medium,sol:qos0-offline-closed-fd,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-007,Mygoldmine,sol,FP,FP,high,sol:match-subscription-null-index,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-008,Mygoldmine,sol,TP,TP_security,medium,sol:subscribe-zero-topic-negative-index,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-009,Mygoldmine,sol,TP,TP_security,medium,sol:mqtt-decode-length-unbounded,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-010,Mygoldmine,sol,TP,TP_security,high,sol:wbuf-unbounded-append,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-011,Mygoldmine,sol,FP,TP_low,medium,sol:tls-anonymous-config,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-012,Mygoldmine,sol,TP,TP_security,medium,sol:config-passwd-parse-oob,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-013,Mygoldmine,sol,FP,FP,medium,sol:publish-zero-topic-index,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-014,Mygoldmine,sol,TP,TP_security,low,sol:crypt-null-deref,,results/mygoldmine-clean/sol/audit-report.json
+mygoldmine:sol:SOL-015,Mygoldmine,sol,TP,TP_security,medium,sol:mutex-lock-order-inversion,,results/mygoldmine-clean/sol/audit-report.json
+repoaudit:sol:NPD:0,RepoAudit,sol,TP,TP_security,high,sol:inflight-ack-null-pack,,tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/sol/2026-11-17-07-14-31-0/detect_info.json
+repoaudit:sol:NPD:1,RepoAudit,sol,TP,TP_security,high,sol:inflight-ack-null-pack,repoaudit:sol:NPD:0,tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/sol/2026-11-17-07-14-31-0/detect_info.json
+strix:sol:vuln-0001,Strix,sol,TP,TP_security,high,sol:wbuf-unbounded-append,,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
+strix:sol:vuln-0002,Strix,sol,TP,TP_security,medium,sol:session-duplicate-clientid-uaf,,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
+strix:sol:vuln-0003,Strix,sol,TP,TP_security,high,sol:mqtt-dispatch-null-oob,,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
+strix:sol:vuln-0004,Strix,sol,TP,TP_security,high,sol:ack-inflight-null-slot,,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
+strix:sol:vuln-0005,Strix,sol,TP,TP_security,high,sol:mqtt-subscribe-unsubscribe-len-underflow,,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
+strix:sol:vuln-0006,Strix,sol,TP,TP_security,medium,sol:mqtt-decode-length-unbounded,,results/strix/sol/strix_runs/source_64d7/vulnerabilities.json
+codex:pure-ftpd:csf_1c8b9e21028e8538645a5b70,Codex Security,pure-ftpd,TP,TP_security,medium,pure-ftpd:dotfile-read-policy-bypass,mygoldmine:pure-ftpd:NORM-PATH-001,results/codex-security/pure-ftpd/findings.json
+codex:pure-ftpd:csf_2c5d2d0b63eeb94ba1ce7fe7,Codex Security,pure-ftpd,TP,TP_security,high,pure-ftpd:eprt-uninitialized-scope,strix:pure-ftpd:vuln-0002,results/codex-security/pure-ftpd/findings.json
+codex:pure-ftpd:csf_3293fd73a622706a2d623cbb,Codex Security,pure-ftpd,TP,TP_security,high,pure-ftpd:puredb-ipv6-deny-rule,strix:pure-ftpd:vuln-0001,results/codex-security/pure-ftpd/findings.json
+mygoldmine:pure-ftpd:AUTH-001,Mygoldmine,pure-ftpd,TP,TP_security,high,pure-ftpd:sql-null-crypto-strcasecmp,,results/mygoldmine/pure-ftpd/audit-report.json
+mygoldmine:pure-ftpd:NORM-INT-001,Mygoldmine,pure-ftpd,FP,TP_low,medium,pure-ftpd:quota-unsigned-sentinel,,results/mygoldmine/pure-ftpd/audit-report.json
+mygoldmine:pure-ftpd:NORM-PATH-001,Mygoldmine,pure-ftpd,TP,TP_security,medium,pure-ftpd:dotfile-read-policy-bypass,,results/mygoldmine/pure-ftpd/audit-report.json
+mygoldmine:pure-ftpd:NORM-TLS-001,Mygoldmine,pure-ftpd,FP,TP_low,medium,pure-ftpd:extcert-sni-credential-leak,,results/mygoldmine/pure-ftpd/audit-report.json
+repoaudit:pure-ftpd:NPD:0,RepoAudit,pure-ftpd,FP,FP,high,pure-ftpd:pam-conv-null-resp,,tools/RepoAudit/result/dfbscan/deepseek/deepseek-v4.1-flash/NPD/Cpp/pure-ftpd/2026-11-17-07-24-36-0/detect_info.json
+strix:pure-ftpd:vuln-0001,Strix,pure-ftpd,TP,TP_security,high,pure-ftpd:puredb-ipv6-deny-rule,,results/strix/pure-ftpd/strix_runs/source_f236/vulnerabilities.json
+strix:pure-ftpd:vuln-0002,Strix,pure-ftpd,TP,TP_security,high,pure-ftpd:eprt-uninitialized-scope,,results/strix/pure-ftpd/strix_runs/source_f236/vulnerabilities.json
+claude:libcoap:1,Claude Code Security Review,libcoap,UNKNOWN,TP_low,medium,libcoap:pdu408-payload-marker-oob,,results/claude-security-review/libcoap/filtered-findings.json
+codex:libcoap:csf_023ec23c2cbe953b45fc7827,Codex Security,libcoap,TP,TP_security,high,libcoap:oscore-b2-context-leak,strix:libcoap:vuln-0002,results/codex-security/libcoap/findings.json
+codex:libcoap:csf_288fdb40ff0454c59f470c31,Codex Security,libcoap,UNKNOWN,TP_low,medium,libcoap:pdu408-payload-marker-oob,claude:libcoap:1,results/codex-security/libcoap/findings.json
+codex:libcoap:csf_32734e421a875ddd2784abce,Codex Security,libcoap,TP,TP_security,high,libcoap:block1-uninitialized-body,strix:libcoap:vuln-0004,results/codex-security/libcoap/findings.json
+codex:libcoap:csf_3c106f9bc73be3b8e1515ab2,Codex Security,libcoap,TP,TP_security,high,libcoap:oscore-b2-kid-context-overflow,mygoldmine:libcoap:LIBCOAP-MED-001,results/codex-security/libcoap/findings.json
+codex:libcoap:csf_ab0c516faf7fa934803d85e3,Codex Security,libcoap,TP,TP_security,medium,libcoap:ws-close-stack-buffer,mygoldmine:libcoap:LIBCOAP-HIGH-001,results/codex-security/libcoap/findings.json
+codex:libcoap:csf_e5a6f872843887c3c4589713,Codex Security,libcoap,TP,TP_security,high,libcoap:oscore-external-null-recipient,strix:libcoap:vuln-0003,results/codex-security/libcoap/findings.json
+codex:libcoap:csf_e80e19758657003d888c192b,Codex Security,libcoap,TP,TP_security,medium,libcoap:oscore-response-replay-no-rollback,mygoldmine:libcoap:LIBCOAP-MED-002,results/codex-security/libcoap/findings.json
+codex:libcoap:csf_fe20db137dc4af291df950fd,Codex Security,libcoap,TP,TP_security,medium,libcoap:uripath-abbrev-payload-drop,mygoldmine:libcoap:LIBCOAP-LOW-001,results/codex-security/libcoap/findings.json
+mygoldmine:libcoap:LIBCOAP-HIGH-001,Mygoldmine,libcoap,TP,TP_security,medium,libcoap:ws-close-stack-buffer,,results/mygoldmine-clean/libcoap/audit-report.md
+mygoldmine:libcoap:LIBCOAP-LOW-001,Mygoldmine,libcoap,TP,TP_security,medium,libcoap:uripath-abbrev-payload-drop,,results/mygoldmine-clean/libcoap/audit-report.md
+mygoldmine:libcoap:LIBCOAP-LOW-002,Mygoldmine,libcoap,TP,TP_security,low,libcoap:ws-close-single-byte-uninit,,results/mygoldmine-clean/libcoap/audit-report.md
+mygoldmine:libcoap:LIBCOAP-LOW-003,Mygoldmine,libcoap,FP,TP_low,medium,libcoap:proxy-uri-stale-pointer,,results/mygoldmine-clean/libcoap/audit-report.md
+mygoldmine:libcoap:LIBCOAP-LOW-004,Mygoldmine,libcoap,UNKNOWN,TP_low,low,libcoap:proxy-hop-limit-hardening,,results/mygoldmine-clean/libcoap/audit-report.md
+mygoldmine:libcoap:LIBCOAP-LOW-005,Mygoldmine,libcoap,UNKNOWN,TP_low,low,libcoap:proxy-unix-domain-target,,results/mygoldmine-clean/libcoap/audit-report.md
+mygoldmine:libcoap:LIBCOAP-MED-001,Mygoldmine,libcoap,TP,TP_security,high,libcoap:oscore-b2-kid-context-overflow,,results/mygoldmine-clean/libcoap/audit-report.md
+mygoldmine:libcoap:LIBCOAP-MED-002,Mygoldmine,libcoap,TP,TP_security,medium,libcoap:oscore-response-replay-no-rollback,,results/mygoldmine-clean/libcoap/audit-report.md
+strix:libcoap:vuln-0001,Strix,libcoap,TP,TP_security,medium,libcoap:uripath-abbrev-payload-drop,mygoldmine:libcoap:LIBCOAP-LOW-001,results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json
+strix:libcoap:vuln-0002,Strix,libcoap,TP,TP_security,high,libcoap:oscore-b2-context-leak,,results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json
+strix:libcoap:vuln-0003,Strix,libcoap,TP,TP_security,high,libcoap:oscore-external-null-recipient,,results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json
+strix:libcoap:vuln-0004,Strix,libcoap,TP,TP_security,high,libcoap:block1-uninitialized-body,,results/strix/libcoap/strix_runs/source_5e5d/vulnerabilities.json
+claude:tlse:unparsed-1,Claude Code Security Review,tlse,TP,TP_security,high,tlse:tls13-missing-certificate-verify,,results/claude-security-review/tlse/execution.log
+claude:tlse:unparsed-2,Claude Code Security Review,tlse,TP,TP_security,high,tlse:asn1-zero-length-bitstring,,results/claude-security-review/tlse/execution.log
+codex:tlse:csf_33f781cd28ee98927fe61556,Codex Security,tlse,TP,TP_security,high,tlse:dtls-fragment-overflow,,results/codex-security/tlse/findings.json
+codex:tlse:csf_398b08305d312d64566b1098,Codex Security,tlse,TP,TP_security,high,tlse:stun-key-overflow,,results/codex-security/tlse/findings.json
+codex:tlse:csf_fbc4abb098475ffba57d2e6e,Codex Security,tlse,TP,TP_security,high,tlse:asn1-zero-length-bitstring,,results/codex-security/tlse/findings.json
+mygoldmine:tlse:IPC-SERIAL-001,Mygoldmine,tlse,UNKNOWN,TP_low,medium,tlse:import-mac-length-oob-read,,results/mygoldmine-clean/tlse/audit-report.json
+mygoldmine:tlse:IPC-SERIAL-002,Mygoldmine,tlse,FP,TP_low,medium,tlse:import-uninitialized-cbc-iv,,results/mygoldmine-clean/tlse/audit-report.json
+mygoldmine:tlse:IPC-SERIAL-003,Mygoldmine,tlse,UNKNOWN,TP_low,medium,tlse:reexportable-null-deref,,results/mygoldmine-clean/tlse/audit-report.json
+mygoldmine:tlse:MEM-CERTLEN-001,Mygoldmine,tlse,TP,TP_security,low,tlse:dtls-verify-request-oob-read,,results/mygoldmine-clean/tlse/audit-report.json
+mygoldmine:tlse:MEM-STUN-001,Mygoldmine,tlse,TP,TP_security,high,tlse:stun-key-overflow,,results/mygoldmine-clean/tlse/audit-report.json
+mygoldmine:tlse:MEM-X509-001,Mygoldmine,tlse,TP,TP_security,high,tlse:asn1-zero-length-bitstring,,results/mygoldmine-clean/tlse/audit-report.json
+strix:tlse:vuln-0001,Strix,tlse,TP,TP_security,high,tlse:asn1-zero-length-bitstring,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0002,Strix,tlse,TP,TP_security,high,tlse:stun-key-overflow,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0003,Strix,tlse,TP,TP_security,high,tlse:tls13-missing-certificate-verify,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0004,Strix,tlse,TP,TP_security,medium,tlse:dtls-cookie-no-address-binding,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0005,Strix,tlse,TP,TP_security,low,tlse:cbc-zero-length-record-oob-read,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0006,Strix,tlse,TP,TP_security,high,tlse:dtls-fragment-overflow,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0007,Strix,tlse,TP,TP_security,high,tlse:chain-no-basic-constraints,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0008,Strix,tlse,TP,TP_security,medium,tlse:cert-to-string-negative-size,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0009,Strix,tlse,TP,TP_security,low,tlse:dtls-fragment-header-oob-read,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0010,Strix,tlse,TP,TP_security,medium,tlse:stale-pk-len-null-deref,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0011,Strix,tlse,UNKNOWN,TP_low,medium,tlse:client-cert-not-enforced,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json
+strix:tlse:vuln-0012,Strix,tlse,TP,TP_security,medium,tlse:dtls-no-anti-replay,,results/strix/tlse/strix_runs/source_0ea7/vulnerabilities.json

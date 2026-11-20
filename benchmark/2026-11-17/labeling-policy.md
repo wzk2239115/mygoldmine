@@ -9,7 +9,7 @@ There is no human TP/FP adjudication table and no reference vulnerability list f
 - `obgm/libcoap` at `a4de0faea54d3d548924c8b9f6e67b72a36cbac3`
 - `eduardsui/tlse` at `25be48a4f0176b7242d8c5955fc325e92b487838`
 
-The target commits are default-branch snapshots, not historical vulnerable versions paired with a known-bug list. Therefore this benchmark cannot compute recall against a known-bug reference set. An AI subagent adjudication table now exists and records `TP`/`FP`/`UNKNOWN` labels with `label_source=subagent`, `human_confirmed=false`, and `independently_confirmed=false`. These labels are AI adjudications, not human confirmation or independent dynamic confirmation.
+The target commits are default-branch snapshots, not historical vulnerable versions paired with a known-bug list. Therefore this benchmark cannot compute recall against a known-bug reference set. An AI subagent adjudication table now exists with two layers: strict `TP_security`/`FP`/`UNKNOWN` and a second-pass `TP_low` layer for source-consistent low-impact defects. All rows carry `label_source=subagent`, `human_confirmed=false`, and `independently_confirmed=false`. These labels are AI adjudications, not human confirmation or independent dynamic confirmation.
 
 Existing files that define the current scope:
 
@@ -51,10 +51,11 @@ The current label layers are:
 
 - `candidate`: a reported item from a tool.
 - `tool_internal_validation`: a tool's own filtering, confidence, path-validator, or static-review result.
-- `subagent_label`: an AI subagent's `TP`/`FP`/`UNKNOWN` verdict, with `label_source=subagent` and `human_confirmed=false`.
+- `subagent_label`: an AI subagent's strict `TP_security`/`FP`/`UNKNOWN` verdict, with `label_source=subagent` and `human_confirmed=false`.
+- `TP_low`: a second-pass source-consistent defect with limited or indirect security impact. It is not a security-vulnerability count.
 - `independently_confirmed`: a separately reproduced or human-adjudicated result. This field remains `false` for every row.
 
-The subagent table supports source-consistent TP/FP counts and cross-tool root-cause deduplication. It does not support recall, because no reference bug list exists, and it does not establish human confirmation.
+The subagent table supports strict security TP/FP counts, a broader source-consistent total (`TP_security + TP_low`), and cross-tool root-cause deduplication. It does not support recall, because no reference bug list exists, and it does not establish human confirmation.
 
 ## If a human or dynamic TP/FP table is added later
 

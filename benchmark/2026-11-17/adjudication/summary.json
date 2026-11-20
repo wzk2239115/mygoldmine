@@ -1,102 +1,130 @@
 {
-  "generated_at_utc": "2026-11-19T15:17:58.642614+00:00",
+  "generated_at_utc": "2026-11-20T10:15:47.391324+00:00",
   "label_source": "subagent",
   "human_confirmed": false,
   "independently_confirmed": false,
-  "candidate_inventory": "adjudication/candidates.json",
-  "labels": "adjudication/all.json",
   "overall": {
     "candidates": 89,
-    "tp_entries": 74,
-    "fp_entries": 8,
-    "unknown_entries": 7,
+    "tp_security_entries": 74,
+    "tp_low_entries": 12,
+    "fp_entries": 3,
+    "unknown_entries": 0,
+    "source_consistent_total": 86,
     "duplicate_entries": 13,
-    "unique_tp_root_causes": 42,
-    "unique_tp_root_causes_all_targets": 42
+    "unique_source_consistent_root_causes": 53,
+    "unique_source_consistent_root_causes_all_targets": 53,
+    "exclusive_source_consistent_root_causes_all_targets": 29
   },
   "by_target": [
     {
       "target": "sol",
       "candidates": 35,
-      "tp_entries": 32,
-      "fp_entries": 3,
+      "tp_security_entries": 32,
+      "tp_low_entries": 1,
+      "fp_entries": 2,
       "unknown_entries": 0,
+      "source_consistent_total": 33,
       "duplicate_entries": 1,
-      "unique_tp_root_causes": 18
+      "unique_source_consistent_root_causes": 19,
+      "exclusive_source_consistent_root_causes": null
     },
     {
       "target": "pure-ftpd",
       "candidates": 10,
-      "tp_entries": 7,
-      "fp_entries": 3,
+      "tp_security_entries": 7,
+      "tp_low_entries": 2,
+      "fp_entries": 1,
       "unknown_entries": 0,
+      "source_consistent_total": 9,
       "duplicate_entries": 3,
-      "unique_tp_root_causes": 4
+      "unique_source_consistent_root_causes": 6,
+      "exclusive_source_consistent_root_causes": null
     },
     {
       "target": "libcoap",
       "candidates": 21,
-      "tp_entries": 16,
-      "fp_entries": 1,
-      "unknown_entries": 4,
+      "tp_security_entries": 16,
+      "tp_low_entries": 5,
+      "fp_entries": 0,
+      "unknown_entries": 0,
+      "source_consistent_total": 21,
       "duplicate_entries": 9,
-      "unique_tp_root_causes": 8
+      "unique_source_consistent_root_causes": 12,
+      "exclusive_source_consistent_root_causes": null
     },
     {
       "target": "tlse",
       "candidates": 23,
-      "tp_entries": 19,
-      "fp_entries": 1,
-      "unknown_entries": 3,
+      "tp_security_entries": 19,
+      "tp_low_entries": 4,
+      "fp_entries": 0,
+      "unknown_entries": 0,
+      "source_consistent_total": 23,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 12
+      "unique_source_consistent_root_causes": 16,
+      "exclusive_source_consistent_root_causes": null
     }
   ],
   "by_tool": [
     {
       "tool": "Mygoldmine",
       "candidates": 33,
-      "tp_entries": 22,
-      "fp_entries": 7,
-      "unknown_entries": 4,
+      "tp_security_entries": 22,
+      "tp_low_entries": 9,
+      "fp_entries": 2,
+      "unknown_entries": 0,
+      "source_consistent_total": 31,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 22
+      "unique_source_consistent_root_causes": 31,
+      "exclusive_source_consistent_root_causes": 18
     },
     {
       "tool": "Strix",
       "candidates": 24,
-      "tp_entries": 23,
+      "tp_security_entries": 23,
+      "tp_low_entries": 1,
       "fp_entries": 0,
-      "unknown_entries": 1,
+      "unknown_entries": 0,
+      "source_consistent_total": 24,
       "duplicate_entries": 1,
-      "unique_tp_root_causes": 22
+      "unique_source_consistent_root_causes": 23,
+      "exclusive_source_consistent_root_causes": 9
     },
     {
       "tool": "RepoAudit",
       "candidates": 3,
-      "tp_entries": 2,
+      "tp_security_entries": 2,
+      "tp_low_entries": 0,
       "fp_entries": 1,
       "unknown_entries": 0,
+      "source_consistent_total": 2,
       "duplicate_entries": 1,
-      "unique_tp_root_causes": 1
+      "unique_source_consistent_root_causes": 1,
+      "exclusive_source_consistent_root_causes": 0
     },
     {
       "tool": "Claude Code Security Review",
       "candidates": 7,
-      "tp_entries": 6,
+      "tp_security_entries": 6,
+      "tp_low_entries": 1,
       "fp_entries": 0,
-      "unknown_entries": 1,
+      "unknown_entries": 0,
+      "source_consistent_total": 7,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 6
+      "unique_source_consistent_root_causes": 7,
+      "exclusive_source_consistent_root_causes": 1
     },
     {
       "tool": "Codex Security",
       "candidates": 22,
-      "tp_entries": 21,
+      "tp_security_entries": 21,
+      "tp_low_entries": 1,
       "fp_entries": 0,
-      "unknown_entries": 1,
+      "unknown_entries": 0,
+      "source_consistent_total": 22,
       "duplicate_entries": 11,
-      "unique_tp_root_causes": 11
+      "unique_source_consistent_root_causes": 11,
+      "exclusive_source_consistent_root_causes": 1
     }
   ],
   "by_tool_target": [
@@ -104,179 +132,229 @@
       "tool": "Mygoldmine",
       "target": "sol",
       "candidates": 15,
-      "tp_entries": 12,
-      "fp_entries": 3,
+      "tp_security_entries": 12,
+      "tp_low_entries": 1,
+      "fp_entries": 2,
       "unknown_entries": 0,
+      "source_consistent_total": 13,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 12
+      "unique_source_consistent_root_causes": 13,
+      "exclusive_source_consistent_root_causes": 7
     },
     {
       "tool": "Mygoldmine",
       "target": "pure-ftpd",
       "candidates": 4,
-      "tp_entries": 2,
-      "fp_entries": 2,
+      "tp_security_entries": 2,
+      "tp_low_entries": 2,
+      "fp_entries": 0,
       "unknown_entries": 0,
+      "source_consistent_total": 4,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 2
+      "unique_source_consistent_root_causes": 4,
+      "exclusive_source_consistent_root_causes": 3
     },
     {
       "tool": "Mygoldmine",
       "target": "libcoap",
       "candidates": 8,
-      "tp_entries": 5,
-      "fp_entries": 1,
-      "unknown_entries": 2,
+      "tp_security_entries": 5,
+      "tp_low_entries": 3,
+      "fp_entries": 0,
+      "unknown_entries": 0,
+      "source_consistent_total": 8,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 5
+      "unique_source_consistent_root_causes": 8,
+      "exclusive_source_consistent_root_causes": 4
     },
     {
       "tool": "Mygoldmine",
       "target": "tlse",
       "candidates": 6,
-      "tp_entries": 3,
-      "fp_entries": 1,
-      "unknown_entries": 2,
+      "tp_security_entries": 3,
+      "tp_low_entries": 3,
+      "fp_entries": 0,
+      "unknown_entries": 0,
+      "source_consistent_total": 6,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 3
+      "unique_source_consistent_root_causes": 6,
+      "exclusive_source_consistent_root_causes": 4
     },
     {
       "tool": "Strix",
       "target": "sol",
       "candidates": 6,
-      "tp_entries": 6,
+      "tp_security_entries": 6,
+      "tp_low_entries": 0,
       "fp_entries": 0,
       "unknown_entries": 0,
+      "source_consistent_total": 6,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 6
+      "unique_source_consistent_root_causes": 6,
+      "exclusive_source_consistent_root_causes": 1
     },
     {
       "tool": "Strix",
       "target": "pure-ftpd",
       "candidates": 2,
-      "tp_entries": 2,
+      "tp_security_entries": 2,
+      "tp_low_entries": 0,
       "fp_entries": 0,
       "unknown_entries": 0,
+      "source_consistent_total": 2,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 2
+      "unique_source_consistent_root_causes": 2,
+      "exclusive_source_consistent_root_causes": 0
     },
     {
       "tool": "Strix",
       "target": "libcoap",
       "candidates": 4,
-      "tp_entries": 4,
+      "tp_security_entries": 4,
+      "tp_low_entries": 0,
       "fp_entries": 0,
       "unknown_entries": 0,
+      "source_consistent_total": 4,
       "duplicate_entries": 1,
-      "unique_tp_root_causes": 3
+      "unique_source_consistent_root_causes": 3,
+      "exclusive_source_consistent_root_causes": 0
     },
     {
       "tool": "Strix",
       "target": "tlse",
       "candidates": 12,
-      "tp_entries": 11,
+      "tp_security_entries": 11,
+      "tp_low_entries": 1,
       "fp_entries": 0,
-      "unknown_entries": 1,
+      "unknown_entries": 0,
+      "source_consistent_total": 12,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 11
+      "unique_source_consistent_root_causes": 12,
+      "exclusive_source_consistent_root_causes": 8
     },
     {
       "tool": "RepoAudit",
       "target": "sol",
       "candidates": 2,
-      "tp_entries": 2,
+      "tp_security_entries": 2,
+      "tp_low_entries": 0,
       "fp_entries": 0,
       "unknown_entries": 0,
+      "source_consistent_total": 2,
       "duplicate_entries": 1,
-      "unique_tp_root_causes": 1
+      "unique_source_consistent_root_causes": 1,
+      "exclusive_source_consistent_root_causes": 0
     },
     {
       "tool": "RepoAudit",
       "target": "pure-ftpd",
       "candidates": 1,
-      "tp_entries": 0,
+      "tp_security_entries": 0,
+      "tp_low_entries": 0,
       "fp_entries": 1,
       "unknown_entries": 0,
+      "source_consistent_total": 0,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 0
+      "unique_source_consistent_root_causes": 0,
+      "exclusive_source_consistent_root_causes": 0
     },
     {
       "tool": "Claude Code Security Review",
       "target": "sol",
       "candidates": 4,
-      "tp_entries": 4,
+      "tp_security_entries": 4,
+      "tp_low_entries": 0,
       "fp_entries": 0,
       "unknown_entries": 0,
+      "source_consistent_total": 4,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 4
+      "unique_source_consistent_root_causes": 4,
+      "exclusive_source_consistent_root_causes": 1
     },
     {
       "tool": "Claude Code Security Review",
       "target": "libcoap",
       "candidates": 1,
-      "tp_entries": 0,
+      "tp_security_entries": 0,
+      "tp_low_entries": 1,
       "fp_entries": 0,
-      "unknown_entries": 1,
+      "unknown_entries": 0,
+      "source_consistent_total": 1,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 0
+      "unique_source_consistent_root_causes": 1,
+      "exclusive_source_consistent_root_causes": 0
     },
     {
       "tool": "Claude Code Security Review",
       "target": "tlse",
       "candidates": 2,
-      "tp_entries": 2,
+      "tp_security_entries": 2,
+      "tp_low_entries": 0,
       "fp_entries": 0,
       "unknown_entries": 0,
+      "source_consistent_total": 2,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 2
+      "unique_source_consistent_root_causes": 2,
+      "exclusive_source_consistent_root_causes": 0
     },
     {
       "tool": "Codex Security",
       "target": "sol",
       "candidates": 8,
-      "tp_entries": 8,
+      "tp_security_entries": 8,
+      "tp_low_entries": 0,
       "fp_entries": 0,
       "unknown_entries": 0,
+      "source_consistent_total": 8,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 8
+      "unique_source_consistent_root_causes": 8,
+      "exclusive_source_consistent_root_causes": 1
     },
     {
       "tool": "Codex Security",
       "target": "pure-ftpd",
       "candidates": 3,
-      "tp_entries": 3,
+      "tp_security_entries": 3,
+      "tp_low_entries": 0,
       "fp_entries": 0,
       "unknown_entries": 0,
+      "source_consistent_total": 3,
       "duplicate_entries": 3,
-      "unique_tp_root_causes": 0
+      "unique_source_consistent_root_causes": 0,
+      "exclusive_source_consistent_root_causes": 0
     },
     {
       "tool": "Codex Security",
       "target": "libcoap",
       "candidates": 8,
-      "tp_entries": 7,
+      "tp_security_entries": 7,
+      "tp_low_entries": 1,
       "fp_entries": 0,
-      "unknown_entries": 1,
+      "unknown_entries": 0,
+      "source_consistent_total": 8,
       "duplicate_entries": 8,
-      "unique_tp_root_causes": 0
+      "unique_source_consistent_root_causes": 0,
+      "exclusive_source_consistent_root_causes": 0
     },
     {
       "tool": "Codex Security",
       "target": "tlse",
       "candidates": 3,
-      "tp_entries": 3,
+      "tp_security_entries": 3,
+      "tp_low_entries": 0,
       "fp_entries": 0,
       "unknown_entries": 0,
+      "source_consistent_total": 3,
       "duplicate_entries": 0,
-      "unique_tp_root_causes": 3
+      "unique_source_consistent_root_causes": 3,
+      "exclusive_source_consistent_root_causes": 0
     }
   ],
   "caveats": [
-    "Labels are AI subagent adjudications, not human confirmation and not independent dynamic confirmation.",
-    "A TP label is a source-consistent defect assessment. A FP label requires source-level contradiction.",
-    "UNKNOWN includes feature-gated, runtime-dependent, or report-insufficient cases.",
+    "TP_security is the strict first-pass label. TP_low is a second-pass source-consistent low-impact label.",
+    "Source-consistent total = TP_security + TP_low. It is broader than a security-vulnerability count.",
+    "Labels are AI subagent adjudications, not human confirmation or independent dynamic reproduction.",
     "Timeout and missing-coverage results are not counted as false negatives.",
-    "Unique TP root causes are deduplicated by subagent root_cause_key; they are not a CVE count.",
-    "Claude tlse has two assessed candidates from an unparsed execution log; its structured report remains invalid."
+    "Exclusive root causes are issues found only by that tool within the subagent union."
   ]
 }

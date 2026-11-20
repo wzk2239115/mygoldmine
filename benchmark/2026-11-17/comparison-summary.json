@@ -1,5 +1,5 @@
 {
-  "updated_at_utc": "2026-11-19T15:19:44.101238+00:00",
+  "updated_at_utc": "2026-11-20T10:17:03.845904+00:00",
   "base": "/vol1/1000/mygoldmine-benchmark/2026-11-17",
   "targets": [
     "sol",
@@ -14,7 +14,8 @@
     "Timeout and interrupted reports are partial. Missing reports and unfinished categories must not be read as zero vulnerabilities.",
     "Cross-tool deduplication has not been performed. RepoAudit sol raw records are deduplicated by persisted buggy_value root-cause key.",
     "The targets are frozen default-branch snapshots, not historical vulnerable versions with a ground-truth set.",
-    "Subagent TP/FP labels are AI adjudications, not human confirmation or independent dynamic reproduction."
+    "Subagent TP/FP labels are AI adjudications, not human confirmation or independent dynamic reproduction.",
+    "TP_low is a second-pass low-impact layer; source-consistent total is broader than a security-vulnerability count."
   ],
   "rows": [
     {
@@ -42,11 +43,14 @@
       "interrupted": false,
       "timeout_basis": null,
       "subagent_adjudication": {
-        "tp_entries": 12,
-        "fp_entries": 3,
+        "tp_security_entries": 12,
+        "tp_low_entries": 1,
+        "source_consistent_total": 13,
+        "fp_entries": 2,
         "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 12,
+        "unique_source_consistent_root_causes": 13,
+        "exclusive_source_consistent_root_causes": 7,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -75,11 +79,14 @@
       "ended_at": "2026-11-17T10:22:32.790785+00:00",
       "limitations": "partial findings from an interrupted one-hour run",
       "subagent_adjudication": {
-        "tp_entries": 6,
+        "tp_security_entries": 6,
+        "tp_low_entries": 0,
+        "source_consistent_total": 6,
         "fp_entries": 0,
         "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 6,
+        "unique_source_consistent_root_causes": 6,
+        "exclusive_source_consistent_root_causes": 1,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -169,11 +176,14 @@
         }
       ],
       "subagent_adjudication": {
-        "tp_entries": 2,
+        "tp_security_entries": 2,
+        "tp_low_entries": 0,
+        "source_consistent_total": 2,
         "fp_entries": 0,
         "unknown_entries": 0,
         "duplicate_entries": 1,
-        "unique_tp_root_causes": 1,
+        "unique_source_consistent_root_causes": 1,
+        "exclusive_source_consistent_root_causes": 0,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -204,11 +214,14 @@
       "parse_failure": false,
       "notes": null,
       "subagent_adjudication": {
-        "tp_entries": 4,
+        "tp_security_entries": 4,
+        "tp_low_entries": 0,
+        "source_consistent_total": 4,
         "fp_entries": 0,
         "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 4,
+        "unique_source_consistent_root_causes": 4,
+        "exclusive_source_consistent_root_causes": 1,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -237,11 +250,14 @@
       "started_at": "2026-11-17T10:24:04.760889+00:00",
       "ended_at": "2026-11-17T10:56:22.674634+00:00",
       "subagent_adjudication": {
-        "tp_entries": 8,
+        "tp_security_entries": 8,
+        "tp_low_entries": 0,
+        "source_consistent_total": 8,
         "fp_entries": 0,
         "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 8,
+        "unique_source_consistent_root_causes": 8,
+        "exclusive_source_consistent_root_causes": 1,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -272,11 +288,14 @@
       "interrupted": false,
       "timeout_basis": null,
       "subagent_adjudication": {
-        "tp_entries": 2,
-        "fp_entries": 2,
+        "tp_security_entries": 2,
+        "tp_low_entries": 2,
+        "source_consistent_total": 4,
+        "fp_entries": 0,
         "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 2,
+        "unique_source_consistent_root_causes": 4,
+        "exclusive_source_consistent_root_causes": 3,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -305,11 +324,14 @@
       "ended_at": "2026-11-17T10:22:32.788804+00:00",
       "limitations": "partial findings from an interrupted one-hour run",
       "subagent_adjudication": {
-        "tp_entries": 2,
+        "tp_security_entries": 2,
+        "tp_low_entries": 0,
+        "source_consistent_total": 2,
         "fp_entries": 0,
         "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 2,
+        "unique_source_consistent_root_causes": 2,
+        "exclusive_source_consistent_root_causes": 0,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -398,11 +420,14 @@
         }
       ],
       "subagent_adjudication": {
-        "tp_entries": 0,
+        "tp_security_entries": 0,
+        "tp_low_entries": 0,
+        "source_consistent_total": 0,
         "fp_entries": 1,
         "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 0,
+        "unique_source_consistent_root_causes": 0,
+        "exclusive_source_consistent_root_causes": 0,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -456,11 +481,14 @@
       "started_at": "2026-11-17T10:56:22.675632+00:00",
       "ended_at": "2026-11-17T11:44:17.219913+00:00",
       "subagent_adjudication": {
-        "tp_entries": 3,
+        "tp_security_entries": 3,
+        "tp_low_entries": 0,
+        "source_consistent_total": 3,
         "fp_entries": 0,
         "unknown_entries": 0,
         "duplicate_entries": 3,
-        "unique_tp_root_causes": 0,
+        "unique_source_consistent_root_causes": 0,
+        "exclusive_source_consistent_root_causes": 0,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -491,11 +519,14 @@
       "interrupted": true,
       "timeout_basis": "external 3600s wall-clock budget; SIGTERM/exit 143 is not a normal scan failure",
       "subagent_adjudication": {
-        "tp_entries": 5,
-        "fp_entries": 1,
-        "unknown_entries": 2,
+        "tp_security_entries": 5,
+        "tp_low_entries": 3,
+        "source_consistent_total": 8,
+        "fp_entries": 0,
+        "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 5,
+        "unique_source_consistent_root_causes": 8,
+        "exclusive_source_consistent_root_causes": 4,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -524,11 +555,14 @@
       "ended_at": "2026-11-17T11:22:52.482898+00:00",
       "limitations": "partial findings from an interrupted one-hour run",
       "subagent_adjudication": {
-        "tp_entries": 4,
+        "tp_security_entries": 4,
+        "tp_low_entries": 0,
+        "source_consistent_total": 4,
         "fp_entries": 0,
         "unknown_entries": 0,
         "duplicate_entries": 1,
-        "unique_tp_root_causes": 3,
+        "unique_source_consistent_root_causes": 3,
+        "exclusive_source_consistent_root_causes": 0,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -644,11 +678,14 @@
       "parse_failure": false,
       "notes": null,
       "subagent_adjudication": {
-        "tp_entries": 0,
+        "tp_security_entries": 0,
+        "tp_low_entries": 1,
+        "source_consistent_total": 1,
         "fp_entries": 0,
-        "unknown_entries": 1,
+        "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 0,
+        "unique_source_consistent_root_causes": 1,
+        "exclusive_source_consistent_root_causes": 0,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -677,11 +714,14 @@
       "started_at": "2026-11-17T11:44:17.223272+00:00",
       "ended_at": "2026-11-17T12:41:20.243391+00:00",
       "subagent_adjudication": {
-        "tp_entries": 7,
+        "tp_security_entries": 7,
+        "tp_low_entries": 1,
+        "source_consistent_total": 8,
         "fp_entries": 0,
-        "unknown_entries": 1,
+        "unknown_entries": 0,
         "duplicate_entries": 8,
-        "unique_tp_root_causes": 0,
+        "unique_source_consistent_root_causes": 0,
+        "exclusive_source_consistent_root_causes": 0,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -712,11 +752,14 @@
       "interrupted": true,
       "timeout_basis": "external 3600s wall-clock budget; SIGTERM/exit 143 is not a normal scan failure",
       "subagent_adjudication": {
-        "tp_entries": 3,
-        "fp_entries": 1,
-        "unknown_entries": 2,
+        "tp_security_entries": 3,
+        "tp_low_entries": 3,
+        "source_consistent_total": 6,
+        "fp_entries": 0,
+        "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 3,
+        "unique_source_consistent_root_causes": 6,
+        "exclusive_source_consistent_root_causes": 4,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -745,11 +788,14 @@
       "ended_at": "2026-11-17T11:22:48.812029+00:00",
       "limitations": "partial findings from an interrupted one-hour run",
       "subagent_adjudication": {
-        "tp_entries": 11,
+        "tp_security_entries": 11,
+        "tp_low_entries": 1,
+        "source_consistent_total": 12,
         "fp_entries": 0,
-        "unknown_entries": 1,
+        "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 11,
+        "unique_source_consistent_root_causes": 12,
+        "exclusive_source_consistent_root_causes": 8,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -865,11 +911,14 @@
       "parse_failure": true,
       "notes": "execution.log contains two unparsed vulnerability sections",
       "subagent_adjudication": {
-        "tp_entries": 2,
+        "tp_security_entries": 2,
+        "tp_low_entries": 0,
+        "source_consistent_total": 2,
         "fp_entries": 0,
         "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 2,
+        "unique_source_consistent_root_causes": 2,
+        "exclusive_source_consistent_root_causes": 0,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -898,11 +947,14 @@
       "started_at": "2026-11-17T12:41:20.245650+00:00",
       "ended_at": "2026-11-17T13:12:50.516697+00:00",
       "subagent_adjudication": {
-        "tp_entries": 3,
+        "tp_security_entries": 3,
+        "tp_low_entries": 0,
+        "source_consistent_total": 3,
         "fp_entries": 0,
         "unknown_entries": 0,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 3,
+        "unique_source_consistent_root_causes": 3,
+        "exclusive_source_consistent_root_causes": 0,
         "label_source": "subagent",
         "human_confirmed": false,
         "independently_confirmed": false
@@ -924,58 +976,134 @@
     "path": "adjudication/summary.json",
     "overall": {
       "candidates": 89,
-      "tp_entries": 74,
-      "fp_entries": 8,
-      "unknown_entries": 7,
+      "tp_security_entries": 74,
+      "tp_low_entries": 12,
+      "fp_entries": 3,
+      "unknown_entries": 0,
+      "source_consistent_total": 86,
       "duplicate_entries": 13,
-      "unique_tp_root_causes": 42,
-      "unique_tp_root_causes_all_targets": 42
+      "unique_source_consistent_root_causes": 53,
+      "unique_source_consistent_root_causes_all_targets": 53,
+      "exclusive_source_consistent_root_causes_all_targets": 29
     },
     "by_target": [
       {
         "target": "sol",
         "candidates": 35,
-        "tp_entries": 32,
-        "fp_entries": 3,
+        "tp_security_entries": 32,
+        "tp_low_entries": 1,
+        "fp_entries": 2,
         "unknown_entries": 0,
+        "source_consistent_total": 33,
         "duplicate_entries": 1,
-        "unique_tp_root_causes": 18
+        "unique_source_consistent_root_causes": 19,
+        "exclusive_source_consistent_root_causes": null
       },
       {
         "target": "pure-ftpd",
         "candidates": 10,
-        "tp_entries": 7,
-        "fp_entries": 3,
+        "tp_security_entries": 7,
+        "tp_low_entries": 2,
+        "fp_entries": 1,
         "unknown_entries": 0,
+        "source_consistent_total": 9,
         "duplicate_entries": 3,
-        "unique_tp_root_causes": 4
+        "unique_source_consistent_root_causes": 6,
+        "exclusive_source_consistent_root_causes": null
       },
       {
         "target": "libcoap",
         "candidates": 21,
-        "tp_entries": 16,
-        "fp_entries": 1,
-        "unknown_entries": 4,
+        "tp_security_entries": 16,
+        "tp_low_entries": 5,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "source_consistent_total": 21,
         "duplicate_entries": 9,
-        "unique_tp_root_causes": 8
+        "unique_source_consistent_root_causes": 12,
+        "exclusive_source_consistent_root_causes": null
       },
       {
         "target": "tlse",
         "candidates": 23,
-        "tp_entries": 19,
-        "fp_entries": 1,
-        "unknown_entries": 3,
+        "tp_security_entries": 19,
+        "tp_low_entries": 4,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "source_consistent_total": 23,
         "duplicate_entries": 0,
-        "unique_tp_root_causes": 12
+        "unique_source_consistent_root_causes": 16,
+        "exclusive_source_consistent_root_causes": null
+      }
+    ],
+    "by_tool": [
+      {
+        "tool": "Mygoldmine",
+        "candidates": 33,
+        "tp_security_entries": 22,
+        "tp_low_entries": 9,
+        "fp_entries": 2,
+        "unknown_entries": 0,
+        "source_consistent_total": 31,
+        "duplicate_entries": 0,
+        "unique_source_consistent_root_causes": 31,
+        "exclusive_source_consistent_root_causes": 18
+      },
+      {
+        "tool": "Strix",
+        "candidates": 24,
+        "tp_security_entries": 23,
+        "tp_low_entries": 1,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "source_consistent_total": 24,
+        "duplicate_entries": 1,
+        "unique_source_consistent_root_causes": 23,
+        "exclusive_source_consistent_root_causes": 9
+      },
+      {
+        "tool": "RepoAudit",
+        "candidates": 3,
+        "tp_security_entries": 2,
+        "tp_low_entries": 0,
+        "fp_entries": 1,
+        "unknown_entries": 0,
+        "source_consistent_total": 2,
+        "duplicate_entries": 1,
+        "unique_source_consistent_root_causes": 1,
+        "exclusive_source_consistent_root_causes": 0
+      },
+      {
+        "tool": "Claude Code Security Review",
+        "candidates": 7,
+        "tp_security_entries": 6,
+        "tp_low_entries": 1,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "source_consistent_total": 7,
+        "duplicate_entries": 0,
+        "unique_source_consistent_root_causes": 7,
+        "exclusive_source_consistent_root_causes": 1
+      },
+      {
+        "tool": "Codex Security",
+        "candidates": 22,
+        "tp_security_entries": 21,
+        "tp_low_entries": 1,
+        "fp_entries": 0,
+        "unknown_entries": 0,
+        "source_consistent_total": 22,
+        "duplicate_entries": 11,
+        "unique_source_consistent_root_causes": 11,
+        "exclusive_source_consistent_root_causes": 1
       }
     ],
     "caveats": [
-      "Labels are AI subagent adjudications, not human confirmation and not independent dynamic confirmation.",
-      "A TP label is a source-consistent defect assessment. A FP label requires source-level contradiction.",
-      "UNKNOWN includes feature-gated, runtime-dependent, or report-insufficient cases.",
+      "TP_security is the strict first-pass label. TP_low is a second-pass source-consistent low-impact label.",
+      "Source-consistent total = TP_security + TP_low. It is broader than a security-vulnerability count.",
+      "Labels are AI subagent adjudications, not human confirmation or independent dynamic reproduction.",
       "Timeout and missing-coverage results are not counted as false negatives.",
-      "Unique TP root causes are deduplicated by subagent root_cause_key; they are not a CVE count.",
-      "Claude tlse has two assessed candidates from an unparsed execution log; its structured report remains invalid."
+      "Exclusive root causes are issues found only by that tool within the subagent union."
     ]
   }
 }

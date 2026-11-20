@@ -57,15 +57,25 @@ Counts are raw report entries, not true vulnerabilities. Only RepoAudit/sol was 
 
 Raw reports, candidate descriptions, proof-of-concept payloads, execution logs, session traces, source snapshots, provider credentials, and private state are not included in this directory.
 
-## AI subagent TP/FP adjudication
+## AI subagent adjudication
 
-These labels were produced by four AI subagents, one per target. They are not human confirmation and not independent dynamic reproduction. Source-consistent `TP`/`FP`/`UNKNOWN` verdicts are in `adjudication/`, with `label_source=subagent` and `human_confirmed=false`.
+AI subagent labels only; not human confirmation and not independent dynamic reproduction. `TP_security` is the strict layer. `TP_low` is a second-pass source-consistent low-impact layer. `source_consistent_total = TP_security + TP_low`.
 
-| Target | TP entries | FP entries | UNKNOWN | Unique TP root causes |
-|---|---:|---:|---:|---:|
-| sol | 32 | 3 | 0 | 18 |
-| pure-ftpd | 7 | 3 | 0 | 4 |
-| libcoap | 16 | 1 | 4 | 8 |
-| tlse | 19 | 1 | 3 | 12 |
+| Tool | Source-consistent total | TP_security | TP_low | FP | Exclusive root causes |
+|---|---:|---:|---:|---:|---:|
+| Mygoldmine | 31 | 22 | 9 | 2 | 18 |
+| Strix | 24 | 23 | 1 | 0 | 9 |
+| Codex Security | 22 | 21 | 1 | 0 | 1 |
+| Claude Code Security Review | 7 | 6 | 1 | 0 | 1 |
+| RepoAudit | 2 | 2 | 0 | 1 | 0 |
 
-Across 89 assessed candidates: 74 TP entries, 8 FP entries, 7 UNKNOWN entries, and 42 unique TP root causes after cross-tool deduplication.
+By target:
+
+| Target | Source-consistent total | TP_security | TP_low | FP | UNKNOWN |
+|---|---:|---:|---:|---:|---:|
+| sol | 33 | 32 | 1 | 2 | 0 |
+| pure-ftpd | 9 | 7 | 2 | 1 | 0 |
+| libcoap | 21 | 16 | 5 | 0 | 0 |
+| tlse | 23 | 19 | 4 | 0 | 0 |
+
+Exclusive root causes are issues found only by that tool within the subagent union. They are not ground-truth vulnerabilities.

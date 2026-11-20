@@ -1,0 +1,203 @@
+[
+  {
+    "candidate_id": "mygoldmine:sol:SOL-007",
+    "original_label": "FP",
+    "secondary_label": "FP",
+    "reason": "Only call site runs the wildcard foreach inside if (topic_store_wildcards_empty(...)), so an empty list yields zero iterations and match_subscription is never reached; the reported index() NULL deref is unreachable.",
+    "evidence": [
+      "src/handlers.c:719-723 foreach over store->wildcards guarded by wildcards_empty",
+      "src/topic_store.c:149-152 wildcards_empty true only when list_size==0",
+      "src/sol_internal.h:384-385 foreach expands to list_foreach over store->wildcards"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "mygoldmine:sol:SOL-011",
+    "original_label": "FP",
+    "secondary_label": "TP_low",
+    "reason": "CA is loaded and a verify callback defined, but SSL_VERIFY_NONE hardcodes no client-certificate verification and there is no option to enable it; allow_anonymous also defaults true. Hardening gap.",
+    "evidence": [
+      "src/network.c:373 SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, client_certificate_verify)",
+      "src/network.c:353-359 callback defined but never invoked under VERIFY_NONE",
+      "src/config.c:368 config.allow_anonymous = true default"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "mygoldmine:sol:SOL-013",
+    "original_label": "FP",
+    "secondary_label": "FP",
+    "reason": "topic[-1] lands in try_alloc's own size_t prefix inside the allocation, not past it; the report's heap-OOB claim is contradicted and the header byte is deterministic.",
+    "evidence": [
+      "src/handlers.c:703 reads p->topic[p->topiclen-1] when topiclen is 0",
+      "src/pack.c:411-417 topic comes from unpack_bytes/try_alloc",
+      "src/memory.c:46-56 try_alloc returns ptr+sizeof(size_t), so [-1] is the in-chunk size header"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "mygoldmine:pure-ftpd:NORM-INT-001",
+    "original_label": "FP",
+    "secondary_label": "TP_low",
+    "reason": "With only a file-count quota set, user_quota_size stays at the 2^63 sentinel; subtracting 0 and casting to off_t yields a negative value, sets overflow=1 and rejects every upload. Fail-closed availability defect.",
+    "evidence": [
+      "src/ftpd.c:4303 (max_filesize = user_quota_size - quota.size) < (off_t) 0",
+      "src/globals.h:151 user_quota_size defaults to ULONG_LONG_MAX (1ULL<<63)",
+      "src/log_puredb.c:409 size quota left unchanged when field empty"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "mygoldmine:pure-ftpd:NORM-TLS-001",
+    "original_label": "FP",
+    "secondary_label": "TP_low",
+    "reason": "cert_file/key_file are strdup'd and never freed on the success path, but each connection runs in a forked child that exits, so the leak is bounded per connection.",
+    "evidence": [
+      "src/tls_extcert.c:67 and :82 strdup into result fields",
+      "src/tls.c:121 returns SSL_TLSEXT_ERR_OK without freeing",
+      "src/ftpd.c:5381-5393 fork, doit(), _EXIT reclaims at child exit"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "repoaudit:pure-ftpd:NPD:0",
+    "original_label": "FP",
+    "secondary_label": "FP",
+    "reason": "PAM_conv is only installed as the libpam conversation callback; pam_start/pam_authenticate always pass a valid struct pam_response **, so the unchecked *resp deref is safe.",
+    "evidence": [
+      "src/log_pam.c:72-80 PAM_conv writes *resp with no NULL check",
+      "src/log_pam.c:133-135 PAM_conversation installs PAM_conv",
+      "src/log_pam.c:160-161 pam_start uses that conversation struct"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "claude:libcoap:1",
+    "original_label": "UNKNOWN",
+    "secondary_label": "TP_low",
+    "reason": "Unchecked payload-marker write is real: a token can fill used_size to max_size, the ignored Content-Format add then fails, and the marker is written one byte past the allocation. Latent OOB under extended-token/TCP sizing.",
+    "evidence": [
+      "src/coap_block.c:1875-1880 ignores add results and writes the marker unconditionally",
+      "src/coap_pdu.c:439-446 token may fill used_size to max_size",
+      "src/coap_pdu.c:395-412 resize refuses growth past max_size",
+      "src/coap_block.c:3542-3547 mandatory Size1/RTag gate default UDP"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "codex:libcoap:csf_288fdb40ff0454c59f470c31",
+    "original_label": "UNKNOWN",
+    "secondary_label": "TP_low",
+    "reason": "Same unchecked marker write; report itself calls it latent because mandatory Q-Block1 options block the default-UDP trigger. Source-consistent one-byte heap OOB under other transport/CSM sizing.",
+    "evidence": [
+      "src/coap_block.c:1875-1880 unchecked marker write",
+      "src/coap_pdu.c:439-446 exact-fill token accepted",
+      "src/coap_pdu.c:395-412 further growth refused",
+      "src/coap_block.c:3542-3547 Size1/RTag required before sink"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "mygoldmine:libcoap:LIBCOAP-LOW-003",
+    "original_label": "FP",
+    "secondary_label": "TP_low",
+    "reason": "uri.host/path/query point into the Proxy-Uri value; coap_remove_option memmoves later bytes over it, so the rebuilt Uri-Host/Path/Query read shifted bytes. In-allocation protocol-correctness defect.",
+    "evidence": [
+      "src/coap_oscore.c:288-322 parse then remove then reuse uri fields",
+      "src/coap_pdu.c:636 memmove shifts following bytes left",
+      "src/coap_uri.c:256,331,340 uri fields point into the option value"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "mygoldmine:libcoap:LIBCOAP-LOW-004",
+    "original_label": "UNKNOWN",
+    "secondary_label": "TP_low",
+    "reason": "Incoming Proxy-Uri without Hop-Limit leaves hop_limit=-1, so no decrement occurs; the default is only inserted when the library adds the option. Host endpoint compare is case-sensitive. Loop/amplification hardening gap under proxy config.",
+    "evidence": [
+      "src/coap_net.c:3853 hop_limit initialized to -1",
+      "src/coap_net.c:3976-3980 validates only when present",
+      "src/coap_net.c:4094-4113 decrements only when >=0",
+      "src/coap_pdu.c:887-895 default inserted only on coap_add_option",
+      "src/coap_net.c:3954 memcmp-based case-sensitive host compare"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "mygoldmine:libcoap:LIBCOAP-LOW-005",
+    "original_label": "UNKNOWN",
+    "secondary_label": "TP_low",
+    "reason": "A %2F host prefix is explicitly parsed as a Unix-domain target and resolved to AF_UNIX; no proxy guard rejects it, so an exposed dynamic proxy can be steered to local sockets. Hardening gap with deployment-dependent impact.",
+    "evidence": [
+      "src/coap_uri.c:260-264 %2F host sets is_unix_domain",
+      "src/coap_address.c:749-770 resolves such hosts via coap_address_set_unix_domain",
+      "src/coap_proxy.c has no Unix-target rejection"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "mygoldmine:tlse:IPC-SERIAL-001",
+    "original_label": "UNKNOWN",
+    "secondary_label": "TP_low",
+    "reason": "The key_lengths check permits buf_pos to equal buf_len, then mac_length reads buffer[buf_len]: a one-byte OOB read on a truncated import buffer. Latent under host-supplied serialized state.",
+    "evidence": [
+      "tlse.c:12812-12815 key_lengths read and CHECK_SIZE allow buf_pos==buf_len",
+      "tlse.c:12858 mac_length = buffer[buf_pos++] with no preceding check",
+      "tlse.c:788 TLS_IMPORT_CHECK_SIZE macro"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "mygoldmine:tlse:IPC-SERIAL-002",
+    "original_label": "FP",
+    "secondary_label": "TP_low",
+    "reason": "local_iv/remote_iv are uninitialized stack arrays; only iv_len (<16) bytes are copied and the full block is later consumed by cbc_start, so IV bytes come from stack garbage. Constrained crypto/correctness defect.",
+    "evidence": [
+      "tlse.c:12768-12769 local_iv/remote_iv declared uninitialized",
+      "tlse.c:12798 iv_len read with only an upper bound",
+      "tlse.c:12807-12810 copies only iv_len bytes",
+      "tlse.c:12851 arrays passed to _private_tls_crypto_create"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "mygoldmine:tlse:IPC-SERIAL-003",
+    "original_label": "UNKNOWN",
+    "secondary_label": "TP_low",
+    "reason": "TLS_MALLOC result is used by memcpy with no NULL check; the branch exists only in an opt-in TLS_REEXPORTABLE build and needs allocation failure. Latent NULL-deref under non-default config.",
+    "evidence": [
+      "tlse.c:12816 #ifdef TLS_REEXPORTABLE",
+      "tlse.c:12818 TLS_MALLOC without NULL check",
+      "tlse.c:12819 memcpy into the possibly-NULL pointer",
+      "TLS_REEXPORTABLE not defined in CMakeLists or tlse.h"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  },
+  {
+    "candidate_id": "strix:tlse:vuln-0011",
+    "original_label": "UNKNOWN",
+    "secondary_label": "TP_low",
+    "reason": "Empty client certificate lists are explicitly accepted, the verify callback is skipped when count is zero, and no fail-if-no-cert exists; tls_client_verified reflects CertificateVerify against the peer-supplied cert, not a trust anchor. mTLS bypass when an app relies on the API.",
+    "evidence": [
+      "tlse.c:9988-9993 empty client certificates permitted, callback only when count nonzero",
+      "tlse.c:10085-10108 Finished completes without a client certificate",
+      "tlse.c:12980-12984 tls_client_verified returns the client_verified flag"
+    ],
+    "reviewer": "subagent:low-impact",
+    "reviewed_at_utc": "2026-11-20T10:11:27Z"
+  }
+]
