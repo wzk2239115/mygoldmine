@@ -1,0 +1,3 @@
+group,cycles,rounds_per_cycle,new_unique_lines_per_round,risk_weighted_coverage_per_round,verified_reports_per_cycle
+fixed_skills,7,3.4,5.0,6.1,1.0
+recursive_updates,30,7.0,5.8,7.2,1.8
