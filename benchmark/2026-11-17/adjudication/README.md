@@ -26,6 +26,7 @@ They are not human confirmation and not independent dynamic reproduction.
 - `labels.csv`: compact label table.
 - `summary.json`: counts by tool, target, and tool-target pair.
 - `summary.md`: human-readable summary tables.
+- `table-labels.json`: per-candidate labels used by `docs/paper-materials/tool-comparison.md`; reference size 53, six source-consistent candidates converted to FP for the table layer.
 
 ## Coverage
 
